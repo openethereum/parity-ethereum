@@ -260,7 +260,7 @@ impl<'a> EvmTestClient<'a> {
 	) -> std::result::Result<TransactSuccess<T::Output, V::Output>, TransactErr> {
 		let initial_gas = transaction.gas;
 		// Verify transaction
-		let is_ok = transaction.verify_basic(true, None, false);
+		let is_ok = transaction.verify_basic(true, None);
 		if let Err(error) = is_ok {
 			return Err(
 				TransactErr{

@@ -50,10 +50,10 @@ struct SigningTester {
 	pub io: IoHandler<Metadata>,
 }
 
-impl Default for SigningTester {
-	fn default() -> Self {
+impl SigningTester {
+	fn new(signing_queue_enabled: bool) ->Self {
 		let runtime = Runtime::with_thread_count(1);
-		let signer = Arc::new(SignerService::new_test(false));
+		let signer = Arc::new(SignerService::new_test(signing_queue_enabled));
 		let client = Arc::new(TestBlockChainClient::default());
 		let miner = Arc::new(TestMinerService::default());
 		let accounts = Arc::new(AccountProvider::transient_provider());
@@ -81,15 +81,15 @@ impl Default for SigningTester {
 	}
 }
 
-fn eth_signing() -> SigningTester {
-	SigningTester::default()
+fn eth_signing(signing_queue_enabled: bool) -> SigningTester {
+	SigningTester::new(signing_queue_enabled)
 }
 
 #[test]
 fn rpc_eth_sign() {
 	use rustc_hex::FromHex;
 
-	let tester = eth_signing();
+	let tester = eth_signing(true);
 
 	let account = tester.accounts.insert_account(Secret::from([69u8; 32]), &"abcd".into()).unwrap();
 	tester.accounts.unlock_account_permanently(account, "abcd".into()).unwrap();
@@ -112,7 +112,7 @@ fn rpc_eth_sign() {
 #[test]
 fn should_add_sign_to_queue() {
 	// given
-	let tester = eth_signing();
+	let tester = eth_signing(true);
 	let address = Address::random();
 	assert_eq!(tester.signer.requests().len(), 0);
 
@@ -150,7 +150,7 @@ fn should_add_sign_to_queue() {
 #[test]
 fn should_post_sign_to_queue() {
 	// given
-	let tester = eth_signing();
+	let tester = eth_signing(true);
 	let address = Address::random();
 	assert_eq!(tester.signer.requests().len(), 0);
 
@@ -174,7 +174,7 @@ fn should_post_sign_to_queue() {
 #[test]
 fn should_check_status_of_request() {
 	// given
-	let tester = eth_signing();
+	let tester = eth_signing(true);
 	let address = Address::random();
 	let request = r#"{
 		"jsonrpc": "2.0",
@@ -203,7 +203,7 @@ fn should_check_status_of_request() {
 #[test]
 fn should_check_status_of_request_when_its_resolved() {
 	// given
-	let tester = eth_signing();
+	let tester = eth_signing(true);
 	let address = Address::random();
 	let request = r#"{
 		"jsonrpc": "2.0",
@@ -235,9 +235,55 @@ fn should_check_status_of_request_when_its_resolved() {
 }
 
 #[test]
+fn eth_sign_locked_account() {
+	let secret = "8a283037bb19c4fed7b1c569e40c7dcff366165eb869110a1b11532963eb9cb2".parse().unwrap();
+	let tester = eth_signing(false);
+	let address = tester.accounts.insert_account(secret, &"".into()).unwrap();
+
+	let req_send_trans = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_sendTransaction",
+		"params": [{
+			"from": ""#.to_owned() + format!("0x{:x}", address).as_ref() + r#"",
+			"to": "0xd46e8dd67c5d32be8058bb8eb970870f07244567",
+			"gas": "0x30000",
+			"gasPrice": "0x1",
+			"value": "0x9184e72a"
+		}],
+		"id": 16
+	}"#;
+
+	// expected error response
+	let error_res = r#"{
+		"jsonrpc":"2.0",
+		"error":
+			{
+				"code":-32020,
+				"message":"Your account is locked and the signing queue is disabled.
+				 You can either Unlock the account via CLI, personal_unlockAccount or
+				 enable the signing queue to use Trusted Signer."
+			},
+		"id":16
+	}"#;
+	// dispatch the transaction, without unlocking the account.
+	assert_eq!(
+		error_res.replace("\t", "").replace("\n", ""),
+		tester.io.handle_request_sync(&req_send_trans).unwrap()
+	);
+	// unlock the account
+	tester.accounts.unlock_account_permanently(address, "".into()).unwrap();
+
+	// try again, this time account is unlocked.
+	assert_eq!(
+		r#"{"jsonrpc":"2.0","result":"0x70df76392fba654351714803d99a90be1d58d165352e0008e376427284314c88","id":16}"#,
+		tester.io.handle_request_sync(&req_send_trans).unwrap()
+	);
+}
+
+#[test]
 fn should_sign_if_account_is_unlocked() {
 	// given
-	let tester = eth_signing();
+	let tester = eth_signing(true);
 	let data = vec![5u8];
 	let acc = tester.accounts.insert_account(Secret::from([69u8; 32]), &"test".into()).unwrap();
 	tester.accounts.unlock_account_permanently(acc, "test".into()).unwrap();
@@ -260,7 +306,7 @@ fn should_sign_if_account_is_unlocked() {
 #[test]
 fn should_add_transaction_to_queue() {
 	// given
-	let tester = eth_signing();
+	let tester = eth_signing(true);
 	let address = Address::random();
 	assert_eq!(tester.signer.requests().len(), 0);
 
@@ -301,7 +347,7 @@ fn should_add_transaction_to_queue() {
 #[test]
 fn should_add_sign_transaction_to_the_queue() {
 	// given
-	let tester = eth_signing();
+	let tester = eth_signing(true);
 	let address = tester.accounts.new_account(&"test".into()).unwrap();
 
 	assert_eq!(tester.signer.requests().len(), 0);
@@ -380,7 +426,7 @@ fn should_add_sign_transaction_to_the_queue() {
 #[test]
 fn should_dispatch_transaction_if_account_is_unlock() {
 	// given
-	let tester = eth_signing();
+	let tester = eth_signing(true);
 	let acc = tester.accounts.new_account(&"test".into()).unwrap();
 	tester.accounts.unlock_account_permanently(acc, "test".into()).unwrap();
 
@@ -417,7 +463,7 @@ fn should_dispatch_transaction_if_account_is_unlock() {
 #[test]
 fn should_decrypt_message_if_account_is_unlocked() {
 	// given
-	let mut tester = eth_signing();
+	let mut tester = eth_signing(true);
 	let parity = parity::Dependencies::new();
 	tester.io.extend_with(parity.client(None).to_delegate());
 	let (address, public) = tester.accounts.new_account_and_public(&"test".into()).unwrap();
@@ -449,7 +495,7 @@ fn should_decrypt_message_if_account_is_unlocked() {
 #[test]
 fn should_add_decryption_to_the_queue() {
 	// given
-	let tester = eth_signing();
+	let tester = eth_signing(true);
 	let acc = Random.generate().unwrap();
 	assert_eq!(tester.signer.requests().len(), 0);
 
@@ -486,7 +532,7 @@ fn should_add_decryption_to_the_queue() {
 #[test]
 fn should_compose_transaction() {
 	// given
-	let tester = eth_signing();
+	let tester = eth_signing(true);
 	let acc = Random.generate().unwrap();
 	assert_eq!(tester.signer.requests().len(), 0);
 	let from = format!("{:x}", acc.address());

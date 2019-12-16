@@ -148,10 +148,10 @@ pub type Result<T> = trie::Result<T, H256, DecoderError>;
 
 #[cfg(test)]
 mod tests {
-
 	use ethereum_types::H256;
-	use crate::{TrieDB, TrieDBMut, trie::TrieMut};
 	use trie::Trie;
+
+	use crate::{TrieDB, TrieDBMut, trie::TrieMut};
 
 	#[test]
 	fn test_inline_encoding_branch() {

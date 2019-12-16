@@ -74,10 +74,10 @@ mod accounts {
 		pub fn new(account_provider: Arc<AccountProvider>, address: Address, password: Password) -> Result<Self, EthKeyError> {
 			let public = account_provider.account_public(address.clone(), &password).map_err(|e| EthKeyError::Custom(format!("{}", e)))?;
 			Ok(KeyStoreNodeKeyPair {
-				account_provider: account_provider,
-				address: address,
-				public: public,
-				password: password,
+				account_provider,
+				address,
+				public,
+				password,
 			})
 		}
 	}

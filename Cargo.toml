@@ -40,7 +40,7 @@ journaldb = { path = "util/journaldb" }
 jsonrpc-core = "14.0.3"
 keccak-hash = "0.4.0"
 kvdb = "0.1"
-kvdb-rocksdb = "0.1.5"
+kvdb-rocksdb = "0.2.0"
 log = "0.4"
 migration-rocksdb = { path = "util/migration-rocksdb" }
 node-filter = { path = "ethcore/node-filter" }
@@ -135,3 +135,4 @@ members = [
 	"evmbin",
 	"parity-clib",
 ]
+

@@ -1297,9 +1297,9 @@ impl DatabaseRestore for Client {
 impl BlockChainReset for Client {
 	fn reset(&self, num: u32) -> Result<(), String> {
 		if num as u64 > self.pruning_history() {
-			return Err("Attempting to reset to block with pruned state".into())
+			return Err(format!("Attempting to reset the chain {} blocks back failed: state is pruned (max available: {})", num, self.pruning_history()).into())
 		} else if num == 0 {
-			return Err("invalid number of blocks to reset".into())
+			return Err("0 is an invalid number of blocks to reset".into())
 		}
 
 		let mut blocks_to_delete = Vec::with_capacity(num as usize);

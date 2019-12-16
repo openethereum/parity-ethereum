@@ -25,6 +25,7 @@ extern crate ethereum_types;
 extern crate hyper;
 extern crate keccak_hash as hash;
 extern crate kvdb;
+extern crate kvdb_rocksdb;
 extern crate parity_bytes as bytes;
 extern crate parity_crypto as crypto;
 extern crate parity_runtime;
@@ -53,12 +54,12 @@ extern crate lazy_static;
 #[macro_use]
 extern crate log;
 
-#[cfg(test)]
+#[cfg(any(test, feature = "accounts"))]
 extern crate ethkey;
 #[cfg(test)]
 extern crate env_logger;
 #[cfg(test)]
-extern crate kvdb_rocksdb;
+extern crate tempdir;
 
 #[cfg(feature = "accounts")]
 extern crate ethcore_accounts as accounts;
@@ -76,9 +77,11 @@ mod key_server_set;
 mod node_key_pair;
 mod listener;
 mod trusted_client;
+mod migration;
 
 use std::sync::Arc;
 use kvdb::KeyValueDB;
+use kvdb_rocksdb::{Database, DatabaseConfig};
 use ethcore::client::Client;
 use ethcore::miner::Miner;
 use sync::SyncProvider;
@@ -90,6 +93,20 @@ pub use traits::{NodeKeyPair, KeyServer};
 pub use self::node_key_pair::PlainNodeKeyPair;
 #[cfg(feature = "accounts")]
 pub use self::node_key_pair::KeyStoreNodeKeyPair;
+
+/// Open a secret store DB using the given secret store data path. The DB path is one level beneath the data path.
+pub fn open_secretstore_db(data_path: &str) -> Result<Arc<dyn KeyValueDB>, String> {
+	use std::path::PathBuf;
+
+	migration::upgrade_db(data_path).map_err(|e| e.to_string())?;
+
+	let mut db_path = PathBuf::from(data_path);
+	db_path.push("db");
+	let db_path = db_path.to_str().ok_or_else(|| "Invalid secretstore path".to_string())?;
+
+	let config = DatabaseConfig::with_columns(Some(1));
+	Ok(Arc::new(Database::open(&config, &db_path).map_err(|e| format!("Error opening database: {:?}", e))?))
+}
 
 /// Start new key server instance
 pub fn start(client: Arc<Client>, sync: Arc<dyn SyncProvider>, miner: Arc<Miner>, self_key_pair: Arc<dyn NodeKeyPair>, mut config: ServiceConfiguration,

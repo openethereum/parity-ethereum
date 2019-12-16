@@ -22,12 +22,17 @@ use std::env;
 use std::fs::File;
 use std::io::Write;
 use std::path::Path;
-use vergen::{vergen, OutputFns};
+use vergen::{ConstantsFlags, generate_cargo_keys};
 
 const ERROR_MSG: &'static str = "Failed to generate metadata files";
 
 fn main() {
-	vergen(OutputFns::all()).expect(ERROR_MSG);
+	let vergen_flags = ConstantsFlags::COMMIT_DATE |
+		ConstantsFlags::SHA |
+		ConstantsFlags::SHA_SHORT |
+		ConstantsFlags::TARGET_TRIPLE |
+		ConstantsFlags::REBUILD_ON_HEAD_CHANGE;
+	generate_cargo_keys(vergen_flags).expect(ERROR_MSG);
 
 	let version = rustc_version::version().expect(ERROR_MSG);
 

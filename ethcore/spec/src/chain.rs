@@ -62,6 +62,8 @@ bundle_release_spec! {
 	"ethereum/callisto" => new_callisto,
 	"ethereum/classic" => new_classic,
 	"ethereum/ellaism" => new_ellaism,
+	"ethereum/evantestcore" => new_evantestcore,
+	"ethereum/evancore" => new_evancore,
 	"ethereum/expanse" => new_expanse,
 	"ethereum/foundation" => new_foundation,
 	"ethereum/goerli" => new_goerli,

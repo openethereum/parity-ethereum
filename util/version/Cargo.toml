@@ -27,7 +27,7 @@ rlp = "0.4.0"
 target_info = "0.1"
 
 [build-dependencies]
-vergen = "0.1"
+vergen = "3.0.4"
 rustc_version = "0.2"
 toml = "0.4"
 

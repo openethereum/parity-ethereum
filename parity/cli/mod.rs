@@ -300,7 +300,7 @@ usage! {
 
 			ARG arg_chain: (String) = "foundation", or |c: &Config| c.parity.as_ref()?.chain.clone(),
 			"--chain=[CHAIN]",
-			"Specify the blockchain type. CHAIN may be either a JSON chain specification file or ethereum, classic, poacore, xdai, volta, ewc, musicoin, ellaism, mix, callisto, morden, mordor, ropsten, kovan, rinkeby, goerli, kotti, poasokol, testnet, or dev.",
+			"Specify the blockchain type. CHAIN may be either a JSON chain specification file or ethereum, classic, poacore, xdai, volta, ewc, musicoin, ellaism, mix, callisto, morden, mordor, ropsten, kovan, rinkeby, goerli, kotti, poasokol, testnet, evantestcore, evancore or dev.",
 
 			ARG arg_keys_path: (String) = "$BASE/keys", or |c: &Config| c.parity.as_ref()?.keys_path.clone(),
 			"--keys-path=[PATH]",
@@ -347,6 +347,10 @@ usage! {
 			ARG arg_unlock: (Option<String>) = None, or |c: &Config| c.account.as_ref()?.unlock.as_ref().map(|vec| vec.join(",")),
 			"--unlock=[ACCOUNTS]",
 			"Unlock ACCOUNTS for the duration of the execution. ACCOUNTS is a comma-delimited list of addresses.",
+
+			ARG arg_enable_signing_queue: (bool) = false, or |c: &Config| c.account.as_ref()?.enable_signing_queue,
+			"--enable-signing-queue=[BOOLEAN]",
+			"Enables the signing queue for external transaction signing either via CLI or personal_unlockAccount, turned off by default.",
 
 			ARG arg_password: (Vec<String>) = Vec::new(), or |c: &Config| c.account.as_ref()?.password.clone(),
 			"--password=[FILE]...",
@@ -563,6 +567,10 @@ usage! {
 			ARG arg_ipc_path: (String) = if cfg!(windows) { r"\\.\pipe\jsonrpc.ipc" } else { "$BASE/jsonrpc.ipc" }, or |c: &Config| c.ipc.as_ref()?.path.clone(),
 			"--ipc-path=[PATH]",
 			"Specify custom path for JSON-RPC over IPC service.",
+
+			ARG arg_ipc_chmod: (String) = "660", or |c: &Config| c.ipc.as_ref()?.chmod.clone(),
+			"--ipc-chmod=[NUM]",
+			"Specify octal value for ipc socket permissions (unix/bsd only)",
 
 			ARG arg_ipc_apis: (String) = "web3,eth,pubsub,net,parity,parity_pubsub,parity_accounts,private,traces,rpc,parity_transactions_pool", or |c: &Config| c.ipc.as_ref()?.apis.as_ref().map(|vec| vec.join(",")),
 			"--ipc-apis=[APIS]",
@@ -1194,6 +1202,7 @@ struct Operating {
 #[serde(deny_unknown_fields)]
 struct Account {
 	unlock: Option<Vec<String>>,
+	enable_signing_queue: Option<bool>,
 	password: Option<Vec<String>>,
 	keys_iterations: Option<u32>,
 	refresh_time: Option<u64>,
@@ -1284,6 +1293,7 @@ struct Ws {
 #[derive(Default, Debug, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Ipc {
+	chmod: Option<String>,
 	disable: Option<bool>,
 	path: Option<String>,
 	apis: Option<Vec<String>>,
@@ -1728,6 +1738,7 @@ mod tests {
 			arg_restore_file: None,
 			arg_tools_hash_file: None,
 
+			arg_enable_signing_queue: false,
 			arg_signer_sign_id: None,
 			arg_signer_reject_id: None,
 			arg_dapp_path: None,
@@ -1834,7 +1845,7 @@ mod tests {
 			flag_no_ipc: false,
 			arg_ipc_path: "$HOME/.parity/jsonrpc.ipc".into(),
 			arg_ipc_apis: "web3,eth,net,parity,parity_accounts,personal,traces,rpc,secretstore".into(),
-
+			arg_ipc_chmod: "660".into(),
 			// DAPPS
 			arg_dapps_path: Some("$HOME/.parity/dapps".into()),
 			flag_no_dapps: false,
@@ -2045,6 +2056,7 @@ mod tests {
 				_legacy_public_node: None,
 			}),
 			account: Some(Account {
+				enable_signing_queue: None,
 				unlock: Some(vec!["0x1".into(), "0x2".into(), "0x3".into()]),
 				password: Some(vec!["passwdfile path".into()]),
 				keys_iterations: None,
@@ -2104,6 +2116,7 @@ mod tests {
 			ipc: Some(Ipc {
 				disable: None,
 				path: None,
+				chmod: None,
 				apis: Some(vec!["rpc".into(), "eth".into()]),
 			}),
 			dapps: Some(Dapps {
