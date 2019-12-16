@@ -50,6 +50,15 @@ pub trait Client: fmt::Debug + Sync {
 	/// Is transaction with given hash already in the blockchain?
 	fn transaction_already_included(&self, hash: &H256) -> bool;
 
+	/// Perform basic/cheap transaction verification.
+	///
+	/// This should include all cheap checks that can be done before
+	/// actually checking the signature, like chain-replay protection.
+	///
+	/// This method is currently used only for verifying local transactions.
+	fn verify_transaction_basic(&self, t: &transaction::UnverifiedTransaction)
+		-> Result<(), transaction::Error>;
+
 	/// Structurarily verify given transaction.
 	fn verify_transaction(&self, tx: transaction::UnverifiedTransaction)
 		-> Result<transaction::SignedTransaction, transaction::Error>;
