@@ -395,11 +395,6 @@ pub trait BlockChainClient:
 	/// Returns information about pruning/data availability.
 	fn pruning_info(&self) -> PruningInfo;
 
-	/// Schedule state-altering transaction to be executed on the next pending block.
-	fn transact_contract(&self, address: Address, data: Bytes) -> Result<(), transaction::Error> {
-		self.transact(TransactionRequest::call(address, data))
-	}
-
 	/// Returns a transaction signed with the key configured in the engine signer.
 	fn create_transaction(&self, tx_request: TransactionRequest) -> Result<SignedTransaction, transaction::Error>;
 

@@ -161,7 +161,9 @@ mod tests {
 		ids::BlockId,
 		verification::Unverified,
 	};
-	use client_traits::{BlockChainClient, BlockInfo, ChainInfo, ImportBlock, EngineClient, ForceUpdateSealing};
+	use client_traits::{
+		BlockChainClient, BlockInfo, ChainInfo, ImportBlock, EngineClient, ForceUpdateSealing, TransactionRequest
+	};
 	use engine::EpochChange;
 	use ethcore::{
 		miner::{self, MinerService},
@@ -190,7 +192,7 @@ mod tests {
 		// Wrong signer for the first block.
 		let signer = Box::new((tap.clone(), v1, "".into()));
 		client.miner().set_author(miner::Author::Sealer(signer));
-		client.transact_contract(Default::default(), Default::default()).unwrap();
+		client.transact(TransactionRequest::call(Default::default(), Default::default())).unwrap();
 		EngineClient::update_sealing(&*client, ForceUpdateSealing::No);
 		assert_eq!(client.chain_info().best_block_number, 0);
 		// Right signer for the first block.
@@ -199,7 +201,7 @@ mod tests {
 		EngineClient::update_sealing(&*client, ForceUpdateSealing::No);
 		assert_eq!(client.chain_info().best_block_number, 1);
 		// This time v0 is wrong.
-		client.transact_contract(Default::default(), Default::default()).unwrap();
+		client.transact(TransactionRequest::call(Default::default(), Default::default())).unwrap();
 		EngineClient::update_sealing(&*client, ForceUpdateSealing::No);
 		assert_eq!(client.chain_info().best_block_number, 1);
 		let signer = Box::new((tap.clone(), v1, "".into()));
@@ -207,7 +209,7 @@ mod tests {
 		EngineClient::update_sealing(&*client, ForceUpdateSealing::No);
 		assert_eq!(client.chain_info().best_block_number, 2);
 		// v1 is still good.
-		client.transact_contract(Default::default(), Default::default()).unwrap();
+		client.transact(TransactionRequest::call(Default::default(), Default::default())).unwrap();
 		EngineClient::update_sealing(&*client, ForceUpdateSealing::No);
 		assert_eq!(client.chain_info().best_block_number, 3);
 
