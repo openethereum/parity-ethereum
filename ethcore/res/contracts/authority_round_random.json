@@ -1,0 +1,133 @@
+[{
+		"constant": false,
+		"inputs": [{
+				"name": "_secretHash",
+				"type": "bytes32"
+			},
+			{
+				"name": "_cipher",
+				"type": "bytes"
+			}
+		],
+		"name": "commitHash",
+		"outputs": [],
+		"payable": false,
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"constant": false,
+		"inputs": [{
+			"name": "_number",
+			"type": "uint256"
+		}],
+		"name": "revealNumber",
+		"outputs": [],
+		"payable": false,
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "currentCollectRound",
+		"outputs": [{
+			"name": "",
+			"type": "uint256"
+		}],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [
+			{
+				"name": "_collectRound",
+				"type": "uint256"
+			},
+			{
+				"name": "_miningAddress",
+				"type": "address"
+			}
+		],
+		"name": "getCommitAndCipher",
+		"outputs": [
+			{
+				"name": "",
+				"type": "bytes32"
+			},
+			{
+				"name": "",
+				"type": "bytes"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [{
+				"name": "_collectRound",
+				"type": "uint256"
+			},
+			{
+				"name": "_validator",
+				"type": "address"
+			}
+		],
+		"name": "isCommitted",
+		"outputs": [{
+			"name": "",
+			"type": "bool"
+		}],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "isCommitPhase",
+		"outputs": [{
+			"name": "",
+			"type": "bool"
+		}],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "isRevealPhase",
+		"outputs": [{
+			"name": "",
+			"type": "bool"
+		}],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [{
+				"name": "_collectRound",
+				"type": "uint256"
+			},
+			{
+				"name": "_validator",
+				"type": "address"
+			}
+		],
+		"name": "sentReveal",
+		"outputs": [{
+			"name": "",
+			"type": "bool"
+		}],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	}
+]

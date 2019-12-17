@@ -327,6 +327,13 @@ impl Miner {
 	///
 	/// NOTE This should be only used for tests.
 	pub fn new_for_tests(spec: &Spec, accounts: Option<HashSet<Address>>) -> Miner {
+		Miner::new_for_tests_force_sealing(spec, accounts, false)
+	}
+
+	/// Creates new instance of miner with given spec and accounts.
+	///
+	/// NOTE This should be only used for tests.
+	pub fn new_for_tests_force_sealing(spec: &Spec, accounts: Option<HashSet<Address>>, force_sealing: bool) -> Miner {
 		let minimal_gas_price = 0.into();
 		Miner::new(MinerOptions {
 			pool_verification_options: pool::verifier::Options {
@@ -336,6 +343,7 @@ impl Miner {
 				no_early_reject: false,
 			},
 			reseal_min_period: Duration::from_secs(0),
+			force_sealing,
 			..Default::default()
 		}, GasPricer::new_fixed(minimal_gas_price), spec, accounts.unwrap_or_default())
 	}
@@ -422,7 +430,8 @@ impl Miner {
 		let chain_info = chain.chain_info();
 
 		// Open block
-		let (mut open_block, original_work_hash) = {
+		// Some engines add transactions to the block for their own purposes, e.g. AuthorityRound RANDAO.
+		let (mut open_block, original_work_hash, engine_txs) = {
 			let mut sealing = self.sealing.lock();
 			let last_work_hash = sealing.queue.peek_last_ref().map(|pb| pb.header.hash());
 			let best_hash = chain_info.best_block_hash;
@@ -433,37 +442,47 @@ impl Miner {
 			//   if at least one was pushed successfully, close and enqueue new ClosedBlock;
 			//   otherwise, leave everything alone.
 			// otherwise, author a fresh block.
-			let mut open_block = match sealing.queue.get_pending_if(|b| b.header.parent_hash() == &best_hash) {
+			match sealing.queue.get_pending_if(|b| b.header.parent_hash() == &best_hash) {
 				Some(old_block) => {
 					trace!(target: "miner", "prepare_block: Already have previous work; updating and returning");
 					// add transactions to old_block
-					chain.reopen_block(old_block)
+					(chain.reopen_block(old_block), last_work_hash, Vec::new())
 				}
 				None => {
 					// block not found - create it.
 					trace!(target: "miner", "prepare_block: No existing work - making new block");
 					let params = self.params.read().clone();
 
-					match chain.prepare_open_block(
+					let block = match chain.prepare_open_block(
 						params.author,
 						params.gas_range_target,
 						params.extra_data,
 					) {
 						Ok(block) => block,
 						Err(err) => {
-							warn!(target: "miner", "Open new block failed with error {:?}. This is likely an error in chain specificiations or on-chain consensus smart contracts.", err);
+							warn!(target: "miner", "Open new block failed with error {:?}. This is likely an error in \
+								  chain specification or on-chain consensus smart contracts.", err);
+							return None;
+						}
+					};
+
+					// Before adding from the queue to the new block, give the engine a chance to add transactions.
+					match self.engine.generate_engine_transactions(&block) {
+						Ok(transactions) => (block, last_work_hash, transactions),
+						Err(err) => {
+							error!(target: "miner", "Failed to prepare engine transactions for new block: {:?}. \
+								   This is likely an error in chain specification or on-chain consensus smart \
+								   contracts.", err);
 							return None;
 						}
 					}
 				}
-			};
-
-			if self.options.infinite_pending_block {
-				open_block.remove_gas_limit();
 			}
-
-			(open_block, last_work_hash)
 		};
+
+		if self.options.infinite_pending_block {
+			open_block.remove_gas_limit();
+		}
 
 		let mut invalid_transactions = HashSet::new();
 		let mut not_allowed_transactions = HashSet::new();
@@ -488,13 +507,13 @@ impl Miner {
 			MAX_SKIPPED_TRANSACTIONS.saturating_add(cmp::min(*open_block.header.gas_limit() / min_tx_gas, u64::max_value().into()).as_u64() as usize)
 		};
 
-		let pending: Vec<Arc<_>> = self.transaction_queue.pending(
+		let queue_txs: Vec<Arc<_>> = self.transaction_queue.pending(
 			client.clone(),
 			pool::PendingSettings {
 				block_number: chain_info.best_block_number,
 				current_timestamp: chain_info.best_block_timestamp,
 				nonce_cap,
-				max_len: max_transactions,
+				max_len: max_transactions.saturating_sub(engine_txs.len()),
 				ordering: miner::PendingOrdering::Priority,
 			}
 		);
@@ -504,12 +523,11 @@ impl Miner {
 		};
 
 		let block_start = Instant::now();
-		debug!(target: "miner", "Attempting to push {} transactions.", pending.len());
+		debug!(target: "miner", "Attempting to push {} transactions.", engine_txs.len() + queue_txs.len());
 
-		for tx in pending {
+		for transaction in engine_txs.into_iter().chain(queue_txs.into_iter().map(|tx| tx.signed().clone())) {
 			let start = Instant::now();
 
-			let transaction = tx.signed().clone();
 			let hash = transaction.hash();
 			let sender = transaction.sender();
 

@@ -73,7 +73,6 @@ blooms-db = { path = "../util/blooms-db" }
 criterion = "0.3"
 engine = { path = "./engine", features = ["test-helpers"] }
 env_logger = "0.5"
-ethash = { path = "../ethash" }
 ethcore-accounts = { path = "../accounts" }
 ethcore-builtin = { path = "./builtin" }
 ethjson = { path = "../json", features = ["test-helpers"] }
