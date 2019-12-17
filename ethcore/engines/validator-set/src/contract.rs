@@ -33,7 +33,7 @@ use common_types::{
 	engines::machine::{Call, AuxiliaryData},
 };
 
-use client_traits::EngineClient;
+use client_traits::{EngineClient, TransactionRequest};
 use engine::SystemCall;
 
 use crate::{
@@ -68,7 +68,7 @@ impl ValidatorContract {
 
 		match client.as_full_client() {
 			Some(c) => {
-				c.transact_contract(self.contract_address, data)
+				c.transact(TransactionRequest::call(self.contract_address, data))
 					.map_err(|e| format!("Transaction import error: {}", e))?;
 				Ok(())
 			},
@@ -149,7 +149,7 @@ mod tests {
 	use accounts::AccountProvider;
 	use call_contract::CallContract;
 	use common_types::{header::Header, ids::BlockId};
-	use client_traits::{BlockChainClient, ChainInfo, BlockInfo};
+	use client_traits::{BlockChainClient, ChainInfo, BlockInfo, TransactionRequest};
 	use ethcore::{
 		miner::{self, MinerService},
 		test_helpers::generate_dummy_client_with_spec,
@@ -225,7 +225,7 @@ mod tests {
 		assert_eq!(client.chain_info().best_block_number, 2);
 
 		// Check if misbehaving validator was removed.
-		client.transact_contract(Default::default(), Default::default()).unwrap();
+		client.transact(TransactionRequest::call(Default::default(), Default::default())).unwrap();
 		client.engine().step();
 		client.engine().step();
 		assert_eq!(client.chain_info().best_block_number, 2);

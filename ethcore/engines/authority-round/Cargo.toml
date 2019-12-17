@@ -10,6 +10,10 @@ license = "GPL-3.0"
 block-reward = { path = "../../block-reward" }
 client-traits = { path = "../../client-traits" }
 common-types = { path = "../../types" }
+derive_more = "0.15.0"
+ethabi = "9.0.1"
+ethabi-contract = "9.0.0"
+ethabi-derive = "9.0.1"
 ethereum-types = "0.8.0"
 ethjson = { path = "../../../json" }
 parity-crypto = { version = "0.4.2", features = ["publickey"] }
@@ -22,7 +26,9 @@ log = "0.4"
 lru-cache = "0.1"
 machine = { path = "../../machine" }
 macros = { path = "../../../util/macros" }
+parity-bytes = "0.1"
 parking_lot = "0.9"
+rand = "0.7"
 rlp = "0.4.0"
 time-utils = { path = "../../../util/time-utils" }
 unexpected = { path = "../../../util/unexpected" }
