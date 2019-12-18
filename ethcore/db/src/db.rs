@@ -95,7 +95,7 @@ pub trait Writable {
 	/// Writes the value into the database.
 	fn write<T, R>(&mut self, col: u32, key: &dyn Key<T, Target = R>, value: &T) where T: rlp::Encodable, R: AsRef<[u8]>;
 
-	/// Deletes key from the databse.
+	/// Deletes key from the database.
 	fn delete<T, R>(&mut self, col: u32, key: &dyn Key<T, Target = R>) where T: rlp::Encodable, R: AsRef<[u8]>;
 
 	/// Writes the value into the database and updates the cache.
