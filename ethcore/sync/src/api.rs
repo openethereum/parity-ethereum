@@ -54,7 +54,7 @@ use network::{
 	client_version::ClientVersion,
 	NetworkProtocolHandler, NetworkContext, PeerId, ProtocolId,
 	NetworkConfiguration as BasicNetworkConfiguration, NonReservedPeerMode, Error,
-	ConnectionFilter, IpFilter
+	ConnectionFilter, IpFilter, NatType
 };
 use snapshot::SnapshotService;
 use parking_lot::{RwLock, Mutex};
@@ -742,6 +742,8 @@ pub struct NetworkConfiguration {
 	pub udp_port: Option<u16>,
 	/// Enable NAT configuration
 	pub nat_enabled: bool,
+	/// Nat type
+	pub nat_type: NatType,
 	/// Enable discovery
 	pub discovery_enabled: bool,
 	/// List of initial node addresses
@@ -786,6 +788,7 @@ impl NetworkConfiguration {
 			public_address: match self.public_address { None => None, Some(addr) => Some(SocketAddr::from_str(&addr)?) },
 			udp_port: self.udp_port,
 			nat_enabled: self.nat_enabled,
+			nat_type: self.nat_type,
 			discovery_enabled: self.discovery_enabled,
 			boot_nodes: self.boot_nodes,
 			use_secret: self.use_secret,
@@ -810,6 +813,7 @@ impl From<BasicNetworkConfiguration> for NetworkConfiguration {
 			public_address: other.public_address.and_then(|addr| Some(format!("{}", addr))),
 			udp_port: other.udp_port,
 			nat_enabled: other.nat_enabled,
+			nat_type: other.nat_type,
 			discovery_enabled: other.discovery_enabled,
 			boot_nodes: other.boot_nodes,
 			use_secret: other.use_secret,

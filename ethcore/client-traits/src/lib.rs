@@ -42,7 +42,7 @@ use common_types::{
 	pruning_info::PruningInfo,
 	receipt::LocalizedReceipt,
 	trace_filter::Filter as TraceFilter,
-	transaction::{self, LocalizedTransaction, CallError, SignedTransaction, UnverifiedTransaction},
+	transaction::{self, Action, LocalizedTransaction, CallError, SignedTransaction, UnverifiedTransaction},
 	tree_route::TreeRoute,
 	verification::{VerificationQueueInfo, Unverified},
 };
@@ -395,8 +395,66 @@ pub trait BlockChainClient:
 	/// Returns information about pruning/data availability.
 	fn pruning_info(&self) -> PruningInfo;
 
-	/// Schedule state-altering transaction to be executed on the next pending block.
-	fn transact_contract(&self, address: Address, data: Bytes) -> Result<(), transaction::Error>;
+	/// Returns a transaction signed with the key configured in the engine signer.
+	fn create_transaction(&self, tx_request: TransactionRequest) -> Result<SignedTransaction, transaction::Error>;
+
+	/// Schedule state-altering transaction to be executed on the next pending
+	/// block with the given gas and nonce parameters.
+	fn transact(&self, tx_request: TransactionRequest) -> Result<(), transaction::Error>;
+}
+
+/// The data required for a `Client` to create a transaction.
+///
+/// Gas limit, gas price, or nonce can be set explicitly, e.g. to create service
+/// transactions with zero gas price, or sequences of transactions with consecutive nonces.
+pub struct TransactionRequest {
+	pub action: Action,
+	pub data: Bytes,
+	pub gas: Option<U256>,
+	pub gas_price: Option<U256>,
+	pub nonce: Option<U256>,
+}
+
+impl TransactionRequest {
+	/// Creates a request to call a contract at `address` with the specified call data.
+	pub fn call(address: Address, data: Bytes) -> TransactionRequest {
+		TransactionRequest {
+			action: Action::Call(address),
+			data,
+			gas: None,
+			gas_price: None,
+			nonce: None,
+		}
+	}
+
+	/// Creates a request to create a new contract, with the specified bytecode.
+	pub fn create(data: Bytes) -> TransactionRequest {
+		TransactionRequest {
+			action: Action::Create,
+			data,
+			gas: None,
+			gas_price: None,
+			nonce: None,
+		}
+	}
+
+	/// Sets a gas limit. If this is not specified, a sensible default is used.
+	pub fn gas(mut self, gas: U256) -> TransactionRequest {
+		self.gas = Some(gas);
+		self
+	}
+
+	/// Sets a gas price. If this is not specified, a sensible default is used.
+	pub fn gas_price(mut self, gas_price: U256) -> TransactionRequest {
+		self.gas_price = Some(gas_price);
+		self
+	}
+
+	/// Sets a nonce. If this is not specified, the appropriate latest nonce for the author is used.
+	pub fn nonce(mut self, nonce: U256) -> TransactionRequest {
+		self.nonce = Some(nonce);
+		self
+	}
 }
 
 /// resets the blockchain

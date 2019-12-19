@@ -259,7 +259,7 @@ impl HeaderChain {
 						live_epoch_proofs.insert(c.hash, EpochTransition {
 							block_hash: c.hash,
 							block_number: cur_number,
-							proof: proof.into_vec(),
+							proof,
 						});
 					}
 				}
@@ -667,7 +667,8 @@ impl HeaderChain {
 				None => {
 					match self.db.get(self.col, hash.as_bytes()) {
 						Ok(db_value) => {
-							db_value.map(|x| x.into_vec()).map(encoded::Header::new)
+							db_value
+								.map(encoded::Header::new)
 								.and_then(|header| {
 									cache.insert_block_header(hash, header.clone());
 									Some(header)

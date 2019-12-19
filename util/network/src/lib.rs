@@ -174,6 +174,15 @@ impl Ord for SessionCapabilityInfo {
 	}
 }
 
+/// Type of NAT resolving method
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum NatType {
+	Nothing,
+	Any,
+	UPnP,
+	NatPMP,
+}
+
 /// Network service configuration
 #[derive(Debug, PartialEq, Clone)]
 pub struct NetworkConfiguration {
@@ -189,6 +198,8 @@ pub struct NetworkConfiguration {
 	pub udp_port: Option<u16>,
 	/// Enable NAT configuration
 	pub nat_enabled: bool,
+	/// Nat type
+	pub nat_type: NatType,
 	/// Enable discovery
 	pub discovery_enabled: bool,
 	/// List of initial node addresses
@@ -229,6 +240,7 @@ impl NetworkConfiguration {
 			public_address: None,
 			udp_port: None,
 			nat_enabled: true,
+			nat_type: NatType::Any,
 			discovery_enabled: true,
 			boot_nodes: Vec::new(),
 			use_secret: None,

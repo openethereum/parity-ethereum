@@ -86,6 +86,7 @@ bundle_test_spec! {
 	"authority_round" => new_test_round,
 	"authority_round_block_reward_contract" => new_test_round_block_reward_contract,
 	"authority_round_empty_steps" => new_test_round_empty_steps,
+	"authority_round_randomness_contract" => new_test_round_randomness_contract,
 	"constructor" => new_test_constructor,
 	"ethereum/byzantium_test" => new_byzantium_test,
 	"ethereum/constantinople_test" => new_constantinople_test,

@@ -801,7 +801,7 @@ mod tests {
 			let mut jdb = EarlyMergeDB::new(shared_db.clone(), 0);
 			// history is 1
 			let foo = jdb.insert(EMPTY_PREFIX, b"foo");
-			jdb.emplace(bar.clone(), EMPTY_PREFIX, DBValue::from_slice(b"bar"));
+			jdb.emplace(bar.clone(), EMPTY_PREFIX, b"bar".to_vec());
 			commit_batch(&mut jdb, 0, &keccak(b"0"), None).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 			foo
@@ -1053,7 +1053,7 @@ mod tests {
 		let key = jdb.insert(EMPTY_PREFIX, b"dog");
 		inject_batch(&mut jdb).unwrap();
 
-		assert_eq!(jdb.get(&key, EMPTY_PREFIX).unwrap(), DBValue::from_slice(b"dog"));
+		assert_eq!(jdb.get(&key, EMPTY_PREFIX).unwrap(), b"dog".to_vec());
 		jdb.remove(&key, EMPTY_PREFIX);
 		inject_batch(&mut jdb).unwrap();
 

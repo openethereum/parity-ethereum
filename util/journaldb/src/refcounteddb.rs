@@ -342,7 +342,7 @@ mod tests {
 		let key = jdb.insert(EMPTY_PREFIX, b"dog");
 		inject_batch(&mut jdb).unwrap();
 
-		assert_eq!(jdb.get(&key, EMPTY_PREFIX).unwrap(), DBValue::from_slice(b"dog"));
+		assert_eq!(jdb.get(&key, EMPTY_PREFIX).unwrap(), b"dog".to_vec());
 		jdb.remove(&key, EMPTY_PREFIX);
 		inject_batch(&mut jdb).unwrap();
 

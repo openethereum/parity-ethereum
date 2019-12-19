@@ -72,7 +72,7 @@ impl Decodable for Payload {
 	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
 		let payload = Payload {
 			count: rlp.val_at(0)?,
-			value: DBValue::from_slice(rlp.at(1)?.data()?),
+			value: rlp.at(1)?.data()?.to_vec(),
 		};
 
 		Ok(payload)
@@ -251,7 +251,7 @@ mod tests {
 	fn overlaydb_overlay_insert_and_remove() {
 		let mut trie = OverlayDB::new_temp();
 		let h = trie.insert(EMPTY_PREFIX, b"hello world");
-		assert_eq!(trie.get(&h, EMPTY_PREFIX).unwrap(), DBValue::from_slice(b"hello world"));
+		assert_eq!(trie.get(&h, EMPTY_PREFIX).unwrap(), b"hello world".to_vec());
 		trie.remove(&h, EMPTY_PREFIX);
 		assert_eq!(trie.get(&h, EMPTY_PREFIX), None);
 	}
@@ -260,9 +260,9 @@ mod tests {
 	fn overlaydb_backing_insert_revert() {
 		let mut trie = OverlayDB::new_temp();
 		let h = trie.insert(EMPTY_PREFIX, b"hello world");
-		assert_eq!(trie.get(&h, EMPTY_PREFIX).unwrap(), DBValue::from_slice(b"hello world"));
+		assert_eq!(trie.get(&h, EMPTY_PREFIX).unwrap(), b"hello world".to_vec());
 		trie.commit().unwrap();
-		assert_eq!(trie.get(&h, EMPTY_PREFIX).unwrap(), DBValue::from_slice(b"hello world"));
+		assert_eq!(trie.get(&h, EMPTY_PREFIX).unwrap(), b"hello world".to_vec());
 	}
 
 	#[test]
@@ -300,29 +300,29 @@ mod tests {
 	fn overlaydb_complex() {
 		let mut trie = OverlayDB::new_temp();
 		let hfoo = trie.insert(EMPTY_PREFIX, b"foo");
-		assert_eq!(trie.get(&hfoo, EMPTY_PREFIX).unwrap(), DBValue::from_slice(b"foo"));
+		assert_eq!(trie.get(&hfoo, EMPTY_PREFIX).unwrap(), b"foo".to_vec());
 		let hbar = trie.insert(EMPTY_PREFIX, b"bar");
-		assert_eq!(trie.get(&hbar, EMPTY_PREFIX).unwrap(), DBValue::from_slice(b"bar"));
+		assert_eq!(trie.get(&hbar, EMPTY_PREFIX).unwrap(), b"bar".to_vec());
 		trie.commit().unwrap();
-		assert_eq!(trie.get(&hfoo, EMPTY_PREFIX).unwrap(), DBValue::from_slice(b"foo"));
-		assert_eq!(trie.get(&hbar, EMPTY_PREFIX).unwrap(), DBValue::from_slice(b"bar"));
+		assert_eq!(trie.get(&hfoo, EMPTY_PREFIX).unwrap(), b"foo".to_vec());
+		assert_eq!(trie.get(&hbar, EMPTY_PREFIX).unwrap(), b"bar".to_vec());
 		trie.insert(EMPTY_PREFIX, b"foo");	// two refs
-		assert_eq!(trie.get(&hfoo, EMPTY_PREFIX).unwrap(), DBValue::from_slice(b"foo"));
+		assert_eq!(trie.get(&hfoo, EMPTY_PREFIX).unwrap(), b"foo".to_vec());
 		trie.commit().unwrap();
-		assert_eq!(trie.get(&hfoo, EMPTY_PREFIX).unwrap(), DBValue::from_slice(b"foo"));
-		assert_eq!(trie.get(&hbar, EMPTY_PREFIX).unwrap(), DBValue::from_slice(b"bar"));
+		assert_eq!(trie.get(&hfoo, EMPTY_PREFIX).unwrap(), b"foo".to_vec());
+		assert_eq!(trie.get(&hbar, EMPTY_PREFIX).unwrap(), b"bar".to_vec());
 		trie.remove(&hbar, EMPTY_PREFIX);		// zero refs - delete
 		assert_eq!(trie.get(&hbar, EMPTY_PREFIX), None);
 		trie.remove(&hfoo, EMPTY_PREFIX);		// one ref - keep
-		assert_eq!(trie.get(&hfoo, EMPTY_PREFIX).unwrap(), DBValue::from_slice(b"foo"));
+		assert_eq!(trie.get(&hfoo, EMPTY_PREFIX).unwrap(), b"foo".to_vec());
 		trie.commit().unwrap();
-		assert_eq!(trie.get(&hfoo, EMPTY_PREFIX).unwrap(), DBValue::from_slice(b"foo"));
+		assert_eq!(trie.get(&hfoo, EMPTY_PREFIX).unwrap(), b"foo".to_vec());
 		trie.remove(&hfoo, EMPTY_PREFIX);		// zero ref - would delete, but...
 		assert_eq!(trie.get(&hfoo, EMPTY_PREFIX), None);
 		trie.insert(EMPTY_PREFIX, b"foo");	// one ref - keep after all.
-		assert_eq!(trie.get(&hfoo, EMPTY_PREFIX).unwrap(), DBValue::from_slice(b"foo"));
+		assert_eq!(trie.get(&hfoo, EMPTY_PREFIX).unwrap(), b"foo".to_vec());
 		trie.commit().unwrap();
-		assert_eq!(trie.get(&hfoo, EMPTY_PREFIX).unwrap(), DBValue::from_slice(b"foo"));
+		assert_eq!(trie.get(&hfoo, EMPTY_PREFIX).unwrap(), b"foo".to_vec());
 		trie.remove(&hfoo, EMPTY_PREFIX);		// zero ref - delete
 		assert_eq!(trie.get(&hfoo, EMPTY_PREFIX), None);
 		trie.commit().unwrap();	//

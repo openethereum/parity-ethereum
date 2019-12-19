@@ -628,8 +628,8 @@ impl BlockChain {
 			let best_block_number = bc.best_block.read().header.number();
 			// Fetch first and best ancient block details
 			let raw_first = bc.db.key_value().get(db::COL_EXTRA, b"first")
-				.expect("Low level database error when fetching 'first' block. Some issue with disk?")
-				.map(|v| v.into_vec());
+				.expect("Low level database error when fetching 'first' block. Some issue with disk?");
+//				.map(|v| v.into_vec());
 			let mut best_ancient = bc.db.key_value().get(db::COL_EXTRA, b"ancient")
 				.expect("Low level database error when fetching 'best ancient' block. Some issue with disk?")
 				.map(|h| H256::from_slice(&h));

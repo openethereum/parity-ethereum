@@ -72,7 +72,7 @@ use client::{
 use client_traits::{
 	BlockInfo, Nonce, Balance, ChainInfo, TransactionInfo, BlockChainClient, ImportBlock,
 	AccountData, BlockChain, IoClient, BadBlocks, ScheduleInfo, StateClient, ProvingBlockChainClient,
-	StateOrBlock, ForceUpdateSealing
+	StateOrBlock, ForceUpdateSealing, TransactionRequest
 };
 use engine::Engine;
 use machine::executed::Executed;
@@ -912,18 +912,24 @@ impl BlockChainClient for TestBlockChainClient {
 		}
 	}
 
-	fn transact_contract(&self, address: Address, data: Bytes) -> Result<(), transaction::Error> {
+	fn create_transaction(&self, TransactionRequest { action, data, gas, gas_price, nonce }: TransactionRequest)
+		-> Result<SignedTransaction, transaction::Error>
+	{
 		let transaction = Transaction {
-			nonce: self.latest_nonce(&self.miner.authoring_params().author),
-			action: Action::Call(address),
-			gas: self.spec.gas_limit,
-			gas_price: U256::zero(),
+			nonce: nonce.unwrap_or_else(|| self.latest_nonce(&self.miner.authoring_params().author)),
+			action,
+			gas: gas.unwrap_or(self.spec.gas_limit),
+			gas_price: gas_price.unwrap_or_else(U256::zero),
 			value: U256::default(),
 			data: data,
 		};
 		let chain_id = Some(self.spec.chain_id());
 		let sig = self.spec.engine.sign(transaction.hash(chain_id)).unwrap();
-		let signed = SignedTransaction::new(transaction.with_signature(sig, chain_id)).unwrap();
+		Ok(SignedTransaction::new(transaction.with_signature(sig, chain_id)).unwrap())
+	}
+
+	fn transact(&self, tx_request: TransactionRequest) -> Result<(), transaction::Error> {
+		let signed = self.create_transaction(tx_request)?;
 		self.miner.import_own_transaction(self, signed.into())
 	}
 }
