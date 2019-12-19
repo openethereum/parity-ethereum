@@ -28,6 +28,7 @@
 #include <parity.hpp>
 #include <regex>
 #include <string>
+#include <string_view>
 #include <thread>
 namespace {
 using namespace std::literals::string_literals;
