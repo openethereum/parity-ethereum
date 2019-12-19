@@ -16,10 +16,10 @@ track = "nightly"
 # Latest supported fork blocks.
 # Indicates a critical release in this track (i.e. consensus issue).
 [package.metadata.networks]
-foundation = { forkBlock = 7280000, critical = false }
-ropsten = { forkBlock = 4939394, critical = false }
-kovan = { forkBlock = 10255201, critical = false }
-goerli = { forkBlock = 0, critical = false }
+foundation = { forkBlock = 9069000, critical = false }
+ropsten = { forkBlock = 6485846, critical = false }
+kovan = { forkBlock = 14111141, critical = false }
+goerli = { forkBlock = 1561651, critical = false }
 
 [dependencies]
 parity-bytes = "0.1"
