@@ -8,8 +8,9 @@ set (CMAKE_CXX_STANDARD 17) # Enforce C++17
 set (CMAKE_CXX_STANDARD_REQUIRED ON) # Enforce C++17
 set (CMAKE_CXX_EXTENSIONS OFF) # Enforce C++17
 set (CMAKE_EXPORT_COMPILE_COMMANDS ON) # generate a compilation database
+set (CMAKE_CXX_FLAGS "-stdlib=libc++")
 add_executable(parity-example main.cpp)
-add_compile_options("-Wall -Wextra -Werror, -stdlib=libc++")
+add_compile_options("-Wall -Wextra -Werror")
 set (parity_build_flavor "debug") # would use --release for a real project
 if(parity_build_flavor STREQUAL "debug")
    set (parity_rust_build_option "")
