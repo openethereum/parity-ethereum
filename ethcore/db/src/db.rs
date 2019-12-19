@@ -99,10 +99,19 @@ pub trait Writable {
 	fn delete<T, R>(&mut self, col: u32, key: &dyn Key<T, Target = R>) where T: rlp::Encodable, R: AsRef<[u8]>;
 
 	/// Writes the value into the database and updates the cache.
-	fn write_with_cache<K, T, R>(&mut self, col: u32, cache: &mut dyn Cache<K, T>, key: K, value: T, policy: CacheUpdatePolicy) where
-	K: Key<T, Target = R> + Hash + Eq,
-	T: rlp::Encodable,
-	R: AsRef<[u8]> {
+	fn write_with_cache<K, T, R>(
+		&mut self,
+		col: u32,
+		cache: &mut dyn Cache<K, T>,
+		key: K,
+		value: T,
+		policy: CacheUpdatePolicy
+	)
+		where
+			K: Key<T, Target = R> + Hash + Eq,
+			T: rlp::Encodable,
+			R: AsRef<[u8]>
+	{
 		self.write(col, &key, &value);
 		match policy {
 			CacheUpdatePolicy::Overwrite => {
@@ -115,10 +124,18 @@ pub trait Writable {
 	}
 
 	/// Writes the values into the database and updates the cache.
-	fn extend_with_cache<K, T, R>(&mut self, col: u32, cache: &mut dyn Cache<K, T>, values: HashMap<K, T>, policy: CacheUpdatePolicy) where
-	K: Key<T, Target = R> + Hash + Eq,
-	T: rlp::Encodable,
-	R: AsRef<[u8]> {
+	fn extend_with_cache<K, T, R>(
+		&mut self,
+		col: u32,
+		cache: &mut dyn Cache<K, T>,
+		values: HashMap<K, T>,
+		policy: CacheUpdatePolicy
+	)
+		where
+			K: Key<T, Target = R> + Hash + Eq,
+			T: rlp::Encodable,
+			R: AsRef<[u8]>
+	{
 		match policy {
 			CacheUpdatePolicy::Overwrite => {
 				for (key, value) in values {
@@ -136,10 +153,18 @@ pub trait Writable {
 	}
 
 	/// Writes and removes the values into the database and updates the cache.
-	fn extend_with_option_cache<K, T, R>(&mut self, col: u32, cache: &mut dyn Cache<K, Option<T>>, values: HashMap<K, Option<T>>, policy: CacheUpdatePolicy) where
-	K: Key<T, Target = R> + Hash + Eq,
-	T: rlp::Encodable,
-	R: AsRef<[u8]> {
+	fn extend_with_option_cache<K, T, R>(
+		&mut self,
+		col: u32,
+		cache: &mut dyn Cache<K, Option<T>>,
+		values: HashMap<K, Option<T>>,
+		policy: CacheUpdatePolicy
+	)
+		where
+			K: Key<T, Target = R> + Hash + Eq,
+			T: rlp::Encodable,
+			R: AsRef<[u8]>
+	{
 		match policy {
 			CacheUpdatePolicy::Overwrite => {
 				for (key, value) in values {
@@ -191,10 +216,18 @@ pub trait Readable {
 	}
 
 	/// Returns value for given key either in two-layered cache or in database.
-	fn read_with_two_layer_cache<K, T, C>(&self, col: u32, l1_cache: &RwLock<C>, l2_cache: &RwLock<C>, key: &K) -> Option<T> where
-		K: Key<T> + Eq + Hash + Clone,
-		T: Clone + rlp::Decodable,
-		C: Cache<K, T> {
+	fn read_with_two_layer_cache<K, T, C>(
+		&self,
+		col: u32,
+		l1_cache: &RwLock<C>,
+		l2_cache: &RwLock<C>,
+		key: &K
+	) -> Option<T>
+		where
+			K: Key<T> + Eq + Hash + Clone,
+			T: Clone + rlp::Decodable,
+			C: Cache<K, T>
+	{
 		{
 			let read = l1_cache.read();
 			if let Some(v) = read.get(key) {
