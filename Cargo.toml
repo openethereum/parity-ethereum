@@ -135,16 +135,3 @@ members = [
 	"evmbin",
 	"parity-clib",
 ]
-
-# todo[dvdplm] remove before merge
-#[patch.crates-io]
-#kvdb = { git = "https://github.com/paritytech/parity-common", rev = "83c9ccdaa7c598a8afb2fe0baa76f6270e2b4637" }
-#kvdb-rocksdb = { git = "https://github.com/paritytech/parity-common", rev = "83c9ccdaa7c598a8afb2fe0baa76f6270e2b4637" }
-#kvdb-memorydb = { git = "https://github.com/paritytech/parity-common", rev = "83c9ccdaa7c598a8afb2fe0baa76f6270e2b4637" }
-#parity-util-mem = { git = "https://github.com/paritytech/parity-common", rev = "83c9ccdaa7c598a8afb2fe0baa76f6270e2b4637" }
-#ethereum-types = { git = "https://github.com/paritytech/parity-common", rev = "83c9ccdaa7c598a8afb2fe0baa76f6270e2b4637" }
-#primitive-types = { git = "https://github.com/paritytech/parity-common", rev = "83c9ccdaa7c598a8afb2fe0baa76f6270e2b4637" }
-#rlp = { git = "https://github.com/paritytech/parity-common", rev = "83c9ccdaa7c598a8afb2fe0baa76f6270e2b4637" }
-#ethbloom = { git = "https://github.com/paritytech/parity-common", rev = "83c9ccdaa7c598a8afb2fe0baa76f6270e2b4637" }
-#triehash = { git = "https://github.com/paritytech/parity-common", rev = "83c9ccdaa7c598a8afb2fe0baa76f6270e2b4637" }
-#fixed-hash = { git = "https://github.com/paritytech/parity-common", rev = "83c9ccdaa7c598a8afb2fe0baa76f6270e2b4637" }
