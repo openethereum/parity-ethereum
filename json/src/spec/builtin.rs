@@ -204,6 +204,28 @@ mod tests {
 	}
 
 	#[test]
+	fn deserialization_alt_bn128_const_operations() {
+		let s = r#"{
+			"name": "alt_bn128_mul",
+			"pricing": {
+				"100500": {
+					"price": { "alt_bn128_const_operations": { "price": 123 }}
+				}
+			}
+		}"#;
+		let builtin: Builtin = serde_json::from_str::<BuiltinCompat>(s).unwrap().into();
+		assert_eq!(builtin.name, "alt_bn128_mul");
+		assert_eq!(builtin.pricing, map![
+			100500 => PricingAt {
+				info: None,
+				price: Pricing::AltBn128ConstOperations(AltBn128ConstOperations { 
+					price: 123,
+				}),
+			}
+		]);
+	}
+
+	#[test]
 	fn activate_at() {
 		let s = r#"{
 			"name": "late_start",

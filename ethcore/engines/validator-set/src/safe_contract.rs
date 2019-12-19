@@ -468,7 +468,7 @@ mod tests {
 	use engine::{EpochChange, Proof};
 	use ethcore::{
 		miner::{self, MinerService},
-		test_helpers::{generate_dummy_client_with_spec, generate_dummy_client_with_spec_and_data}
+		test_helpers::generate_dummy_client_with_spec
 	};
 	use parity_crypto::publickey::Secret;
 	use ethereum_types::Address;
@@ -551,7 +551,7 @@ mod tests {
 		assert_eq!(client.chain_info().best_block_number, 3);
 
 		// Check syncing.
-		let sync_client = generate_dummy_client_with_spec_and_data(spec::new_validator_safe_contract, 0, 0, &[]);
+		let sync_client = generate_dummy_client_with_spec(spec::new_validator_safe_contract);
 		sync_client.engine().register_client(Arc::downgrade(&sync_client) as _);
 		for i in 1..4 {
 			sync_client.import_block(Unverified::from_rlp(client.block(BlockId::Number(i)).unwrap().into_inner()).unwrap()).unwrap();

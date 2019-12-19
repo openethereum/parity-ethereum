@@ -17,7 +17,7 @@
 //! A signer used by Engines which need to sign messages.
 
 use ethereum_types::{H256, Address};
-use parity_crypto::publickey::{Signature, KeyPair, Error};
+use parity_crypto::publickey::{ecies, Public, Signature, KeyPair, Error};
 
 /// Everything that an Engine needs to sign messages.
 pub trait EngineSigner: Send + Sync {
@@ -26,6 +26,12 @@ pub trait EngineSigner: Send + Sync {
 
 	/// Signing address
 	fn address(&self) -> Address;
+
+	/// Decrypt a message that was encrypted to this signer's key.
+	fn decrypt(&self, auth_data: &[u8], cipher: &[u8]) -> Result<Vec<u8>, Error>;
+
+	/// The signer's public key, if available.
+	fn public(&self) -> Option<Public>;
 }
 
 /// Creates a new `EngineSigner` from given key pair.
@@ -40,7 +46,15 @@ impl EngineSigner for Signer {
 		parity_crypto::publickey::sign(self.0.secret(), &hash)
 	}
 
+	fn decrypt(&self, auth_data: &[u8], cipher: &[u8]) -> Result<Vec<u8>, Error> {
+		ecies::decrypt(self.0.secret(), auth_data, cipher)
+	}
+
 	fn address(&self) -> Address {
 		self.0.address()
+	}
+
+	fn public(&self) -> Option<Public> {
+		Some(*self.0.public())
 	}
 }

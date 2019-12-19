@@ -124,7 +124,6 @@ mod server {
 	use ethcore_secretstore;
 	use parity_crypto::publickey::KeyPair;
 	use ansi_term::Colour::{Red, White};
-	use db;
 	use super::{Configuration, Dependencies, NodeSecretKey, ContractAddress, Executor};
 
 	fn into_service_contract_address(address: ContractAddress) -> ethcore_secretstore::ContractAddress {
@@ -136,13 +135,13 @@ mod server {
 
 	/// Key server
 	pub struct KeyServer {
-		_key_server: Box<ethcore_secretstore::KeyServer>,
+		_key_server: Box<dyn ethcore_secretstore::KeyServer>,
 	}
 
 	impl KeyServer {
 		/// Create new key server
 		pub fn new(mut conf: Configuration, deps: Dependencies, executor: Executor) -> Result<Self, String> {
-			let self_secret: Arc<ethcore_secretstore::NodeKeyPair> = match conf.self_secret.take() {
+			let self_secret: Arc<dyn ethcore_secretstore::NodeKeyPair> = match conf.self_secret.take() {
 				Some(NodeSecretKey::Plain(secret)) => Arc::new(ethcore_secretstore::PlainNodeKeyPair::new(
 					KeyPair::from_secret(secret).map_err(|e| format!("invalid secret: {}", e))?)),
 				#[cfg(feature = "accounts")]
@@ -203,7 +202,7 @@ mod server {
 
 			cconf.cluster_config.nodes.insert(self_secret.public().clone(), cconf.cluster_config.listener_address.clone());
 
-			let db = db::open_secretstore_db(&conf.data_path)?;
+			let db = ethcore_secretstore::open_secretstore_db(&conf.data_path)?;
 			let key_server = ethcore_secretstore::start(deps.client, deps.sync, deps.miner, self_secret, cconf, db, executor)
 				.map_err(|e| format!("Error starting KeyServer {}: {}", key_server_name, e))?;
 

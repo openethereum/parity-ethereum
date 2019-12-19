@@ -79,6 +79,7 @@ use client_traits::{
 	StateOrBlock,
 	Tick,
 	TransactionInfo,
+	TransactionRequest,
 	ForceUpdateSealing
 };
 use db::{keys::BlockDetails, Readable, Writable};
@@ -2154,29 +2155,35 @@ impl BlockChainClient for Client {
 		}
 	}
 
-	fn transact_contract(&self, address: Address, data: Bytes) -> Result<(), transaction::Error> {
+	fn create_transaction(&self, TransactionRequest { action, data, gas, gas_price, nonce }: TransactionRequest)
+		-> Result<SignedTransaction, transaction::Error>
+	{
 		let authoring_params = self.importer.miner.authoring_params();
 		let service_transaction_checker = self.importer.miner.service_transaction_checker();
 		let gas_price = if let Some(checker) = service_transaction_checker {
 			match checker.check_address(self, authoring_params.author) {
 				Ok(true) => U256::zero(),
-				_ => self.importer.miner.sensible_gas_price(),
+				_ => gas_price.unwrap_or_else(|| self.importer.miner.sensible_gas_price()),
 			}
 		} else {
 			self.importer.miner.sensible_gas_price()
 		};
 		let transaction = transaction::Transaction {
-			nonce: self.latest_nonce(&authoring_params.author),
-			action: Action::Call(address),
-			gas: self.importer.miner.sensible_gas_limit(),
+			nonce: nonce.unwrap_or_else(|| self.latest_nonce(&authoring_params.author)),
+			action,
+			gas: gas.unwrap_or_else(|| self.importer.miner.sensible_gas_limit()),
 			gas_price,
 			value: U256::zero(),
-			data: data,
+			data,
 		};
 		let chain_id = self.engine.signing_chain_id(&self.latest_env_info());
 		let signature = self.engine.sign(transaction.hash(chain_id))
 			.map_err(|e| transaction::Error::InvalidSignature(e.to_string()))?;
-		let signed = SignedTransaction::new(transaction.with_signature(signature, chain_id))?;
+		Ok(SignedTransaction::new(transaction.with_signature(signature, chain_id))?)
+	}
+
+	fn transact(&self, tx_request: TransactionRequest) -> Result<(), transaction::Error> {
+		let signed = self.create_transaction(tx_request)?;
 		self.importer.miner.import_own_transaction(self, signed.into())
 	}
 }
@@ -2978,7 +2985,7 @@ mod tests {
 
 	#[test]
 	fn should_mark_finalization_correctly_for_parent() {
-		let client = generate_dummy_client_with_spec_and_data(spec::new_test_with_finality, 2, 0, &[]);
+		let client = generate_dummy_client_with_spec_and_data(spec::new_test_with_finality, 2, 0, &[], false);
 		let chain = client.chain();
 
 		let block1_details = chain.block_hash(1).and_then(|h| chain.block_details(&h));

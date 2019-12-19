@@ -18,7 +18,7 @@ use std::sync::Arc;
 
 use accounts::AccountProvider;
 use ethkey::Password;
-use crypto::publickey::{Address, Message, Signature, Error};
+use crypto::publickey::{Address, Message, Public, Signature, Error};
 
 /// An implementation of EngineSigner using internal account management.
 pub struct EngineSigner {
@@ -42,8 +42,19 @@ impl engine::signer::EngineSigner for EngineSigner {
 		}
 	}
 
+	fn decrypt(&self, auth_data: &[u8], cipher: &[u8]) -> Result<Vec<u8>, Error> {
+		self.accounts.decrypt(self.address, None, auth_data, cipher).map_err(|e| {
+			warn!("Unable to decrypt message: {:?}", e);
+			Error::InvalidMessage
+		})
+	}
+
 	fn address(&self) -> Address {
 		self.address
+	}
+
+	fn public(&self) -> Option<Public> {
+		self.accounts.account_public(self.address, &self.password).ok()
 	}
 }
 
