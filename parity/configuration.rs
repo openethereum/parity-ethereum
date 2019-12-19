@@ -53,7 +53,7 @@ use export_hardcoded_sync::ExportHsyncCmd;
 use presale::ImportWallet;
 use account::{AccountCmd, NewAccount, ListAccounts, ImportAccounts, ImportFromGethAccounts};
 use snapshot_cmd::{self, SnapshotCommand};
-use network::{IpFilter};
+use network::{IpFilter, NatType};
 
 const DEFAULT_MAX_PEERS: u16 = 50;
 const DEFAULT_MIN_PEERS: u16 = 25;
@@ -743,7 +743,13 @@ impl Configuration {
 
 	fn net_config(&self) -> Result<NetworkConfiguration, String> {
 		let mut ret = NetworkConfiguration::new();
-		ret.nat_enabled = self.args.arg_nat == "any" || self.args.arg_nat == "upnp";
+		ret.nat_enabled = self.args.arg_nat == "any" || self.args.arg_nat == "upnp" || self.args.arg_nat == "natpmp";
+		ret.nat_type = match &self.args.arg_nat[..] {
+			"any" => NatType::Any,
+			"upnp" => NatType::UPnP,
+			"natpmp" => NatType::NatPMP,
+			_ => NatType::Nothing,
+		};
 		ret.boot_nodes = to_bootnodes(&self.args.arg_bootnodes)?;
 		let (listen, public) = self.net_addresses()?;
 		ret.listen_address = Some(format!("{}", listen));
