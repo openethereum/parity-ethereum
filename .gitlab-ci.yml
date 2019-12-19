@@ -13,6 +13,7 @@ variables:
   CI_SERVER_NAME:                  "GitLab CI"
   CARGO_HOME:                      "/ci-cache/${CI_PROJECT_NAME}/cargo/${CI_JOB_NAME}"
   CARGO_TARGET:                    x86_64-unknown-linux-gnu
+  CARGO_INCREMENTAL:               0
   REGISTRY:                        registry.parity.io/parity/infrastructure/scripts
 
 .releaseable_branches:             # list of git refs for building GitLab artifacts (think "pre-release binaries")
@@ -39,7 +40,7 @@ variables:
     - cargo --version
   retry:
     max: 2
-    when: 
+    when:
       - runner_system_failure
       - unknown_failure
       - api_failure
