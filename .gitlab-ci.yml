@@ -113,12 +113,6 @@ validate-chainspecs:
   script:
     - ./scripts/gitlab/validate-chainspecs.sh
 
-test-cpp:
-  stage:                           build
-  <<:                              *docker-cache-status
-  script:
-    - ./scripts/gitlab/test-cpp.sh
-
 test-linux:
   stage:                           build
   <<:                              *docker-cache-status
