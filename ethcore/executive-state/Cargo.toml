@@ -14,7 +14,7 @@ common-types = { path = "../types" }
 ethereum-types = "0.8.0"
 hash-db = "0.15.0"
 keccak-hasher = { path = "../../util/keccak-hasher" }
-kvdb = "0.1"
+kvdb = "0.2"
 log = "0.4.8"
 machine = { path = "../machine" }
 trace = { path = "../trace" }
@@ -30,5 +30,5 @@ keccak-hash = "0.4.0"
 pod = { path = "../pod" }
 rustc-hex = "1.0"
 spec = { path = "../spec" }
-trie-db = "0.16.0"
+trie-db = "0.18.0"
 ethtrie = { package = "patricia-trie-ethereum", path = "../../util/patricia-trie-ethereum" }

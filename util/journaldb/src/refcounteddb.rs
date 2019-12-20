@@ -63,12 +63,12 @@ pub struct RefCountedDB {
 	latest_era: Option<u64>,
 	inserts: Vec<H256>,
 	removes: Vec<H256>,
-	column: Option<u32>,
+	column: u32,
 }
 
 impl RefCountedDB {
 	/// Create a new instance given a `backing` database.
-	pub fn new(backing: Arc<dyn KeyValueDB>, column: Option<u32>) -> RefCountedDB {
+	pub fn new(backing: Arc<dyn KeyValueDB>, column: u32) -> RefCountedDB {
 		let latest_era = backing.get(column, &LATEST_ERA_KEY)
 			.expect("Low-level database error.")
 			.map(|v| decode::<u64>(&v).expect("decoding db value failed"));
@@ -107,7 +107,7 @@ impl JournalDB for RefCountedDB {
 	fn mem_used(&self) -> usize {
 		let mut ops = new_malloc_size_ops();
 		self.inserts.size_of(&mut ops) + self.removes.size_of(&mut ops)
- 	}
+	}
 
 	fn is_empty(&self) -> bool {
 		self.latest_era.is_none()
@@ -229,8 +229,8 @@ mod tests {
 	use crate::{JournalDB, inject_batch, commit_batch};
 
 	fn new_db() -> RefCountedDB {
-		let backing = Arc::new(kvdb_memorydb::create(0));
-		RefCountedDB::new(backing, None)
+		let backing = Arc::new(kvdb_memorydb::create(1));
+		RefCountedDB::new(backing, 0)
 	}
 
 	#[test]
@@ -342,7 +342,7 @@ mod tests {
 		let key = jdb.insert(EMPTY_PREFIX, b"dog");
 		inject_batch(&mut jdb).unwrap();
 
-		assert_eq!(jdb.get(&key, EMPTY_PREFIX).unwrap(), DBValue::from_slice(b"dog"));
+		assert_eq!(jdb.get(&key, EMPTY_PREFIX).unwrap(), b"dog".to_vec());
 		jdb.remove(&key, EMPTY_PREFIX);
 		inject_batch(&mut jdb).unwrap();
 

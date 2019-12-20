@@ -16,18 +16,18 @@ hash-db = "0.15.0"
 journaldb = { path = "../../util/journaldb" }
 keccak-hash = "0.4.0"
 keccak-hasher = { path = "../../util/keccak-hasher" }
-kvdb = "0.1"
+kvdb = "0.2"
 log = "0.4"
 lru-cache = "0.1.2"
-memory-db = "0.15.0"
+memory-db = "0.18.0"
 parity-bytes = "0.1.0"
-parity-util-mem = "0.2.0"
+parity-util-mem = "0.3.0"
 parking_lot = "0.9"
 pod = { path = "../pod" }
 rlp = "0.4.0"
 serde = { version = "1.0", features = ["derive"] }
 trace = { path = "../trace" }
-trie-db = "0.16.0"
+trie-db = "0.18.0"
 
 [dev-dependencies]
 account-db = { path = "../account-db" }

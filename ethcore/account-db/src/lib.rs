@@ -93,7 +93,7 @@ impl<'db> AsHashDB<KeccakHasher, DBValue> for AccountDB<'db> {
 impl<'db> HashDB<KeccakHasher, DBValue> for AccountDB<'db> {
 	fn get(&self, key: &H256, prefix: Prefix) -> Option<DBValue> {
 		if key == &KECCAK_NULL_RLP {
-			return Some(DBValue::from_slice(&NULL_RLP));
+			return Some(NULL_RLP.to_vec());
 		}
 		self.db.get(&combine_key(&self.address_hash, key), prefix)
 	}
@@ -139,7 +139,7 @@ impl<'db> AccountDBMut<'db> {
 impl<'db> HashDB<KeccakHasher, DBValue> for AccountDBMut<'db>{
 	fn get(&self, key: &H256, prefix: Prefix) -> Option<DBValue> {
 		if key == &KECCAK_NULL_RLP {
-			return Some(DBValue::from_slice(&NULL_RLP));
+			return Some(NULL_RLP.to_vec());
 		}
 		self.db.get(&combine_key(&self.address_hash, key), prefix)
 	}
@@ -157,7 +157,7 @@ impl<'db> HashDB<KeccakHasher, DBValue> for AccountDBMut<'db>{
 		}
 		let k = keccak(value);
 		let ak = combine_key(&self.address_hash, &k);
-		self.db.emplace(ak, prefix, DBValue::from_slice(value));
+		self.db.emplace(ak, prefix, value.to_vec());
 		k
 	}
 
@@ -193,7 +193,7 @@ impl<'db> AsHashDB<KeccakHasher, DBValue> for Wrapping<'db> {
 impl<'db> HashDB<KeccakHasher, DBValue> for Wrapping<'db> {
 	fn get(&self, key: &H256, prefix: Prefix) -> Option<DBValue> {
 		if key == &KECCAK_NULL_RLP {
-			return Some(DBValue::from_slice(&NULL_RLP));
+			return Some(NULL_RLP.to_vec());
 		}
 		self.0.get(key, prefix)
 	}
@@ -227,7 +227,7 @@ impl<'db> AsHashDB<KeccakHasher, DBValue> for WrappingMut<'db> {
 impl<'db> HashDB<KeccakHasher, DBValue> for WrappingMut<'db>{
 	fn get(&self, key: &H256, prefix: Prefix) -> Option<DBValue> {
 		if key == &KECCAK_NULL_RLP {
-			return Some(DBValue::from_slice(&NULL_RLP));
+			return Some(NULL_RLP.to_vec());
 		}
 		self.0.get(key, prefix)
 	}

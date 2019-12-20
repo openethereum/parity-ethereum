@@ -104,7 +104,7 @@ pub fn open_secretstore_db(data_path: &str) -> Result<Arc<dyn KeyValueDB>, Strin
 	db_path.push("db");
 	let db_path = db_path.to_str().ok_or_else(|| "Invalid secretstore path".to_string())?;
 
-	let config = DatabaseConfig::with_columns(Some(1));
+	let config = DatabaseConfig::with_columns(1);
 	Ok(Arc::new(Database::open(&config, &db_path).map_err(|e| format!("Error opening database: {:?}", e))?))
 }
 

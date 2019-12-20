@@ -120,7 +120,7 @@ impl KeyStorage for PersistentKeyStorage {
 		let key: SerializableDocumentKeyShareV3 = key.into();
 		let key = serde_json::to_vec(&key).map_err(|e| Error::Database(e.to_string()))?;
 		let mut batch = self.db.transaction();
-		batch.put(Some(0), document.as_bytes(), &key);
+		batch.put(0, document.as_bytes(), &key);
 		self.db.write(batch).map_err(Into::into)
 	}
 
@@ -129,7 +129,7 @@ impl KeyStorage for PersistentKeyStorage {
 	}
 
 	fn get(&self, document: &ServerKeyId) -> Result<Option<DocumentKeyShare>, Error> {
-		self.db.get(Some(0), document.as_bytes())
+		self.db.get(0, document.as_bytes())
 			.map_err(|e| Error::Database(e.to_string()))
 			.and_then(|key| match key {
 				None => Ok(None),
@@ -142,28 +142,28 @@ impl KeyStorage for PersistentKeyStorage {
 
 	fn remove(&self, document: &ServerKeyId) -> Result<(), Error> {
 		let mut batch = self.db.transaction();
-		batch.delete(Some(0), document.as_bytes());
+		batch.delete(0, document.as_bytes());
 		self.db.write(batch).map_err(Into::into)
 	}
 
 	fn clear(&self) -> Result<(), Error> {
 		let mut batch = self.db.transaction();
 		for (key, _) in self.iter() {
-			batch.delete(Some(0), key.as_bytes());
+			batch.delete(0, key.as_bytes());
 		}
 		self.db.write(batch)
 			.map_err(|e| Error::Database(e.to_string()))
 	}
 
 	fn contains(&self, document: &ServerKeyId) -> bool {
-		self.db.get(Some(0), document.as_bytes())
+		self.db.get(0, document.as_bytes())
 			.map(|k| k.is_some())
 			.unwrap_or(false)
 	}
 
 	fn iter<'a>(&'a self) -> Box<dyn Iterator<Item=(ServerKeyId, DocumentKeyShare)> + 'a> {
 		Box::new(PersistentKeyStorageIterator {
-			iter: self.db.iter(Some(0)),
+			iter: self.db.iter(0),
 		})
 	}
 }
@@ -350,7 +350,7 @@ pub mod tests {
 		};
 		let key3 = ServerKeyId::from_low_u64_be(3);
 
-		let db_config = DatabaseConfig::with_columns(Some(1));
+		let db_config = DatabaseConfig::with_columns(1);
 		let db = Database::open(&db_config, &tempdir.path().display().to_string()).unwrap();
 
 		let key_storage = PersistentKeyStorage::new(Arc::new(db)).unwrap();
