@@ -33,7 +33,7 @@ pub struct CallResult {
 	pub output: Bytes,
 }
 
-/// `Call` type
+/// `Call` type. Distinguish between different types of contract interactions.
 #[derive(Debug, Clone, PartialEq)]
 pub enum CallType {
 	/// Call
@@ -101,7 +101,7 @@ impl CreateResult {
 	}
 }
 
-/// `Create` method
+/// `Create` method. Distinguish between use of `CREATE` and `CREATE2` opcodes in an action.
 #[derive(Debug, Clone, PartialEq)]
 pub enum CreationMethod {
 	/// Create
