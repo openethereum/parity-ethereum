@@ -100,6 +100,8 @@ pub struct CommonParams {
 	pub eip1884_transition: BlockNumber,
 	/// Number of first block where EIP-2028 rules begin.
 	pub eip2028_transition: BlockNumber,
+	/// Number of first block where EIP-2200 advance transition begin.
+	pub eip2200_advance_transition: BlockNumber,
 	/// Number of first block where dust cleanup rules (EIP-168 and EIP169) begin.
 	pub dust_protection_transition: BlockNumber,
 	/// Nonce cap increase per block. Nonce cap is only checked if dust protection is enabled.
@@ -184,6 +186,9 @@ impl CommonParams {
 		}
 		if block_number >= self.eip2028_transition {
 			schedule.tx_data_non_zero_gas = 16;
+		}
+		if block_number >= self.eip2200_advance_transition {
+			schedule.sstore_dirty_gas = Some(800);
 		}
 		if block_number >= self.eip210_transition {
 			schedule.blockhash_gas = 800;
@@ -319,6 +324,10 @@ impl From<ethjson::spec::Params> for CommonParams {
 				Into::into,
 			),
 			eip2028_transition: p.eip2028_transition.map_or_else(
+				BlockNumber::max_value,
+				Into::into,
+			),
+			eip2200_advance_transition: p.eip2200_advance_transition.map_or_else(
 				BlockNumber::max_value,
 				Into::into,
 			),

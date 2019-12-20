@@ -28,6 +28,7 @@
 		"eip1344Transition": "0x1f67cf",
 		"eip1706Transition": "0x1f67cf",
 		"eip2028Transition": "0x1f67cf",
+		"eip2200AdvanceTransition": "0x1f67cf",
 		"gasLimitBoundDivisor": "0x400",
 		"maxCodeSize": "0x6000",
 		"maxCodeSizeTransition": "0xaef49",

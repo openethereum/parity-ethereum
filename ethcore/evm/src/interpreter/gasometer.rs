@@ -376,7 +376,7 @@ fn calculate_eip1283_sstore_gas<Gas: evm::CostType>(schedule: &Schedule, origina
 	Gas::from(
 		if current == new {
 			// 1. If current value equals new value (this is a no-op), 200 gas is deducted.
-			schedule.sload_gas
+			schedule.sstore_dirty_gas.unwrap_or(schedule.sload_gas)
 		} else {
 			// 2. If current value does not equal new value
 			if original == current {
@@ -392,7 +392,7 @@ fn calculate_eip1283_sstore_gas<Gas: evm::CostType>(schedule: &Schedule, origina
 				}
 			} else {
 				// 2.2. If original value does not equal current value (this storage slot is dirty), 200 gas is deducted. Apply both of the following clauses.
-				schedule.sload_gas
+				schedule.sstore_dirty_gas.unwrap_or(schedule.sload_gas)
 
 				// 2.2.1. If original value is not 0
 				// 2.2.1.1. If current value is 0 (also means that new value is not 0), remove 15000 gas from refund counter. We can prove that refund counter will never go below 0.
@@ -442,11 +442,13 @@ pub fn handle_eip1283_sstore_clears_refund(ext: &mut dyn vm::Ext, original: &U25
 				// 2.2.2. If original value equals new value (this storage slot is reset)
 				if original.is_zero() {
 					// 2.2.2.1. If original value is 0, add 19800 gas to refund counter.
-					let refund = ext.schedule().sstore_set_gas - ext.schedule().sload_gas;
+					let refund = ext.schedule().sstore_set_gas
+						- ext.schedule().sstore_dirty_gas.unwrap_or(ext.schedule().sload_gas);
 					ext.add_sstore_refund(refund);
 				} else {
 					// 2.2.2.2. Otherwise, add 4800 gas to refund counter.
-					let refund = ext.schedule().sstore_reset_gas - ext.schedule().sload_gas;
+					let refund = ext.schedule().sstore_reset_gas
+						- ext.schedule().sstore_dirty_gas.unwrap_or(ext.schedule().sload_gas);
 					ext.add_sstore_refund(refund);
 				}
 			}
