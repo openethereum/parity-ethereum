@@ -421,7 +421,7 @@ impl StateRebuilder {
 		for (code_hash, code, first_with) in status.new_code {
 			for addr_hash in self.missing_code.remove(&code_hash).unwrap_or_else(Vec::new) {
 				let mut db = AccountDBMut::from_hash(self.db.as_hash_db_mut(), addr_hash);
-				db.emplace(code_hash, hash_db::EMPTY_PREFIX, DBValue::from_slice(&code));
+				db.emplace(code_hash, hash_db::EMPTY_PREFIX, code.to_vec());
 			}
 
 			self.known_code.insert(code_hash, first_with);

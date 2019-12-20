@@ -647,15 +647,13 @@ impl Importer {
 							let res = Executive::new(&mut state, &env_info, &machine, &schedule)
 								.transact(&transaction, options);
 
-							let res = match res {
+							match res {
 								Err(e) => {
 									trace!(target: "client", "Proved call failed: {}", e);
 									Err(e.to_string())
 								}
 								Ok(res) => Ok((res.output, state.drop().1.extract_proof())),
-							};
-
-							res.map(|(output, proof)| (output, proof.into_iter().map(|x| x.into_vec()).collect()))
+							}
 						};
 
 						match with_state.generate_proof(&call) {

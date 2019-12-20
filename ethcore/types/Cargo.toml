@@ -13,7 +13,7 @@ ethjson = { path = "../../json" }
 keccak-hash = "0.4.0"
 parity-bytes = "0.1"
 parity-crypto = { version = "0.4.2", features = ["publickey"] }
-parity-util-mem = "0.2.0"
+parity-util-mem = "0.3.0"
 parity-snappy = "0.1"
 patricia-trie-ethereum = { path = "../../util/patricia-trie-ethereum" }
 rlp = "0.4.0"

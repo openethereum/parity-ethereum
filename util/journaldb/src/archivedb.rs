@@ -46,12 +46,12 @@ pub struct ArchiveDB {
 	overlay: super::MemoryDB,
 	backing: Arc<dyn KeyValueDB>,
 	latest_era: Option<u64>,
-	column: Option<u32>,
+	column: u32,
 }
 
 impl ArchiveDB {
 	/// Create a new instance from a key-value db.
-	pub fn new(backing: Arc<dyn KeyValueDB>, column: Option<u32>) -> ArchiveDB {
+	pub fn new(backing: Arc<dyn KeyValueDB>, column: u32) -> ArchiveDB {
 		let latest_era = backing.get(column, &LATEST_ERA_KEY)
 			.expect("Low-level database error.")
 			.map(|val| decode::<u64>(&val).expect("decoding db value failed"));
@@ -108,7 +108,7 @@ impl JournalDB for ArchiveDB {
 
 	fn mem_used(&self) -> usize {
 		self.overlay.malloc_size_of()
- 	}
+	}
 
 	fn is_empty(&self) -> bool {
 		self.latest_era.is_none()
@@ -214,7 +214,7 @@ mod tests {
 	#[test]
 	fn insert_same_in_fork() {
 		// history is 1
-		let mut jdb = ArchiveDB::new(Arc::new(kvdb_memorydb::create(0)), None);
+		let mut jdb = ArchiveDB::new(Arc::new(kvdb_memorydb::create(1)), 0);
 
 		let x = jdb.insert(EMPTY_PREFIX, b"X");
 		commit_batch(&mut jdb, 1, &keccak(b"1"), None).unwrap();
@@ -236,7 +236,7 @@ mod tests {
 	#[test]
 	fn long_history() {
 		// history is 3
-		let mut jdb = ArchiveDB::new(Arc::new(kvdb_memorydb::create(0)), None);
+		let mut jdb = ArchiveDB::new(Arc::new(kvdb_memorydb::create(1)), 0);
 		let h = jdb.insert(EMPTY_PREFIX, b"foo");
 		commit_batch(&mut jdb, 0, &keccak(b"0"), None).unwrap();
 		assert!(jdb.contains(&h, EMPTY_PREFIX));
@@ -254,7 +254,7 @@ mod tests {
 	#[test]
 	#[should_panic]
 	fn multiple_owed_removal_not_allowed() {
-		let mut jdb = ArchiveDB::new(Arc::new(kvdb_memorydb::create(0)), None);
+		let mut jdb = ArchiveDB::new(Arc::new(kvdb_memorydb::create(1)), 0);
 		let h = jdb.insert(EMPTY_PREFIX, b"foo");
 		commit_batch(&mut jdb, 0, &keccak(b"0"), None).unwrap();
 		assert!(jdb.contains(&h, EMPTY_PREFIX));
@@ -268,7 +268,7 @@ mod tests {
 	#[test]
 	fn complex() {
 		// history is 1
-		let mut jdb = ArchiveDB::new(Arc::new(kvdb_memorydb::create(0)), None);
+		let mut jdb = ArchiveDB::new(Arc::new(kvdb_memorydb::create(1)), 0);
 
 		let foo = jdb.insert(EMPTY_PREFIX, b"foo");
 		let bar = jdb.insert(EMPTY_PREFIX, b"bar");
@@ -300,7 +300,7 @@ mod tests {
 	#[test]
 	fn fork() {
 		// history is 1
-		let mut jdb = ArchiveDB::new(Arc::new(kvdb_memorydb::create(0)), None);
+		let mut jdb = ArchiveDB::new(Arc::new(kvdb_memorydb::create(1)), 0);
 
 		let foo = jdb.insert(EMPTY_PREFIX, b"foo");
 		let bar = jdb.insert(EMPTY_PREFIX, b"bar");
@@ -326,7 +326,7 @@ mod tests {
 	#[test]
 	fn overwrite() {
 		// history is 1
-		let mut jdb = ArchiveDB::new(Arc::new(kvdb_memorydb::create(0)), None);
+		let mut jdb = ArchiveDB::new(Arc::new(kvdb_memorydb::create(1)), 0);
 
 		let foo = jdb.insert(EMPTY_PREFIX, b"foo");
 		commit_batch(&mut jdb, 0, &keccak(b"0"), None).unwrap();
@@ -345,7 +345,7 @@ mod tests {
 	#[test]
 	fn fork_same_key() {
 		// history is 1
-		let mut jdb = ArchiveDB::new(Arc::new(kvdb_memorydb::create(0)), None);
+		let mut jdb = ArchiveDB::new(Arc::new(kvdb_memorydb::create(1)), 0);
 		commit_batch(&mut jdb, 0, &keccak(b"0"), None).unwrap();
 
 		let foo = jdb.insert(EMPTY_PREFIX, b"foo");
@@ -361,26 +361,26 @@ mod tests {
 
 	#[test]
 	fn reopen() {
-		let shared_db = Arc::new(kvdb_memorydb::create(0));
+		let shared_db = Arc::new(kvdb_memorydb::create(1));
 		let bar = H256::random();
 
 		let foo = {
-			let mut jdb = ArchiveDB::new(shared_db.clone(), None);
+			let mut jdb = ArchiveDB::new(shared_db.clone(), 0);
 			// history is 1
 			let foo = jdb.insert(EMPTY_PREFIX, b"foo");
-			jdb.emplace(bar.clone(), EMPTY_PREFIX, DBValue::from_slice(b"bar"));
+			jdb.emplace(bar.clone(), EMPTY_PREFIX, b"bar".to_vec());
 			commit_batch(&mut jdb, 0, &keccak(b"0"), None).unwrap();
 			foo
 		};
 
 		{
-			let mut jdb = ArchiveDB::new(shared_db.clone(), None);
+			let mut jdb = ArchiveDB::new(shared_db.clone(), 0);
 			jdb.remove(&foo, EMPTY_PREFIX);
 			commit_batch(&mut jdb, 1, &keccak(b"1"), Some((0, keccak(b"0")))).unwrap();
 		}
 
 		{
-			let mut jdb = ArchiveDB::new(shared_db, None);
+			let mut jdb = ArchiveDB::new(shared_db, 0);
 			assert!(jdb.contains(&foo, EMPTY_PREFIX));
 			assert!(jdb.contains(&bar, EMPTY_PREFIX));
 			commit_batch(&mut jdb, 2, &keccak(b"2"), Some((1, keccak(b"1")))).unwrap();
@@ -389,10 +389,10 @@ mod tests {
 
 	#[test]
 	fn reopen_remove() {
-		let shared_db = Arc::new(kvdb_memorydb::create(0));
+		let shared_db = Arc::new(kvdb_memorydb::create(1));
 
 		let foo = {
-			let mut jdb = ArchiveDB::new(shared_db.clone(), None);
+			let mut jdb = ArchiveDB::new(shared_db.clone(), 0);
 			// history is 1
 			let foo = jdb.insert(EMPTY_PREFIX, b"foo");
 			commit_batch(&mut jdb, 0, &keccak(b"0"), None).unwrap();
@@ -406,7 +406,7 @@ mod tests {
 		};
 
 		{
-			let mut jdb = ArchiveDB::new(shared_db, None);
+			let mut jdb = ArchiveDB::new(shared_db, 0);
 			jdb.remove(&foo, EMPTY_PREFIX);
 			commit_batch(&mut jdb, 3, &keccak(b"3"), Some((2, keccak(b"2")))).unwrap();
 			assert!(jdb.contains(&foo, EMPTY_PREFIX));
@@ -418,9 +418,9 @@ mod tests {
 
 	#[test]
 	fn reopen_fork() {
-		let shared_db = Arc::new(kvdb_memorydb::create(0));
+		let shared_db = Arc::new(kvdb_memorydb::create(1));
 		let (foo, _, _) = {
-			let mut jdb = ArchiveDB::new(shared_db.clone(), None);
+			let mut jdb = ArchiveDB::new(shared_db.clone(), 0);
 			// history is 1
 			let foo = jdb.insert(EMPTY_PREFIX, b"foo");
 			let bar = jdb.insert(EMPTY_PREFIX, b"bar");
@@ -435,7 +435,7 @@ mod tests {
 		};
 
 		{
-			let mut jdb = ArchiveDB::new(shared_db, None);
+			let mut jdb = ArchiveDB::new(shared_db, 0);
 			commit_batch(&mut jdb, 2, &keccak(b"2b"), Some((1, keccak(b"1b")))).unwrap();
 			assert!(jdb.contains(&foo, EMPTY_PREFIX));
 		}
@@ -443,17 +443,17 @@ mod tests {
 
 	#[test]
 	fn returns_state() {
-		let shared_db = Arc::new(kvdb_memorydb::create(0));
+		let shared_db = Arc::new(kvdb_memorydb::create(1));
 
 		let key = {
-			let mut jdb = ArchiveDB::new(shared_db.clone(), None);
+			let mut jdb = ArchiveDB::new(shared_db.clone(), 0);
 			let key = jdb.insert(EMPTY_PREFIX, b"foo");
 			commit_batch(&mut jdb, 0, &keccak(b"0"), None).unwrap();
 			key
 		};
 
 		{
-			let jdb = ArchiveDB::new(shared_db, None);
+			let jdb = ArchiveDB::new(shared_db, 0);
 			let state = jdb.state(&key);
 			assert!(state.is_some());
 		}
@@ -461,11 +461,11 @@ mod tests {
 
 	#[test]
 	fn inject() {
-		let mut jdb = ArchiveDB::new(Arc::new(kvdb_memorydb::create(0)), None);
+		let mut jdb = ArchiveDB::new(Arc::new(kvdb_memorydb::create(1)), 0);
 		let key = jdb.insert(EMPTY_PREFIX, b"dog");
 		inject_batch(&mut jdb).unwrap();
 
-		assert_eq!(jdb.get(&key, EMPTY_PREFIX).unwrap(), DBValue::from_slice(b"dog"));
+		assert_eq!(jdb.get(&key, EMPTY_PREFIX).unwrap(), b"dog".to_vec());
 		jdb.remove(&key, EMPTY_PREFIX);
 		inject_batch(&mut jdb).unwrap();
 

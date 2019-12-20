@@ -78,7 +78,7 @@ impl trie_db::TrieLayout for Layout {
 ///   TrieDBMut::new(&mut memdb, &mut root).insert(b"foo", b"bar").unwrap();
 ///   let t = TrieDB::new(&memdb, &root).unwrap();
 ///   assert!(t.contains(b"foo").unwrap());
-///   assert_eq!(t.get(b"foo").unwrap().unwrap(), DBValue::from_slice(b"bar"));
+///   assert_eq!(t.get(b"foo").unwrap().unwrap(), b"bar".to_vec());
 /// }
 /// ```
 pub type TrieDB<'db> = trie::TrieDB<'db, Layout>;
@@ -125,7 +125,7 @@ pub type FatDB<'db> = trie::FatDB<'db, Layout>;
 ///   assert_eq!(*t.root(), KECCAK_NULL_RLP);
 ///   t.insert(b"foo", b"bar").unwrap();
 ///   assert!(t.contains(b"foo").unwrap());
-///   assert_eq!(t.get(b"foo").unwrap().unwrap(), DBValue::from_slice(b"bar"));
+///   assert_eq!(t.get(b"foo").unwrap().unwrap(), b"bar".to_vec());
 ///   t.remove(b"foo").unwrap();
 ///   assert!(!t.contains(b"foo").unwrap());
 /// }

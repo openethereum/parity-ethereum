@@ -34,7 +34,7 @@ const ACL_CHECKER_CONTRACT_REGISTRY_NAME: &'static str = "secretstore_acl_checke
 
 /// ACL storage of Secret Store
 pub trait AclStorage: Send + Sync {
-	/// Check if requestor can access document with hash `document`
+	/// Check if requester can access document with hash `document`
 	fn check(&self, requester: Address, document: &ServerKeyId) -> Result<bool, Error>;
 }
 
@@ -132,7 +132,7 @@ impl CachedContract {
 }
 
 impl DummyAclStorage {
-	/// Prohibit given requestor access to given documents
+	/// Prohibit given requester access to given documents
 	#[cfg(test)]
 	pub fn prohibit(&self, requester: Address, document: ServerKeyId) {
 		self.prohibited.write()

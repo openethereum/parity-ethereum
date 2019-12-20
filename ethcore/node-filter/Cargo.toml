@@ -22,7 +22,7 @@ lru-cache = "0.1"
 
 [dev-dependencies]
 ethcore = { path = "..", features = ["test-helpers"] }
-kvdb-memorydb = "0.1.2"
+kvdb-memorydb = "0.2.0"
 ethcore-io = { path = "../../util/io" }
 spec = { path = "../spec" }
 tempdir = "0.3"

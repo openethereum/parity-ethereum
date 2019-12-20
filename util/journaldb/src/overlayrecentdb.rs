@@ -74,7 +74,7 @@ pub struct OverlayRecentDB {
 	transaction_overlay: super::MemoryDB,
 	backing: Arc<dyn KeyValueDB>,
 	journal_overlay: Arc<RwLock<JournalOverlay>>,
-	column: Option<u32>,
+	column: u32,
 }
 
 struct DatabaseValue {
@@ -88,7 +88,7 @@ impl Decodable for DatabaseValue {
 		let id = rlp.val_at(0)?;
 		let inserts = rlp.at(1)?.iter().map(|r| {
 			let k = r.val_at(0)?;
-			let v = DBValue::from_slice(r.at(1)?.data()?);
+			let v = r.at(1)?.data()?.to_vec();
 			Ok((k, v))
 		}).collect::<Result<Vec<_>, _>>()?;
 		let deletes = rlp.list_at(2)?;
@@ -153,12 +153,12 @@ impl Clone for OverlayRecentDB {
 
 impl OverlayRecentDB {
 	/// Create a new instance.
-	pub fn new(backing: Arc<dyn KeyValueDB>, col: Option<u32>) -> OverlayRecentDB {
+	pub fn new(backing: Arc<dyn KeyValueDB>, col: u32) -> OverlayRecentDB {
 		let journal_overlay = Arc::new(RwLock::new(OverlayRecentDB::read_overlay(&*backing, col)));
 		OverlayRecentDB {
 			transaction_overlay: new_memory_db(),
-			backing: backing,
-			journal_overlay: journal_overlay,
+			backing,
+			journal_overlay,
 			column: col,
 		}
 	}
@@ -180,7 +180,7 @@ impl OverlayRecentDB {
 			.expect("Low-level database error. Some issue with your hard disk?")
 	}
 
-	fn read_overlay(db: &dyn KeyValueDB, col: Option<u32>) -> JournalOverlay {
+	fn read_overlay(db: &dyn KeyValueDB, col: u32) -> JournalOverlay {
 		let mut journal = HashMap::new();
 		let mut overlay = new_memory_db();
 		let mut count = 0;
@@ -281,9 +281,9 @@ impl JournalDB for OverlayRecentDB {
 	fn state(&self, key: &H256) -> Option<Bytes> {
 		let journal_overlay = self.journal_overlay.read();
 		let key = to_short_key(key);
-		journal_overlay.backing_overlay.get(&key, EMPTY_PREFIX).map(|v| v.into_vec())
-		.or_else(|| journal_overlay.pending_overlay.get(&key).map(|d| d.clone().into_vec()))
-		.or_else(|| self.backing.get_by_prefix(self.column, &key[0..DB_PREFIX_LEN]).map(|b| b.into_vec()))
+		journal_overlay.backing_overlay.get(&key, EMPTY_PREFIX)
+			.or_else(|| journal_overlay.pending_overlay.get(&key).map(|d| d.clone()))
+			.or_else(|| self.backing.get_by_prefix(self.column, &key[0..DB_PREFIX_LEN]).map(|b| b.to_vec()))
 	}
 
 	fn journal_under(&mut self, batch: &mut DBTransaction, now: u64, id: &H256) -> io::Result<u32> {
@@ -500,8 +500,8 @@ mod tests {
 	use crate::{JournalDB, inject_batch, commit_batch};
 
 	fn new_db() -> OverlayRecentDB {
-		let backing = Arc::new(kvdb_memorydb::create(0));
-		OverlayRecentDB::new(backing, None)
+		let backing = Arc::new(kvdb_memorydb::create(1));
+		OverlayRecentDB::new(backing, 0)
 	}
 
 	#[test]
@@ -742,28 +742,28 @@ mod tests {
 
 	#[test]
 	fn reopen() {
-		let shared_db = Arc::new(kvdb_memorydb::create(0));
+		let shared_db = Arc::new(kvdb_memorydb::create(1));
 		let bar = H256::random();
 
 		let foo = {
-			let mut jdb = OverlayRecentDB::new(shared_db.clone(), None);
+			let mut jdb = OverlayRecentDB::new(shared_db.clone(), 0);
 			// history is 1
 			let foo = jdb.insert(EMPTY_PREFIX, b"foo");
-			jdb.emplace(bar.clone(), EMPTY_PREFIX, DBValue::from_slice(b"bar"));
+			jdb.emplace(bar.clone(), EMPTY_PREFIX, b"bar".to_vec());
 			commit_batch(&mut jdb, 0, &keccak(b"0"), None).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 			foo
 		};
 
 		{
-			let mut jdb = OverlayRecentDB::new(shared_db.clone(), None);
+			let mut jdb = OverlayRecentDB::new(shared_db.clone(), 0);
 			jdb.remove(&foo, EMPTY_PREFIX);
 			commit_batch(&mut jdb, 1, &keccak(b"1"), Some((0, keccak(b"0")))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 		}
 
 		{
-			let mut jdb = OverlayRecentDB::new(shared_db.clone(), None);
+			let mut jdb = OverlayRecentDB::new(shared_db.clone(), 0);
 			assert!(jdb.contains(&foo, EMPTY_PREFIX));
 			assert!(jdb.contains(&bar, EMPTY_PREFIX));
 			commit_batch(&mut jdb, 2, &keccak(b"2"), Some((1, keccak(b"1")))).unwrap();
@@ -909,11 +909,11 @@ mod tests {
 	fn reopen_remove_three() {
 		let _ = ::env_logger::try_init();
 
-		let shared_db = Arc::new(kvdb_memorydb::create(0));
+		let shared_db = Arc::new(kvdb_memorydb::create(1));
 		let foo = keccak(b"foo");
 
 		{
-			let mut jdb = OverlayRecentDB::new(shared_db.clone(), None);
+			let mut jdb = OverlayRecentDB::new(shared_db.clone(), 0);
 			// history is 1
 			jdb.insert(EMPTY_PREFIX, b"foo");
 			commit_batch(&mut jdb, 0, &keccak(b"0"), None).unwrap();
@@ -935,7 +935,7 @@ mod tests {
 
 		// incantation to reopen the db
 		}; {
-			let mut jdb = OverlayRecentDB::new(shared_db.clone(), None);
+			let mut jdb = OverlayRecentDB::new(shared_db.clone(), 0);
 
 			jdb.remove(&foo, EMPTY_PREFIX);
 			commit_batch(&mut jdb, 4, &keccak(b"4"), Some((2, keccak(b"2")))).unwrap();
@@ -944,7 +944,7 @@ mod tests {
 
 		// incantation to reopen the db
 		}; {
-			let mut jdb = OverlayRecentDB::new(shared_db.clone(), None);
+			let mut jdb = OverlayRecentDB::new(shared_db.clone(), 0);
 
 			commit_batch(&mut jdb, 5, &keccak(b"5"), Some((3, keccak(b"3")))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
@@ -952,7 +952,7 @@ mod tests {
 
 		// incantation to reopen the db
 		}; {
-			let mut jdb = OverlayRecentDB::new(shared_db, None);
+			let mut jdb = OverlayRecentDB::new(shared_db, 0);
 
 			commit_batch(&mut jdb, 6, &keccak(b"6"), Some((4, keccak(b"4")))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
@@ -962,10 +962,10 @@ mod tests {
 
 	#[test]
 	fn reopen_fork() {
-		let shared_db = Arc::new(kvdb_memorydb::create(0));
+		let shared_db = Arc::new(kvdb_memorydb::create(1));
 
 		let (foo, bar, baz) = {
-			let mut jdb = OverlayRecentDB::new(shared_db.clone(), None);
+			let mut jdb = OverlayRecentDB::new(shared_db.clone(), 0);
 			// history is 1
 			let foo = jdb.insert(EMPTY_PREFIX, b"foo");
 			let bar = jdb.insert(EMPTY_PREFIX, b"bar");
@@ -983,7 +983,7 @@ mod tests {
 		};
 
 		{
-			let mut jdb = OverlayRecentDB::new(shared_db, None);
+			let mut jdb = OverlayRecentDB::new(shared_db, 0);
 			commit_batch(&mut jdb, 2, &keccak(b"2b"), Some((1, keccak(b"1b")))).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 			assert!(jdb.contains(&foo, EMPTY_PREFIX));
@@ -1018,7 +1018,7 @@ mod tests {
 		let key = jdb.insert(EMPTY_PREFIX, b"dog");
 		inject_batch(&mut jdb).unwrap();
 
-		assert_eq!(jdb.get(&key, EMPTY_PREFIX).unwrap(), DBValue::from_slice(b"dog"));
+		assert_eq!(jdb.get(&key, EMPTY_PREFIX).unwrap(), b"dog".to_vec());
 		jdb.remove(&key, EMPTY_PREFIX);
 		inject_batch(&mut jdb).unwrap();
 
@@ -1027,10 +1027,10 @@ mod tests {
 
 	#[test]
 	fn earliest_era() {
-		let shared_db = Arc::new(kvdb_memorydb::create(0));
+		let shared_db = Arc::new(kvdb_memorydb::create(1));
 
 		// empty DB
-		let mut jdb = OverlayRecentDB::new(shared_db.clone(), None);
+		let mut jdb = OverlayRecentDB::new(shared_db.clone(), 0);
 		assert!(jdb.earliest_era().is_none());
 
 		// single journalled era.
@@ -1064,7 +1064,7 @@ mod tests {
 
 		// reconstructed: no journal entries.
 		drop(jdb);
-		let jdb = OverlayRecentDB::new(shared_db, None);
+		let jdb = OverlayRecentDB::new(shared_db, 0);
 		assert_eq!(jdb.earliest_era(), None);
 	}
 }

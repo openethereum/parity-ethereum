@@ -27,7 +27,7 @@ macros = { path = "../../util/macros" }
 network = { package = "ethcore-network", path = "../../util/network" }
 parity-runtime = { path = "../../util/runtime" }
 parity-crypto = { version = "0.4.2", features = ["publickey"] }
-parity-util-mem = "0.2.0"
+parity-util-mem = "0.3.0"
 rand = "0.7"
 parking_lot = "0.9"
 rlp = "0.4.0"
@@ -40,7 +40,7 @@ env_logger = "0.5"
 engine = { path = "../engine" }
 ethcore = { path = "..", features = ["test-helpers"] }
 ethcore-io = { path = "../../util/io", features = ["mio"] }
-kvdb-memorydb = "0.1.2"
+kvdb-memorydb = "0.2.0"
 machine = { path = "../machine" }
 rand_xorshift = "0.2"
 rustc-hex = "1.0"
