@@ -130,7 +130,7 @@ impl From<ethjson::vm::Transaction> for ActionParams {
 			gas: t.gas.into(),
 			gas_price: t.gas_price.into(),
 			value: ActionValue::Transfer(t.value.into()),
-			action_type: if address.is_zero() { ActionType::Create } else { ActionType::Call },
+			action_type: ActionType::Call,
 			params_type: ParamsType::Separate,
 		}
 	}
