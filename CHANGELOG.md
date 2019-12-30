@@ -1,3 +1,10 @@
+## Parity-Ethereum [v2.6.8](https://github.com/paritytech/parity-ethereum/releases/tag/v2.6.8)
+
+Parity Ethereum v2.6.8-beta is a security release. Valid blocks with manipulated transactions (added/replaced) cause the client to stall.
+
+The full list of included changes:
+* Make sure to not mark block header hash as invalid if only the body is wrong (#11356)
+
 ## Parity-Ethereum [v2.6.7](https://github.com/paritytech/parity-ethereum/releases/tag/v2.6.7)
 
 Parity Ethereum v2.6.7-beta is a patch release that adds Istanbul hardfork
