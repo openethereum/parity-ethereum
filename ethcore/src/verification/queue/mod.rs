@@ -505,6 +505,10 @@ impl<K: Kind> VerificationQueue<K> {
 				match err {
 					// Don't mark future blocks as bad.
 					Error(ErrorKind::Block(BlockError::TemporarilyInvalid(_)), _) => {},
+					// If the transaction root is invalid, it doesn't necessarily mean that the
+					// hash of the header is invalid. We might have just received a malformed block body,
+					// so we can't put the hash to `bad`.
+					Error(ErrorKind::Block(BlockError::InvalidTransactionsRoot(_), _)) => {},
 					_ => {
 						self.verification.bad.lock().insert(hash);
 					}
