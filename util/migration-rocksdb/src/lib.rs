@@ -96,7 +96,7 @@ impl Batch {
 }
 
 /// A generalized migration from the given db to a destination db.
-pub trait Migration: 'static {
+pub trait Migration {
 	/// Number of columns in the database before the migration.
 	fn pre_columns(&self) -> u32 { self.columns() }
 	/// Number of columns in database after the migration.
@@ -111,7 +111,7 @@ pub trait Migration: 'static {
 }
 
 /// A simple migration over key-value pairs of a single column.
-pub trait SimpleMigration: 'static {
+pub trait SimpleMigration {
 	/// Number of columns in database after the migration.
 	fn columns(&self) -> u32;
 	/// Version of database after the migration.
@@ -217,7 +217,7 @@ impl Manager {
 	}
 
 	/// Adds new migration rules.
-	pub fn add_migration<T>(&mut self, migration: T) -> io::Result<()> where T: Migration {
+	pub fn add_migration<T: 'static>(&mut self, migration: T) -> io::Result<()> where T: Migration {
 		let is_new = match self.migrations.last() {
 			Some(last) => migration.version() > last.version(),
 			None => true,
