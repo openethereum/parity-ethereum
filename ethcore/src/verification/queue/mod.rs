@@ -472,13 +472,14 @@ impl<K: Kind> VerificationQueue<K> {
 	/// Add a block to the queue.
 	pub fn import(&self, input: K::Input) -> Result<H256, (K::Input, Error)> {
 		let hash = input.hash();
+		let raw_hash = input.raw_hash();
 		{
 			if self.processing.read().contains_key(&hash) {
 				bail!((input, ErrorKind::Import(ImportErrorKind::AlreadyQueued).into()));
 			}
 
 			let mut bad = self.verification.bad.lock();
-			if bad.contains(&hash) {
+			if bad.contains(&hash) || bad.contains(&raw_hash) {
 				bail!((input, ErrorKind::Import(ImportErrorKind::KnownBad).into()));
 			}
 
@@ -505,6 +506,16 @@ impl<K: Kind> VerificationQueue<K> {
 				match err {
 					// Don't mark future blocks as bad.
 					Error(ErrorKind::Block(BlockError::TemporarilyInvalid(_)), _) => {},
+					// If the transaction root or uncles hash is invalid, it doesn't necessarily mean
+					// that the header is invalid. We might have just received a malformed block body,
+					// so we shouldn't put the header hash to `bad`.
+					//
+					// We still put the entire `Item` hash to bad, so that we can early reject
+					// the items that are malformed.
+					Error(ErrorKind::Block(BlockError::InvalidTransactionsRoot(_)), _) |
+					Error(ErrorKind::Block(BlockError::InvalidUnclesHash(_)), _) => {
+						self.verification.bad.lock().insert(raw_hash);
+					},
 					_ => {
 						self.verification.bad.lock().insert(hash);
 					}
