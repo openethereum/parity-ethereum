@@ -1482,6 +1482,7 @@ dependencies = [
  "ethabi-contract 9.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethabi-derive 9.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethereum-types 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethkey 0.4.0",
  "futures 0.1.29 (registry+https://github.com/rust-lang/crates.io-index)",
  "hyper 0.12.19 (registry+https://github.com/rust-lang/crates.io-index)",
  "jsonrpc-server-utils 14.0.3 (registry+https://github.com/rust-lang/crates.io-index)",

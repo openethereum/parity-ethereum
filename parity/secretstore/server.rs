@@ -205,14 +205,9 @@ mod server {
 
 			cconf.cluster_config.nodes.insert(self_secret.public().clone(), cconf.cluster_config.listener_address.clone());
 
-<<<<<<< HEAD:parity/secretstore.rs
 			let db = ethcore_secretstore::open_secretstore_db(&conf.data_path)?;
-			let key_server = ethcore_secretstore::start(deps.client, deps.sync, deps.miner, self_secret, cconf, db, executor)
-=======
-			let db = db::open_secretstore_db(&conf.data_path)?;
 			let trusted_client = TrustedClient::new(self_secret.clone(), deps.client, deps.sync, deps.miner);
 			let key_server = ethcore_secretstore::start(trusted_client, self_secret, cconf, db, executor)
->>>>>>> 3040bcd... Trusted client implementation moved to parity code:parity/secretstore/server.rs
 				.map_err(|e| format!("Error starting KeyServer {}: {}", key_server_name, e))?;
 
 			Ok(KeyServer {
