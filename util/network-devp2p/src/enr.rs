@@ -14,20 +14,20 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-// This module implements Ethereum Node Records as defined in EIP-778. A node record holds
-// arbitrary information about a node on the p2p network.
+//! This module implements Ethereum Node Records as defined in EIP-778. A node record holds
+/// arbitrary information about a node on the p2p network.
 
-// Node information is stored in key/value pairs.
+/// Node information is stored in key/value pairs.
 
-// Node records must be signed before transmitting them to another node.
+/// Node records must be signed before transmitting them to another node.
 
-// Decoding a record doesn't check its signature.
-// When receiving records from untrusted peer, A node must verify two things:
-// - identity scheme.
-// - the signature is valid according to the declared scheme.
+/// Decoding a record doesn't check its signature.
+/// When receiving records from untrusted peer, A node must verify two things:
+/// - identity scheme.
+/// - the signature is valid according to the declared scheme.
 
-// Whenever you create or modify a record, use a signing function provided by
-// the identity scheme to add the signature.
+/// Whenever you create or modify a record, use a signing function provided by
+/// the identity scheme to add the signature.
 
 use std::collections::HashMap;
 use rlp::{encode, Encodable, RlpStream};
