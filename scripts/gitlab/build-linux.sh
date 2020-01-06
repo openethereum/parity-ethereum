@@ -17,7 +17,7 @@ export RUSTFLAGS=" -C link-arg=-s"
 echo "_____ Building target: "$CARGO_TARGET" _____"
 if [ "${CARGO_TARGET}" = "armv7-linux-androideabi" ]
 then
-  time cargo build --target $CARGO_TARGET --verbose --color=always --release -p parity-clib --features final
+  echo "parity-clib is no longer supported"
 else
   if [ "${CARGO_TARGET}" = "x86_64-unknown-linux-gnu" ] || [ "${CARGO_TARGET}" = "x86_64-apple-darwin" ]
   then
@@ -36,10 +36,8 @@ rm -rf artifacts/*
 mkdir -p artifacts/$CARGO_TARGET
 cd artifacts/$CARGO_TARGET
 
-if [ "${CARGO_TARGET}" = "armv7-linux-androideabi" ]
+if [ "${CARGO_TARGET}" != "armv7-linux-androideabi" ]
 then
- cp -v ../../target/$CARGO_TARGET/release/libparity.so ./libparity.so
-else
  cp -v ../../target/$CARGO_TARGET/release/parity ./parity
  cp -v ../../target/$CARGO_TARGET/release/parity-evm ./parity-evm
  cp -v ../../target/$CARGO_TARGET/release/ethstore ./ethstore
