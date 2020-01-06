@@ -75,7 +75,7 @@ use parity_runtime::Executor;
 pub use types::{ServerKeyId, EncryptedDocumentKey, RequestSignature, Public,
 	Error, NodeAddress, ServiceConfiguration, ClusterConfiguration};
 pub use traits::KeyServer;
-pub use blockchain::{Blockchain, SigningKeyPair, ContractAddress, BlockId, BlockNumber, NewBlocksNotify, Filter};
+pub use blockchain::{SecretStoreChain, SigningKeyPair, ContractAddress, BlockId, BlockNumber, NewBlocksNotify, Filter};
 pub use self::node_key_pair::PlainNodeKeyPair;
 
 /// Open a secret store DB using the given secret store data path. The DB path is one level beneath the data path.
@@ -93,7 +93,7 @@ pub fn open_secretstore_db(data_path: &str) -> Result<Arc<dyn KeyValueDB>, Strin
 }
 
 /// Start new key server instance
-pub fn start(trusted_client: Arc<dyn Blockchain>, self_key_pair: Arc<dyn SigningKeyPair>, mut config: ServiceConfiguration,
+pub fn start(trusted_client: Arc<dyn SecretStoreChain>, self_key_pair: Arc<dyn SigningKeyPair>, mut config: ServiceConfiguration,
 	db: Arc<dyn KeyValueDB>, executor: Executor) -> Result<Box<dyn KeyServer>, Error>
 {
 	let acl_storage: Arc<dyn acl_storage::AclStorage> = match config.acl_check_contract_address.take() {

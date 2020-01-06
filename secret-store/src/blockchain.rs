@@ -87,7 +87,7 @@ pub struct Filter {
 }
 
 /// Blockchain representation for Secret Store
-pub trait Blockchain: Send + Sync + 'static {
+pub trait SecretStoreChain: Send + Sync + 'static {
 	/// Adds listener for chain's NewBlocks event
 	fn add_listener(&self, target: Arc<dyn NewBlocksNotify>);
 

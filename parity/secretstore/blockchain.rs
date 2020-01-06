@@ -35,7 +35,7 @@ use ethcore::miner::{Miner, MinerService};
 use parity_crypto::publickey::Error as EthKeyError;
 use sync::SyncProvider;
 use registrar::RegistrarClient;
-use ethcore_secretstore::{BlockId, BlockNumber, Blockchain, NewBlocksNotify, SigningKeyPair, ContractAddress, Filter};
+use ethcore_secretstore::{BlockId, BlockNumber, SecretStoreChain, NewBlocksNotify, SigningKeyPair, ContractAddress, Filter};
 
 // TODO: Instead of a constant, make this based on consensus finality.
 /// Number of confirmations required before request can be processed.
@@ -79,9 +79,9 @@ impl TrustedClient {
 	}
 
 	fn notify_listeners(&self, new_enacted_len: usize) {
-		for np in self.listeners.read().iter() {
-			if let Some(n) = np.upgrade() {
-				n.new_blocks(new_enacted_len);
+		for listener_pointer in self.listeners.read().iter() {
+			if let Some(listener) = listener_pointer.upgrade() {
+				listener.new_blocks(new_enacted_len);
 			}
 		}
 	}
@@ -118,7 +118,7 @@ impl TrustedClient {
 
 }
 
-impl Blockchain for TrustedClient {
+impl SecretStoreChain for TrustedClient {
 	fn add_listener(&self, target: Arc<dyn NewBlocksNotify>) {
 		self.listeners.write().push(Arc::downgrade(&target));
 	}
