@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
+//! SecretStoreChain implementation with information about blockchain, retrieved from the client
+
 use std::sync::{Arc, Weak};
 use ethereum_types::{H256, Address};
 use parking_lot::RwLock;
@@ -51,6 +53,8 @@ fn into_ethcore_block_id(id: BlockId) -> EthcoreBlockId {
 }
 
 /// SecretStore blockchain implementation (client's wrapper)
+/// This implementation is trusted, when underlying client is synced and chain's security level is full
+/// This trust is guaranteed by return result in get_trusted method (if it's not trusted, None is returned)
 pub struct TrustedClient {
 	/// This key server node key pair.
 	self_key_pair: Arc<dyn SigningKeyPair>,
