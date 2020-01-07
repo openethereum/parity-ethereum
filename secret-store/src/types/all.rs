@@ -16,6 +16,7 @@
 
 use std::collections::BTreeMap;
 
+use blockchain::ContractAddress;
 use {bytes, ethereum_types};
 
 /// Node id.
@@ -40,15 +41,6 @@ pub struct NodeAddress {
 	pub address: String,
 	/// IP port.
 	pub port: u16,
-}
-
-/// Contract address.
-#[derive(Debug, Clone)]
-pub enum ContractAddress {
-	/// Address is read from registry.
-	Registry,
-	/// Address is specified.
-	Address(crypto::publickey::Address),
 }
 
 /// Secret store configuration

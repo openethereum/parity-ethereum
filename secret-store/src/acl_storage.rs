@@ -16,17 +16,11 @@
 
 use std::sync::Arc;
 use std::collections::{HashMap, HashSet};
-use common_types::{
-	chain_notify::NewBlocks,
-	ids::BlockId
-};
 use parking_lot::{Mutex, RwLock};
-use call_contract::CallContract;
-use client_traits::ChainNotify;
 use ethereum_types::Address;
 use ethabi::FunctionOutputDecoder;
-use trusted_client::TrustedClient;
-use types::{Error, ServerKeyId, ContractAddress};
+use blockchain::{SecretStoreChain, NewBlocksNotify, ContractAddress, BlockId};
+use types::{Error, ServerKeyId};
 
 use_contract!(acl_storage, "res/acl_storage.json");
 
@@ -47,7 +41,7 @@ pub struct OnChainAclStorage {
 /// Cached on-chain ACL storage contract.
 struct CachedContract {
 	/// Blockchain client.
-	client: TrustedClient,
+	client: Arc<dyn SecretStoreChain>,
 	/// Contract address source.
 	address_source: ContractAddress,
 	/// Current contract address.
@@ -61,14 +55,11 @@ pub struct DummyAclStorage {
 }
 
 impl OnChainAclStorage {
-	pub fn new(trusted_client: TrustedClient, address_source: ContractAddress) -> Result<Arc<Self>, Error> {
-		let client = trusted_client.get_untrusted();
+	pub fn new(trusted_client: Arc<dyn SecretStoreChain>, address_source: ContractAddress) -> Result<Arc<Self>, Error> {
 		let acl_storage = Arc::new(OnChainAclStorage {
-			contract: Mutex::new(CachedContract::new(trusted_client, address_source)),
+			contract: Mutex::new(CachedContract::new(trusted_client.clone(), address_source)),
 		});
-		client
-			.ok_or_else(|| Error::Internal("Constructing OnChainAclStorage without active Client".into()))?
-			.add_notify(acl_storage.clone());
+		trusted_client.add_listener(acl_storage.clone());
 		Ok(acl_storage)
 	}
 }
@@ -79,17 +70,14 @@ impl AclStorage for OnChainAclStorage {
 	}
 }
 
-impl ChainNotify for OnChainAclStorage {
-	fn new_blocks(&self, new_blocks: NewBlocks) {
-		if new_blocks.has_more_blocks_to_import { return }
-		if !new_blocks.route.enacted().is_empty() || !new_blocks.route.retracted().is_empty() {
-			self.contract.lock().update_contract_address()
-		}
+impl NewBlocksNotify for OnChainAclStorage {
+	fn new_blocks(&self, _new_enacted_len: usize) {
+		self.contract.lock().update_contract_address()
 	}
 }
 
 impl CachedContract {
-	pub fn new(client: TrustedClient, address_source: ContractAddress) -> Self {
+	pub fn new(client: Arc<dyn SecretStoreChain>, address_source: ContractAddress) -> Self {
 		let mut contract = CachedContract {
 			client,
 			address_source,
@@ -113,12 +101,12 @@ impl CachedContract {
 	}
 
 	pub fn check(&mut self, requester: Address, document: &ServerKeyId) -> Result<bool, Error> {
-		if let Some(client) = self.client.get() {
+		if self.client.is_trusted() {
 			// call contract to check accesss
 			match self.contract_address {
 				Some(contract_address) => {
 					let (encoded, decoder) = acl_storage::functions::check_permissions::call(requester, document.clone());
-					let d = client.call_contract(BlockId::Latest, contract_address, encoded)
+					let d = self.client.call_contract(BlockId::Latest, contract_address, encoded)
 						.map_err(|e| Error::Internal(format!("ACL checker call error: {}", e.to_string())))?;
 					decoder.decode(&d)
 						.map_err(|e| Error::Internal(format!("ACL checker call error: {}", e.to_string())))
