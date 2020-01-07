@@ -14,10 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use crypto::publickey::ecdh::agree;
 use crypto::publickey::{KeyPair, Public, Signature, Error as EthKeyError, sign, public_to_address};
 use ethereum_types::{H256, Address};
-use traits::NodeKeyPair;
+use blockchain::SigningKeyPair;
 
 pub struct PlainNodeKeyPair {
 	key_pair: KeyPair,
@@ -36,7 +35,7 @@ impl PlainNodeKeyPair {
 	}
 }
 
-impl NodeKeyPair for PlainNodeKeyPair {
+impl SigningKeyPair for PlainNodeKeyPair {
 	fn public(&self) -> &Public {
 		self.key_pair.public()
 	}
@@ -48,60 +47,4 @@ impl NodeKeyPair for PlainNodeKeyPair {
 	fn sign(&self, data: &H256) -> Result<Signature, EthKeyError> {
 		sign(self.key_pair.secret(), data)
 	}
-
-	fn compute_shared_key(&self, peer_public: &Public) -> Result<KeyPair, EthKeyError> {
-		agree(self.key_pair.secret(), peer_public)
-			.map_err(|e| EthKeyError::Custom(e.to_string()))
-			.and_then(KeyPair::from_secret)
-	}
 }
-
-#[cfg(feature = "accounts")]
-mod accounts {
-	use super::*;
-	use std::sync::Arc;
-	use ethkey::Password;
-	use accounts::AccountProvider;
-
-	pub struct KeyStoreNodeKeyPair {
-		account_provider: Arc<AccountProvider>,
-		address: Address,
-		public: Public,
-		password: Password,
-	}
-
-	impl KeyStoreNodeKeyPair {
-		pub fn new(account_provider: Arc<AccountProvider>, address: Address, password: Password) -> Result<Self, EthKeyError> {
-			let public = account_provider.account_public(address.clone(), &password).map_err(|e| EthKeyError::Custom(format!("{}", e)))?;
-			Ok(KeyStoreNodeKeyPair {
-				account_provider,
-				address,
-				public,
-				password,
-			})
-		}
-	}
-
-	impl NodeKeyPair for KeyStoreNodeKeyPair {
-		fn public(&self) -> &Public {
-			&self.public
-		}
-
-		fn address(&self) -> Address {
-			public_to_address(&self.public)
-		}
-
-		fn sign(&self, data: &H256) -> Result<Signature, EthKeyError> {
-			self.account_provider.sign(self.address.clone(), Some(self.password.clone()), data.clone())
-				.map_err(|e| EthKeyError::Custom(format!("{}", e)))
-		}
-
-		fn compute_shared_key(&self, peer_public: &Public) -> Result<KeyPair, EthKeyError> {
-			KeyPair::from_secret(self.account_provider.agree(self.address.clone(), Some(self.password.clone()), peer_public)
-				.map_err(|e| EthKeyError::Custom(format!("{}", e)))?)
-		}
-	}
-}
-
-#[cfg(feature = "accounts")]
-pub use self::accounts::KeyStoreNodeKeyPair;

@@ -18,9 +18,11 @@ ctrlc = { git = "https://github.com/paritytech/rust-ctrlc.git" }
 dir = { path = "util/dir" }
 docopt = "1.0"
 engine = { path = "ethcore/engine" }
+ethabi = { version = "9.0.1", optional = true }
 ethcore = { path = "ethcore", features = ["parity"] }
 ethcore-accounts = { path = "accounts", optional = true }
 ethcore-blockchain = { path = "ethcore/blockchain" }
+ethcore-call-contract = { path = "ethcore/call-contract", optional = true }
 ethcore-db = { path = "ethcore/db" }
 ethcore-io = { path = "util/io" }
 ethcore-light = { path = "ethcore/light" }
@@ -97,7 +99,7 @@ test-heavy = ["ethcore/test-heavy"]
 evm-debug = ["ethcore/evm-debug"]
 evm-debug-tests = ["ethcore/evm-debug-tests"]
 slow-blocks = ["ethcore/slow-blocks"]
-secretstore = ["ethcore-secretstore", "ethcore-secretstore/accounts"]
+secretstore = ["ethcore-secretstore", "accounts", "ethabi", "ethcore-call-contract"]
 final = ["parity-version/final"]
 deadlock_detection = ["parking_lot/deadlock_detection"]
 # to create a memory profile (requires nightly rust), use e.g.

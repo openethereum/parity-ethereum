@@ -15,7 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
-use key_server_cluster::{Error, NodeId, NodeKeyPair};
+use blockchain::SigningKeyPair;
+use key_server_cluster::{Error, NodeId};
 use key_server_cluster::cluster::{ServersSetChangeParams, new_servers_set_change_session};
 use key_server_cluster::cluster_sessions::{AdminSession};
 use key_server_cluster::cluster_connections::{ConnectionProvider, Connection};
@@ -49,7 +50,7 @@ pub trait MessageProcessor: Send + Sync {
 
 /// Bridge between ConnectionManager and ClusterSessions.
 pub struct SessionsMessageProcessor {
-	self_key_pair: Arc<dyn NodeKeyPair>,
+	self_key_pair: Arc<dyn SigningKeyPair>,
 	servers_set_change_creator_connector: Arc<dyn ServersSetChangeSessionCreatorConnector>,
 	sessions: Arc<ClusterSessions>,
 	connections: Arc<dyn ConnectionProvider>,
@@ -58,7 +59,7 @@ pub struct SessionsMessageProcessor {
 impl SessionsMessageProcessor {
 	/// Create new instance of SessionsMessageProcessor.
 	pub fn new(
-		self_key_pair: Arc<dyn NodeKeyPair>,
+		self_key_pair: Arc<dyn SigningKeyPair>,
 		servers_set_change_creator_connector: Arc<dyn ServersSetChangeSessionCreatorConnector>,
 		sessions: Arc<ClusterSessions>,
 		connections: Arc<dyn ConnectionProvider>,

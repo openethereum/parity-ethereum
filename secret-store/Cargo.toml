@@ -7,15 +7,9 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 byteorder = "1.0"
-client-traits = { path = "../ethcore/client-traits" }
-common-types = { path = "../ethcore/types" }
 ethabi = "9.0.1"
 ethabi-contract = "9.0.0"
 ethabi-derive = "9.0.1"
-ethcore = { path = "../ethcore" }
-ethcore-accounts = { path = "../accounts", optional = true}
-ethcore-call-contract = { path = "../ethcore/call-contract" }
-ethcore-sync = { path = "../ethcore/sync" }
 ethereum-types = "0.8.0"
 ethkey = { path = "../accounts/ethkey", optional = true }
 futures = "0.1"
@@ -30,7 +24,6 @@ parity-crypto = { version = "0.4.2", features = ["publickey"] }
 parity-runtime = { path = "../util/runtime" }
 parking_lot = "0.9"
 percent-encoding = "2.1.0"
-registrar = { path = "../util/registrar" }
 rustc-hex = "1.0"
 serde = "1.0"
 serde_derive = "1.0"
@@ -44,10 +37,5 @@ jsonrpc-server-utils = "14.0.3"
 
 [dev-dependencies]
 env_logger = "0.5"
-ethkey = { path = "../accounts/ethkey" }
-ethcore = { path = "../ethcore", features = ["test-helpers"] }
 tempdir = "0.3"
 kvdb-rocksdb = "0.3.0"
-
-[features]
-accounts = ["ethcore-accounts", "ethkey"]
