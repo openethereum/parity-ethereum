@@ -134,12 +134,6 @@ test-linux-nightly:
     - ./scripts/gitlab/test-linux.sh nightly
   allow_failure:                   true
 
-build-android:
-  <<:                              *build-on-linux
-  image:                           ${REGISTRY}/parity-ci-android:stretch
-  variables:
-    CARGO_TARGET:                  armv7-linux-androideabi
-
 build-linux:
   <<:                              *build-on-linux
   only:                            *releaseable_branches
