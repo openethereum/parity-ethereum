@@ -1,3 +1,5 @@
+* The C and Java bindings have been removed.  Please use the IPC interface instead.
+
 ## Parity-Ethereum [v2.6.0](https://github.com/paritytech/parity-ethereum/releases/tag/v2.6.0)
 
 Parity-Ethereum 2.6.0-beta is a minor release that stabilizes the 2.6 branch by

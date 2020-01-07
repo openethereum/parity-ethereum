@@ -113,12 +113,6 @@ validate-chainspecs:
   script:
     - ./scripts/gitlab/validate-chainspecs.sh
 
-test-cpp:
-  stage:                           build
-  <<:                              *docker-cache-status
-  script:
-    - ./scripts/gitlab/test-cpp.sh
-
 test-linux:
   stage:                           build
   <<:                              *docker-cache-status
@@ -139,12 +133,6 @@ test-linux-nightly:
   script:
     - ./scripts/gitlab/test-linux.sh nightly
   allow_failure:                   true
-
-build-android:
-  <<:                              *build-on-linux
-  image:                           ${REGISTRY}/parity-ci-android:stretch
-  variables:
-    CARGO_TARGET:                  armv7-linux-androideabi
 
 build-linux:
   <<:                              *build-on-linux
