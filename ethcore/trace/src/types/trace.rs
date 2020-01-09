@@ -16,6 +16,7 @@
 
 //! Tracing data types.
 
+use std::convert::TryFrom;
 use ethereum_types::{U256, Address, Bloom, BloomInput};
 use parity_bytes::Bytes;
 use rlp::{Rlp, RlpStream, Encodable, DecoderError, Decodable};
@@ -46,15 +47,16 @@ pub enum CallType {
 	StaticCall,
 }
 
-impl CallType {
-	fn maybe_new(action_type: ActionType) -> Option<Self> {
+impl TryFrom<ActionType> for CallType {
+	type Error = &'static str;
+	fn try_from(action_type: ActionType) -> Result<Self, Self::Error> {
 		match action_type {
-			ActionType::Call => Some(CallType::Call),
-			ActionType::CallCode => Some(CallType::CallCode),
-			ActionType::DelegateCall => Some(CallType::DelegateCall),
-			ActionType::StaticCall => Some(CallType::StaticCall),
-			ActionType::Create => None,
-			ActionType::Create2 => None,
+			ActionType::Call => Ok(CallType::Call),
+			ActionType::CallCode => Ok(CallType::CallCode),
+			ActionType::DelegateCall => Ok(CallType::DelegateCall),
+			ActionType::StaticCall => Ok(CallType::StaticCall),
+			ActionType::Create => Err("Create cannot be converted to CallType"),
+			ActionType::Create2 => Err("Create2 cannot be converted to CallType"),
 		}
 	}
 }
@@ -110,15 +112,16 @@ pub enum CreationMethod {
 	Create2,
 }
 
-impl CreationMethod {
-	fn maybe_new(action_type: ActionType) -> Option<Self> {
+impl TryFrom<ActionType> for CreationMethod {
+	type Error = &'static str;
+	fn try_from(action_type: ActionType) -> Result<Self, Self::Error> {
 		match action_type {
-			ActionType::Call => None,
-			ActionType::CallCode => None,
-			ActionType::DelegateCall => None,
-			ActionType::StaticCall => None,
-			ActionType::Create => Some(CreationMethod::Create),
-			ActionType::Create2 => Some(CreationMethod::Create2),
+			ActionType::Call => Err("Call cannot be converted to CreationMethod"),
+			ActionType::CallCode => Err("CallCode cannot be converted to CreationMethod"),
+			ActionType::DelegateCall => Err("DelegateCall cannot be converted to CreationMethod"),
+			ActionType::StaticCall => Err("StaticCall cannot be converted to CreationMethod"),
+			ActionType::Create => Ok(CreationMethod::Create),
+			ActionType::Create2 => Ok(CreationMethod::Create2),
 		}
 	}
 }
@@ -169,7 +172,7 @@ impl From<ActionParams> for Call {
 				value: p.value.value(),
 				gas: p.gas,
 				input: p.data.unwrap_or_else(Vec::new),
-				call_type: CallType::maybe_new(p.action_type),
+				call_type: CallType::try_from(p.action_type).ok(),
 			},
 			_ => Call {
 				from: p.sender,
@@ -177,7 +180,7 @@ impl From<ActionParams> for Call {
 				value: p.value.value(),
 				gas: p.gas,
 				input: p.data.unwrap_or_else(Vec::new),
-				call_type: CallType::maybe_new(p.action_type),
+				call_type: CallType::try_from(p.action_type).ok(),
 			},
 		}
 	}
@@ -216,7 +219,7 @@ impl From<ActionParams> for Create {
 			value: p.value.value(),
 			gas: p.gas,
 			init: p.code.map_or_else(Vec::new, |c| (*c).clone()),
-			creation_method: CreationMethod::maybe_new(p.action_type),
+			creation_method: CreationMethod::try_from(p.action_type).ok(),
 		}
 	}
 }

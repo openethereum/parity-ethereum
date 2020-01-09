@@ -224,6 +224,7 @@ pub struct Create {
 	/// Initialization code
 	init: Bytes,
 	// Create Type
+	#[serde(skip_serializing_if="Option::is_none")]
 	creation_method: Option<CreationMethod>,
 }
 
