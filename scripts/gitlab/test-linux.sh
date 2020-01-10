@@ -1,5 +1,5 @@
 #!/bin/bash
-# ARGUMENT $1 Rust flavor to run test with (stable/beta/nightly)
+# ARGUMENT $1 Rust flavor to run test with (stable/nightly)
 
 echo "________Running test-linux.sh________"
 set -e # fail on any error

@@ -72,7 +72,7 @@ impl UpdateService for TestUpdater {
 
 	fn version_info(&self) -> VersionInfo {
 		VersionInfo {
-			track: ReleaseTrack::Beta,
+			track: ReleaseTrack::Nightly,
 			version: Version{major: 1, minor: 5, patch: 0, build: vec![], pre: vec![]},
 			hash: H160::from_low_u64_be(150),
 		}
