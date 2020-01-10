@@ -22,7 +22,8 @@ use futures::{oneshot, Oneshot, Complete, Future};
 use parking_lot::{Mutex, RwLock, Condvar};
 use ethereum_types::H256;
 use crypto::publickey::Secret;
-use key_server_cluster::{Error, NodeId, SessionId, NodeKeyPair};
+use blockchain::SigningKeyPair;
+use key_server_cluster::{Error, NodeId, SessionId};
 use key_server_cluster::cluster::{Cluster, ClusterConfiguration, ClusterView};
 use key_server_cluster::cluster_connections::ConnectionProvider;
 use key_server_cluster::connection_trigger::ServersSetChangeSessionCreatorConnector;
@@ -647,7 +648,7 @@ impl<T> CompletionSignal<T> {
 	}
 }
 
-pub fn create_cluster_view(self_key_pair: Arc<dyn NodeKeyPair>, connections: Arc<dyn ConnectionProvider>, requires_all_connections: bool) -> Result<Arc<dyn Cluster>, Error> {
+pub fn create_cluster_view(self_key_pair: Arc<dyn SigningKeyPair>, connections: Arc<dyn ConnectionProvider>, requires_all_connections: bool) -> Result<Arc<dyn Cluster>, Error> {
 	let mut connected_nodes = connections.connected_nodes()?;
 	let disconnected_nodes = connections.disconnected_nodes();
 
