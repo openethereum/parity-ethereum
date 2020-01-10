@@ -1518,7 +1518,7 @@ mod tests {
 			enable_downloading: true,
 			require_consensus: true,
 			filter: UpdateFilter::Critical,
-			track: ReleaseTrack::Testing,
+			track: ReleaseTrack::Nightly,
 			path: default_hypervisor_path(),
 			max_size: 128 * 1024 * 1024,
 			max_delay: 100,
