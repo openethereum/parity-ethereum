@@ -63,7 +63,6 @@ impl Into<ReleaseTrack> for updater::ReleaseTrack {
 		match self {
 			updater::ReleaseTrack::Stable => ReleaseTrack::Stable,
 			updater::ReleaseTrack::Nightly => ReleaseTrack::Nightly,
-			updater::ReleaseTrack::Testing => ReleaseTrack::Testing,
 			updater::ReleaseTrack::Unknown => ReleaseTrack::Unknown,
 		}
 	}
