@@ -821,7 +821,7 @@ pub mod tests {
 		}
 	}
 
-	type TestUpBetadater = Updater<FakeOperationsClient, FakeFetch, FakeTimeProvider, FakeGenRange>;
+	type TestUpdater = Updater<FakeOperationsClient, FakeFetch, FakeTimeProvider, FakeGenRange>;
 
 	fn setup(update_policy: UpdatePolicy) -> (
 		Arc<TestBlockChainClient>,
