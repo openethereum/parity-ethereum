@@ -7,7 +7,7 @@ echo "__________Checking if Rust files were changed__________"
 git log --graph --oneline --decorate=short -n 10
 
 case ${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}} in
-  (beta|stable)
+  (stable)
     export GIT_COMPARE=origin/${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}~
     ;;
   (master|nightly)
