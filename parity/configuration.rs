@@ -981,9 +981,7 @@ impl Configuration {
 			},
 			track: match self.args.arg_release_track.as_ref() {
 				"stable" => ReleaseTrack::Stable,
-				"beta" => ReleaseTrack::Beta,
 				"nightly" => ReleaseTrack::Nightly,
-				"testing" => ReleaseTrack::Testing,
 				"current" => ReleaseTrack::Unknown,
 				_ => return Err("Invalid value for `--releases-track`. See `--help` for more information.".into()),
 			},
@@ -1512,10 +1510,8 @@ mod tests {
 	#[test]
 	fn should_parse_updater_options() {
 		// when
-		let conf0 = parse(&["parity", "--release-track=testing"]);
-		let conf1 = parse(&["parity", "--auto-update", "all", "--no-consensus", "--auto-update-delay", "300"]);
-		let conf2 = parse(&["parity", "--no-download", "--auto-update=all", "--release-track=beta", "--auto-update-delay=300", "--auto-update-check-frequency=100"]);
-		let conf3 = parse(&["parity", "--auto-update=xxx"]);
+		let conf0 = parse(&["parity", "--auto-update", "all", "--no-consensus", "--auto-update-delay", "300"]);
+		let conf1 = parse(&["parity", "--auto-update=xxx"]);
 
 		// then
 		assert_eq!(conf0.update_policy().unwrap(), UpdatePolicy {

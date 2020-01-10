@@ -296,7 +296,7 @@ usage! {
 
 			ARG arg_release_track: (String) = "current", or |c: &Config| c.parity.as_ref()?.release_track.clone(),
 			"--release-track=[TRACK]",
-			"Set which release track we should use for updates. TRACK can be one of: stable - Stable releases; beta - Beta releases; nightly - Nightly releases (unstable); testing - Testing releases (do not use); current - Whatever track this executable was released on.",
+			"Set which release track we should use for updates. TRACK can be one of: stable - Stable releases; nightly - Nightly releases (unstable); testing - Testing releases (do not use); current - Whatever track this executable was released on.",
 
 			ARG arg_chain: (String) = "foundation", or |c: &Config| c.parity.as_ref()?.chain.clone(),
 			"--chain=[CHAIN]",
