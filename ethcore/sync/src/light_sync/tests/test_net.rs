@@ -235,11 +235,11 @@ impl TestNet<Peer> {
 			// skip full verification because the blocks are bad.
 			config.verify_full = false;
 			let cache = Arc::new(Mutex::new(Cache::new(Default::default(), Duration::from_secs(6 * 3600))));
-			let db = kvdb_memorydb::create(0);
+			let db = kvdb_memorydb::create(1);
 			let client = LightClient::new(
 				config,
 				Arc::new(db),
-				None,
+				0,
 				&spec::new_test(),
 				fetch::unavailable(), // TODO: allow fetch from full nodes.
 				IoChannel::disconnected(),

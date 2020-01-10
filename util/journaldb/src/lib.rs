@@ -185,7 +185,7 @@ impl fmt::Display for Algorithm {
 }
 
 /// Create a new `JournalDB` trait object over a generic key-value database.
-pub fn new(backing: Arc<dyn (::kvdb::KeyValueDB)>, algorithm: Algorithm, col: Option<u32>) -> Box<dyn JournalDB> {
+pub fn new(backing: Arc<dyn (::kvdb::KeyValueDB)>, algorithm: Algorithm, col: u32) -> Box<dyn JournalDB> {
 	match algorithm {
 		Algorithm::Archive => Box::new(archivedb::ArchiveDB::new(backing, col)),
 		Algorithm::EarlyMerge => Box::new(earlymergedb::EarlyMergeDB::new(backing, col)),

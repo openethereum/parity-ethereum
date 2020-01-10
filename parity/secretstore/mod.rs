@@ -14,18 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use ethcore::client::Client;
-use client_traits::BlockChainClient;
-use common_types::ids::BlockId;
-use ethereum_types::H256;
+//! Secret store related components.
 
-// TODO: Instead of a constant, make this based on consensus finality.
-/// Number of confirmations required before request can be processed.
-pub const REQUEST_CONFIRMATIONS_REQUIRED: u64 = 3;
+mod server;
 
-/// Get hash of the last block with at least n confirmations.
-pub fn get_confirmed_block_hash(client: &Client, confirmations: u64) -> Option<H256> {
-	client.block_number(BlockId::Latest)
-		.map(|b| b.saturating_sub(confirmations))
-		.and_then(|b| client.block_hash(BlockId::Number(b)))
-}
+#[cfg(feature = "secretstore")]
+mod blockchain;
+
+#[cfg(all(feature = "accounts", feature = "secretstore"))]
+mod nodekeypair;
+
+pub use self::server::{Configuration, NodeSecretKey, ContractAddress, Dependencies, start};
+#[cfg(feature = "secretstore")]
+use self::blockchain::TrustedClient;
+#[cfg(all(feature = "accounts", feature = "secretstore"))]
+use self::nodekeypair::KeyStoreNodeKeyPair;

@@ -202,6 +202,7 @@ pub fn to_bootnodes(bootnodes: &Option<String>) -> Result<Vec<String>, String> {
 
 #[cfg(test)]
 pub fn default_network_config() -> ::sync::NetworkConfiguration {
+	use network::NatType;
 	use sync::{NetworkConfiguration};
 	use super::network::IpFilter;
 	NetworkConfiguration {
@@ -211,6 +212,7 @@ pub fn default_network_config() -> ::sync::NetworkConfiguration {
 		public_address: None,
 		udp_port: None,
 		nat_enabled: true,
+		nat_type: NatType::Any,
 		discovery_enabled: true,
 		boot_nodes: Vec::new(),
 		use_secret: None,

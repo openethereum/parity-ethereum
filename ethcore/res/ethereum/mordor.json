@@ -37,7 +37,11 @@
 		"eip658Transition":"0x0",
 		"eip145Transition":"0x498bb",
 		"eip1014Transition":"0x498bb",
-		"eip1052Transition":"0x498bb"
+		"eip1052Transition":"0x498bb",
+		"eip1283Transition":"0xbe10b",
+		"eip1344Transition":"0xbe10b",
+		"eip1706Transition":"0xbe10b",
+		"eip2028Transition":"0xbe10b"
 	},
 	"genesis":{
 		"seal":{
@@ -59,7 +63,9 @@
 		"enode://1813e90a0afdd7c1e4892c5376960e3577a9e6c5a4f86fa405a405c7421a4a1608248d77cc90333842f13d8954d82113dec480cfb76b4fef8cb475157cf4d5f2@10.28.224.3:30000",
 		"enode://2b69a3926f36a7748c9021c34050be5e0b64346225e477fe7377070f6289bd363b2be73a06010fd516e6ea3ee90778dd0399bc007bb1281923a79374f842675a@51.15.116.226:30303",
 		"enode://621e28e529146fd501709194885f50540c494f1a2985d1fb4ec8769226b5cb0b0d1a11545926077821474c2767cdd87888ead8a2509a2c9069dd5584e4b1c3b8@10.28.223.8:30000",
-		"enode://a59e33ccd2b3e52d578f1fbd70c6f9babda2650f0760d6ff3b37742fdcdfdb3defba5d56d315b40c46b70198c7621e63ffa3f987389c7118634b0fefbbdfa7fd@51.15.116.226:30303"
+		"enode://a59e33ccd2b3e52d578f1fbd70c6f9babda2650f0760d6ff3b37742fdcdfdb3defba5d56d315b40c46b70198c7621e63ffa3f987389c7118634b0fefbbdfa7fd@51.15.116.226:30303",
+		"enode://f840b007500f50c98ea6f9c9e56dabf4690bbbbb7036d43682c531204341aff8315013547e5bee54117eb22bd3603585ae6bf713d9fa710659533fcab65d5b84@35.238.101.58:30000",
+		"enode://19eda672030ad5debb98c9069b3e99d12438b96506325d9f3f82d76c5f8ce4942d345f41700a5223900e75ad48e76713b74c1b694d67a10c2112540035922256@35.238.101.58:30000"
 	],
 	"accounts":{
 		"0x0000000000000000000000000000000000000001":{
@@ -128,7 +134,7 @@
 							}
 						}
 					},
-					"0x7fffffffffffff":{
+					"0xbe10b":{
 						"info":"EIP 1108 transition",
 						"price":{
 							"alt_bn128_const_operations":{
@@ -150,7 +156,7 @@
 							}
 						}
 					},
-					"0x7fffffffffffff":{
+					"0xbe10b":{
 						"info":"EIP 1108 transition",
 						"price":{
 							"alt_bn128_const_operations":{
@@ -173,7 +179,7 @@
 							}
 						}
 					},
-					"0x7fffffffffffff":{
+					"0xbe10b":{
 						"info":"EIP 1108 transition",
 						"price":{
 							"alt_bn128_pairing":{
@@ -181,6 +187,17 @@
 								"pair":34000
 							}
 						}
+					}
+				}
+			}
+		},
+		"0x0000000000000000000000000000000000000009": {
+			"builtin": {
+				"name": "blake2_f",
+				"activate_at": "0xbe10b",
+				"pricing": {
+					"blake2_f": {
+						"gas_per_round": 1
 					}
 				}
 			}

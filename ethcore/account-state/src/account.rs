@@ -390,7 +390,7 @@ impl Account {
 		match db.get(&self.code_hash, hash_db::EMPTY_PREFIX) {
 			Some(x) => {
 				self.code_size = Some(x.len());
-				self.code_cache = Arc::new(x.into_vec());
+				self.code_cache = Arc::new(x);
 				Some(self.code_cache.clone())
 			},
 			_ => {
@@ -530,7 +530,7 @@ impl Account {
 				self.code_filth = Filth::Clean;
 			},
 			(true, false) => {
-				db.emplace(self.code_hash.clone(), hash_db::EMPTY_PREFIX, DBValue::from_slice(&*self.code_cache));
+				db.emplace(self.code_hash.clone(), hash_db::EMPTY_PREFIX, self.code_cache.to_vec());
 				self.code_size = Some(self.code_cache.len());
 				self.code_filth = Filth::Clean;
 			},

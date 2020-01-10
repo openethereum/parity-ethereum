@@ -76,6 +76,7 @@ impl Default for HttpConfiguration {
 pub struct IpcConfiguration {
 	pub enabled: bool,
 	pub socket_addr: String,
+	pub chmod: String,
 	pub apis: ApiSet,
 }
 
@@ -89,6 +90,7 @@ impl Default for IpcConfiguration {
 				let data_dir = ::dir::default_data_path();
 				parity_ipc_path(&data_dir, "$BASE/jsonrpc.ipc", 0)
 			},
+			chmod: "660".into(),
 			apis: ApiSet::IpcContext,
 		}
 	}
@@ -261,7 +263,16 @@ pub fn new_ipc<D: rpc_apis::Dependencies>(
 		}
 	}
 
-	match rpc::start_ipc(&conf.socket_addr, handler, rpc::RpcExtractor) {
+	// some validations ..
+	let chmod = conf.chmod;
+	let chmod = u16::from_str_radix(&chmod, 8)
+		.map_err(|e| format!("Invalid octal value: {}", e))?;
+
+	if chmod == 0 || chmod > 0o7777 {
+		return Err("Valid octal permissions are within the range 1 to 7777".into())
+	}
+
+	match rpc::start_ipc(&conf.socket_addr, handler, rpc::RpcExtractor, chmod) {
 		Ok(server) => Ok(Some(server)),
 		Err(io_error) => Err(format!("IPC error: {}", io_error)),
 	}

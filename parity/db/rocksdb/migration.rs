@@ -29,24 +29,24 @@ use super::blooms::migrate_blooms;
 /// The migration from v10 to v11.
 /// Adds a column for node info.
 pub const TO_V11: ChangeColumns = ChangeColumns {
-	pre_columns: Some(6),
-	post_columns: Some(7),
+	pre_columns: 6,
+	post_columns: 7,
 	version: 11,
 };
 
 /// The migration from v11 to v12.
 /// Adds a column for light chain storage.
 pub const TO_V12: ChangeColumns = ChangeColumns {
-	pre_columns: Some(7),
-	post_columns: Some(8),
+	pre_columns: 7,
+	post_columns: 8,
 	version: 12,
 };
 
 /// The migration from v12 to v14.
 /// Adds a column for private transactions state storage.
 pub const TO_V14: ChangeColumns = ChangeColumns {
-	pre_columns: Some(8),
-	post_columns: Some(9),
+	pre_columns: 8,
+	post_columns: 9,
 	version: 14,
 };
 
@@ -217,11 +217,11 @@ pub fn migrate(path: &Path, compaction_profile: &DatabaseCompactionProfile) -> R
 
 	// Further migrations
 	if version < CURRENT_VERSION && exists(&db_path) {
-		println!("Migrating database from version {} to {}", version, CURRENT_VERSION);
+		info!(target: "migration", "Migrating database from version {} to {}", version, CURRENT_VERSION);
 		migrate_database(version, &db_path, consolidated_database_migrations(&compaction_profile)?)?;
 
 		if version < BLOOMS_DB_VERSION {
-			println!("Migrating blooms to blooms-db...");
+			info!(target: "migration", "Migrating blooms to blooms-db...");
 			let db_config = DatabaseConfig {
 				max_open_files: 64,
 				compaction: compaction_profile,
@@ -232,7 +232,7 @@ pub fn migrate(path: &Path, compaction_profile: &DatabaseCompactionProfile) -> R
 			migrate_blooms(&db_path, &db_config).map_err(Error::BloomsDB)?;
 		}
 
-		println!("Migration finished");
+		info!(target: "migration", "Migration finished");
 	}
 
 	// update version file.

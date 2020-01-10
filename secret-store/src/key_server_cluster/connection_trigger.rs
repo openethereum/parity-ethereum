@@ -26,7 +26,7 @@ use key_server_cluster::cluster_sessions::AdminSession;
 use key_server_cluster::cluster_connections::{Connection};
 use key_server_cluster::cluster_connections_net::{NetConnectionsContainer};
 use types::{Error, NodeId};
-use NodeKeyPair;
+use blockchain::SigningKeyPair;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 /// Describes which maintain() call is required.
@@ -93,7 +93,7 @@ pub enum ConnectionsAction {
 /// Trigger connections.
 pub struct TriggerConnections {
 	/// This node key pair.
-	pub self_key_pair: Arc<dyn NodeKeyPair>,
+	pub self_key_pair: Arc<dyn SigningKeyPair>,
 }
 
 impl SimpleConnectionTrigger {
@@ -103,7 +103,7 @@ impl SimpleConnectionTrigger {
 	}
 
 	/// Create new simple connection trigger.
-	pub fn new(key_server_set: Arc<dyn KeyServerSet>, self_key_pair: Arc<dyn NodeKeyPair>, admin_public: Option<Public>) -> Self {
+	pub fn new(key_server_set: Arc<dyn KeyServerSet>, self_key_pair: Arc<dyn SigningKeyPair>, admin_public: Option<Public>) -> Self {
 		SimpleConnectionTrigger {
 			key_server_set: key_server_set,
 			connections: TriggerConnections {

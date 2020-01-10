@@ -28,8 +28,11 @@ pub use self::headers::Headers;
 
 /// Something which can produce a hash and a parent hash.
 pub trait BlockLike {
-	/// Get the hash of this item.
+	/// Get the hash of this item - i.e. the header hash.
 	fn hash(&self) -> H256;
+
+	/// Get a raw hash of this item - i.e. the hash of the RLP representation.
+	fn raw_hash(&self) -> H256;
 
 	/// Get the hash of this item's parent.
 	fn parent_hash(&self) -> H256;
@@ -119,6 +122,10 @@ pub mod blocks {
 			self.header.hash()
 		}
 
+		fn raw_hash(&self) -> H256 {
+			keccak_hash::keccak(&self.bytes)
+		}
+
 		fn parent_hash(&self) -> H256 {
 			self.header.parent_hash().clone()
 		}
@@ -131,6 +138,10 @@ pub mod blocks {
 	impl BlockLike for PreverifiedBlock {
 		fn hash(&self) -> H256 {
 			self.header.hash()
+		}
+
+		fn raw_hash(&self) -> H256 {
+			keccak_hash::keccak(&self.bytes)
 		}
 
 		fn parent_hash(&self) -> H256 {
@@ -158,6 +169,7 @@ pub mod headers {
 
 	impl BlockLike for Header {
 		fn hash(&self) -> H256 { self.hash() }
+		fn raw_hash(&self) -> H256 { self.hash() }
 		fn parent_hash(&self) -> H256 { self.parent_hash().clone() }
 		fn difficulty(&self) -> U256 { self.difficulty().clone() }
 	}

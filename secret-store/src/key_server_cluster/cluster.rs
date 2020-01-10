@@ -20,7 +20,8 @@ use parking_lot::RwLock;
 use crypto::publickey::{Public, Signature, Random, Generator};
 use ethereum_types::{Address, H256};
 use parity_runtime::Executor;
-use key_server_cluster::{Error, NodeId, SessionId, Requester, AclStorage, KeyStorage, KeyServerSet, NodeKeyPair};
+use blockchain::SigningKeyPair;
+use key_server_cluster::{Error, NodeId, SessionId, Requester, AclStorage, KeyStorage, KeyServerSet};
 use key_server_cluster::cluster_sessions::{WaitableSession, ClusterSession, AdminSession, ClusterSessions,
 	SessionIdWithSubSession, ClusterSessionsContainer, SERVERS_SET_CHANGE_SESSION_ID, create_cluster_view,
 	AdminSessionCreationData, ClusterSessionsListener};
@@ -143,7 +144,7 @@ pub trait Cluster: Send + Sync {
 #[derive(Clone)]
 pub struct ClusterConfiguration {
 	/// KeyPair this node holds.
-	pub self_key_pair: Arc<dyn NodeKeyPair>,
+	pub self_key_pair: Arc<dyn SigningKeyPair>,
 	/// Cluster nodes set.
 	pub key_server_set: Arc<dyn KeyServerSet>,
 	/// Reference to key storage
@@ -173,7 +174,7 @@ pub struct ClusterView {
 	configured_nodes_count: usize,
 	connected_nodes: BTreeSet<NodeId>,
 	connections: Arc<dyn ConnectionProvider>,
-	self_key_pair: Arc<dyn NodeKeyPair>,
+	self_key_pair: Arc<dyn SigningKeyPair>,
 }
 
 /// Cross-thread shareable cluster data.
@@ -181,7 +182,7 @@ pub struct ClusterData<C: ConnectionManager> {
 	/// Cluster configuration.
 	pub config: ClusterConfiguration,
 	/// KeyPair this node holds.
-	pub self_key_pair: Arc<dyn NodeKeyPair>,
+	pub self_key_pair: Arc<dyn SigningKeyPair>,
 	/// Connections data.
 	pub connections: C,
 	/// Active sessions data.
@@ -311,7 +312,7 @@ impl<C: ConnectionManager> ClusterCore<C> {
 
 impl ClusterView {
 	pub fn new(
-		self_key_pair: Arc<dyn NodeKeyPair>,
+		self_key_pair: Arc<dyn SigningKeyPair>,
 		connections: Arc<dyn ConnectionProvider>,
 		nodes: BTreeSet<NodeId>,
 		configured_nodes_count: usize
@@ -597,7 +598,7 @@ pub struct ServersSetChangeParams {
 }
 
 pub fn new_servers_set_change_session(
-	self_key_pair: Arc<dyn NodeKeyPair>,
+	self_key_pair: Arc<dyn SigningKeyPair>,
 	sessions: &ClusterSessions,
 	connections: Arc<dyn ConnectionProvider>,
 	servers_set_change_creator_connector: Arc<dyn ServersSetChangeSessionCreatorConnector>,
@@ -656,8 +657,9 @@ pub mod tests {
 	use parking_lot::{Mutex, RwLock};
 	use ethereum_types::{Address, H256};
 	use crypto::publickey::{Random, Generator, Public, Signature, sign};
+	use blockchain::SigningKeyPair;
 	use key_server_cluster::{NodeId, SessionId, Requester, Error, DummyAclStorage, DummyKeyStorage,
-		MapKeyServerSet, PlainNodeKeyPair, NodeKeyPair};
+		MapKeyServerSet, PlainNodeKeyPair};
 	use key_server_cluster::message::Message;
 	use key_server_cluster::cluster::{new_test_cluster, Cluster, ClusterCore, ClusterConfiguration, ClusterClient};
 	use key_server_cluster::cluster_connections::ConnectionManager;

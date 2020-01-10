@@ -27,7 +27,8 @@ use tokio::timer::{Interval, timeout::Error as TimeoutError};
 use tokio_io::IoFuture;
 use crypto::publickey::KeyPair;
 use parity_runtime::Executor;
-use key_server_cluster::{Error, NodeId, ClusterConfiguration, NodeKeyPair};
+use blockchain::SigningKeyPair;
+use key_server_cluster::{Error, NodeId, ClusterConfiguration};
 use key_server_cluster::cluster_connections::{ConnectionProvider, Connection, ConnectionManager};
 use key_server_cluster::connection_trigger::{Maintain, ConnectionTrigger};
 use key_server_cluster::cluster_message_processor::MessageProcessor;
@@ -79,7 +80,7 @@ struct NetConnectionsData {
 	/// Reference to tokio task executor.
 	executor: Executor,
 	/// Key pair of this node.
-	self_key_pair: Arc<dyn NodeKeyPair>,
+	self_key_pair: Arc<dyn SigningKeyPair>,
 	/// Network messages processor.
 	message_processor: Arc<dyn MessageProcessor>,
 	/// Connections trigger.

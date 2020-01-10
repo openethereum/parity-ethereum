@@ -16,7 +16,7 @@
 
 use super::types::ServerKeyId;
 
-pub use super::traits::NodeKeyPair;
+pub use super::blockchain::SigningKeyPair;
 pub use super::types::{Error, NodeId, Requester, EncryptedDocumentKeyShadow};
 pub use super::acl_storage::AclStorage;
 pub use super::key_storage::{KeyStorage, DocumentKeyShare, DocumentKeyShareVersion};

@@ -27,7 +27,6 @@ use ethcore::test_helpers::get_temp_state_db;
 use ethereum_types::{H256, Address};
 use hash_db::{HashDB, EMPTY_PREFIX};
 use keccak_hash::{KECCAK_EMPTY, KECCAK_NULL_RLP, keccak};
-use kvdb::DBValue;
 use parking_lot::RwLock;
 use rlp::Rlp;
 use snapshot::test_helpers::{ACC_EMPTY, to_fat_rlps, from_fat_rlp};
@@ -151,7 +150,7 @@ fn encoding_code() {
 
 	{
 		let mut acct_db = AccountDBMut::from_hash(db.as_hash_db_mut(), keccak(addr2));
-		acct_db.emplace(code_hash.clone(), EMPTY_PREFIX, DBValue::from_slice(b"this is definitely code"));
+		acct_db.emplace(code_hash.clone(), EMPTY_PREFIX, b"this is definitely code".to_vec());
 	}
 
 	let account1 = BasicAccount {

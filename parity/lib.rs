@@ -86,6 +86,12 @@ extern crate ethcore_accounts as accounts;
 #[cfg(feature = "secretstore")]
 extern crate ethcore_secretstore;
 
+#[cfg(feature = "secretstore")]
+extern crate ethabi;
+
+#[cfg(feature = "secretstore")]
+extern crate ethcore_call_contract as call_contract;
+
 #[cfg(test)]
 #[macro_use]
 extern crate pretty_assertions;

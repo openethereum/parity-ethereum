@@ -20,7 +20,7 @@ use std::sync::Arc;
 
 use ethereum_types::{Address, H256};
 use ethkey::Password;
-use parity_crypto::publickey::{Signature, Error};
+use parity_crypto::publickey::{Public, Signature, Error};
 use log::warn;
 use accounts::{self, AccountProvider, SignError};
 
@@ -44,7 +44,18 @@ impl EngineSigner for (Arc<AccountProvider>, Address, Password) {
 		}
 	}
 
+	fn decrypt(&self, auth_data: &[u8], cipher: &[u8]) -> Result<Vec<u8>, Error> {
+		self.0.decrypt(self.1, None, auth_data, cipher).map_err(|e| {
+			warn!("Unable to decrypt message: {:?}", e);
+			Error::InvalidMessage
+		})
+	}
+
 	fn address(&self) -> Address {
 		self.1
+	}
+
+	fn public(&self) -> Option<Public> {
+		self.0.account_public(self.1, &self.2).ok()
 	}
 }

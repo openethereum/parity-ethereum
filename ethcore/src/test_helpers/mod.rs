@@ -118,31 +118,35 @@ pub fn create_test_block_with_data(header: &Header, transactions: &[SignedTransa
 
 /// Generates dummy client (not test client) with corresponding amount of blocks
 pub fn generate_dummy_client(block_number: u32) -> Arc<Client> {
-	generate_dummy_client_with_spec_and_data(spec::new_test, block_number, 0, &[])
+	generate_dummy_client_with_spec_and_data(spec::new_test, block_number, 0, &[], false)
 }
 
 /// Generates dummy client (not test client) with corresponding amount of blocks and txs per every block
 pub fn generate_dummy_client_with_data(block_number: u32, txs_per_block: usize, tx_gas_prices: &[U256]) -> Arc<Client> {
-	generate_dummy_client_with_spec_and_data(spec::new_null, block_number, txs_per_block, tx_gas_prices)
+	generate_dummy_client_with_spec_and_data(spec::new_null, block_number, txs_per_block, tx_gas_prices, false)
 }
 
 /// Generates dummy client (not test client) with corresponding spec and accounts
 pub fn generate_dummy_client_with_spec<F>(test_spec: F) -> Arc<Client> where F: Fn() -> Spec {
-	generate_dummy_client_with_spec_and_data(test_spec, 0, 0, &[])
+	generate_dummy_client_with_spec_and_data(test_spec, 0, 0, &[], false)
 }
 
 /// Generates dummy client (not test client) with corresponding amount of blocks, txs per block and spec
-pub fn generate_dummy_client_with_spec_and_data<F>(test_spec: F, block_number: u32, txs_per_block: usize, tx_gas_prices: &[U256]) -> Arc<Client> where
+pub fn generate_dummy_client_with_spec_and_data<F>(
+	test_spec: F, block_number: u32, txs_per_block: usize, tx_gas_prices: &[U256], force_sealing: bool,
+) -> Arc<Client> where
 	F: Fn() -> Spec
 {
 	let test_spec = test_spec();
 	let client_db = new_db();
 
+	let miner = Miner::new_for_tests_force_sealing(&test_spec, None, force_sealing);
+
 	let client = Client::new(
 		ClientConfig::default(),
 		&test_spec,
 		client_db,
-		Arc::new(Miner::new_for_tests(&test_spec, None)),
+		Arc::new(miner),
 		IoChannel::disconnected(),
 	).unwrap();
 	let test_engine = &*test_spec.engine;
@@ -308,7 +312,7 @@ pub fn new_db() -> Arc<dyn BlockChainDB> {
 		trace_blooms: blooms_db::Database::open(trace_blooms_dir.path()).unwrap(),
 		_blooms_dir: blooms_dir,
 		_trace_blooms_dir: trace_blooms_dir,
-		key_value: Arc::new(::kvdb_memorydb::create(::db::NUM_COLUMNS.unwrap()))
+		key_value: Arc::new(::kvdb_memorydb::create(::db::NUM_COLUMNS))
 	};
 
 	Arc::new(db)

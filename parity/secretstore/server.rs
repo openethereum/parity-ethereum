@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
+//! Secret store server's launcher, contains required configuration parameters and launch method
+
 use std::collections::BTreeMap;
 use std::sync::Arc;
 use account_utils::AccountProvider;
@@ -124,8 +126,10 @@ mod server {
 	use ethcore_secretstore;
 	use parity_crypto::publickey::KeyPair;
 	use ansi_term::Colour::{Red, White};
-	use db;
 	use super::{Configuration, Dependencies, NodeSecretKey, ContractAddress, Executor};
+	use super::super::TrustedClient;
+	#[cfg(feature = "accounts")]
+	use super::super::KeyStoreNodeKeyPair;
 
 	fn into_service_contract_address(address: ContractAddress) -> ethcore_secretstore::ContractAddress {
 		match address {
@@ -136,13 +140,13 @@ mod server {
 
 	/// Key server
 	pub struct KeyServer {
-		_key_server: Box<ethcore_secretstore::KeyServer>,
+		_key_server: Box<dyn ethcore_secretstore::KeyServer>,
 	}
 
 	impl KeyServer {
 		/// Create new key server
 		pub fn new(mut conf: Configuration, deps: Dependencies, executor: Executor) -> Result<Self, String> {
-			let self_secret: Arc<ethcore_secretstore::NodeKeyPair> = match conf.self_secret.take() {
+			let self_secret: Arc<dyn ethcore_secretstore::SigningKeyPair> = match conf.self_secret.take() {
 				Some(NodeSecretKey::Plain(secret)) => Arc::new(ethcore_secretstore::PlainNodeKeyPair::new(
 					KeyPair::from_secret(secret).map_err(|e| format!("invalid secret: {}", e))?)),
 				#[cfg(feature = "accounts")]
@@ -161,7 +165,7 @@ mod server {
 					let password = deps.accounts_passwords.iter()
 						.find(|p| deps.account_provider.sign(account.clone(), Some((*p).clone()), Default::default()).is_ok())
 						.ok_or_else(|| format!("No valid password for the secret store node account {}", account))?;
-					Arc::new(ethcore_secretstore::KeyStoreNodeKeyPair::new(deps.account_provider, account, password.clone())
+					Arc::new(KeyStoreNodeKeyPair::new(deps.account_provider, account, password.clone())
 						.map_err(|e| format!("{}", e))?)
 				},
 				None => return Err("self secret is required when using secretstore".into()),
@@ -203,8 +207,9 @@ mod server {
 
 			cconf.cluster_config.nodes.insert(self_secret.public().clone(), cconf.cluster_config.listener_address.clone());
 
-			let db = db::open_secretstore_db(&conf.data_path)?;
-			let key_server = ethcore_secretstore::start(deps.client, deps.sync, deps.miner, self_secret, cconf, db, executor)
+			let db = ethcore_secretstore::open_secretstore_db(&conf.data_path)?;
+			let trusted_client = TrustedClient::new(self_secret.clone(), deps.client, deps.sync, deps.miner);
+			let key_server = ethcore_secretstore::start(trusted_client, self_secret, cconf, db, executor)
 				.map_err(|e| format!("Error starting KeyServer {}: {}", key_server_name, e))?;
 
 			Ok(KeyServer {
