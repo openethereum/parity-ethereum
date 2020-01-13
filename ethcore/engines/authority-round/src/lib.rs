@@ -215,7 +215,7 @@ impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
 }
 
 /// A triple containing the first step number and the starting timestamp of the given step duration.
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 struct StepDurationInfo {
 	transition_step: u64,
 	transition_timestamp: u64,
@@ -1896,9 +1896,10 @@ fn next_step_time_duration(info: StepDurationInfo, time: u64) -> Option<(u64, u6
 		.checked_sub(1)?
 		.checked_sub(info.transition_timestamp)?
 		.checked_div(info.step_duration)?;
+	let time_diff = step_diff.checked_mul(info.step_duration)?;
 	Some((
 		info.transition_step.checked_add(step_diff)?,
-		step_diff.checked_mul(info.step_duration)?.checked_add(time)?,
+		info.transition_timestamp.checked_add(time_diff)?,
 	))
 }
 
@@ -1940,7 +1941,7 @@ mod tests {
 
 	use super::{
 		AuthorityRoundParams, AuthorityRound, EmptyStep, SealedEmptyStep, StepDurationInfo,
-		calculate_score, util::BoundContract,
+		calculate_score, util::BoundContract, next_step_time_duration,
 	};
 
 	fn build_aura<F>(f: F) -> Arc<AuthorityRound> where
@@ -2302,6 +2303,22 @@ mod tests {
 			}].to_vec().into_iter().collect(),
 		};
 		step.duration_remaining();
+	}
+
+	#[test]
+	fn test_next_step_time_duration() {
+		// At step 7 (time 1000), we transitioned to step duration 10.
+		let info = StepDurationInfo {
+			step_duration: 10,
+			transition_step: 7,
+			transition_timestamp: 1000,
+		};
+		// So the next transition can happen e.g. at step 12 (time 1050) or 13 (time 1060).
+		assert_eq!(Some((12, 1050)), next_step_time_duration(info, 1050));
+		assert_eq!(Some((13, 1060)), next_step_time_duration(info, 1051));
+		assert_eq!(Some((13, 1060)), next_step_time_duration(info, 1055));
+		// The next transition could also happen immediately.
+		assert_eq!(Some((7, 1000)), next_step_time_duration(info, 1000));
 	}
 
 	#[test]
@@ -2893,7 +2910,7 @@ mod tests {
 				"validators": {
 					"list" : ["0x1000000000000000000000000000000000000001"]
 				},
-	            "blockRewardContractTransition": "0",
+				"blockRewardContractTransition": "0",
 				"blockRewardContractAddress": "0x2000000000000000000000000000000000000002",
 				"blockRewardContractTransitions": {
 					"7": "0x3000000000000000000000000000000000000003",
@@ -2924,7 +2941,7 @@ mod tests {
 				"validators": {
 					"list" : ["0x1000000000000000000000000000000000000001"]
 				},
-	            "blockRewardContractTransition": "7",
+				"blockRewardContractTransition": "7",
 				"blockRewardContractAddress": "0x2000000000000000000000000000000000000002",
 				"blockRewardContractTransitions": {
 					"0": "0x3000000000000000000000000000000000000003",
