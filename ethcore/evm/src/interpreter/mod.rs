@@ -33,7 +33,7 @@ use ethereum_types::{U256, U512, H256, Address, BigEndianHash};
 
 
 use vm::{
-	self, ActionParams, ParamsType, ActionValue, CallType, MessageCallResult,
+	self, ActionParams, ParamsType, ActionValue, ActionType, MessageCallResult,
 	ContractCreateResult, CreateContractAddress, ReturnData, GasLeft, Schedule,
 	TrapKind, TrapError
 };
@@ -133,8 +133,8 @@ struct InterpreterParams {
 	pub value: ActionValue,
 	/// Input data.
 	pub data: Option<Bytes>,
-	/// Type of call
-	pub call_type: CallType,
+	/// Type of action
+	pub action_type: ActionType,
 	/// Param types encoding
 	pub params_type: ParamsType,
 }
@@ -152,7 +152,7 @@ impl From<ActionParams> for InterpreterParams {
 			gas_price: params.gas_price,
 			value: params.value,
 			data: params.data,
-			call_type: params.call_type,
+			action_type: params.action_type,
 			params_type: params.params_type,
 		}
 	}
@@ -532,7 +532,9 @@ impl<Cost: CostType> Interpreter<Cost> {
 				let init_size = self.stack.pop_back();
 				let address_scheme = match instruction {
 					instructions::CREATE => CreateContractAddress::FromSenderAndNonce,
-					instructions::CREATE2 => CreateContractAddress::FromSenderSaltAndCodeHash(BigEndianHash::from_uint(&self.stack.pop_back())),
+					instructions::CREATE2 => CreateContractAddress::FromSenderSaltAndCodeHash(
+						BigEndianHash::from_uint(&self.stack.pop_back())
+					),
 					_ => unreachable!("instruction can only be CREATE/CREATE2 checked above; qed"),
 				};
 
@@ -553,7 +555,14 @@ impl<Cost: CostType> Interpreter<Cost> {
 
 				let contract_code = self.mem.read_slice(init_off, init_size);
 
-				let create_result = ext.create(&create_gas.as_u256(), &endowment, contract_code, &self.params.code_version, address_scheme, true);
+				let create_result = ext.create(
+					&create_gas.as_u256(), 
+					&endowment, 
+					contract_code, 
+					&self.params.code_version, 
+					address_scheme, 
+					true,
+				);
 				return match create_result {
 					Ok(ContractCreateResult::Created(address, gas_left)) => {
 						self.stack.push(address_to_u256(address));
@@ -607,14 +616,14 @@ impl<Cost: CostType> Interpreter<Cost> {
 							return Err(vm::Error::MutableCallInStaticContext);
 						}
 						let has_balance = ext.balance(&self.params.address)? >= value.expect("value set for all but delegate call; qed");
-						(&self.params.address, &code_address, has_balance, CallType::Call)
+						(&self.params.address, &code_address, has_balance, ActionType::Call)
 					},
 					instructions::CALLCODE => {
 						let has_balance = ext.balance(&self.params.address)? >= value.expect("value set for all but delegate call; qed");
-						(&self.params.address, &self.params.address, has_balance, CallType::CallCode)
+						(&self.params.address, &self.params.address, has_balance, ActionType::CallCode)
 					},
-					instructions::DELEGATECALL => (&self.params.sender, &self.params.address, true, CallType::DelegateCall),
-					instructions::STATICCALL => (&self.params.address, &code_address, true, CallType::StaticCall),
+					instructions::DELEGATECALL => (&self.params.sender, &self.params.address, true, ActionType::DelegateCall),
+					instructions::STATICCALL => (&self.params.address, &code_address, true, ActionType::StaticCall),
 					_ => panic!(format!("Unexpected instruction {:?} in CALL branch.", instruction))
 				};
 
