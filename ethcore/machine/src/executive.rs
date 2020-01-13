@@ -26,7 +26,7 @@ use rlp::RlpStream;
 use log::trace;
 
 use account_state::{Backend as StateBackend, State, CleanupMode};
-use evm::{CallType, Finalize, FinalizationResult};
+use evm::{ActionType, Finalize, FinalizationResult};
 use vm::{
 	self, EnvInfo, CreateContractAddress, ReturnData, CleanDustMode, ActionParams,
 	ActionValue, Schedule, TrapError, ResumeCall, ResumeCreate
@@ -241,7 +241,7 @@ impl<'a> CallCreateExecutive<'a> {
 		trace!("Executive::call(params={:?}) self.env_info={:?}, parent_static={}", params, info, parent_static_flag);
 
 		let gas = params.gas;
-		let static_flag = parent_static_flag || params.call_type == CallType::StaticCall;
+		let static_flag = parent_static_flag || params.action_type == ActionType::StaticCall;
 
 		// if destination is builtin, try to execute it
 		let kind = if let Some(builtin) = machine.builtin(&params.code_address, info.number) {
@@ -298,7 +298,7 @@ impl<'a> CallCreateExecutive<'a> {
 			}
 		} else {
 			if (static_flag &&
-				(params.call_type == CallType::StaticCall || params.call_type == CallType::Call)) &&
+				(params.action_type == ActionType::StaticCall || params.action_type == ActionType::Call)) &&
 				params.value.value() > U256::zero()
 			{
 				return Err(vm::Error::MutableCallInStaticContext);
@@ -909,7 +909,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 					code: Some(Arc::new(t.data.clone())),
 					code_version: schedule.latest_version,
 					data: None,
-					call_type: CallType::None,
+					action_type: ActionType::Create,
 					params_type: vm::ParamsType::Embedded,
 				};
 				let res = self.create(params, &mut substate, &mut tracer, &mut vm_tracer);
@@ -932,7 +932,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 					code_hash: self.state.code_hash(address)?,
 					code_version: self.state.code_version(address)?,
 					data: Some(t.data.clone()),
-					call_type: CallType::Call,
+					action_type: ActionType::Call,
 					params_type: vm::ParamsType::Separate,
 				};
 				let res = self.call(params, &mut substate, &mut tracer, &mut vm_tracer);
@@ -1236,7 +1236,7 @@ mod tests {
 	use parity_crypto::publickey::{Generator, Random};
 	use evm::{Factory, evm_test, evm_test_ignore};
 	use macros::vec_into;
-	use vm::{ActionParams, ActionValue, CallType, EnvInfo, CreateContractAddress};
+	use vm::{ActionParams, ActionValue, EnvInfo, CreateContractAddress};
 	use ::trace::{
 		trace,
 		FlatTrace, Tracer, NoopTracer, ExecutiveTracer,
@@ -1414,7 +1414,7 @@ mod tests {
 		params.gas = U256::from(100_000);
 		params.code = Some(Arc::new(code));
 		params.value = ActionValue::Transfer(U256::from(100));
-		params.call_type = CallType::Call;
+		params.action_type = ActionType::Call;
 		let mut state = get_temp_state();
 		state.add_balance(&sender, &U256::from(100), CleanupMode::NoEmpty).unwrap();
 		let info = EnvInfo::default();
@@ -1434,7 +1434,7 @@ mod tests {
 				value: 100.into(),
 				gas: 100_000.into(),
 				input: vec![],
-				call_type: CallType::Call
+				call_type: Some(trace::CallType::Call)
 			}),
 			result: trace::Res::Call(trace::CallResult {
 				gas_used: 33021.into(),
@@ -1449,7 +1449,7 @@ mod tests {
 				value: 1.into(),
 				gas: 66560.into(),
 				input: vec![],
-				call_type: CallType::Call
+				call_type: Some(trace::CallType::Call)
 			}), result: trace::Res::Call(trace::CallResult {
 				gas_used: 600.into(),
 				output: vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 156, 17, 133, 165, 197, 233, 252, 84, 97, 40, 8, 151, 126, 232, 245, 72, 178, 37, 141, 49]
@@ -1498,7 +1498,7 @@ mod tests {
 		params.gas = U256::from(100_000);
 		params.code = Some(Arc::new(code));
 		params.value = ActionValue::Transfer(U256::from(100));
-		params.call_type = CallType::Call;
+		params.action_type = ActionType::Call;
 		let mut state = get_temp_state();
 		state.add_balance(&sender, &U256::from(100), CleanupMode::NoEmpty).unwrap();
 		let info = EnvInfo::default();
@@ -1524,7 +1524,7 @@ mod tests {
 				value: 100.into(),
 				gas: 100000.into(),
 				input: vec![],
-				call_type: CallType::Call,
+				call_type: Some(trace::CallType::Call),
 			}),
 			result: trace::Res::Call(trace::CallResult {
 				gas_used: U256::from(55_248),
@@ -1537,7 +1537,8 @@ mod tests {
 				from: Address::from_str("b010143a42d5980c7e5ef0e4a4416dc098a4fed3").unwrap(),
 				value: 23.into(),
 				gas: 67979.into(),
-				init: vec![96, 16, 128, 96, 12, 96, 0, 57, 96, 0, 243, 0, 96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53, 85]
+				init: vec![96, 16, 128, 96, 12, 96, 0, 57, 96, 0, 243, 0, 96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53, 85],
+				creation_method: Some(trace::CreationMethod::Create),
 			}),
 			result: trace::Res::Create(trace::CreateResult {
 				gas_used: U256::from(3224),
@@ -1614,7 +1615,7 @@ mod tests {
 		params.gas = U256::from(100_000);
 		params.code = Some(Arc::new(code));
 		params.value = ActionValue::Transfer(U256::from(100));
-		params.call_type = CallType::Call;
+		params.action_type = ActionType::Call;
 		let mut state = get_temp_state();
 		state.add_balance(&sender, &U256::from(100), CleanupMode::NoEmpty).unwrap();
 		let info = EnvInfo::default();
@@ -1640,7 +1641,7 @@ mod tests {
 				value: 100.into(),
 				gas: 100_000.into(),
 				input: vec![],
-				call_type: CallType::Call,
+				call_type: Some(trace::CallType::Call),
 			}),
 			result: trace::Res::Call(trace::CallResult {
 				gas_used: U256::from(37_033),
@@ -1653,7 +1654,8 @@ mod tests {
 				from: Address::from_str("b010143a42d5980c7e5ef0e4a4416dc098a4fed3").unwrap(),
 				value: 23.into(),
 				gas: 66_917.into(),
-				init: vec![0x60, 0x01, 0x60, 0x00, 0xfd]
+				init: vec![0x60, 0x01, 0x60, 0x00, 0xfd],
+				creation_method: Some(trace::CreationMethod::Create),
 			}),
 			result: trace::Res::FailedCreate(vm::Error::Reverted.into()),
 		}];
@@ -1711,6 +1713,7 @@ mod tests {
 				value: 100.into(),
 				gas: params.gas,
 				init: vec![96, 16, 128, 96, 12, 96, 0, 57, 96, 0, 243, 0, 96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53, 85],
+				creation_method: Some(trace::CreationMethod::Create),
 			}),
 			result: trace::Res::Create(trace::CreateResult {
 				gas_used: U256::from(3224),

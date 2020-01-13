@@ -18,7 +18,7 @@
 
 use std::sync::Arc;
 use hash::keccak;
-use vm::{EnvInfo, ActionParams, ActionValue, CallType, ParamsType};
+use vm::{EnvInfo, ActionParams, ActionValue, ActionType, ParamsType};
 use evm::Factory;
 use machine::{
 	executive::Executive,
@@ -62,7 +62,7 @@ fn test_blockhash_eip210(factory: Factory) {
 			code_hash: Some(blockhash_contract_code_hash),
 			code_version: 0.into(),
 			data: Some(H256::from_low_u64_be(i - 1).as_bytes().to_vec()),
-			call_type: CallType::Call,
+			action_type: ActionType::Call,
 			params_type: ParamsType::Separate,
 		};
 		let schedule = machine.schedule(env_info.number);
@@ -86,7 +86,7 @@ fn test_blockhash_eip210(factory: Factory) {
 		code_hash: Some(get_prev_hash_code_hash),
 		code_version: 0.into(),
 		data: None,
-		call_type: CallType::Call,
+		action_type: ActionType::Call,
 		params_type: ParamsType::Separate,
 	};
 	let schedule = machine.schedule(env_info.number);

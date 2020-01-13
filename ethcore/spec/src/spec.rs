@@ -52,7 +52,7 @@ use pod::PodState;
 use rlp::{Rlp, RlpStream};
 use trace::{NoopTracer, NoopVMTracer};
 use trie_vm_factories::Factories;
-use vm::{EnvInfo, CallType, ActionValue, ActionParams, ParamsType};
+use vm::{EnvInfo, ActionType, ActionValue, ActionParams, ParamsType};
 
 use crate::{
 	Genesis,
@@ -163,7 +163,7 @@ fn run_constructors<T: Backend>(
 				value: ActionValue::Transfer(Default::default()),
 				code: Some(Arc::new(constructor.clone())),
 				data: None,
-				call_type: CallType::None,
+				action_type: ActionType::Create,
 				params_type: ParamsType::Embedded,
 			};
 
