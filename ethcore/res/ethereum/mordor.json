@@ -41,7 +41,8 @@
 		"eip1283Transition":"0xbe10b",
 		"eip1344Transition":"0xbe10b",
 		"eip1706Transition":"0xbe10b",
-		"eip2028Transition":"0xbe10b"
+		"eip2028Transition":"0xbe10b",
+		"eip2200AdvanceTransition": "0xbe10b"
 	},
 	"genesis":{
 		"seal":{
