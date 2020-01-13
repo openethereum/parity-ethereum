@@ -1,0 +1,20 @@
+[package]
+description = "A crate to interact with the block gas limit contract"
+name = "block-gas-limit"
+version = "0.1.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+edition = "2018"
+license = "GPL-3.0"
+
+[dependencies]
+client-traits = { path = "../client-traits" }
+common-types = { path = "../types" }
+ethabi = "9.0.1"
+ethabi-derive = "9.0.1"
+ethabi-contract = "9.0.0"
+ethereum-types = "0.8.0"
+log = "0.4"
+
+[dev-dependencies]
+ethcore = { path = "..", features = ["test-helpers"] }
+spec = { path = "../spec" }

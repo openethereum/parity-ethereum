@@ -177,6 +177,7 @@ dependencies = [
 name = "authority-round"
 version = "0.1.0"
 dependencies = [
+ "block-gas-limit 0.1.0",
  "block-reward 0.1.0",
  "client-traits 0.1.0",
  "common-types 0.1.0",
@@ -362,6 +363,21 @@ version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "generic-array 0.12.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "block-gas-limit"
+version = "0.1.0"
+dependencies = [
+ "client-traits 0.1.0",
+ "common-types 0.1.0",
+ "ethabi 9.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethabi-contract 9.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethabi-derive 9.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethcore 1.12.0",
+ "ethereum-types 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "spec 0.1.0",
 ]
 
 [[package]]
