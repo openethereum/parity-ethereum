@@ -82,7 +82,7 @@ impl ValidatorContract {
 			return Ok(());
 		}
 		let data = validator_report::functions::report_malicious::encode_input(*address, block, proof);
-		self.validators.queue_report((*address, block, data.clone()));
+		self.validators.queue_report(*address, block, data.clone());
 		let gas_price = self.report_gas_price(latest.number());
 		self.transact(data, gas_price)?;
 		warn!(target: "engine", "Reported malicious validator {} at block {}", address, block);

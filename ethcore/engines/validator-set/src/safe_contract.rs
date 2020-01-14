@@ -19,7 +19,7 @@
 use std::collections::VecDeque;
 use std::sync::{Arc, Weak};
 
-use client_traits::{EngineClient, TransactionRequest};
+use client_traits::{BlockChainClient, EngineClient, TransactionRequest};
 use common_types::{
 	BlockNumber,
 	header::Header,
@@ -93,7 +93,7 @@ pub struct ValidatorSafeContract {
 	/// is the validator set valid for the blocks following that hash.
 	validators: RwLock<MemoryLruCache<H256, SimpleList>>,
 	client: RwLock<Option<Weak<dyn EngineClient>>>, // TODO [keorn]: remove
-	queued_reports: Mutex<VecDeque<(Address, BlockNumber, Vec<u8>)>>,
+	report_queue: Mutex<ReportQueue>,
 	/// The block number where we resent the queued reports last time.
 	resent_reports_in_block: Mutex<BlockNumber>,
 	/// If set, this is the block number at which the consensus engine switches from AuRa to AuRa
@@ -216,7 +216,7 @@ impl ValidatorSafeContract {
 			contract_address,
 			validators: RwLock::new(MemoryLruCache::new(MEMOIZE_CAPACITY)),
 			client: RwLock::new(None),
-			queued_reports: Mutex::new(VecDeque::new()),
+			report_queue: Mutex::new(ReportQueue::default()),
 			resent_reports_in_block: Mutex::new(0),
 			posdao_transition,
 		}
@@ -233,13 +233,13 @@ impl ValidatorSafeContract {
 		}
 	}
 
-	pub(crate) fn queue_report(&self, data: (Address, BlockNumber, Vec<u8>)) {
+	pub(crate) fn queue_report(&self, addr: Address, block: BlockNumber, data: Vec<u8>) {
 		// Skip the rest of the function unless there has been a transition to POSDAO AuRa.
-		if self.posdao_transition.map_or(true, |block_num| data.1 < block_num) {
+		if self.posdao_transition.map_or(true, |block_num| block < block_num) {
 			trace!(target: "engine", "Skipping queueing a malicious behavior report");
 			return;
 		}
-		self.queued_reports.lock().push_back(data)
+		self.report_queue.lock().push(addr, block, data)
 	}
 
 	/// Queries the state and gets the set of validators.
@@ -317,60 +317,6 @@ impl ValidatorSafeContract {
 			Some(matched_event) => Some(SimpleList::new(matched_event.new_set))
 		}
 	}
-
-	fn filter_report_queue(&self, our_address: &Address, latest_block: BlockNumber) -> Result<(), EthcoreError>{
-		let client = self.client.read().as_ref().and_then(Weak::upgrade).ok_or("No client!")?;
-		let client = client.as_full_client().ok_or("No full client!")?;
-
-		self.queued_reports.lock().retain(|&(malicious_validator_address, block, ref _data)| {
-			trace!(
-				target: "engine",
-				"Checking if report of malicious validator {} at block {} should be removed from cache",
-				malicious_validator_address,
-				block
-			);
-			if block > latest_block {
-				return false; // Report cannot be used, as it is for a block that isn’t in the current chain
-			}
-			if latest_block > 100 && latest_block - 100 > block {
-				return false; // Report is too old and cannot be used
-			}
-			// Check if the validator is already banned...
-			let (data, decoder) = validator_set::functions::is_validator_banned::call(malicious_validator_address);
-			match client.call_contract(BlockId::Latest, self.contract_address, data)
-				.and_then(|result| decoder.decode(&result[..]).map_err(|e| e.to_string()))
-			{
-				Ok(true) => {
-					trace!(target: "engine", "Successfully removed report from report cache");
-					return false;
-				}
-				Ok(false) => (),
-				Err(err) => {
-					warn!(target: "engine", "Failed to query ban status {:?}, dropping pending report.", err);
-					return false;
-				}
-			}
-			// ...or if our report has already been processed.
-			let (data, decoder) = validator_set::functions::malice_reported_for_block::call(
-				malicious_validator_address, block
-			);
-			match client.call_contract(BlockId::Latest, self.contract_address, data)
-				.and_then(|result| decoder.decode(&result[..]).map_err(|e| e.to_string()))
-			{
-				Ok(ref reporters) if reporters.contains(&our_address) => {
-					trace!(target: "engine", "Successfully removed report from report cache");
-					false
-				}
-				Ok(_) => true,
-				Err(err) => {
-					warn!(target: "engine", "Failed to query malice reports {:?}, dropping pending report.", err);
-					false
-				}
-			}
-		});
-
-		Ok(())
-	}
 }
 
 impl ValidatorSet for ValidatorSafeContract {
@@ -412,10 +358,13 @@ impl ValidatorSet for ValidatorSafeContract {
 			transactions.push((self.contract_address, data));
 		}
 
+		let client = self.client.read().as_ref().and_then(Weak::upgrade).ok_or("No client!")?;
+		let client = client.as_full_client().ok_or("No full client!")?;
+
 		// Retry all pending reports.
-		self.filter_report_queue(header.author(), header.number())?;
-		let queued_reports = self.queued_reports.lock();
-		for (_address, _block, data) in queued_reports.iter().take(MAX_REPORTS_PER_BLOCK) {
+		let mut report_queue = self.report_queue.lock();
+		report_queue.filter(client, header.author(), self.contract_address, header.number());
+		for (_address, _block, data) in report_queue.iter().take(MAX_REPORTS_PER_BLOCK) {
 			transactions.push((self.contract_address, data.clone()))
 		}
 
@@ -433,18 +382,9 @@ impl ValidatorSet for ValidatorSafeContract {
 		let client = client.as_full_client().ok_or("No full client!")?;
 
 		let latest_block = header.number().max(client.block_number(BlockId::Latest).unwrap_or(0)) + 1;
-		self.filter_report_queue(our_address, latest_block)?;
-
-		let mut queue = self.queued_reports.lock();
-
-		if queue.len() > MAX_QUEUED_REPORTS {
-			warn!(
-				target: "engine",
-				"Removing {} reports from report cache, even though it has not been finalized",
-				queue.len() - MAX_QUEUED_REPORTS
-			);
-			queue.truncate(MAX_QUEUED_REPORTS);
-		}
+		let mut report_queue = self.report_queue.lock();
+		report_queue.filter(client, our_address, self.contract_address, latest_block);
+		report_queue.truncate();
 
 		let mut resent_reports_in_block = self.resent_reports_in_block.lock();
 
@@ -452,7 +392,7 @@ impl ValidatorSet for ValidatorSafeContract {
 		if header.number() > *resent_reports_in_block + 1 {
 			*resent_reports_in_block = header.number();
 			let mut nonce = client.latest_nonce(our_address);
-			for (address, block, data) in &*queue {
+			for (address, block, data) in report_queue.iter() {
 				debug!(target: "engine", "Retrying to report validator {} for misbehavior on block {} with nonce {}.",
 					   address, block, nonce);
 				while match self.transact(data.clone(), nonce) {
@@ -621,6 +561,90 @@ impl ValidatorSet for ValidatorSafeContract {
 	fn register_client(&self, client: Weak<dyn EngineClient>) {
 		trace!(target: "engine", "Setting up contract caller.");
 		*self.client.write() = Some(client);
+	}
+}
+
+/// A queue containing pending reports of malicious validators.
+#[derive(Debug, Default)]
+struct ReportQueue(VecDeque<(Address, BlockNumber, Vec<u8>)>);
+
+impl ReportQueue {
+	/// Pushes a report to the end of the queue.
+	fn push(&mut self, addr: Address, block: BlockNumber, data: Vec<u8>) {
+		self.0.push_back((addr, block, data));
+	}
+
+	/// Filters reports of validators that have already been reported or are banned.
+	fn filter(
+		&mut self,
+		client: &dyn BlockChainClient,
+		our_address: &Address,
+		contract_address: Address,
+		latest_block: BlockNumber
+	) {
+		self.0.retain(|&(malicious_validator_address, block, ref _data)| {
+			trace!(
+				target: "engine",
+				"Checking if report of malicious validator {} at block {} should be removed from cache",
+				malicious_validator_address,
+				block
+			);
+			if block > latest_block {
+				return false; // Report cannot be used, as it is for a block that isn’t in the current chain
+			}
+			if latest_block > 100 && latest_block - 100 > block {
+				return false; // Report is too old and cannot be used
+			}
+			// Check if the validator is already banned...
+			let (data, decoder) = validator_set::functions::is_validator_banned::call(malicious_validator_address);
+			match client.call_contract(BlockId::Latest, contract_address, data)
+				.and_then(|result| decoder.decode(&result[..]).map_err(|e| e.to_string()))
+			{
+				Ok(true) => {
+					trace!(target: "engine", "Successfully removed report from report cache");
+					return false;
+				}
+				Ok(false) => (),
+				Err(err) => {
+					warn!(target: "engine", "Failed to query ban status {:?}, dropping pending report.", err);
+					return false;
+				}
+			}
+			// ...or if our report has already been processed.
+			let (data, decoder) = validator_set::functions::malice_reported_for_block::call(
+				malicious_validator_address, block
+			);
+			match client.call_contract(BlockId::Latest, contract_address, data)
+				.and_then(|result| decoder.decode(&result[..]).map_err(|e| e.to_string()))
+			{
+				Ok(ref reporters) if reporters.contains(&our_address) => {
+					trace!(target: "engine", "Successfully removed report from report cache");
+					false
+				}
+				Ok(_) => true,
+				Err(err) => {
+					warn!(target: "engine", "Failed to query malice reports {:?}, dropping pending report.", err);
+					false
+				}
+			}
+		});
+	}
+
+	/// Returns an iterator over all transactions in the queue.
+	fn iter(&self) -> impl Iterator<Item = &(Address, BlockNumber, Vec<u8>)> {
+		self.0.iter()
+	}
+
+	/// Removes reports from the queue if it contains more than `MAX_QUEUED_REPORTS` entries.
+	fn truncate(&mut self) {
+		if self.0.len() > MAX_QUEUED_REPORTS {
+			warn!(
+				target: "engine",
+				"Removing {} reports from report cache, even though it has not been finalized",
+				self.0.len() - MAX_QUEUED_REPORTS
+			);
+			self.0.truncate(MAX_QUEUED_REPORTS);
+		}
 	}
 }
 
