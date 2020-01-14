@@ -51,8 +51,8 @@ use_contract!(validator_set, "res/validator_set.json");
 
 /// The maximum number of reports to keep queued.
 const MAX_QUEUED_REPORTS: usize = 10;
-/// The maximum number of returned malice reports to resend.
-const MAX_RETURNED_REPORTS: usize = 10;
+/// The maximum number of malice reports to include when creating a new block.
+const MAX_REPORTS_PER_BLOCK: usize = 10;
 
 const MEMOIZE_CAPACITY: usize = 500;
 
@@ -226,7 +226,7 @@ impl ValidatorSafeContract {
 		let client = self.client.read().as_ref().and_then(Weak::upgrade).ok_or("No client!")?;
 		let full_client = client.as_full_client().ok_or("No full client!")?;
 
-		let tx_request = TransactionRequest::call(self.contract_address, data).gas_price(0.into()).nonce(nonce);
+		let tx_request = TransactionRequest::call(self.contract_address, data).gas_price(U256::zero()).nonce(nonce);
 		match full_client.transact(tx_request) {
 			Ok(()) | Err(transaction::Error::AlreadyImported) => Ok(()),
 			Err(e) => Err(e)?,
@@ -323,7 +323,12 @@ impl ValidatorSafeContract {
 		let client = client.as_full_client().ok_or("No full client!")?;
 
 		self.queued_reports.lock().retain(|&(malicious_validator_address, block, ref _data)| {
-			trace!(target: "engine", "Checking if report can be removed from cache");
+			trace!(
+				target: "engine",
+				"Checking if report of malicious validator {} at block {} should be removed from cache",
+				malicious_validator_address,
+				block
+			);
 			if block > latest_block {
 				return false; // Report cannot be used, as it is for a block that isn’t in the current chain
 			}
@@ -410,7 +415,7 @@ impl ValidatorSet for ValidatorSafeContract {
 		// Retry all pending reports.
 		self.filter_report_queue(header.author(), header.number())?;
 		let queued_reports = self.queued_reports.lock();
-		for (_address, _block, data) in queued_reports.iter().take(MAX_RETURNED_REPORTS) {
+		for (_address, _block, data) in queued_reports.iter().take(MAX_REPORTS_PER_BLOCK) {
 			transactions.push((self.contract_address, data.clone()))
 		}
 
@@ -433,7 +438,11 @@ impl ValidatorSet for ValidatorSafeContract {
 		let mut queue = self.queued_reports.lock();
 
 		if queue.len() > MAX_QUEUED_REPORTS {
-			warn!(target: "engine", "Removing report from report cache, even though it has not been finalized");
+			warn!(
+				target: "engine",
+				"Removing {} reports from report cache, even though it has not been finalized",
+				queue.len() - MAX_QUEUED_REPORTS
+			);
 			queue.truncate(MAX_QUEUED_REPORTS);
 		}
 

@@ -67,7 +67,7 @@ impl ValidatorContract {
 	fn transact(&self, data: Bytes, gas_price: Option<U256>) -> Result<(), String> {
 		let client = self.client.read().as_ref().and_then(Weak::upgrade).ok_or("No client!")?;
 		let full_client = client.as_full_client().ok_or("No full client!")?;
-		let tx_request = TransactionRequest::call(self.contract_address, data).opt_gas_price(gas_price);
+		let tx_request = TransactionRequest::call(self.contract_address, data).gas_price(gas_price);
 		match full_client.transact(tx_request) {
 			Ok(()) | Err(transaction::Error::AlreadyImported) => Ok(()),
 			Err(e) => Err(e.to_string())?,
@@ -99,9 +99,9 @@ impl ValidatorContract {
 		Ok(())
 	}
 
-		/// Returns the gas price for report transactions.
-		///
-		/// After `posdaoTransition`, this is zero. Otherwise it is the default (`None`).
+	/// Returns the gas price for report transactions.
+	///
+	/// After `posdaoTransition`, this is zero. Otherwise it is the default (`None`).
 	fn report_gas_price(&self, block: BlockNumber) -> Option<U256> {
 		if self.posdao_transition? <= block {
 			Some(0.into())

@@ -604,7 +604,8 @@ pub struct AuthorityRound {
 	/// Memoized gas limit overrides, by block hash.
 	gas_limit_override_cache: Mutex<LruCache<H256, Option<U256>>>,
 	/// The block number at which the consensus engine switches from AuRa to AuRa with POSDAO
-	/// modifications.
+	/// modifications. For details about POSDAO, see the whitepaper:
+	/// https://www.xdaichain.com/for-validators/posdao-whitepaper
 	posdao_transition: Option<BlockNumber>,
 }
 
@@ -1143,7 +1144,7 @@ impl AuthorityRound {
 
 	fn run_posdao(&self, block: &ExecutedBlock, nonce: Option<U256>) -> Result<Vec<SignedTransaction>, Error> {
 		// Skip the rest of the function unless there has been a transition to POSDAO AuRa.
-		if self.posdao_transition.map_or(true, |block_num| block.header.number() < block_num) {
+		if self.posdao_transition.map_or(true, |posdao_block| block.header.number() < posdao_block) {
 			trace!(target: "engine", "Skipping calls to POSDAO randomness and validator set contracts");
 			return Ok(Vec::new());
 		}
