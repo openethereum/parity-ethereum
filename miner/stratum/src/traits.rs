@@ -14,8 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use std;
-use std::error::Error as StdError;
 use ethereum_types::H256;
 use jsonrpc_tcp_server::PushMessageError;
 
@@ -30,7 +28,7 @@ pub enum Error {
 
 impl From<std::io::Error> for Error {
 	fn from(err: std::io::Error) -> Self {
-		Error::Io(err.description().to_owned())
+		Error::Io(err.to_string())
 	}
 }
 
