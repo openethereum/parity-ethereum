@@ -472,18 +472,20 @@ impl<K: Kind, C> VerificationQueue<K, C> {
 		let raw_hash = input.raw_hash();
 		let mut processing = self.processing.write();
 
-		if processing.contains_key(&hash) {
-			return Err((input, Error::Import(ImportError::AlreadyQueued).into()));
-		}
+		{
+			if processing.contains_key(&hash) {
+				return Err((input, Error::Import(ImportError::AlreadyQueued).into()));
+			}
 
-		let mut bad = self.verification.bad.lock();
-		if bad.contains(&hash) || bad.contains(&raw_hash)  {
-			return Err((input, Error::Import(ImportError::KnownBad).into()));
-		}
+			let mut bad = self.verification.bad.lock();
+			if bad.contains(&hash) || bad.contains(&raw_hash)  {
+				return Err((input, Error::Import(ImportError::KnownBad).into()));
+			}
 
-		if bad.contains(&input.parent_hash()) {
-			bad.insert(hash);
-			return Err((input, Error::Import(ImportError::KnownBad).into()));
+			if bad.contains(&input.parent_hash()) {
+				bad.insert(hash);
+				return Err((input, Error::Import(ImportError::KnownBad).into()));
+			}
 		}
 
 		match K::create(input, &*self.engine, self.verification.check_seal) {
