@@ -37,7 +37,7 @@ use common_types::{
 		Transition as EpochTransition,
 		PendingTransition as PendingEpochTransition,
 	},
-	errors::{EthcoreError as Error, BlockError, EthcoreResult},
+	errors::{EthcoreError as Error, BlockError, BlockErrorWithData},
 	header::Header,
 	ids::BlockId,
 };
@@ -227,6 +227,9 @@ pub struct HeaderChain {
 
 impl HeaderChain {
 	/// Create a new header chain given this genesis block and database to read from.
+	//
+	// NOTE(niklasad1): might return BlockError without `block bytes`,
+	// but this function is only called at startup so "ok".
 	pub fn new(
 		db: Arc<dyn KeyValueDB>,
 		col: u32,
@@ -240,7 +243,7 @@ impl HeaderChain {
 		let decoded_header = spec.genesis_header();
 
 		let chain = if let Some(current) = db.get(col, CURRENT_KEY)? {
-			let curr : BestAndLatest = ::rlp::decode(&current).expect("decoding db value failed");
+			let curr: BestAndLatest = rlp::decode(&current).expect("decoding db value failed");
 
 			let mut cur_number = curr.latest_num;
 			let mut candidates = BTreeMap::new();
@@ -322,8 +325,12 @@ impl HeaderChain {
 
 				// write the block in the DB.
 				info!(target: "chain", "Inserting hardcoded block #{} in chain", decoded_header_num);
-				let pending = chain.insert_with_td(&mut batch, &decoded_header,
-												hardcoded_sync.total_difficulty, None)?;
+				let pending = chain.insert_with_td(
+					&mut batch,
+					&decoded_header,
+					hardcoded_sync.total_difficulty,
+					None
+				).map_err(|error| Error::Block(BlockErrorWithData { error, data: None }))?;
 
 				// check that we have enough hardcoded CHT roots. avoids panicking later.
 				let cht_num = cht::block_to_cht_number(decoded_header_num - 1)
@@ -369,7 +376,7 @@ impl HeaderChain {
 		transaction: &mut DBTransaction,
 		header: &Header,
 		transition_proof: Option<Vec<u8>>,
-	) -> EthcoreResult<PendingChanges> {
+	) -> Result<PendingChanges, BlockError> {
 		self.insert_inner(transaction, header, None, transition_proof)
 	}
 
@@ -382,7 +389,7 @@ impl HeaderChain {
 		header: &Header,
 		total_difficulty: U256,
 		transition_proof: Option<Vec<u8>>,
-	) -> EthcoreResult<PendingChanges> {
+	) -> Result<PendingChanges, BlockError> {
 		self.insert_inner(transaction, header, Some(total_difficulty), transition_proof)
 	}
 
@@ -392,7 +399,7 @@ impl HeaderChain {
 		header: &Header,
 		total_difficulty: Option<U256>,
 		transition_proof: Option<Vec<u8>>,
-	) -> EthcoreResult<PendingChanges> {
+	) -> Result<PendingChanges, BlockError> {
 		let hash = header.hash();
 		let number = header.number();
 		let parent_hash = *header.parent_hash();
@@ -420,8 +427,7 @@ impl HeaderChain {
 						candidates.get(&(number - 1))
 							.and_then(|entry| entry.candidates.iter().find(|c| c.hash == parent_hash))
 							.map(|c| c.total_difficulty)
-							.ok_or_else(|| BlockError::UnknownParent(parent_hash))
-							.map_err(Error::Block)?
+							.ok_or_else(|| BlockError::UnknownParent(parent_hash))?
 					};
 
 				parent_td + *header.difficulty()

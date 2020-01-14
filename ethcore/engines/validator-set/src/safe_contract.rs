@@ -23,7 +23,7 @@ use client_traits::{BlockChainClient, EngineClient, TransactionRequest};
 use common_types::{
 	BlockNumber,
 	header::Header,
-	errors::{EngineError, EthcoreError, BlockError},
+	errors::{EngineError, EthcoreError, BlockError, BlockErrorWithData},
 	ids::BlockId,
 	log_entry::LogEntry,
 	engines::machine::{Call, AuxiliaryData, AuxiliaryRequest},
@@ -503,9 +503,13 @@ impl ValidatorSet for ValidatorSafeContract {
 				receipts.iter().map(::rlp::encode)
 			);
 			if found_root != *old_header.receipts_root() {
-				return Err(BlockError::InvalidReceiptsRoot(
-					Mismatch { expected: *old_header.receipts_root(), found: found_root }
-				).into());
+				return Err(EthcoreError::Block(BlockErrorWithData {
+					error: BlockError::InvalidReceiptsRoot(Mismatch {
+						expected: *old_header.receipts_root(),
+						found: found_root
+					}),
+					data: None,
+				}));
 			}
 
 			let bloom = self.expected_bloom(&old_header);

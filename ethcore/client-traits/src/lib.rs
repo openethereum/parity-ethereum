@@ -216,6 +216,9 @@ impl Tick for () {}
 pub trait BadBlocks {
 	/// Returns a list of blocks that were recently not imported because they were invalid.
 	fn bad_blocks(&self) -> Vec<(Unverified, String)>;
+
+	/// Report a bad block
+	fn report_bad_block(&self, block: Option<Bytes>, message: String);
 }
 
 

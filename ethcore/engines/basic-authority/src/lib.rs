@@ -28,7 +28,7 @@ use common_types::{
 		params::CommonParams,
 		machine::{AuxiliaryData, Call},
 	},
-	errors::{EngineError, BlockError, EthcoreError as Error},
+	errors::{EngineError, BlockError, BlockErrorWithData, EthcoreError as Error},
 };
 use client_traits::EngineClient;
 use ethereum_types::{H256, H520};
@@ -75,7 +75,7 @@ fn verify_external(header: &Header, validators: &dyn ValidatorSet) -> Result<(),
 	}
 
 	match validators.contains(header.parent_hash(), &signer) {
-		false => Err(BlockError::InvalidSeal.into()),
+		false => Err(Error::Block(BlockErrorWithData { error: BlockError::InvalidSeal, data: None })),
 		true => Ok(())
 	}
 }
@@ -91,7 +91,7 @@ impl BasicAuthority {
 	/// Create a new instance of BasicAuthority engine
 	pub fn new(our_params: BasicAuthorityParams, machine: Machine) -> Self {
 		BasicAuthority {
-			machine: machine,
+			machine,
 			signer: RwLock::new(None),
 			validators: new_validator_set(our_params.validators),
 		}

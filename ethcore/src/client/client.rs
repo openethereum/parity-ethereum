@@ -118,7 +118,7 @@ use types::{
 		MAX_UNCLE_AGE,
 		SealingState,
 	},
-	errors::{BlockError, EngineError, EthcoreError, EthcoreResult, ExecutionError, ImportError, SnapshotError},
+	errors::{BlockError, BlockErrorWithData, EngineError, EthcoreError, EthcoreResult, ExecutionError, ImportError, SnapshotError},
 	filter::Filter,
 	header::Header,
 	ids::{BlockId, TraceId, TransactionId, UncleId},
@@ -299,7 +299,6 @@ impl Importer {
 
 			for block in blocks {
 				let header = block.header.clone();
-				let bytes = block.bytes.clone();
 				let hash = header.hash();
 
 				let is_invalid = invalid_blocks.contains(header.parent_hash());
@@ -308,8 +307,8 @@ impl Importer {
 					continue;
 				}
 
-				match self.check_and_lock_block(&bytes, block, client) {
-					Ok((closed_block, pending)) => {
+				match self.check_and_lock_block(block, client) {
+					Ok((closed_block, bytes, pending)) => {
 						imported_blocks.push(hash);
 						let transactions_len = closed_block.transactions.len();
 						let route = self.commit_block(closed_block, &header, encoded::Block::new(bytes), pending, client);
@@ -317,8 +316,10 @@ impl Importer {
 						client.report.write().accrue_block(&header, transactions_len);
 					},
 					Err(err) => {
-						self.bad_blocks.report(bytes, format!("{:?}", err));
 						invalid_blocks.insert(hash);
+						if let EthcoreError::Block(BlockErrorWithData { error, data }) = err {
+							self.bad_blocks.report(data, error.to_string());
+						}
 					},
 				}
 			}
@@ -362,7 +363,11 @@ impl Importer {
 		imported
 	}
 
-	fn check_and_lock_block(&self, bytes: &[u8], block: PreverifiedBlock, client: &Client) -> EthcoreResult<(LockedBlock, Option<PendingTransition>)> {
+	fn check_and_lock_block(
+		&self,
+		block: PreverifiedBlock,
+		client: &Client
+	) -> EthcoreResult<(LockedBlock, Bytes, Option<PendingTransition>)> {
 		let engine = &*self.engine;
 		let header = block.header.clone();
 
@@ -384,20 +389,23 @@ impl Importer {
 
 		let chain = client.chain.read();
 		// Verify Block Family
-		let verify_family_result = verification::verify_block_family(
+		let verified_family_result = verification::verify_block_family(
 			&header,
 			&parent,
 			engine,
-			verification::FullFamilyParams {
-				block: &block,
-				block_provider: &**chain,
-				client
-			},
+			block,
+			&**chain,
+			client
 		);
 
-		if let Err(e) = verify_family_result {
-			warn!(target: "client", "Stage 3 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
-			return Err(e);
+		let verified_block = match verified_family_result {
+			Ok(verified_block) => verified_block,
+			Err(e) => {
+				warn!(target: "client", "Stage 3 block verification failed for #{} ({})\nError: {:?}",
+					header.number(), header.hash(), e
+				);
+				return Err(e);
+			}
 		};
 
 		let verify_external_result = engine.verify_block_external(&header);
@@ -413,7 +421,7 @@ impl Importer {
 		let is_epoch_begin = chain.epoch_transition(parent.number(), *header.parent_hash()).is_some();
 
 		let enact_result = enact_verified(
-			block,
+			verified_block,
 			engine,
 			client.tracedb.read().tracing_enabled(),
 			db,
@@ -423,8 +431,8 @@ impl Importer {
 			is_epoch_begin,
 		);
 
-		let mut locked_block = match enact_result {
-			Ok(b) => b,
+		let (mut locked_block, bytes) = match enact_result {
+			Ok((l, b)) => (l, b),
 			Err(e) => {
 				warn!(target: "client", "Block import failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 				return Err(e);
@@ -441,20 +449,21 @@ impl Importer {
 		}
 
 		// Final Verification
-		if let Err(e) = verification::verify_block_final(&header, &locked_block.header) {
-			warn!(target: "client", "Stage 5 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
-			return Err(e);
+		if let Err(error) = verification::verify_block_final(&header, &locked_block.header) {
+			warn!(target: "client", "Stage 5 block verification failed for #{} ({})\nError: {:?}",
+				header.number(), header.hash(), error);
+			return Err(EthcoreError::Block(BlockErrorWithData { error, data: Some(bytes) }));
 		}
 
 		let pending = self.check_epoch_end_signal(
 			&header,
-			bytes,
+			&bytes,
 			&locked_block.receipts,
 			locked_block.state.db(),
 			client
 		)?;
 
-		Ok((locked_block, pending))
+		Ok((locked_block, bytes, pending))
 	}
 
 	/// Import a block with transaction receipts.
@@ -1449,7 +1458,10 @@ impl ImportBlock for Client {
 
 		let status = self.block_status(BlockId::Hash(unverified.parent_hash()));
 		if status == BlockStatus::Unknown {
-			return Err(EthcoreError::Block(BlockError::UnknownParent(unverified.parent_hash())));
+			return Err(EthcoreError::Block(BlockErrorWithData {
+				error: BlockError::UnknownParent(unverified.parent_hash()),
+				data: Some(unverified.bytes)
+			}));
 		}
 
 		let raw = if self.importer.block_queue.is_empty() {
@@ -1465,16 +1477,8 @@ impl ImportBlock for Client {
 				}
 				Ok(hash)
 			},
-			// we only care about block errors (not import errors)
-			Err((EthcoreError::Block(e), Some(input))) => {
-				self.importer.bad_blocks.report(input.bytes, e.to_string());
-				Err(EthcoreError::Block(e))
-			},
-			Err((EthcoreError::Block(e), None)) => {
-				error!(target: "client", "BlockError {} detected but it was missing raw_bytes of the block", e);
-				Err(EthcoreError::Block(e))
-			}
-			Err((e, _input)) => Err(e),
+			// NOTE(niklasad1): block errors are reported by the `sync` module, to avoid clone.
+			err => err,
 		}
 	}
 
@@ -1631,6 +1635,10 @@ impl EngineInfo for Client {
 impl BadBlocks for Client {
 	fn bad_blocks(&self) -> Vec<(Unverified, String)> {
 		self.importer.bad_blocks.bad_blocks()
+	}
+
+	fn report_bad_block(&self, block: Option<Bytes>, message: String) {
+		self.importer.bad_blocks.report(block, message)
 	}
 }
 
@@ -2225,7 +2233,10 @@ impl IoClient for Client {
 			// (and attempt to acquire lock)
 			let is_parent_pending = self.queued_ancient_blocks.read().0.contains(&parent_hash);
 			if !is_parent_pending && !self.chain.read().is_known(&parent_hash) {
-				return Err(EthcoreError::Block(BlockError::UnknownParent(parent_hash)));
+				return Err(EthcoreError::Block(BlockErrorWithData {
+					error: BlockError::UnknownParent(parent_hash),
+					data: Some(unverified.bytes)
+				}));
 			}
 		}
 
@@ -2377,21 +2388,20 @@ impl ScheduleInfo for Client {
 impl ImportSealedBlock for Client {
 	fn import_sealed_block(&self, block: SealedBlock) -> EthcoreResult<H256> {
 		let start = Instant::now();
-		let raw = block.rlp_bytes();
+		let block_bytes_rlp = block.rlp_bytes();
 		let header = block.header.clone();
 		let hash = header.hash();
 		self.notify(|n| {
-			n.block_pre_import(&raw, &hash, header.difficulty())
+			n.block_pre_import(&block_bytes_rlp, &hash, header.difficulty())
 		});
 
 		let route = {
 			// Do a super duper basic verification to detect potential bugs
-			if let Err(e) = self.engine.verify_block_basic(&header) {
-				self.importer.bad_blocks.report(
-					block.rlp_bytes(),
-					format!("Detected an issue with locally sealed block: {}", e),
-				);
-				return Err(e);
+			if let Err(mut err) = self.engine.verify_block_basic(&header) {
+				if let EthcoreError::Block(BlockErrorWithData { ref mut data, .. }) = &mut err {
+					*data = Some(block_bytes_rlp);
+				}
+				return Err(err);
 			}
 
 			// scope for self.import_lock
@@ -2476,9 +2486,14 @@ impl client_traits::EngineClient for Client {
 
 	fn submit_seal(&self, block_hash: H256, seal: Vec<Bytes>) {
 		let import = self.importer.miner.submit_seal(block_hash, seal)
+			.map_err(|e| {
+				warn!(target: "poa", "Wrong internal seal submission! {:?}", e);
+				e
+			})
 			.and_then(|block| self.import_sealed_block(block));
-		if let Err(err) = import {
-			warn!(target: "poa", "Wrong internal seal submission! {:?}", err);
+
+		if let Err(EthcoreError::Block(BlockErrorWithData { data, error })) = import {
+			self.importer.bad_blocks.report(data, error.to_string());
 		}
 	}
 

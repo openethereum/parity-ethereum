@@ -670,6 +670,10 @@ impl BadBlocks for TestBlockChainClient {
 			}, "Invalid block".into())
 		]
 	}
+
+	fn report_bad_block(&self, _bytes: Option<Bytes>, _message: String) {
+		todo!("not implemented for TestBlockChainClient")
+	}
 }
 
 impl BlockChainClient for TestBlockChainClient {

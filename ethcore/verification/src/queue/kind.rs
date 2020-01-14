@@ -16,11 +16,9 @@
 
 //! Definition of valid items for the verification queue.
 
-use engine::Engine;
-
-use parity_util_mem::MallocSizeOf;
 use ethereum_types::{H256, U256};
-
+use engine::Engine;
+use parity_util_mem::MallocSizeOf;
 use common_types::errors::EthcoreError as Error;
 
 pub use self::blocks::Blocks;
@@ -62,14 +60,7 @@ pub trait Kind: 'static + Sized + Send + Sync {
 	type Verified: Sized + Send + BlockLike + MallocSizeOf;
 
 	/// Attempt to create the `Unverified` item from the input.
-	///
-	/// The return type is quite complex because in some scenarios the input
-	/// is needed (typically for BlockError) to get the raw block bytes without cloning them
-	fn create(
-		input: Self::Input,
-		engine: &dyn Engine,
-		check_seal: bool
-	) -> Result<Self::Unverified, (Error, Option<Self::Input>)>;
+	fn create(input: Self::Input, engine: &dyn Engine, check_seal: bool) -> Result<Self::Unverified, Error>;
 
 	/// Attempt to verify the `Unverified` item using the given engine.
 	fn verify(unverified: Self::Unverified, engine: &dyn Engine, check_seal: bool) -> Result<Self::Verified, Error>;
@@ -82,7 +73,7 @@ pub mod blocks {
 	use engine::Engine;
 	use common_types::{
 		block::PreverifiedBlock,
-		errors::{EthcoreError as Error, BlockError},
+		errors::{EthcoreError as Error, BlockError, BlockErrorWithData},
 		verification::Unverified,
 	};
 	use log::{debug, warn};
@@ -98,20 +89,19 @@ pub mod blocks {
 		type Unverified = Unverified;
 		type Verified = PreverifiedBlock;
 
-		fn create(
-			input: Self::Input,
-			engine: &dyn Engine,
-			check_seal: bool
-		) -> Result<Self::Unverified, (Error, Option<Self::Input>)> {
-			match verify_block_basic(&input, engine, check_seal) {
-				Ok(()) => Ok(input),
-				Err(Error::Block(BlockError::TemporarilyInvalid(oob))) => {
-					debug!(target: "client", "Block received too early {}: {:?}", input.hash(), oob);
-					Err((BlockError::TemporarilyInvalid(oob).into(), Some(input)))
+		fn create(input: Self::Input, engine: &dyn Engine, check_seal: bool) -> Result<Self::Unverified, Error> {
+			let hash = input.hash();
+			match verify_block_basic(input, engine, check_seal) {
+				Ok(input) => Ok(input),
+				Err(Error::Block(BlockErrorWithData { error, data })) => {
+					if let BlockError::TemporarilyInvalid(ref oob) = error {
+						debug!(target: "client", "Block received too early {}: {:?}", hash, oob);
+					}
+					Err(Error::Block(BlockErrorWithData { error, data }))
 				},
 				Err(e) => {
-					warn!(target: "client", "Stage 1 block verification failed for {}: {:?}", input.hash(), e);
-					Err((e, Some(input)))
+					warn!(target: "client", "Stage 1 block verification failed for {}: {:?}", hash, e);
+					Err(e)
 				}
 			}
 		}
@@ -172,7 +162,7 @@ pub mod headers {
 	use engine::Engine;
 	use common_types::{
 		header::Header,
-		errors::EthcoreError as Error,
+		errors::{BlockErrorWithData, EthcoreError as Error},
 	};
 	use crate::verification::{verify_header_params, verify_header_time};
 
@@ -193,17 +183,14 @@ pub mod headers {
 		type Unverified = Header;
 		type Verified = Header;
 
-		fn create(
-			input: Self::Input,
-			engine: &dyn Engine,
-			check_seal: bool
-		) -> Result<Self::Unverified, (Error, Option<Self::Input>)> {
+		fn create(input: Self::Input, engine: &dyn Engine, check_seal: bool) -> Result<Self::Unverified, Error> {
 			let res = verify_header_params(&input, engine, check_seal)
-				.and_then(|_| verify_header_time(&input));
+				.and_then(|_| Ok(verify_header_time(&input)))
+				.map_err(|error| Error::Block(BlockErrorWithData { error, data: None }))?;
 
 			match res {
 				Ok(_) => Ok(input),
-				Err(e) => Err((e, Some(input))),
+				Err(error) => Err(Error::Block(BlockErrorWithData { error, data: None })),
 			}
 		}
 

@@ -25,7 +25,7 @@ use std::collections::{VecDeque, HashSet, HashMap};
 use common_types::{
 	block_status::BlockStatus,
 	io_message::ClientIoMessage,
-	errors::{BlockError, EthcoreError as Error, ImportError},
+	errors::{BlockError, EthcoreError as Error, ImportError, BlockErrorWithData},
 	verification::VerificationQueueInfo as QueueInfo,
 };
 use ethcore_io::*;
@@ -467,31 +467,29 @@ impl<K: Kind, C> VerificationQueue<K, C> {
 	}
 
 	/// Add a block to the queue.
-	//
-	// TODO: #11403 - rework `EthcoreError::Block` to include raw bytes of the error cause
-	pub fn import(&self, input: K::Input) -> Result<H256, (Error, Option<K::Input>)> {
+	pub fn import(&self, input: K::Input) -> Result<H256, Error> {
 		let hash = input.hash();
 		let raw_hash = input.raw_hash();
 		{
 			if self.processing.read().contains_key(&hash) {
-				return Err((Error::Import(ImportError::AlreadyQueued), Some(input)));
+				return Err(Error::Import(ImportError::AlreadyQueued));
 			}
 
 			let mut bad = self.verification.bad.lock();
 			if bad.contains(&hash) || bad.contains(&raw_hash)  {
-				return Err((Error::Import(ImportError::KnownBad), Some(input)));
+				return Err(Error::Import(ImportError::KnownBad));
 			}
 
 			if bad.contains(&input.parent_hash()) {
 				bad.insert(hash);
-				return Err((Error::Import(ImportError::KnownBad), Some(input)));
+				return Err(Error::Import(ImportError::KnownBad));
 			}
 		}
 
 		match K::create(input, &*self.engine, self.verification.check_seal) {
 			Ok(item) => {
 				if self.processing.write().insert(hash, item.difficulty()).is_some() {
-					return Err((Error::Import(ImportError::AlreadyQueued), None));
+					return Err(Error::Import(ImportError::AlreadyQueued));
 				}
 				self.verification.sizes.unverified.fetch_add(item.malloc_size_of(), AtomicOrdering::SeqCst);
 				{
@@ -502,25 +500,30 @@ impl<K: Kind, C> VerificationQueue<K, C> {
 				self.more_to_verify.notify_all();
 				Ok(hash)
 			},
-			Err((err, input)) => {
+			Err(err) => {
 				match err {
-					// Don't mark future blocks as bad.
-					Error::Block(BlockError::TemporarilyInvalid(_)) => {},
-					// If the transaction root or uncles hash is invalid, it doesn't necessarily mean
-					// that the header is invalid. We might have just received a malformed block body,
-					// so we shouldn't put the header hash to `bad`.
-					//
-					// We still put the entire `Item` hash to bad, so that we can early reject
-					// the items that are malformed.
-					Error::Block(BlockError::InvalidTransactionsRoot(_)) |
-					Error::Block(BlockError::InvalidUnclesHash(_)) => {
-						self.verification.bad.lock().insert(raw_hash);
+					Error::Block(BlockErrorWithData { error, data }) => {
+						match error {
+							// Don't mark future blocks as bad.
+							BlockError::TemporarilyInvalid(_) => {},
+							// If the transaction root or uncles hash is invalid, it doesn't necessarily mean
+							// that the header is invalid. We might have just received a malformed block body,
+							// so we shouldn't put the header hash to `bad`.
+							//
+							// We still put the entire `Item` hash to bad, so that we can early reject
+							// the items that are malformed.
+							BlockError::InvalidTransactionsRoot(_) |
+							BlockError::InvalidUnclesHash(_) => {
+								self.verification.bad.lock().insert(raw_hash);
+							},
+							_ => {
+								self.verification.bad.lock().insert(hash);
+							}
+						}
+						Err(Error::Block(BlockErrorWithData { error, data }))
 					},
-					_ => {
-						self.verification.bad.lock().insert(hash);
-					}
+					err => Err(err),
 				}
-				Err((err, input))
 			}
 		}
 	}

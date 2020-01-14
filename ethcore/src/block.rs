@@ -50,7 +50,7 @@ use hash::keccak;
 use rlp::{RlpStream, Encodable, encode_list};
 use types::{
 	block::PreverifiedBlock,
-	errors::{EthcoreError as Error, BlockError},
+	errors::{EthcoreError as Error, BlockError, BlockErrorWithData},
 	transaction::{SignedTransaction, Error as TransactionError},
 	header::Header,
 	receipt::{Receipt, TransactionOutcome},
@@ -102,7 +102,7 @@ pub trait Drain {
 
 impl<'x> OpenBlock<'x> {
 	/// Create a new `OpenBlock` ready for transaction pushing.
-	pub fn new<'a>(
+	pub fn new(
 		engine: &'x dyn Engine,
 		factories: Factories,
 		tracing: bool,
@@ -176,7 +176,7 @@ impl<'x> OpenBlock<'x> {
 		let env_info = self.block.env_info();
 		let outcome = self.block.state.apply(&env_info, self.engine.machine(), &t, self.block.traces.is_enabled())?;
 
-		self.block.transactions_set.insert(h.unwrap_or_else(||t.hash()));
+		self.block.transactions_set.insert(h.unwrap_or_else(|| t.hash()));
 		self.block.transactions.push(t.into());
 		if let Tracing::Enabled(ref mut traces) = self.block.traces {
 			traces.push(outcome.trace.into());
@@ -205,7 +205,7 @@ impl<'x> OpenBlock<'x> {
 			let start = time::Instant::now();
 			self.push_transaction(t, None)?;
 			let took = start.elapsed();
-			let took_ms = took.as_secs() * 1000 + took.subsec_nanos() as u64 / 1000000;
+			let took_ms = took.as_millis();
 			if took > time::Duration::from_millis(slow_tx) {
 				warn!("Heavy ({} ms) transaction in block {:?}: {:?}", took_ms, self.block.header.number(), hash);
 			}
@@ -343,14 +343,19 @@ impl LockedBlock {
 	/// Provide a valid seal in order to turn this into a `SealedBlock`.
 	///
 	/// NOTE: This does not check the validity of `seal` with the engine.
+	//
+	// NOTE(niklasad1): might return `BlockError` without block bytes.
 	pub fn seal(self, engine: &dyn Engine, seal: Vec<Bytes>) -> Result<SealedBlock, Error> {
 		let expected_seal_fields = engine.seal_fields(&self.header);
 		let mut s = self;
 		if seal.len() != expected_seal_fields {
-			Err(BlockError::InvalidSealArity(Mismatch {
-				expected: expected_seal_fields,
-				found: seal.len()
-			}))?;
+			return Err(Error::Block(BlockErrorWithData {
+				error: BlockError::InvalidSealArity(Mismatch {
+					expected: expected_seal_fields,
+					found: seal.len()
+				}),
+				data: None
+			}));
 		}
 
 		s.block.header.set_seal(seal);
@@ -408,9 +413,7 @@ impl Drain for SealedBlock {
 
 /// Enact the block given by block header, transactions and uncles
 pub(crate) fn enact(
-	header: Header,
-	transactions: Vec<SignedTransaction>,
-	uncles: Vec<Header>,
+	block: PreverifiedBlock,
 	engine: &dyn Engine,
 	tracing: bool,
 	db: StateDB,
@@ -418,10 +421,15 @@ pub(crate) fn enact(
 	last_hashes: Arc<LastHashes>,
 	factories: Factories,
 	is_epoch_begin: bool,
-) -> Result<LockedBlock, Error> {
+) -> Result<(LockedBlock, Bytes), Error> {
 	// For trace log
 	let trace_state = if log_enabled!(target: "enact", ::log::Level::Trace) {
-		Some(State::from_existing(db.boxed_clone(), parent.state_root().clone(), engine.account_start_nonce(parent.number() + 1), factories.clone())?)
+		Some(State::from_existing(
+			db.boxed_clone(),
+			*parent.state_root(),
+			engine.account_start_nonce(parent.number() + 1),
+			factories.clone()
+		)?)
 	} else {
 		None
 	};
@@ -435,7 +443,7 @@ pub(crate) fn enact(
 		last_hashes,
 		// Engine such as Clique will calculate author from extra_data.
 		// this is only important for executing contracts as the 'executive_author'.
-		engine.executive_author(&header)?,
+		engine.executive_author(&block.header)?,
 		(3141562.into(), 31415620.into()),
 		vec![],
 		is_epoch_begin,
@@ -449,14 +457,17 @@ pub(crate) fn enact(
 				b.block.header.number(), root, env.author, author_balance);
 	}
 
-	b.populate_from(&header);
-	b.push_transactions(transactions)?;
+	b.populate_from(&block.header);
+	b.push_transactions(block.transactions)?;
 
-	for u in uncles {
-		b.push_uncle(u)?;
+	for u in block.uncles {
+		if let Err(error) = b.push_uncle(u) {
+			return Err(Error::Block(BlockErrorWithData { error, data: Some(block.bytes) }));
+		}
 	}
 
-	b.close_and_lock()
+	let locked_block = b.close_and_lock()?;
+	Ok((locked_block, block.bytes))
 }
 
 /// Enact the block given by `block_bytes` using `engine` on the database `db` with the given `parent` block header
@@ -469,12 +480,10 @@ pub fn enact_verified(
 	last_hashes: Arc<LastHashes>,
 	factories: Factories,
 	is_epoch_begin: bool,
-) -> Result<LockedBlock, Error> {
+) -> Result<(LockedBlock, Bytes), Error> {
 
 	enact(
-		block.header,
-		block.transactions,
-		block.uncles,
+		block,
 		engine,
 		tracing,
 		db,
@@ -529,7 +538,7 @@ mod tests {
 
 		{
 			if ::log::max_level() >= ::log::Level::Trace {
-				let s = State::from_existing(db.boxed_clone(), parent.state_root().clone(), engine.account_start_nonce(parent.number() + 1), factories.clone())?;
+				let s = State::from_existing(db.boxed_clone(), *parent.state_root(), engine.account_start_nonce(parent.number() + 1), factories.clone())?;
 				trace!(target: "enact", "num={}, root={}, author={}, author_balance={}\n",
 					header.number(), s.root(), header.author(), s.balance(&header.author())?);
 			}
@@ -552,7 +561,9 @@ mod tests {
 		b.push_transactions(transactions)?;
 
 		for u in block.uncles {
-			b.push_uncle(u)?;
+			if let Err(error) = b.push_uncle(u) {
+				return Err(Error::Block(BlockErrorWithData { error, data: Some(block.bytes) }));
+			}
 		}
 
 		b.close_and_lock()
@@ -568,6 +579,7 @@ mod tests {
 		last_hashes: Arc<LastHashes>,
 		factories: Factories,
 	) -> Result<SealedBlock, Error> {
+		// TODO(niklasad1): allocation for `block_bytes` just for the header seem needless here.
 		let header = Unverified::from_rlp(block_bytes.clone())?.header;
 		Ok(enact_bytes(block_bytes, engine, tracing, db, parent, last_hashes, factories)?
 			.seal(engine, header.seal().to_vec())?)
