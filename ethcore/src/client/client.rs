@@ -1660,9 +1660,7 @@ impl BlockChainClient for Client {
 	}
 
 	fn mode(&self) -> Mode {
-		let r = self.mode.lock().clone().into();
-		trace!(target: "mode", "Asked for mode = {:?}. returning {:?}", &*self.mode.lock(), r);
-		r
+		self.mode.lock().clone()
 	}
 
 	fn queue_info(&self) -> BlockQueueInfo {
