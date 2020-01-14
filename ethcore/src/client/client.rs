@@ -909,29 +909,29 @@ impl Client {
 	}
 
 	fn build_last_hashes(&self, parent_hash: &H256) -> Arc<LastHashes> {
-		{
-			let hashes = self.last_hashes.read();
-			if hashes.front().map_or(false, |h| h == parent_hash) {
-				let mut res = Vec::from(hashes.clone());
-				res.resize(256, H256::zero());
-				return Arc::new(res);
+		let mut seen_hashes = self.last_hashes.write();
+		if seen_hashes.front().map_or(false, |h| h == parent_hash) {
+			let mut res = Vec::from(seen_hashes.clone());
+			res.resize(256, H256::zero());
+			Arc::new(res)
+		} else {
+			let mut last_hashes = LastHashes::new();
+			last_hashes.resize(256, H256::zero());
+			last_hashes[0] = *parent_hash;
+			let mut hash = parent_hash;
+			let chain = self.chain.read();
+			for parent in last_hashes.iter_mut().skip(1) {
+				match chain.block_details(hash) {
+					Some(details) => {
+						*parent = details.parent.clone();
+						hash = parent;
+					},
+					None => break,
+				}
 			}
+			*seen_hashes = VecDeque::from(last_hashes.clone());
+			Arc::new(last_hashes)
 		}
-		let mut last_hashes = LastHashes::new();
-		last_hashes.resize(256, H256::zero());
-		last_hashes[0] = parent_hash.clone();
-		let chain = self.chain.read();
-		for i in 0..255 {
-			match chain.block_details(&last_hashes[i]) {
-				Some(details) => {
-					last_hashes[i + 1] = details.parent.clone();
-				},
-				None => break,
-			}
-		}
-		let mut cached_hashes = self.last_hashes.write();
-		*cached_hashes = VecDeque::from(last_hashes.clone());
-		Arc::new(last_hashes)
 	}
 
 	// use a state-proving closure for the given block.
