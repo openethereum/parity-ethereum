@@ -36,17 +36,46 @@ contract TestList {
 	// Removes a validator from the list.
 	function reportMalicious(address validator, uint256 blockNum, bytes calldata) external {
 		maliceReported[keccak256(abi.encode(validator, blockNum))].push(msg.sender);
-	    if (validators[indices[validator]] == validator) {
-		    validators[indices[validator]] = validators[validators.length-1];
-		    delete indices[validator];
-		    delete validators[validators.length-1];
-		    validators.length--;
-	    }
+		if (validators[indices[validator]] == validator) {
+			validators[indices[validator]] = validators[validators.length-1];
+			delete indices[validator];
+			delete validators[validators.length-1];
+			validators.length--;
+		}
 	}
 
 	// Returns the list of all validators that reported the given validator as malicious for the given block.
 	function maliceReportedForBlock(address validator, uint256 blockNum) public view returns(address[] memory) {
-        return maliceReported[keccak256(abi.encode(validator, blockNum))];
+		return maliceReported[keccak256(abi.encode(validator, blockNum))];
+	}
+
+	/// Returns a boolean flag indicating whether the specified validator
+	/// should report about some validator's misbehaviour at the specified block.
+	/// @param _reportingMiningAddress The mining address of validator who reports.
+	/// @param _maliciousMiningAddress The mining address of malicious validator.
+	/// @param _blockNumber The block number at which the validator misbehaved.
+	function shouldValidatorReport(
+		address _reportingMiningAddress,
+		address _maliciousMiningAddress,
+		uint256 _blockNumber
+	) public view returns(bool) {
+		uint256 currentBlock = block.number;
+		if (_blockNumber > currentBlock) {
+			return false;
+		}
+		if (currentBlock > 100 && currentBlock - 100 > _blockNumber) {
+			return false;
+		}
+		if (isValidatorBanned(_maliciousMiningAddress)) {
+			return false; // already banned
+		}
+		address[] memory reports = maliceReportedForBlock(_maliciousMiningAddress, _blockNumber);
+		for (uint256 i = 0; i < reports.length; i++) {
+			if (reports[i] == _reportingMiningAddress) {
+				return false; // already reported
+			}
+		}
+		return true;
 	}
 
 	// Benign validator behaviour report. Kept here for regression testing.
@@ -72,3 +101,4 @@ contract TestList {
 	// Applies a validator set change in production code. Does nothing in the test.
 	function finalizeChange() pure public {}
 }
+
