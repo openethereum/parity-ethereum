@@ -470,22 +470,21 @@ impl<K: Kind, C> VerificationQueue<K, C> {
 	pub fn import(&self, input: K::Input) -> Result<H256, (K::Input, Error)> {
 		let hash = input.hash();
 		let raw_hash = input.raw_hash();
+		let mut unverified = self.verification.unverified.lock();
+		let mut bad = self.verification.bad.lock();
 		let mut processing = self.processing.write();
 
-		{
-			if processing.contains_key(&hash) {
-				return Err((input, Error::Import(ImportError::AlreadyQueued).into()));
-			}
+		if processing.contains_key(&hash) {
+			return Err((input, Error::Import(ImportError::AlreadyQueued).into()));
+		}
 
-			let mut bad = self.verification.bad.lock();
-			if bad.contains(&hash) || bad.contains(&raw_hash)  {
-				return Err((input, Error::Import(ImportError::KnownBad).into()));
-			}
+		if bad.contains(&hash) || bad.contains(&raw_hash)  {
+			return Err((input, Error::Import(ImportError::KnownBad).into()));
+		}
 
-			if bad.contains(&input.parent_hash()) {
-				bad.insert(hash);
-				return Err((input, Error::Import(ImportError::KnownBad).into()));
-			}
+		if bad.contains(&input.parent_hash()) {
+			bad.insert(hash);
+			return Err((input, Error::Import(ImportError::KnownBad).into()));
 		}
 
 		match K::create(input, &*self.engine, self.verification.check_seal) {
@@ -496,13 +495,11 @@ impl<K: Kind, C> VerificationQueue<K, C> {
 					let mut td = self.total_difficulty.write();
 					*td = *td + item.difficulty();
 				}
-				self.verification.unverified.lock().push_back(item);
+				unverified.push_back(item);
 				self.more_to_verify.notify_all();
 				Ok(hash)
 			},
 			Err((input, err)) => {
-				// NOTE: we could drop `processing RwLock` here but it's not dropped to ensure
-				// that the `verification.bad` is written to before the next input is processed
 				match err {
 					// Don't mark future blocks as bad.
 					Error::Block(BlockError::TemporarilyInvalid(_)) => {},
@@ -514,10 +511,10 @@ impl<K: Kind, C> VerificationQueue<K, C> {
 					// the items that are malformed.
 					Error::Block(BlockError::InvalidTransactionsRoot(_)) |
 					Error::Block(BlockError::InvalidUnclesHash(_)) => {
-						self.verification.bad.lock().insert(raw_hash);
+						bad.insert(raw_hash);
 					},
 					_ => {
-						self.verification.bad.lock().insert(hash);
+						bad.insert(hash);
 					}
 				}
 				Err((input, err))
