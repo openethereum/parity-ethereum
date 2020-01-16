@@ -162,7 +162,7 @@ build-linux-armhf:
 build-darwin:
   stage:                           build
   <<:                              *collect_artifacts
-  only:                            *releaseable_branches
+  #only:                            *releaseable_branches
   variables:
     CARGO_TARGET:                  x86_64-apple-darwin
     CARGO_HOME:                    "${CI_PROJECT_DIR}/.cargo"
@@ -176,7 +176,7 @@ build-darwin:
 build-windows:
   stage:                           build
   <<:                              *collect_artifacts
-  only:                            *releaseable_branches
+  #only:                            *releaseable_branches
   variables:
     CARGO_TARGET:                  x86_64-pc-windows-msvc
     CARGO_HOME:                    "C:/ci-cache/parity-ethereum/cargo/$CI_JOB_NAME"
