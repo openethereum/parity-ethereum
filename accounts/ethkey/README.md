@@ -6,7 +6,7 @@ Parity Ethereum keys generator.
 
 ```
 Parity Ethereum Keys Generator.
-  Copyright 2015-2019 Parity Technologies (UK) Ltd.
+  Copyright 2015-2020 Parity Technologies (UK) Ltd.
 
 Usage:
     ethkey info <secret-or-phrase> [options]
