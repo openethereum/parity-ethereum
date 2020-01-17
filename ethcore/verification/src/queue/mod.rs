@@ -472,24 +472,24 @@ impl<K: Kind, C> VerificationQueue<K, C> {
 		let raw_hash = input.raw_hash();
 		{
 			if self.processing.read().contains_key(&hash) {
-				return Err(Error::Import(ImportError::AlreadyQueued).into());
+				return Err(Error::Import(ImportError::AlreadyQueued));
 			}
 
 			let mut bad = self.verification.bad.lock();
 			if bad.contains(&hash) || bad.contains(&raw_hash)  {
-				return Err(Error::Import(ImportError::KnownBad).into());
+				return Err(Error::Import(ImportError::KnownBad));
 			}
 
 			if bad.contains(&input.parent_hash()) {
 				bad.insert(hash);
-				return Err(Error::Import(ImportError::KnownBad).into());
+				return Err(Error::Import(ImportError::KnownBad));
 			}
 		}
 
 		match K::create(input, &*self.engine, self.verification.check_seal) {
 			Ok(item) => {
 				if self.processing.write().insert(hash, item.difficulty()).is_some() {
-					return Err(Error::Import(ImportError::AlreadyQueued).into());
+					return Err(Error::Import(ImportError::AlreadyQueued));
 				}
 				self.verification.sizes.unverified.fetch_add(item.malloc_size_of(), AtomicOrdering::SeqCst);
 				{
@@ -583,7 +583,7 @@ impl<K: Kind, C> VerificationQueue<K, C> {
 		let count = cmp::min(max, verified.len());
 		let result = verified.drain(..count).collect::<Vec<_>>();
 
-		let drained_size = result.iter().map(MallocSizeOfExt::malloc_size_of).fold(0, |a, c| a + c);
+		let drained_size = result.iter().map(MallocSizeOfExt::malloc_size_of).sum();
 		self.verification.sizes.verified.fetch_sub(drained_size, AtomicOrdering::SeqCst);
 
 		self.ready_signal.reset();
@@ -637,7 +637,7 @@ impl<K: Kind, C> VerificationQueue<K, C> {
 
 	/// Get the total difficulty of all the blocks in the queue.
 	pub fn total_difficulty(&self) -> U256 {
-		self.total_difficulty.read().clone()
+		*self.total_difficulty.read()
 	}
 
 	/// Get the current number of working verifiers.
