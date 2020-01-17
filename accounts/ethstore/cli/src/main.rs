@@ -1,4 +1,4 @@
-// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// Copyright 2015-2020 Parity Technologies (UK) Ltd.
 // This file is part of Parity Ethereum.
 
 // Parity Ethereum is free software: you can redistribute it and/or modify
@@ -44,7 +44,7 @@ mod crack;
 
 pub const USAGE: &'static str = r#"
 Parity Ethereum key management tool.
-  Copyright 2015-2019 Parity Technologies (UK) Ltd.
+  Copyright 2015-2020 Parity Technologies (UK) Ltd.
 
 Usage:
     ethstore insert <secret> <password> [--dir DIR] [--vault VAULT] [--vault-pwd VAULTPWD]
