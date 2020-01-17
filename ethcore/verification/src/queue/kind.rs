@@ -127,11 +127,11 @@ pub mod blocks {
 		}
 
 		fn parent_hash(&self) -> H256 {
-			self.header.parent_hash().clone()
+			*self.header.parent_hash()
 		}
 
 		fn difficulty(&self) -> U256 {
-			self.header.difficulty().clone()
+			*self.header.difficulty()
 		}
 	}
 
@@ -145,11 +145,11 @@ pub mod blocks {
 		}
 
 		fn parent_hash(&self) -> H256 {
-			self.header.parent_hash().clone()
+			*self.header.parent_hash()
 		}
 
 		fn difficulty(&self) -> U256 {
-			self.header.difficulty().clone()
+			*self.header.difficulty()
 		}
 	}
 }
@@ -170,8 +170,8 @@ pub mod headers {
 	impl BlockLike for Header {
 		fn hash(&self) -> H256 { self.hash() }
 		fn raw_hash(&self) -> H256 { self.hash() }
-		fn parent_hash(&self) -> H256 { self.parent_hash().clone() }
-		fn difficulty(&self) -> U256 { self.difficulty().clone() }
+		fn parent_hash(&self) -> H256 { *self.parent_hash() }
+		fn difficulty(&self) -> U256 { *self.difficulty() }
 	}
 
 	/// A mode for verifying headers.
@@ -188,13 +188,13 @@ pub mod headers {
 
 			match res {
 				Ok(_) => Ok(input),
-				Err(err) => Err(err)
+				Err(e) => Err(e),
 			}
 		}
 
 		fn verify(unverified: Self::Unverified, engine: &dyn Engine, check_seal: bool) -> Result<Self::Verified, Error> {
 			match check_seal {
-				true => engine.verify_block_unordered(&unverified,).map(|_| unverified),
+				true => engine.verify_block_unordered(&unverified).map(|_| unverified),
 				false => Ok(unverified),
 			}
 		}
