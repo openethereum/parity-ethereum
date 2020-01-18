@@ -97,9 +97,9 @@ pub use self::vault::VaultDiskDirectory;
 impl VaultKey {
 	/// Create new vault key
 	pub fn new(password: &Password, iterations: u32) -> Self {
-		VaultKey {
+		Self {
 			password: password.clone(),
-			iterations: iterations,
+			iterations,
 		}
 	}
 }

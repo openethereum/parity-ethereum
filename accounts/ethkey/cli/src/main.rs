@@ -14,6 +14,53 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
+#![warn(
+	clippy::all,
+	clippy::pedantic,
+	clippy::nursery,
+)]
+#![allow(
+	clippy::blacklisted_name,
+	clippy::cast_lossless,
+	clippy::cast_possible_truncation,
+	clippy::cast_possible_wrap,
+	clippy::cast_precision_loss,
+	clippy::cast_ptr_alignment,
+	clippy::cast_sign_loss,
+	clippy::cognitive_complexity,
+	clippy::default_trait_access,
+	clippy::enum_glob_use,
+	clippy::eval_order_dependence,
+	clippy::fallible_impl_from,
+	clippy::float_cmp,
+	clippy::identity_op,
+	clippy::if_not_else,
+	clippy::indexing_slicing,
+	clippy::inline_always,
+	clippy::items_after_statements,
+	clippy::large_enum_variant,
+	clippy::match_same_arms,
+	clippy::missing_errors_doc,
+	clippy::missing_safety_doc,
+	clippy::module_inception,
+	clippy::module_name_repetitions,
+	clippy::must_use_candidate,
+	clippy::needless_pass_by_value,
+	clippy::needless_update,
+	clippy::non_ascii_literal,
+	clippy::option_option,
+	clippy::pub_enum_variant_names,
+	clippy::same_functions_in_if_condition,
+	clippy::shadow_unrelated,
+	clippy::similar_names,
+	clippy::single_component_path_imports,
+	clippy::too_many_arguments,
+	clippy::too_many_lines,
+	clippy::type_complexity,
+	clippy::unused_self,
+	clippy::used_underscore_binding,
+)]
+
 extern crate docopt;
 extern crate env_logger;
 extern crate ethkey;
@@ -35,7 +82,7 @@ use ethkey::{Brain, BrainPrefix, Prefix, brain_recover};
 use parity_crypto::publickey::{KeyPair, Random, Error as EthkeyError, Generator, sign, verify_public, verify_address};
 use rustc_hex::{FromHex, FromHexError};
 
-const USAGE: &'static str = r#"
+const USAGE: &str = r#"
 Parity Ethereum keys generator.
   Copyright 2015-2020 Parity Technologies (UK) Ltd.
 
@@ -101,42 +148,42 @@ enum Error {
 
 impl From<EthkeyError> for Error {
 	fn from(err: EthkeyError) -> Self {
-		Error::Ethkey(err)
+		Self::Ethkey(err)
 	}
 }
 
 impl From<FromHexError> for Error {
 	fn from(err: FromHexError) -> Self {
-		Error::FromHex(err)
+		Self::FromHex(err)
 	}
 }
 
 impl From<ParseIntError> for Error {
 	fn from(err: ParseIntError) -> Self {
-		Error::ParseInt(err)
+		Self::ParseInt(err)
 	}
 }
 
 impl From<docopt::Error> for Error {
 	fn from(err: docopt::Error) -> Self {
-		Error::Docopt(err)
+		Self::Docopt(err)
 	}
 }
 
 impl From<io::Error> for Error {
 	fn from(err: io::Error) -> Self {
-		Error::Io(err)
+		Self::Io(err)
 	}
 }
 
 impl fmt::Display for Error {
 	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-		match *self {
-			Error::Ethkey(ref e) => write!(f, "{}", e),
-			Error::FromHex(ref e) => write!(f, "{}", e),
-			Error::ParseInt(ref e) => write!(f, "{}", e),
-			Error::Docopt(ref e) => write!(f, "{}", e),
-			Error::Io(ref e) => write!(f, "{}", e),
+		match self {
+			Self::Ethkey(e) => write!(f, "{}", e),
+			Self::FromHex(e) => write!(f, "{}", e),
+			Self::ParseInt(e) => write!(f, "{}", e),
+			Self::Docopt(e) => write!(f, "{}", e),
+			Self::Io(e) => write!(f, "{}", e),
 		}
 	}
 }
@@ -151,13 +198,13 @@ enum DisplayMode {
 impl DisplayMode {
 	fn new(args: &Args) -> Self {
 		if args.flag_secret {
-			DisplayMode::Secret
+			Self::Secret
 		} else if args.flag_public {
-			DisplayMode::Public
+			Self::Public
 		} else if args.flag_address {
-			DisplayMode::Address
+			Self::Address
 		} else {
-			DisplayMode::KeyPair
+			Self::KeyPair
 		}
 	}
 }
@@ -168,7 +215,7 @@ fn main() {
 
 	match execute(env::args()) {
 		Ok(ok) => println!("{}", ok),
-		Err(Error::Docopt(ref e)) => e.exit(),
+		Err(Error::Docopt(e)) => e.exit(),
 		Err(err) => {
 			eprintln!("{}", err);
 			process::exit(1);
@@ -179,9 +226,12 @@ fn main() {
 fn display(result: (KeyPair, Option<String>), mode: DisplayMode) -> String {
 	let keypair = result.0;
 	match mode {
-		DisplayMode::KeyPair => match result.1 {
-			Some(extra_data) => format!("{}\n{}", extra_data, keypair),
-			None => format!("{}", keypair)
+		DisplayMode::KeyPair => {
+			if let Some(extra_data) = result.1 {
+				format!("{}\n{}", extra_data, keypair)
+			} else {
+				format!("{}", keypair)
+			}
 		},
 		DisplayMode::Secret => format!("{:x}", keypair.secret()),
 		DisplayMode::Public => format!("{:x}", keypair.public()),
@@ -193,7 +243,7 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 	let args: Args = Docopt::new(USAGE)
 		.and_then(|d| d.argv(command).deserialize())?;
 
-	return if args.cmd_info {
+	if args.cmd_info {
 		let display_mode = DisplayMode::new(&args);
 
 		let result = if args.flag_brain {
@@ -239,7 +289,7 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 				}
 			})?
 		} else {
-			return Ok(format!("{}", USAGE))
+			return Ok(USAGE.to_string())
 		};
 		Ok(display(result, display_mode))
 	} else if args.cmd_sign {
@@ -257,7 +307,7 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 			let address = args.arg_address.parse().map_err(|_| EthkeyError::InvalidAddress)?;
 			verify_address(&address, &signature, &message)?
 		} else {
-			return Ok(format!("{}", USAGE))
+			return Ok(USAGE.to_string())
 		};
 		Ok(format!("{}", ok))
 	} else if args.cmd_recover {
@@ -267,16 +317,13 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 		let (phrase, keypair) = in_threads(move || {
 			let mut it = brain_recover::PhrasesIterator::from_known_phrase(&known_phrase, BRAIN_WORDS);
 			move || {
-				let mut i = 0;
-				while let Some(phrase) = it.next() {
-					i += 1;
-
+				for (i, phrase) in (&mut it).enumerate() {
 					let keypair = Brain::new(phrase.clone()).generate().unwrap();
 					if keypair.address() == address {
 						return Ok(Some((phrase, keypair)))
 					}
 
-					if i >= 1024 {
+					if i > 1024 {
 						return Ok(None)
 					}
 				}
@@ -286,7 +333,7 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 		})?;
 		Ok(display((keypair, Some(phrase)), display_mode))
 	} else {
-		Ok(format!("{}", USAGE))
+		Ok(USAGE.to_string())
 	}
 }
 
@@ -294,16 +341,15 @@ const BRAIN_WORDS: usize = 12;
 
 fn validate_phrase(phrase: &str) -> String {
 	match Brain::validate_phrase(phrase, BRAIN_WORDS) {
-		Ok(()) => format!("The recovery phrase looks correct.\n"),
+		Ok(()) => "The recovery phrase looks correct.\n".to_string(),
 		Err(err) => format!("The recover phrase was not generated by Parity: {}", err)
 	}
 }
 
 fn in_threads<F, X, O>(prepare: F) -> Result<O, EthkeyError> where
 	O: Send + 'static,
-	X: Send + 'static,
 	F: Fn() -> X,
-	X: FnMut() -> Result<Option<O>, EthkeyError>,
+	X: FnMut() -> Result<Option<O>, EthkeyError> + Send + 'static,
 {
 	let pool = threadpool::Builder::new().build();
 

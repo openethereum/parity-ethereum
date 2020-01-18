@@ -27,12 +27,12 @@ use Error;
 pub fn import_account(path: &Path, dst: &dyn KeyDirectory) -> Result<Address, Error> {
 	let key_manager = DiskKeyFileManager::default();
 	let existing_accounts = dst.load()?.into_iter().map(|a| a.address).collect::<HashSet<_>>();
-	let filename = path.file_name().and_then(|n| n.to_str()).map(|f| f.to_owned());
+	let filename = path.file_name().and_then(std::ffi::OsStr::to_str).map(ToOwned::to_owned);
 	let account = fs::File::open(&path)
 		.map_err(Into::into)
 		.and_then(|file| key_manager.read(filename, file))?;
 
-	let address = account.address.clone();
+	let address = account.address;
 	if !existing_accounts.contains(&address) {
 		dst.insert(account)?;
 	}
@@ -46,21 +46,22 @@ pub fn import_accounts(src: &dyn KeyDirectory, dst: &dyn KeyDirectory) -> Result
 		.map(|a| a.address)
 		.collect::<HashSet<_>>();
 
-	accounts.into_iter()
-		.filter(|a| !existing_accounts.contains(&a.address))
-		.map(|a| {
-			let address = a.address.clone();
-			dst.insert(a)?;
-			Ok(address)
-		}).collect()
+	let mut out = Vec::with_capacity(accounts.len());
+	for account in accounts {
+		let address = account.address;
+		if existing_accounts.contains(&address) {
+			dst.insert(account)?;
+			out.push(address);
+		}
+	}
+	Ok(out)
 }
 
 /// Provide a `HashSet` of all accounts available for import from the Geth keystore.
 pub fn read_geth_accounts(testnet: bool) -> Vec<Address> {
 	RootDiskDirectory::at(dir::geth(testnet))
 		.load()
-		.map(|d| d.into_iter().map(|a| a.address).collect())
-		.unwrap_or_else(|_| Vec::new())
+		.map_or_else(|_| Vec::new(), |d| d.into_iter().map(|a| a.address).collect())
 }
 
 /// Import specific `desired` accounts from the Geth keystore into `dst`.
@@ -69,12 +70,14 @@ pub fn import_geth_accounts(dst: &dyn KeyDirectory, desired: HashSet<Address>, t
 	let accounts = src.load()?;
 	let existing_accounts = dst.load()?.into_iter().map(|a| a.address).collect::<HashSet<_>>();
 
-	accounts.into_iter()
-		.filter(|a| !existing_accounts.contains(&a.address))
-		.filter(|a| desired.contains(&a.address))
-		.map(|a| {
-			let address = a.address.clone();
-			dst.insert(a)?;
-			Ok(address)
-		}).collect()
+	let mut out = Vec::with_capacity(accounts.len());
+	for account in accounts {
+		let address = account.address;
+		if !existing_accounts.contains(&address) && desired.contains(&address) {
+			dst.insert(account)?;
+			out.push(address);
+		}
+	}
+
+	Ok(out)
 }

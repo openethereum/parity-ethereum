@@ -58,23 +58,23 @@ pub enum Error {
 
 impl fmt::Display for Error {
 	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-		let s = match *self {
-			Error::Io(ref err) => err.to_string(),
-			Error::InvalidPassword => "Invalid password".into(),
-			Error::InvalidSecret => "Invalid secret".into(),
-			Error::InvalidCryptoMeta => "Invalid crypted metadata".into(),
-			Error::InvalidAccount => "Invalid account".into(),
-			Error::InvalidMessage => "Invalid message".into(),
-			Error::InvalidKeyFile(ref reason) => format!("Invalid key file: {}", reason),
-			Error::VaultsAreNotSupported => "Vaults are not supported".into(),
-			Error::UnsupportedVault => "Vault is not supported for this operation".into(),
-			Error::InvalidVaultName => "Invalid vault name".into(),
-			Error::VaultNotFound => "Vault not found".into(),
-			Error::CreationFailed => "Account creation failed".into(),
-			Error::EthCrypto(ref err) => err.to_string(),
-			Error::EthPublicKeyCrypto(ref err) => err.to_string(),
-			Error::Derivation(ref err) => format!("Derivation error: {:?}", err),
-			Error::Custom(ref s) => s.clone(),
+		let s = match self {
+			Self::Io(err) => err.to_string(),
+			Self::InvalidPassword => "Invalid password".into(),
+			Self::InvalidSecret => "Invalid secret".into(),
+			Self::InvalidCryptoMeta => "Invalid crypted metadata".into(),
+			Self::InvalidAccount => "Invalid account".into(),
+			Self::InvalidMessage => "Invalid message".into(),
+			Self::InvalidKeyFile(reason) => format!("Invalid key file: {}", reason),
+			Self::VaultsAreNotSupported => "Vaults are not supported".into(),
+			Self::UnsupportedVault => "Vault is not supported for this operation".into(),
+			Self::InvalidVaultName => "Invalid vault name".into(),
+			Self::VaultNotFound => "Vault not found".into(),
+			Self::CreationFailed => "Account creation failed".into(),
+			Self::EthCrypto(err) => err.to_string(),
+			Self::EthPublicKeyCrypto(err) => err.to_string(),
+			Self::Derivation(err) => format!("Derivation error: {:?}", err),
+			Self::Custom(s) => s.clone(),
 		};
 
 		write!(f, "{}", s)
@@ -83,36 +83,36 @@ impl fmt::Display for Error {
 
 impl From<IoError> for Error {
 	fn from(err: IoError) -> Self {
-		Error::Io(err)
+		Self::Io(err)
 	}
 }
 
 impl From<EthPublicKeyCryptoError> for Error {
 	fn from(err: EthPublicKeyCryptoError) -> Self {
-		Error::EthPublicKeyCrypto(err)
+		Self::EthPublicKeyCrypto(err)
 	}
 }
 
 impl From<EthCryptoError> for Error {
 	fn from(err: EthCryptoError) -> Self {
-		Error::EthCrypto(err)
+		Self::EthCrypto(err)
 	}
 }
 
 impl From<crypto::error::ScryptError> for Error {
 	fn from(err: crypto::error::ScryptError) -> Self {
-		Error::EthCrypto(err.into())
+		Self::EthCrypto(err.into())
 	}
 }
 
 impl From<crypto::error::SymmError> for Error {
 	fn from(err: crypto::error::SymmError) -> Self {
-		Error::EthCrypto(err.into())
+		Self::EthCrypto(err.into())
 	}
 }
 
 impl From<DerivationError> for Error {
 	fn from(err: DerivationError) -> Self {
-		Error::Derivation(err)
+		Self::Derivation(err)
 	}
 }

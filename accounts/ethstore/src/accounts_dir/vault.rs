@@ -24,9 +24,9 @@ use super::{KeyDirectory, VaultKeyDirectory, VaultKey, SetKeyError};
 use super::disk::{self, DiskDirectory, KeyFileManager};
 
 /// Name of vault metadata file
-pub const VAULT_FILE_NAME: &'static str = "vault.json";
+pub const VAULT_FILE_NAME: &str = "vault.json";
 /// Name of temporary vault metadata file
-pub const VAULT_TEMP_FILE_NAME: &'static str = "vault_temp.json";
+pub const VAULT_TEMP_FILE_NAME: &str = "vault_temp.json";
 
 /// Vault directory implementation
 pub type VaultDiskDirectory = DiskDirectory<VaultKeyFileManager>;
@@ -84,7 +84,7 @@ impl VaultDiskDirectory {
 		read_vault_file(&vault_dir_path, None)
 	}
 
-	fn create_temp_vault(&self, key: VaultKey) -> Result<VaultDiskDirectory, Error> {
+	fn create_temp_vault(&self, key: VaultKey) -> Result<Self, Error> {
 		let original_path = self.path().expect("self is instance of DiskDirectory; DiskDirectory always returns path; qed");
 		let mut path: PathBuf = original_path.clone();
 		let name = self.name();
@@ -96,14 +96,14 @@ impl VaultDiskDirectory {
 			let name = format!("{}_temp_{}", name, index);
 			path.set_file_name(&name);
 			if !path.exists() {
-				return VaultDiskDirectory::create(original_path, &name, key);
+				return Self::create(original_path, &name, key);
 			}
 
 			index += 1;
 		}
 	}
 
-	fn copy_to_vault(&self, vault: &VaultDiskDirectory) -> Result<(), Error> {
+	fn copy_to_vault(&self, vault: &Self) -> Result<(), Error> {
 		for account in self.load()? {
 			let filename = account.filename.clone().expect("self is instance of DiskDirectory; DiskDirectory fills filename in load; qed");
 			vault.insert_with_filename(account, filename, true)?;
@@ -132,7 +132,7 @@ impl VaultKeyDirectory for VaultDiskDirectory {
 	}
 
 	fn set_key(&self, new_key: VaultKey) -> Result<(), SetKeyError> {
-		let temp_vault = VaultDiskDirectory::create_temp_vault(self, new_key.clone()).map_err(|err| SetKeyError::NonFatalOld(err))?;
+		let temp_vault = Self::create_temp_vault(self, new_key).map_err(SetKeyError::NonFatalOld)?;
 		let mut source_path = temp_vault.path().expect("temp_vault is instance of DiskDirectory; DiskDirectory always returns path; qed").clone();
 		let mut target_path = self.path().expect("self is instance of DiskDirectory; DiskDirectory always returns path; qed").clone();
 
@@ -164,7 +164,7 @@ impl VaultKeyDirectory for VaultDiskDirectory {
 		target_path.set_file_name(VAULT_FILE_NAME);
 		fs::rename(source_path, target_path).map_err(|err| SetKeyError::Fatal(err.into()))?;
 
-		temp_vault.delete().map_err(|err| SetKeyError::NonFatalNew(err))
+		temp_vault.delete().map_err(SetKeyError::NonFatalNew)
 	}
 
 	fn meta(&self) -> String {
@@ -182,9 +182,9 @@ impl VaultKeyDirectory for VaultDiskDirectory {
 
 impl VaultKeyFileManager {
 	pub fn new(name: &str, key: VaultKey, meta: &str) -> Self {
-		VaultKeyFileManager {
+		Self {
 			name: name.into(),
-			key: key,
+			key,
 			meta: Mutex::new(meta.to_owned()),
 		}
 	}
@@ -193,7 +193,7 @@ impl VaultKeyFileManager {
 impl KeyFileManager for VaultKeyFileManager {
 	fn read<T>(&self, filename: Option<String>, reader: T) -> Result<SafeAccount, Error> where T: io::Read {
 		let vault_file = json::VaultKeyFile::load(reader).map_err(|e| Error::Custom(format!("{:?}", e)))?;
-		let mut safe_account = SafeAccount::from_vault_file(&self.key.password, vault_file, filename.clone())?;
+		let mut safe_account = SafeAccount::from_vault_file(&self.key.password, vault_file, filename)?;
 
 		safe_account.meta = json::insert_vault_name_to_json_meta(&safe_account.meta, &self.name)
 			.map_err(|err| Error::Custom(format!("{:?}", err)))?;
@@ -238,7 +238,7 @@ fn create_vault_file<P>(vault_dir_path: P, key: &VaultKey, meta: &str) -> Result
 	let crypto = Crypto::with_plain(&password_hash, &key.password, key.iterations)?;
 
 	let vault_file_path = vault_dir_path.as_ref().join(VAULT_FILE_NAME);
-	let temp_vault_file_name = disk::find_unique_filename_using_random_suffix(vault_dir_path.as_ref(), &VAULT_TEMP_FILE_NAME)?;
+	let temp_vault_file_name = disk::find_unique_filename_using_random_suffix(vault_dir_path.as_ref(), VAULT_TEMP_FILE_NAME)?;
 	let temp_vault_file_path = vault_dir_path.as_ref().join(&temp_vault_file_name);
 
 	// this method is used to rewrite existing vault file
@@ -262,7 +262,7 @@ fn read_vault_file<P>(vault_dir_path: P, key: Option<&VaultKey>) -> Result<Strin
 
 	let vault_file = fs::File::open(vault_file_path)?;
 	let vault_file_contents = json::VaultFile::load(vault_file).map_err(|e| Error::Custom(format!("{:?}", e)))?;
-	let vault_file_meta = vault_file_contents.meta.unwrap_or("{}".to_owned());
+	let vault_file_meta = vault_file_contents.meta.unwrap_or_else(|| "{}".to_string());
 	let vault_file_crypto: Crypto = vault_file_contents.crypto.into();
 
 	if let Some(key) = key {
@@ -335,7 +335,7 @@ mod test {
 
 		// then
 		assert!(result.is_ok());
-		let mut vault_file_path = vault_dir.clone();
+		let mut vault_file_path = vault_dir;
 		vault_file_path.push(VAULT_FILE_NAME);
 		assert!(vault_file_path.exists() && vault_file_path.is_file());
 	}

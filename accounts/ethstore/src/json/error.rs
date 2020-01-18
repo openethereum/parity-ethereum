@@ -30,15 +30,15 @@ pub enum Error {
 
 impl fmt::Display for Error {
 	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-		match *self {
-			Error::InvalidUuid => write!(f, "Invalid Uuid"),
-			Error::UnsupportedVersion => write!(f, "Unsupported version"),
-			Error::UnsupportedKdf => write!(f, "Unsupported kdf"),
-			Error::InvalidCiphertext => write!(f, "Invalid ciphertext"),
-			Error::UnsupportedCipher => write!(f, "Unsupported cipher"),
-			Error::InvalidCipherParams => write!(f, "Invalid cipher params"),
-			Error::InvalidH256 => write!(f, "Invalid hash"),
-			Error::InvalidPrf => write!(f, "Invalid prf"),
+		match self {
+			Self::InvalidUuid => write!(f, "Invalid Uuid"),
+			Self::UnsupportedVersion => write!(f, "Unsupported version"),
+			Self::UnsupportedKdf => write!(f, "Unsupported kdf"),
+			Self::InvalidCiphertext => write!(f, "Invalid ciphertext"),
+			Self::UnsupportedCipher => write!(f, "Unsupported cipher"),
+			Self::InvalidCipherParams => write!(f, "Invalid cipher params"),
+			Self::InvalidH256 => write!(f, "Invalid hash"),
+			Self::InvalidPrf => write!(f, "Invalid prf"),
 		}
 	}
 }

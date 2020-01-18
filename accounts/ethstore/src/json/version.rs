@@ -27,14 +27,14 @@ pub enum Version {
 impl Serialize for Version {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 	where S: Serializer {
-		match *self {
-			Version::V3 => serializer.serialize_u64(3)
+		match self {
+			Self::V3 => serializer.serialize_u64(3)
 		}
 	}
 }
 
 impl<'a> Deserialize<'a> for Version {
-	fn deserialize<D>(deserializer: D) -> Result<Version, D::Error>
+	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
 	where D: Deserializer<'a> {
 		deserializer.deserialize_any(VersionVisitor)
 	}

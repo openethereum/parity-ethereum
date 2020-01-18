@@ -47,7 +47,7 @@ pub enum Kdf {
 impl From<json::Prf> for Prf {
 	fn from(json: json::Prf) -> Self {
 		match json {
-			json::Prf::HmacSha256 => Prf::HmacSha256,
+			json::Prf::HmacSha256 => Self::HmacSha256,
 		}
 	}
 }
@@ -55,14 +55,14 @@ impl From<json::Prf> for Prf {
 impl Into<json::Prf> for Prf {
 	fn into(self) -> json::Prf {
 		match self {
-			Prf::HmacSha256 => json::Prf::HmacSha256,
+			Self::HmacSha256 => json::Prf::HmacSha256,
 		}
 	}
 }
 
 impl From<json::Pbkdf2> for Pbkdf2 {
 	fn from(json: json::Pbkdf2) -> Self {
-		Pbkdf2 {
+		Self {
 			c: json.c,
 			dklen: json.dklen,
 			prf: From::from(json.prf),
@@ -84,7 +84,7 @@ impl Into<json::Pbkdf2> for Pbkdf2 {
 
 impl From<json::Scrypt> for Scrypt {
 	fn from(json: json::Scrypt) -> Self {
-		Scrypt {
+		Self {
 			dklen: json.dklen,
 			p: json.p,
 			n: json.n,
@@ -109,8 +109,8 @@ impl Into<json::Scrypt> for Scrypt {
 impl From<json::Kdf> for Kdf {
 	fn from(json: json::Kdf) -> Self {
 		match json {
-			json::Kdf::Pbkdf2(params) => Kdf::Pbkdf2(From::from(params)),
-			json::Kdf::Scrypt(params) => Kdf::Scrypt(From::from(params)),
+			json::Kdf::Pbkdf2(params) => Self::Pbkdf2(From::from(params)),
+			json::Kdf::Scrypt(params) => Self::Scrypt(From::from(params)),
 		}
 	}
 }
@@ -118,8 +118,8 @@ impl From<json::Kdf> for Kdf {
 impl Into<json::Kdf> for Kdf {
 	fn into(self) -> json::Kdf {
 		match self {
-			Kdf::Pbkdf2(params) => json::Kdf::Pbkdf2(params.into()),
-			Kdf::Scrypt(params) => json::Kdf::Scrypt(params.into()),
+			Self::Pbkdf2(params) => json::Kdf::Pbkdf2(params.into()),
+			Self::Scrypt(params) => json::Kdf::Scrypt(params.into()),
 		}
 	}
 }

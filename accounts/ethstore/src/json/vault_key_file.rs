@@ -22,7 +22,7 @@ use serde_json::error;
 use super::{Uuid, Version, Crypto, H160};
 
 /// Meta key name for vault field
-const VAULT_NAME_META_KEY: &'static str = "vault";
+const VAULT_NAME_META_KEY: &str = "vault";
 
 /// Key file as stored in vaults
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -92,7 +92,7 @@ impl VaultKeyFile {
 
 impl VaultKeyMeta {
 	pub fn load(bytes: &[u8]) -> Result<Self, serde_json::Error> {
-		serde_json::from_slice(&bytes)
+		serde_json::from_slice(bytes)
 	}
 
 	pub fn write(&self) -> Result<Vec<u8>, serde_json::Error> {

@@ -27,8 +27,8 @@ pub enum CipherSer {
 impl Serialize for CipherSer {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 	where S: Serializer {
-		match *self {
-			CipherSer::Aes128Ctr => serializer.serialize_str("aes-128-ctr"),
+		match self {
+			Self::Aes128Ctr => serializer.serialize_str("aes-128-ctr"),
 		}
 	}
 }
@@ -74,8 +74,8 @@ pub enum CipherSerParams {
 impl Serialize for CipherSerParams {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 	where S: Serializer {
-		match *self {
-			CipherSerParams::Aes128Ctr(ref params) => params.serialize(serializer),
+		match self {
+			Self::Aes128Ctr(params) => params.serialize(serializer),
 		}
 	}
 }
@@ -84,7 +84,7 @@ impl<'a> Deserialize<'a> for CipherSerParams {
 	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
 	where D: Deserializer<'a> {
 		Aes128Ctr::deserialize(deserializer)
-			.map(CipherSerParams::Aes128Ctr)
+			.map(Self::Aes128Ctr)
 			.map_err(|_| Error::InvalidCipherParams)
 			.map_err(SerdeError::custom)
 	}

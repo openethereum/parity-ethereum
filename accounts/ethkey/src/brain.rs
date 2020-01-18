@@ -23,8 +23,8 @@ use parity_wordlist;
 pub struct Brain(String);
 
 impl Brain {
-	pub fn new(s: String) -> Self {
-		Brain(s)
+	pub const fn new(s: String) -> Self {
+		Self(s)
 	}
 
 	pub fn validate_phrase(phrase: &str, expected_words: usize) -> Result<(), ::WordlistError> {
@@ -43,18 +43,15 @@ impl Generator for Brain {
 		loop {
 			secret = secret.keccak256();
 
-			match i > 16384 {
-				false => i += 1,
-				true => {
-					if let Ok(pair) = Secret::import_key(&secret)
-						.and_then(KeyPair::from_secret)
-					{
-						if pair.address()[0] == 0 {
-							trace!("Testing: {}, got: {:?}", self.0, pair.address());
-							return Ok(pair)
-						}
-					}
-				},
+			if i <= 16384 {
+				i += 1
+			} else if let Ok(pair) = Secret::import_key(&secret)
+					.and_then(KeyPair::from_secret)
+				{
+					if pair.address()[0] == 0 {
+						trace!("Testing: {}, got: {:?}", self.0, pair.address());
+						return Ok(pair)
+				}
 			}
 		}
 	}
@@ -69,7 +66,7 @@ mod tests {
 	fn test_brain() {
 		let words = "this is sparta!".to_owned();
 		let first_keypair = Brain::new(words.clone()).generate().unwrap();
-		let second_keypair = Brain::new(words.clone()).generate().unwrap();
+		let second_keypair = Brain::new(words).generate().unwrap();
 		assert_eq!(first_keypair.secret(), second_keypair.secret());
 	}
 }

@@ -48,8 +48,8 @@ impl Into<json::KeyFile> for SafeAccount {
 			version: self.version.into(),
 			address: Some(self.address.into()),
 			crypto: self.crypto.into(),
-			name: Some(self.name.into()),
-			meta: Some(self.meta.into()),
+			name: Some(self.name),
+			meta: Some(self.meta),
 		}
 	}
 }
@@ -64,14 +64,14 @@ impl SafeAccount {
 		name: String,
 		meta: String
 	) -> Result<Self, crypto::Error> {
-		Ok(SafeAccount {
-			id: id,
+		Ok(Self {
+			id,
 			version: Version::V3,
 			crypto: Crypto::with_secret(keypair.secret(), password, iterations)?,
 			address: keypair.address(),
 			filename: None,
-			name: name,
-			meta: meta,
+			name,
+			meta,
 		})
 	}
 
@@ -85,35 +85,32 @@ impl SafeAccount {
 		let crypto = Crypto::from(json.crypto);
 		let address = match (password, &json.address) {
 			(None, Some(json_address)) => json_address.into(),
-			(None, None) => Err(Error::Custom(
-				"This keystore does not contain address. You need to provide password to import it".into()))?,
+			(None, None) => return Err(Error::Custom(
+				"This keystore does not contain address. You need to provide password to import it".into())),
 			(Some(password), json_address) => {
 				let derived_address = KeyPair::from_secret(
-					crypto.secret(&password).map_err(|_| Error::InvalidPassword)?
+					crypto.secret(password).map_err(|_| Error::InvalidPassword)?
 				)?.address();
 
-				match json_address {
-					Some(json_address) => {
-						let json_address = json_address.into();
-						if derived_address != json_address {
-							warn!("Detected address mismatch when opening an account. Derived: {:?}, in json got: {:?}",
-								derived_address, json_address);
-						}
-					},
-					_ => {},
+				if let Some(json_address) = json_address {
+					let json_address = json_address.into();
+					if derived_address != json_address {
+						warn!("Detected address mismatch when opening an account. Derived: {:?}, in json got: {:?}",
+							derived_address, json_address);
+					}
 				}
 				derived_address
 			}
 		};
 
-		Ok(SafeAccount {
+		Ok(Self {
 			id: json.id.into(),
 			version: json.version.into(),
 			address,
 			crypto,
 			filename,
-			name: json.name.unwrap_or(String::new()),
-			meta: json.meta.unwrap_or("{}".to_owned()),
+			name: json.name.unwrap_or_else(String::new),
+			meta: json.meta.unwrap_or_else(|| "{}".to_string()),
 		})
 	}
 
@@ -125,7 +122,7 @@ impl SafeAccount {
 		let meta_plain = meta_crypto.decrypt(password)?;
 		let meta_plain = json::VaultKeyMeta::load(&meta_plain).map_err(|e| Error::Custom(format!("{:?}", e)))?;
 
-		SafeAccount::from_file(json::KeyFile {
+		Self::from_file(json::KeyFile {
 			id: json.id,
 			version: json.version,
 			crypto: json.crypto,
@@ -174,17 +171,17 @@ impl SafeAccount {
 	/// Derive public key.
 	pub fn public(&self, password: &Password) -> Result<Public, Error> {
 		let secret = self.crypto.secret(password)?;
-		Ok(KeyPair::from_secret(secret)?.public().clone())
+		Ok(*KeyPair::from_secret(secret)?.public())
 	}
 
 	/// Change account's password.
 	pub fn change_password(&self, old_password: &Password, new_password: &Password, iterations: u32) -> Result<Self, Error> {
 		let secret = self.crypto.secret(old_password)?;
-		let result = SafeAccount {
-			id: self.id.clone(),
+		let result = Self {
+			id: self.id,
 			version: self.version.clone(),
 			crypto: Crypto::with_secret(&secret, new_password, iterations)?,
-			address: self.address.clone(),
+			address: self.address,
 			filename: self.filename.clone(),
 			name: self.name.clone(),
 			meta: self.meta.clone(),
@@ -208,7 +205,7 @@ mod tests {
 		let keypair = Random.generate().unwrap();
 		let password = "hello world".into();
 		let message = Message::default();
-		let account = SafeAccount::create(&keypair, [0u8; 16], &password, 10240, "Test".to_owned(), "{}".to_owned());
+		let account = SafeAccount::create(&keypair, [0_u8; 16], &password, 10240, "Test".to_owned(), "{}".to_owned());
 		let signature = account.unwrap().sign(&password, &message).unwrap();
 		assert!(verify_public(keypair.public(), &signature, &message).unwrap());
 	}
@@ -220,7 +217,7 @@ mod tests {
 		let sec_password = "this is sparta".into();
 		let i = 10240;
 		let message = Message::default();
-		let account = SafeAccount::create(&keypair, [0u8; 16], &first_password, i, "Test".to_owned(), "{}".to_owned()).unwrap();
+		let account = SafeAccount::create(&keypair, [0_u8; 16], &first_password, i, "Test".to_owned(), "{}".to_owned()).unwrap();
 		let new_account = account.change_password(&first_password, &sec_password, i).unwrap();
 		assert!(account.sign(&first_password, &message).is_ok());
 		assert!(account.sign(&sec_password, &message).is_err());

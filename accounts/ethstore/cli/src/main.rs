@@ -14,6 +14,54 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
+#![warn(
+	clippy::all,
+	clippy::pedantic,
+	clippy::nursery,
+)]
+#![allow(
+	clippy::blacklisted_name,
+	clippy::cast_lossless,
+	clippy::cast_possible_truncation,
+	clippy::cast_possible_wrap,
+	clippy::cast_precision_loss,
+	clippy::cast_ptr_alignment,
+	clippy::cast_sign_loss,
+	clippy::cognitive_complexity,
+	clippy::default_trait_access,
+	clippy::enum_glob_use,
+	clippy::eval_order_dependence,
+	clippy::fallible_impl_from,
+	clippy::float_cmp,
+	clippy::identity_op,
+	clippy::if_not_else,
+	clippy::indexing_slicing,
+	clippy::inline_always,
+	clippy::items_after_statements,
+	clippy::large_enum_variant,
+	clippy::many_single_char_names,
+	clippy::match_same_arms,
+	clippy::missing_errors_doc,
+	clippy::missing_safety_doc,
+	clippy::module_inception,
+	clippy::module_name_repetitions,
+	clippy::must_use_candidate,
+	clippy::needless_pass_by_value,
+	clippy::needless_update,
+	clippy::non_ascii_literal,
+	clippy::option_option,
+	clippy::pub_enum_variant_names,
+	clippy::same_functions_in_if_condition,
+	clippy::shadow_unrelated,
+	clippy::similar_names,
+	clippy::single_component_path_imports,
+	clippy::too_many_arguments,
+	clippy::too_many_lines,
+	clippy::type_complexity,
+	clippy::unused_self,
+	clippy::used_underscore_binding,
+)]
+
 extern crate dir;
 extern crate docopt;
 extern crate ethstore;
@@ -42,7 +90,7 @@ use ethstore::{EthStore, SimpleSecretStore, SecretStore, import_accounts, Presal
 
 mod crack;
 
-pub const USAGE: &'static str = r#"
+pub const USAGE: &str = r#"
 Parity Ethereum key management tool.
   Copyright 2015-2020 Parity Technologies (UK) Ltd.
 
@@ -130,21 +178,21 @@ enum Error {
 
 impl From<ethstore::Error> for Error {
 	fn from(err: ethstore::Error) -> Self {
-		Error::Ethstore(err)
+		Self::Ethstore(err)
 	}
 }
 
 impl From<docopt::Error> for Error {
 	fn from(err: docopt::Error) -> Self {
-		Error::Docopt(err)
+		Self::Docopt(err)
 	}
 }
 
 impl fmt::Display for Error {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		match *self {
-			Error::Ethstore(ref err) => fmt::Display::fmt(err, f),
-			Error::Docopt(ref err) => fmt::Display::fmt(err, f),
+		match self {
+			Self::Ethstore(err) => fmt::Display::fmt(err, f),
+			Self::Docopt(err) => fmt::Display::fmt(err, f),
 		}
 	}
 }
@@ -158,7 +206,7 @@ fn main() {
 
 	match execute(env::args()) {
 		Ok(result) => println!("{}", result),
-		Err(Error::Docopt(ref e)) => e.exit(),
+		Err(Error::Docopt(e)) => e.exit(),
 		Err(err) => {
 			eprintln!("{}", err);
 			process::exit(1);
@@ -225,7 +273,7 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 
 	let store = EthStore::open(key_dir(&args.flag_dir, None)?)?;
 
-	return if args.cmd_insert {
+	if args.cmd_insert {
 		let secret = args.arg_secret.parse().map_err(|_| ethstore::Error::InvalidSecret)?;
 		let password = load_password(&args.arg_password)?;
 		let vault_ref = open_args_vault(&store, &args)?;
@@ -241,11 +289,10 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 	} else if args.cmd_list {
 		let vault_ref = open_args_vault(&store, &args)?;
 		let accounts = store.accounts()?;
-		let accounts: Vec<_> = accounts
+		let accounts = accounts
 			.into_iter()
-			.filter(|a| &a.vault == &vault_ref)
-			.map(|a| a.address)
-			.collect();
+			.filter_map(|a| if a.vault == vault_ref { Some(a.address) } else { None })
+			.collect::<Vec<_>>();
 		Ok(format_accounts(&accounts))
 	} else if args.cmd_import {
 		let password = match args.arg_password.as_ref() {
@@ -268,7 +315,7 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 		let passwords = load_password(&args.arg_password)?;
 		let passwords = passwords.as_str().lines().map(|line| str::to_owned(line).into()).collect::<VecDeque<_>>();
 		crack::run(passwords, &args.arg_path)?;
-		Ok(format!("Password not found."))
+		Ok("Password not found.".to_string())
 	} else if args.cmd_remove {
 		let address = args.arg_address.parse().map_err(|_| ethstore::Error::InvalidAccount)?;
 		let password = load_password(&args.arg_password)?;
@@ -315,6 +362,6 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 		store.change_account_vault(SecretVaultRef::Root, StoreAccountRef::vault(&args.arg_vault, address))?;
 		Ok("OK".to_owned())
 	} else {
-		Ok(format!("{}", USAGE))
+		Ok(USAGE.to_string())
 	}
 }
