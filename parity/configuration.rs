@@ -1534,17 +1534,6 @@ mod tests {
 			max_delay: 300,
 			frequency: 20,
 		});
-		assert_eq!(conf2.update_policy().unwrap(), UpdatePolicy {
-			enable_downloading: false,
-			require_consensus: true,
-			filter: UpdateFilter::All,
-			track: ReleaseTrack::Nightly,
-			path: default_hypervisor_path(),
-			max_size: 128 * 1024 * 1024,
-			max_delay: 300,
-			frequency: 100,
-		});
-		assert!(conf3.update_policy().is_err());
 	}
 
 	#[test]
