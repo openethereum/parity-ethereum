@@ -553,7 +553,7 @@ mod tests {
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![], false).unwrap();
 		let b = b.close().unwrap();
-		assert_eq!(b.state.balance(&Address::zero()).unwrap(), U256::from_str("4563918244f40000").unwrap());
+		assert_eq!(b.state.balance(&Address::zero()).unwrap(), U256::from_str("4563918244f40001").unwrap());
 	}
 
 	#[test]
@@ -607,7 +607,7 @@ mod tests {
 		b.push_uncle(uncle).unwrap();
 
 		let b = b.close().unwrap();
-		assert_eq!(b.state.balance(&Address::zero()).unwrap(), "478eae0e571ba000".into());
+		assert_eq!(b.state.balance(&Address::zero()).unwrap(), "478eae0e571ba001".into());
 		assert_eq!(b.state.balance(&uncle_author).unwrap(), "3cb71f51fc558000".into());
 	}
 
