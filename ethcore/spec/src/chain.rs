@@ -70,7 +70,6 @@ bundle_release_spec! {
 	"ethereum/kotti" => new_kotti,
 	"ethereum/kovan" => new_kovan,
 	"ethereum/mix" => new_mix,
-	"ethereum/morden" => new_morden,
 	"ethereum/mordor" => new_mordor,
 	"ethereum/musicoin" => new_musicoin,
 	"ethereum/poacore" => new_poanet,
@@ -99,7 +98,6 @@ bundle_test_spec! {
 	"ethereum/homestead_test" => new_homestead_test,
 	"ethereum/kovan_wasm_test" => new_kovan_wasm_test,
 	"ethereum/mcip3_test" => new_mcip3_test,
-	"ethereum/morden" => new_morden_test,
 	"ethereum/mordor" => new_mordor_test,
 	"ethereum/ropsten" => new_ropsten_test,
 	"ethereum/st_peters_test" => new_constantinople_fix_test,
@@ -133,12 +131,12 @@ mod tests {
 	use tempdir::TempDir;
 	use ethcore::test_helpers::get_temp_state_db;
 
-	use super::{new_morden, new_foundation};
+	use super::{new_ropsten, new_foundation};
 
 	#[test]
 	fn ensure_db_good() {
 		let tempdir = TempDir::new("").unwrap();
-		let spec = new_morden(&tempdir.path());
+		let spec = new_ropsten(&tempdir.path());
 		let engine = &spec.engine;
 		let genesis_header = spec.genesis_header();
 		let db = spec.ensure_db_good(get_temp_state_db(), &Default::default()).unwrap();
@@ -152,12 +150,12 @@ mod tests {
 	}
 
 	#[test]
-	fn morden() {
+	fn ropsten() {
 		let tempdir = TempDir::new("").unwrap();
-		let morden = new_morden(&tempdir.path());
+		let ropsten = new_ropsten(&tempdir.path());
 
-		assert_eq!(morden.state_root, "f3f4696bbf3b3b07775128eb7a3763279a394e382130f27c21e70233e04946a9".parse().unwrap());
-		let genesis = morden.genesis_block();
+		assert_eq!(ropsten.state_root, "f3f4696bbf3b3b07775128eb7a3763279a394e382130f27c21e70233e04946a9".parse().unwrap());
+		let genesis = ropsten.genesis_block();
 		assert_eq!(view!(BlockView, &genesis).header_view().hash(), "0cd786a2425d16f152c658316c423e6ce1181e15c3295826d7c9904cba9ce303".parse().unwrap());
 	}
 

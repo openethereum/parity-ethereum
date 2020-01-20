@@ -505,14 +505,14 @@ mod tests {
 		test_helpers::get_temp_state_db,
 	};
 	use rlp;
-	use spec::{new_morden, new_mcip3_test, new_homestead_test_machine, Spec};
+	use spec::{new_ropsten, new_mcip3_test, new_homestead_test_machine, Spec};
 	use tempdir::TempDir;
 
 	use super::{Ethash, EthashParams, ecip1017_eras_block_reward};
 
 	fn test_spec() -> Spec {
 		let tempdir = TempDir::new("").unwrap();
-		new_morden(&tempdir.path())
+		new_ropsten(&tempdir.path())
 	}
 
 	fn get_default_ethash_params() -> EthashParams {
