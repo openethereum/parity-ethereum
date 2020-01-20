@@ -130,7 +130,7 @@ fn rpc_parity_version_info() {
 	let io = deps.default_client();
 
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_versionInfo", "params": [], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":{"hash":"0x0000000000000000000000000000000000000096","track":"beta","version":{"major":1,"minor":5,"patch":0}},"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":{"hash":"0x0000000000000000000000000000000000000096","track":"stable","version":{"major":1,"minor":5,"patch":0}},"id":1}"#;
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }
 
@@ -140,7 +140,7 @@ fn rpc_parity_releases_info() {
 	let io = deps.default_client();
 
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_releasesInfo", "params": [], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":{"fork":15100,"minor":null,"this_fork":15000,"track":{"binary":"0x00000000000000000000000000000000000000000000000000000000000005e6","fork":15100,"is_critical":true,"version":{"hash":"0x0000000000000000000000000000000000000097","track":"beta","version":{"major":1,"minor":5,"patch":1}}}},"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":{"fork":15100,"minor":null,"this_fork":15000,"track":{"binary":"0x00000000000000000000000000000000000000000000000000000000000005e6","fork":15100,"is_critical":true,"version":{"hash":"0x0000000000000000000000000000000000000097","track":"stable","version":{"major":1,"minor":5,"patch":1}}}},"id":1}"#;
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }
 
