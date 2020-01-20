@@ -1516,16 +1516,6 @@ mod tests {
 		// then
 		assert_eq!(conf0.update_policy().unwrap(), UpdatePolicy {
 			enable_downloading: true,
-			require_consensus: true,
-			filter: UpdateFilter::Critical,
-			track: ReleaseTrack::Nightly,
-			path: default_hypervisor_path(),
-			max_size: 128 * 1024 * 1024,
-			max_delay: 100,
-			frequency: 20,
-		});
-		assert_eq!(conf1.update_policy().unwrap(), UpdatePolicy {
-			enable_downloading: true,
 			require_consensus: false,
 			filter: UpdateFilter::All,
 			track: ReleaseTrack::Unknown,
@@ -1534,6 +1524,7 @@ mod tests {
 			max_delay: 300,
 			frequency: 20,
 		});
+		assert!(conf1.update_policy().is_err());
 	}
 
 	#[test]
