@@ -641,7 +641,7 @@ mod tests {
 		assert!(schedule.stack_limit > 0);
 
 		let schedule = engine.schedule(100);
-		assert!(!schedule.have_delegate_call);
+		assert!(schedule.have_delegate_call);
 	}
 
 	#[test]
