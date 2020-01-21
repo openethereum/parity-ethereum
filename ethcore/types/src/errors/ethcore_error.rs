@@ -1,4 +1,5 @@
-// Copyright 2015-2020 Parity Technologies (UK) Ltd.
+// TODO(niklasad1): fix license header
+
 // This file is part of Parity Ethereum.
 
 // Parity Ethereum is free software: you can redistribute it and/or modify
@@ -17,17 +18,38 @@
 //! General error types for use in ethcore.
 
 use std::{error, fmt};
+
+use bytes::Bytes;
 use derive_more::{Display, From};
 use ethereum_types::{U256, U512};
 use ethtrie::TrieError;
-use parity_snappy::InvalidInput;
 use parity_crypto::publickey::Error as EthPublicKeyCryptoError;
+use parity_snappy::InvalidInput;
 
 use errors::{BlockError, EngineError, ImportError, SnapshotError};
 use transaction::Error as TransactionError;
 
 /// Ethcore Result
 pub type EthcoreResult<T> = Result<T, EthcoreError>;
+
+/// Block error type
+#[derive(Clone, Display, Debug)]
+#[display(fmt = "Block error: {} with raw bytes: {:?}", error, data)]
+pub struct BlockErrorWithData {
+	/// Error
+	pub error: BlockError,
+	/// Raw bytes from the block of the error
+	pub data: Option<Bytes>,
+}
+
+impl From<BlockError> for BlockErrorWithData {
+	fn from(error: BlockError) -> Self {
+		Self {
+			error,
+			data: None
+		}
+	}
+}
 
 /// Ethcore Error
 #[derive(Debug, Display, From)]
@@ -43,7 +65,7 @@ pub enum EthcoreError {
 	Io(ethcore_io::IoError),
 	/// Error concerning the Rust standard library's IO subsystem.
 	#[display(fmt = "Std Io error: {}", _0)]
-	StdIo(::std::io::Error),
+	StdIo(std::io::Error),
 	/// Error concerning TrieDBs.
 	#[display(fmt = "Trie error: {}", _0)]
 	Trie(TrieError),
@@ -51,8 +73,8 @@ pub enum EthcoreError {
 	#[display(fmt = "Execution error: {}", _0)]
 	Execution(ExecutionError),
 	/// Error concerning block processing.
-	#[display(fmt = "Block error: {}", _0)]
-	Block(BlockError),
+	#[display(fmt = "{}", _0)]
+	Block(BlockErrorWithData),
 	/// Error concerning transaction processing.
 	#[display(fmt = "Transaction error: {}", _0)]
 	Transaction(TransactionError),
@@ -90,7 +112,7 @@ impl error::Error for EthcoreError {
 			StdIo(e) => Some(e),
 			Trie(e) => Some(e),
 			Execution(e) => Some(e),
-			Block(e) => Some(e),
+			Block(e) => Some(&e.error),
 			Transaction(e) => Some(e),
 			Snappy(e) => Some(e),
 			Engine(e) => Some(e),
@@ -99,6 +121,12 @@ impl error::Error for EthcoreError {
 			Snapshot(e) => Some(e),
 			_ => None,
 		}
+	}
+}
+
+impl From<BlockError> for EthcoreError {
+	fn from(err: BlockError) -> Self {
+		EthcoreError::Block(err.into())
 	}
 }
 
@@ -173,6 +201,7 @@ impl From<Box<TrieError>> for ExecutionError {
 		ExecutionError::Internal(format!("{:?}", err))
 	}
 }
+
 impl From<TrieError> for ExecutionError {
 	fn from(err: TrieError) -> Self {
 		ExecutionError::Internal(format!("{:?}", err))

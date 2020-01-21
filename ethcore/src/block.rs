@@ -343,10 +343,10 @@ impl LockedBlock {
 		let expected_seal_fields = engine.seal_fields(&self.header);
 		let mut s = self;
 		if seal.len() != expected_seal_fields {
-			Err(BlockError::InvalidSealArity(Mismatch {
+			return Err(From::from(BlockError::InvalidSealArity(Mismatch {
 				expected: expected_seal_fields,
 				found: seal.len()
-			}))?;
+			})));
 		}
 
 		s.block.header.set_seal(seal);
@@ -417,7 +417,7 @@ pub(crate) fn enact(
 ) -> Result<LockedBlock, Error> {
 	// For trace log
 	let trace_state = if log_enabled!(target: "enact", ::log::Level::Trace) {
-		Some(State::from_existing(db.boxed_clone(), parent.state_root().clone(), engine.account_start_nonce(parent.number() + 1), factories.clone())?)
+		Some(State::from_existing(db.boxed_clone(), *parent.state_root(), engine.account_start_nonce(parent.number() + 1), factories.clone())?)
 	} else {
 		None
 	};
@@ -525,7 +525,7 @@ mod tests {
 
 		{
 			if ::log::max_level() >= ::log::Level::Trace {
-				let s = State::from_existing(db.boxed_clone(), parent.state_root().clone(), engine.account_start_nonce(parent.number() + 1), factories.clone())?;
+				let s = State::from_existing(db.boxed_clone(), *parent.state_root(), engine.account_start_nonce(parent.number() + 1), factories.clone())?;
 				trace!(target: "enact", "num={}, root={}, author={}, author_balance={}\n",
 					header.number(), s.root(), header.author(), s.balance(&header.author())?);
 			}

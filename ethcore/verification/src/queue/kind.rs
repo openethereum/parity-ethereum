@@ -17,6 +17,7 @@
 //! Definition of valid items for the verification queue.
 
 use engine::Engine;
+use parity_bytes::Bytes;
 
 use parity_util_mem::MallocSizeOf;
 use ethereum_types::{H256, U256};
@@ -39,6 +40,9 @@ pub trait BlockLike {
 
 	/// Get the difficulty of this item.
 	fn difficulty(&self) -> U256;
+
+	/// Get the raw bytes of the block
+	fn block_bytes(&self) -> Option<&Bytes>;
 }
 
 /// Defines transitions between stages of verification.
@@ -75,7 +79,7 @@ pub mod blocks {
 	use engine::Engine;
 	use common_types::{
 		block::PreverifiedBlock,
-		errors::{EthcoreError as Error, BlockError},
+		errors::{EthcoreError as Error, BlockError, BlockErrorWithData},
 		verification::Unverified,
 	};
 	use log::{debug, warn};
@@ -92,14 +96,17 @@ pub mod blocks {
 		type Verified = PreverifiedBlock;
 
 		fn create(input: Self::Input, engine: &dyn Engine, check_seal: bool) -> Result<Self::Unverified, Error> {
-			match verify_block_basic(&input, engine, check_seal) {
-				Ok(()) => Ok(input),
-				Err(Error::Block(BlockError::TemporarilyInvalid(oob))) => {
-					debug!(target: "client", "Block received too early {}: {:?}", input.hash(), oob);
-					Err(BlockError::TemporarilyInvalid(oob).into())
+			let hash = input.hash();
+			match verify_block_basic(input, engine, check_seal) {
+				Ok(input) => Ok(input),
+				Err(Error::Block(BlockErrorWithData { error, data })) => {
+					if let BlockError::TemporarilyInvalid(ref oob) = error {
+						debug!(target: "client", "Block received too early {}: {:?}", hash, oob);
+					}
+					Err(Error::Block(BlockErrorWithData { error, data }))
 				},
 				Err(e) => {
-					warn!(target: "client", "Stage 1 block verification failed for {}: {:?}", input.hash(), e);
+					warn!(target: "client", "Stage 1 block verification failed for {}: {:?}", hash, e);
 					Err(e)
 				}
 			}
@@ -111,6 +118,9 @@ pub mod blocks {
 				Ok(verified) => Ok(verified),
 				Err(e) => {
 					warn!(target: "client", "Stage 2 block verification failed for {}: {:?}", hash, e);
+					// if let Error::Block(BlockErrorWithData { error, data }) = ref e {
+					//     // data = Some(un.bytes);
+					// }
 					Err(e)
 				}
 			}
@@ -133,6 +143,10 @@ pub mod blocks {
 		fn difficulty(&self) -> U256 {
 			*self.header.difficulty()
 		}
+
+		fn block_bytes(&self) -> Option<&super::Bytes> {
+			Some(&self.bytes)
+		}
 	}
 
 	impl BlockLike for PreverifiedBlock {
@@ -151,6 +165,10 @@ pub mod blocks {
 		fn difficulty(&self) -> U256 {
 			*self.header.difficulty()
 		}
+
+		fn block_bytes(&self) -> Option<&super::Bytes> {
+			Some(&self.bytes)
+		}
 	}
 }
 
@@ -161,7 +179,7 @@ pub mod headers {
 	use engine::Engine;
 	use common_types::{
 		header::Header,
-		errors::EthcoreError as Error,
+		errors::{EthcoreError as Error, BlockErrorWithData},
 	};
 	use crate::verification::{verify_header_params, verify_header_time};
 
@@ -172,6 +190,7 @@ pub mod headers {
 		fn raw_hash(&self) -> H256 { self.hash() }
 		fn parent_hash(&self) -> H256 { *self.parent_hash() }
 		fn difficulty(&self) -> U256 { *self.difficulty() }
+		fn block_bytes(&self) -> Option<&super::Bytes> { None }
 	}
 
 	/// A mode for verifying headers.
@@ -184,7 +203,8 @@ pub mod headers {
 
 		fn create(input: Self::Input, engine: &dyn Engine, check_seal: bool) -> Result<Self::Unverified, Error> {
 			let res = verify_header_params(&input, engine, check_seal)
-				.and_then(|_| verify_header_time(&input));
+				.and_then(|_| Ok(verify_header_time(&input)))
+				.map_err(|e| Error::Block(e.into()));
 
 			match res {
 				Ok(_) => Ok(input),

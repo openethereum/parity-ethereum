@@ -36,7 +36,7 @@ use common_types::{
 	BlockNumber,
 	block_status::BlockStatus,
 	ids::BlockId,
-	errors::{EthcoreError, BlockError, ImportError},
+	errors::{EthcoreError, BlockError, BlockErrorWithData, ImportError},
 };
 
 const MAX_HEADERS_TO_REQUEST: usize = 128;
@@ -560,6 +560,11 @@ impl BlockDownloader {
 			};
 
 			match result {
+				Ok(_) => {
+					trace_sync!(self, "Block queued {:?}", h);
+					imported.insert(h);
+					self.block_imported(&h, number, &parent);
+				},
 				Err(EthcoreError::Import(ImportError::AlreadyInChain)) => {
 					let is_canonical = if io.chain().block_hash(BlockId::Number(number)).is_some() {
 						"canoncial"
@@ -572,25 +577,26 @@ impl BlockDownloader {
 				Err(EthcoreError::Import(ImportError::AlreadyQueued)) => {
 					trace_sync!(self, "Block already queued {:?}", h);
 					// Treat blocks in queue as imported in order not to start retraction too early
-					imported.insert(h.clone());
+					imported.insert(h);
 					self.block_imported(&h, number, &parent);
 				},
-				Ok(_) => {
-					trace_sync!(self, "Block queued {:?}", h);
-					imported.insert(h.clone());
-					self.block_imported(&h, number, &parent);
-				},
-				Err(EthcoreError::Block(BlockError::UnknownParent(_))) if allow_out_of_order => {
-					break;
-				},
-				Err(EthcoreError::Block(BlockError::UnknownParent(_))) => {
-					trace_sync!(self, "Unknown new block parent, restarting sync");
-					break;
-				},
-				Err(EthcoreError::Block(BlockError::TemporarilyInvalid(_))) => {
-					debug_sync!(self, "Block temporarily invalid: {:?}, restarting sync", h);
-					break;
-				},
+				Err(EthcoreError::Block(BlockErrorWithData { error, .. })) => {
+					match error {
+						BlockError::UnknownParent(_) if allow_out_of_order => {
+							break;
+						},
+						BlockError::UnknownParent(_) => {
+							trace_sync!(self, "Unknown new block parent, restarting sync");
+							break;
+						},
+						BlockError::TemporarilyInvalid(_) => {
+							debug_sync!(self, "Block temporarily invalid: {:?}, restarting sync", h);
+							break;
+						},
+						// TODO(niklasad1): non-exhaustive match
+						_ => {},
+					}
+				}
 				Err(EthcoreError::FullQueue(limit)) => {
 					debug_sync!(self, "Block import queue full ({}), restarting sync", limit);
 					download_action = DownloadAction::Reset;

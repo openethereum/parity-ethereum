@@ -33,9 +33,8 @@ use common_types::{
 };
 use engine::Engine;
 use ethereum_types::{H256, U256};
-use ethjson;
 use ethash::{self, quick_get_difficulty, slow_hash_block_number, EthashManager};
-use keccak_hash::{KECCAK_EMPTY_LIST_RLP};
+use keccak_hash::KECCAK_EMPTY_LIST_RLP;
 use log::trace;
 use macros::map;
 use machine::{
@@ -195,10 +194,17 @@ fn verify_block_unordered(pow: &Arc<EthashManager>, header: &Header) -> Result<(
 	       mix = H256(result.mix_hash),
 	       res = H256(result.value));
 	if mix != seal.mix_hash {
-		return Err(From::from(BlockError::MismatchedH256SealElement(Mismatch { expected: mix, found: seal.mix_hash })));
+		return Err(From::from(BlockError::MismatchedH256SealElement(Mismatch {
+			expected: mix,
+			found: seal.mix_hash
+		})));
 	}
 	if &difficulty < header.difficulty() {
-		return Err(From::from(BlockError::InvalidProofOfWork(OutOfBounds { min: Some(header.difficulty().clone()), max: None, found: difficulty })));
+		return Err(From::from(BlockError::InvalidProofOfWork(OutOfBounds {
+			min: Some(*header.difficulty()),
+			max: None,
+			found: difficulty
+		})));
 	}
 	Ok(())
 }
@@ -327,7 +333,11 @@ impl Engine for Ethash {
 		// TODO: consider removing these lines.
 		let min_difficulty = self.ethash_params.minimum_difficulty;
 		if header.difficulty() < &min_difficulty {
-			return Err(From::from(BlockError::DifficultyOutOfBounds(OutOfBounds { min: Some(min_difficulty), max: None, found: header.difficulty().clone() })))
+			return Err(From::from(BlockError::DifficultyOutOfBounds(OutOfBounds {
+				min: Some(min_difficulty),
+				max: None,
+				found: *header.difficulty()
+			})));
 		}
 
 		let difficulty = ethash::boundary_to_difficulty(&H256(quick_get_difficulty(
@@ -338,9 +348,12 @@ impl Engine for Ethash {
 		)));
 
 		if &difficulty < header.difficulty() {
-			return Err(From::from(BlockError::InvalidProofOfWork(OutOfBounds { min: Some(header.difficulty().clone()), max: None, found: difficulty })));
+			return Err(From::from(BlockError::InvalidProofOfWork(OutOfBounds {
+				min: Some(*header.difficulty()),
+				max: None,
+				found: difficulty
+			})));
 		}
-
 		Ok(())
 	}
 
@@ -351,13 +364,20 @@ impl Engine for Ethash {
 	fn verify_block_family(&self, header: &Header, parent: &Header) -> Result<(), Error> {
 		// we should not calculate difficulty for genesis blocks
 		if header.number() == 0 {
-			return Err(From::from(BlockError::RidiculousNumber(OutOfBounds { min: Some(1), max: None, found: header.number() })));
+			return Err(From::from(BlockError::RidiculousNumber(OutOfBounds {
+				min: Some(1),
+				max: None,
+				found: header.number()
+			})));
 		}
 
 		// Check difficulty is correct given the two timestamps.
 		let expected_difficulty = self.calculate_difficulty(header, parent);
 		if header.difficulty() != &expected_difficulty {
-			return Err(From::from(BlockError::InvalidDifficulty(Mismatch { expected: expected_difficulty, found: header.difficulty().clone() })))
+			return Err(From::from(BlockError::InvalidDifficulty(Mismatch {
+				expected: expected_difficulty,
+				found: *header.difficulty()
+			})));
 		}
 
 		Ok(())

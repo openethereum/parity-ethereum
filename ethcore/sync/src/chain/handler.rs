@@ -49,7 +49,7 @@ use common_types::{
 	BlockNumber,
 	block_status::BlockStatus,
 	ids::BlockId,
-	errors::{EthcoreError, ImportError, BlockError},
+	errors::{EthcoreError, ImportError, BlockError, BlockErrorWithData},
 	verification::Unverified,
 	snapshot::{ManifestData, RestorationStatus},
 };
@@ -174,21 +174,23 @@ impl SyncHandler {
 			return Err(DownloaderImportError::Invalid);
 		}
 		match io.chain().import_block(block) {
-			Err(EthcoreError::Import(ImportError::AlreadyInChain)) => {
-				trace!(target: "sync", "New block already in chain {:?}", hash);
-			},
-			Err(EthcoreError::Import(ImportError::AlreadyQueued)) => {
-				trace!(target: "sync", "New block already queued {:?}", hash);
-			},
 			Ok(_) => {
 				// abort current download of the same block
 				sync.complete_sync(io);
 				sync.new_blocks.mark_as_known(&hash, number);
 				trace!(target: "sync", "New block queued {:?} ({})", hash, number);
 			},
-			Err(EthcoreError::Block(BlockError::UnknownParent(p))) => {
-				unknown = true;
-				trace!(target: "sync", "New block with unknown parent ({:?}) {:?}", p, hash);
+			Err(EthcoreError::Import(ImportError::AlreadyInChain)) => {
+				trace!(target: "sync", "New block already in chain {:?}", hash);
+			},
+			Err(EthcoreError::Import(ImportError::AlreadyQueued)) => {
+				trace!(target: "sync", "New block already queued {:?}", hash);
+			},
+			Err(EthcoreError::Block(BlockErrorWithData { error, .. })) => {
+				if let BlockError::UnknownParent(p) = error {
+					unknown = true;
+					trace!(target: "sync", "New block with unknown parent ({:?}) {:?}", p, hash);
+				}
 			},
 			Err(e) => {
 				debug!(target: "sync", "Bad new block {:?} : {:?}", hash, e);

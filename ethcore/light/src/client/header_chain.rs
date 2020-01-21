@@ -420,8 +420,7 @@ impl HeaderChain {
 						candidates.get(&(number - 1))
 							.and_then(|entry| entry.candidates.iter().find(|c| c.hash == parent_hash))
 							.map(|c| c.total_difficulty)
-							.ok_or_else(|| BlockError::UnknownParent(parent_hash))
-							.map_err(Error::Block)?
+							.ok_or_else(|| BlockError::UnknownParent(parent_hash))?
 					};
 
 				parent_td + *header.difficulty()

@@ -381,9 +381,9 @@ impl ValidatorSet for ValidatorSafeContract {
 				receipts.iter().map(::rlp::encode)
 			);
 			if found_root != *old_header.receipts_root() {
-				return Err(BlockError::InvalidReceiptsRoot(
+				return Err(From::from(BlockError::InvalidReceiptsRoot(
 					Mismatch { expected: *old_header.receipts_root(), found: found_root }
-				).into());
+				)));
 			}
 
 			let bloom = self.expected_bloom(&old_header);

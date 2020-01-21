@@ -137,30 +137,30 @@ impl CliqueBlockState {
 		// The signer is not authorized
 		if !self.signers.contains(&creator) {
 			trace!(target: "engine", "current state: {}", self);
-			Err(EngineError::NotAuthorized(creator))?
+			return Err(EngineError::NotAuthorized(creator).into());
 		}
 
 		// The signer has signed a block too recently
 		if self.recent_signers.contains(&creator) {
 			trace!(target: "engine", "current state: {}", self);
-			Err(EngineError::CliqueTooRecentlySigned(creator))?
+			return Err(EngineError::CliqueTooRecentlySigned(creator).into());
 		}
 
 		// Wrong difficulty
 		let inturn = self.is_inturn(header.number(), &creator);
 
 		if inturn && *header.difficulty() != DIFF_INTURN {
-			Err(BlockError::InvalidDifficulty(Mismatch {
+			return Err(From::from(BlockError::InvalidDifficulty(Mismatch {
 				expected: DIFF_INTURN,
 				found: *header.difficulty(),
-			}))?
+			})));
 		}
 
 		if !inturn && *header.difficulty() != DIFF_NOTURN {
-			Err(BlockError::InvalidDifficulty(Mismatch {
+			return Err(From::from(BlockError::InvalidDifficulty(Mismatch {
 				expected: DIFF_NOTURN,
 				found: *header.difficulty(),
-			}))?
+			})));
 		}
 
 		Ok(creator)
@@ -178,9 +178,10 @@ impl CliqueBlockState {
 			if self.signers != signers {
 				let invalid_signers: Vec<String> = signers.into_iter()
 					.filter(|s| !self.signers.contains(s))
-					.map(|s| format!("{}", s))
+					.map(|s| s.to_string())
 					.collect();
-				Err(EngineError::CliqueFaultyRecoveredSigners(invalid_signers))?
+
+				return Err(EngineError::CliqueFaultyRecoveredSigners(invalid_signers).into())
 			};
 
 			// TODO(niklasad1): I'm not sure if we should shrink here because it is likely that next epoch
@@ -196,7 +197,10 @@ impl CliqueBlockState {
 		if *header.author() != NULL_AUTHOR {
 			let decoded_seal = header.decode_seal::<Vec<_>>()?;
 			if decoded_seal.len() != 2 {
-				Err(BlockError::InvalidSealArity(Mismatch { expected: 2, found: decoded_seal.len() }))?
+				return Err(From::from(BlockError::InvalidSealArity(Mismatch {
+					expected: 2,
+					found: decoded_seal.len()
+				})));
 			}
 
 			let nonce = H64::from_slice(decoded_seal[1]);
@@ -286,7 +290,7 @@ impl CliqueBlockState {
 		if self.next_timestamp_inturn.is_some() && self.next_timestamp_noturn.is_some() {
 			Ok(())
 		} else {
-			Err(BlockError::TimestampOverflow)?
+			Err(BlockError::TimestampOverflow.into())
 		}
 	}
 

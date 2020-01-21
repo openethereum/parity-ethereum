@@ -32,11 +32,12 @@ use unexpected::{Mismatch, OutOfBounds};
 use blockchain::BlockProvider;
 use call_contract::CallContract;
 use client_traits::BlockInfo;
+use ethereum_types::U256;
 use engine::Engine;
 use common_types::{
 	BlockNumber,
 	header::Header,
-	errors::{EthcoreError as Error, BlockError},
+	errors::{EthcoreError as Error, BlockError, BlockErrorWithData},
 	engines::MAX_UNCLE_AGE,
 	block::PreverifiedBlock,
 	verification::Unverified,
@@ -45,10 +46,10 @@ use common_types::{
 use time_utils::CheckedSystemTime;
 
 /// Phase 1 quick block verification. Only does checks that are cheap. Operates on a single block
-pub fn verify_block_basic(block: &Unverified, engine: &dyn Engine, check_seal: bool) -> Result<(), Error> {
+pub fn verify_block_basic(block: Unverified, engine: &dyn Engine, check_seal: bool) -> Result<Unverified, Error> {
 	verify_header_params(&block.header, engine, check_seal)?;
 	verify_header_time(&block.header)?;
-	verify_block_integrity(block)?;
+	let block = verify_block_integrity(block)?;
 
 	if check_seal {
 		engine.verify_block_basic(&block.header)?;
@@ -63,9 +64,14 @@ pub fn verify_block_basic(block: &Unverified, engine: &dyn Engine, check_seal: b
 
 	if let Some(gas_limit) = engine.gas_limit_override(&block.header) {
 		if *block.header.gas_limit() != gas_limit {
-			return Err(From::from(BlockError::InvalidGasLimit(
-				OutOfBounds { min: Some(gas_limit), max: Some(gas_limit), found: *block.header.gas_limit() }
-			)));
+			return Err(Error::Block(BlockErrorWithData {
+				error: BlockError::InvalidGasLimit(OutOfBounds {
+					min: Some(gas_limit),
+					max: Some(gas_limit),
+					found: *block.header.gas_limit()
+				}),
+				data: Some(block.bytes)
+			}));
 		}
 	}
 
@@ -73,7 +79,7 @@ pub fn verify_block_basic(block: &Unverified, engine: &dyn Engine, check_seal: b
 		engine.verify_transaction_basic(t, &block.header)?;
 	}
 
-	Ok(())
+	Ok(block)
 }
 
 /// Phase 2 verification. Perform costly checks such as transaction signatures and block nonce for ethash.
@@ -87,25 +93,27 @@ pub fn verify_block_unordered(block: Unverified, engine: &dyn Engine, check_seal
 			engine.verify_block_unordered(uncle)?;
 		}
 	}
-	// Verify transactions.
-	let nonce_cap = if header.number() >= engine.params().dust_protection_transition {
-		Some((engine.params().nonce_cap_increment * header.number()).into())
-	} else {
-		None
-	};
 
+	// Verify transactions.
 	let transactions = block.transactions
 		.into_iter()
 		.map(|t| {
-			let t = t.verify_unordered()?;
-			if let Some(max_nonce) = nonce_cap {
-				if t.nonce >= max_nonce {
-					return Err(BlockError::TooManyTransactions(t.sender()).into());
-				}
-			}
-			Ok(t)
+			Ok(t.verify_unordered()?)
 		})
 		.collect::<Result<Vec<_>, Error>>()?;
+
+	// check if nonce is too high
+	if header.number() >= engine.params().dust_protection_transition {
+		let max_nonce = U256::from(engine.params().nonce_cap_increment) * U256::from(header.number());
+		for t in &transactions {
+			if t.nonce >= max_nonce {
+				return Err(Error::Block(BlockErrorWithData {
+					error: BlockError::TooManyTransactions(t.sender()).into(),
+					data: Some(block.bytes),
+				}));
+			}
+		}
+	}
 
 	Ok(PreverifiedBlock {
 		header,
@@ -137,7 +145,7 @@ pub fn verify_block_family<C: BlockInfo + CallContract>(
 	// TODO: verify timestamp
 	verify_parent(&header, &parent, engine)?;
 	engine.verify_block_family(&header, &parent)?;
-	verify_uncles(params.block, params.block_provider, engine)?;
+	verify_uncles(params.block.clone(), params.block_provider, engine)?;
 
 	for tx in &params.block.transactions {
 		// transactions are verified against the parent header since the current
@@ -148,23 +156,26 @@ pub fn verify_block_family<C: BlockInfo + CallContract>(
 	Ok(())
 }
 
-fn verify_uncles(block: &PreverifiedBlock, bc: &dyn BlockProvider, engine: &dyn Engine) -> Result<(), Error> {
+fn verify_uncles(block: PreverifiedBlock, bc: &dyn BlockProvider, engine: &dyn Engine) -> Result<(), Error> {
 	let header = &block.header;
 	let num_uncles = block.uncles.len();
 	let max_uncles = engine.maximum_uncle_count(header.number());
 	if num_uncles != 0 {
 		if num_uncles > max_uncles {
-			return Err(From::from(BlockError::TooManyUncles(OutOfBounds {
-				min: None,
-				max: Some(max_uncles),
-				found: num_uncles,
-			})));
+			return Err(Error::Block(BlockErrorWithData {
+				error: BlockError::TooManyUncles(OutOfBounds {
+					min: None,
+					max: Some(max_uncles),
+					found: num_uncles,
+				}),
+				data: Some(block.bytes),
+			}));
 		}
 
 		let mut excluded = HashSet::new();
 		excluded.insert(header.hash());
-		let mut hash = header.parent_hash().clone();
-		excluded.insert(hash.clone());
+		let mut hash = *header.parent_hash();
+		excluded.insert(hash);
 		for _ in 0..MAX_UNCLE_AGE {
 			match bc.block_details(&hash) {
 				Some(details) => {
@@ -180,11 +191,17 @@ fn verify_uncles(block: &PreverifiedBlock, bc: &dyn BlockProvider, engine: &dyn 
 		let mut verified = HashSet::new();
 		for uncle in &block.uncles {
 			if excluded.contains(&uncle.hash()) {
-				return Err(From::from(BlockError::UncleInChain(uncle.hash())))
+				return Err(Error::Block(BlockErrorWithData {
+					error: BlockError::UncleInChain(uncle.hash()).into(),
+					data: Some(block.bytes),
+				}));
 			}
 
 			if verified.contains(&uncle.hash()) {
-				return Err(From::from(BlockError::DuplicateUncle(uncle.hash())))
+				return Err(Error::Block(BlockErrorWithData {
+					error: BlockError::DuplicateUncle(uncle.hash()).into(),
+					data: Some(block.bytes),
+				}));
 			}
 
 			// uncle.number() needs to be within specific number range which is
@@ -197,11 +214,14 @@ fn verify_uncles(block: &PreverifiedBlock, bc: &dyn BlockProvider, engine: &dyn 
 				uncle.number() + MAX_UNCLE_AGE >= header.number() {
 				header.number() - uncle.number()
 			} else {
-				return Err(BlockError::UncleOutOfBounds(OutOfBounds {
-					min: Some(header.number() - MAX_UNCLE_AGE),
-					max: Some(header.number() - 1),
-					found: uncle.number()
-				}).into());
+				return Err(Error::Block(BlockErrorWithData {
+					error: BlockError::UncleOutOfBounds(OutOfBounds {
+						min: Some(header.number() - MAX_UNCLE_AGE),
+						max: Some(header.number() - 1),
+						found: uncle.number()
+					}),
+					data: Some(block.bytes),
+				}));
 			};
 
 			// cB
@@ -213,9 +233,13 @@ fn verify_uncles(block: &PreverifiedBlock, bc: &dyn BlockProvider, engine: &dyn 
 			// cB.p^6	-----------/  6
 			// cB.p^7	-------------/
 			// cB.p^8
-			let mut expected_uncle_parent = header.parent_hash().clone();
+			let mut expected_uncle_parent = *header.parent_hash();
 			let uncle_parent = bc.block_header_data(&uncle.parent_hash())
-				.ok_or_else(|| BlockError::UnknownUncleParent(*uncle.parent_hash()))?;
+				.ok_or_else(|| Error::Block(BlockErrorWithData {
+					error: BlockError::UnknownUncleParent(*uncle.parent_hash()),
+					data: Some(block.bytes),
+				}))?;
+
 			for _ in 0..depth {
 				match bc.block_details(&expected_uncle_parent) {
 					Some(details) => {
@@ -225,7 +249,10 @@ fn verify_uncles(block: &PreverifiedBlock, bc: &dyn BlockProvider, engine: &dyn 
 				}
 			}
 			if expected_uncle_parent != uncle_parent.hash() {
-				return Err(From::from(BlockError::UncleParentNotInChain(uncle_parent.hash())));
+				return Err(Error::Block(BlockErrorWithData {
+					error: BlockError::UncleParentNotInChain(uncle_parent.hash()).into(),
+					data: Some(block.bytes),
+				}));
 			}
 
 			let uncle_parent = uncle_parent.decode()?;
@@ -239,103 +266,106 @@ fn verify_uncles(block: &PreverifiedBlock, bc: &dyn BlockProvider, engine: &dyn 
 }
 
 /// Phase 4 verification. Check block information against transaction enactment results,
-pub fn verify_block_final(expected: &Header, got: &Header) -> Result<(), Error> {
+// NOTE(niklasad1); doesn't return `raw_bytes` in the error
+pub fn verify_block_final(expected: &Header, got: &Header) -> Result<(), BlockError> {
 	if expected.state_root() != got.state_root() {
-		return Err(From::from(BlockError::InvalidStateRoot(Mismatch {
+		return Err(BlockError::InvalidStateRoot(Mismatch {
 			expected: *expected.state_root(),
 			found: *got.state_root()
-		})))
+		}));
 	}
 	if expected.gas_used() != got.gas_used() {
-		return Err(From::from(BlockError::InvalidGasUsed(Mismatch {
+		return Err(BlockError::InvalidGasUsed(Mismatch {
 			expected: *expected.gas_used(),
-			found: *got.gas_used()
-		})))
+			found: *got.gas_used(),
+		}));
 	}
 	if expected.log_bloom() != got.log_bloom() {
-		return Err(From::from(BlockError::InvalidLogBloom(Box::new(Mismatch {
+		return Err(BlockError::InvalidLogBloom(From::from(Mismatch {
 			expected: *expected.log_bloom(),
 			found: *got.log_bloom()
-		}))))
+		})));
 	}
 	if expected.receipts_root() != got.receipts_root() {
-		return Err(From::from(BlockError::InvalidReceiptsRoot(Mismatch {
+		return Err(BlockError::InvalidReceiptsRoot(Mismatch {
 			expected: *expected.receipts_root(),
 			found: *got.receipts_root()
-		})))
+		}));
 	}
 	Ok(())
 }
 
 /// Check basic header parameters.
-pub(crate) fn verify_header_params(header: &Header, engine: &dyn Engine, check_seal: bool) -> Result<(), Error> {
+// NOTE(niklasad1); doesn't return `raw_bytes` in the error
+pub(crate) fn verify_header_params(header: &Header, engine: &dyn Engine, check_seal: bool) -> Result<(), BlockError> {
 	if check_seal {
 		let expected_seal_fields = engine.seal_fields(header);
 		if header.seal().len() != expected_seal_fields {
-			return Err(From::from(BlockError::InvalidSealArity(
-				Mismatch { expected: expected_seal_fields, found: header.seal().len() }
-			)));
+			return Err(BlockError::InvalidSealArity(Mismatch {
+				expected: expected_seal_fields,
+				found: header.seal().len()
+			}));
 		}
 	}
 
-	if header.number() >= From::from(BlockNumber::max_value()) {
-		return Err(From::from(BlockError::RidiculousNumber(OutOfBounds {
+	if header.number() >= BlockNumber::max_value() {
+		return Err(BlockError::RidiculousNumber(OutOfBounds {
 			max: Some(From::from(BlockNumber::max_value())),
 			min: None,
 			found: header.number()
-		})))
+		}));
 	}
 	if header.gas_used() > header.gas_limit() {
-		return Err(From::from(BlockError::TooMuchGasUsed(OutOfBounds {
+		return Err(BlockError::TooMuchGasUsed(OutOfBounds {
 			max: Some(*header.gas_limit()),
 			min: None,
 			found: *header.gas_used()
-		})));
+		}));
 	}
 	if engine.gas_limit_override(header).is_none() {
 		let min_gas_limit = engine.min_gas_limit();
 		if header.gas_limit() < &min_gas_limit {
-			return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds {
+			return Err(BlockError::InvalidGasLimit(OutOfBounds {
 				min: Some(min_gas_limit),
 				max: None,
 				found: *header.gas_limit()
-			})));
+			}));
 		}
 		if let Some(limit) = engine.maximum_gas_limit() {
 			if header.gas_limit() > &limit {
-				return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds {
+				return Err(BlockError::InvalidGasLimit(OutOfBounds {
 					min: None,
 					max: Some(limit),
 					found: *header.gas_limit()
-				})));
+				}));
 			}
 		}
 	}
 	let maximum_extra_data_size = engine.maximum_extra_data_size();
 	if header.number() != 0 && header.extra_data().len() > maximum_extra_data_size {
-		return Err(From::from(BlockError::ExtraDataOutOfBounds(OutOfBounds {
+		return Err(BlockError::ExtraDataOutOfBounds(OutOfBounds {
 			min: None,
 			max: Some(maximum_extra_data_size),
 			found: header.extra_data().len()
-		})));
+		}));
 	}
 
 	if let Some(ref ext) = engine.machine().ethash_extensions() {
 		if header.number() >= ext.dao_hardfork_transition &&
 			header.number() <= ext.dao_hardfork_transition + 9 &&
 			header.extra_data()[..] != b"dao-hard-fork"[..] {
-			return Err(From::from(BlockError::ExtraDataOutOfBounds(OutOfBounds {
+			return Err(BlockError::ExtraDataOutOfBounds(From::from(OutOfBounds {
 				min: None,
 				max: None,
 				found: 0
 			})));
 		}
 	}
-
 	Ok(())
 }
 
 /// A header verification step that should be done for new block headers, but not for uncles.
+// NOTE(niklasad1); doesn't return `raw_bytes` in the error
 pub(crate) fn verify_header_time(header: &Header) -> Result<(), Error> {
 	const ACCEPTABLE_DRIFT: Duration = Duration::from_secs(15);
 	// this will resist overflow until `year 2037`
@@ -345,25 +375,26 @@ pub(crate) fn verify_header_time(header: &Header) -> Result<(), Error> {
 		.ok_or(BlockError::TimestampOverflow)?;
 
 	if timestamp > invalid_threshold {
-		return Err(From::from(BlockError::InvalidTimestamp(OutOfBounds {
+		return Err(From::from(BlockError::InvalidTimestamp(From::from(OutOfBounds {
 			max: Some(max_time),
 			min: None,
 			found: timestamp
-		}.into())))
+		}))));
 	}
 
 	if timestamp > max_time {
-		return Err(From::from(BlockError::TemporarilyInvalid(OutOfBounds {
+		return Err(From::from(BlockError::TemporarilyInvalid(From::from(OutOfBounds {
 			max: Some(max_time),
 			min: None,
 			found: timestamp
-		}.into())))
+		}))));
 	}
 
 	Ok(())
 }
 
 /// Check header parameters against parent header.
+// NOTE(niklasad1); doesn't return `raw_bytes` in the error
 fn verify_parent(header: &Header, parent: &Header, engine: &dyn Engine) -> Result<(), Error> {
 	assert!(header.parent_hash().is_zero() || &parent.hash() == header.parent_hash(),
 			"Parent hash should already have been verified; qed");
@@ -374,7 +405,11 @@ fn verify_parent(header: &Header, parent: &Header, engine: &dyn Engine) -> Resul
 			.ok_or(BlockError::TimestampOverflow)?;
 		let found = CheckedSystemTime::checked_add(now, Duration::from_secs(header.timestamp()))
 			.ok_or(BlockError::TimestampOverflow)?;
-		return Err(From::from(BlockError::InvalidTimestamp(OutOfBounds { max: None, min: Some(min), found }.into())))
+		return Err(From::from(BlockError::InvalidTimestamp(From::from(OutOfBounds {
+			max: None,
+			min: Some(min),
+			found
+		}))));
 	}
 	if header.number() != parent.number() + 1 {
 		return Err(From::from(BlockError::InvalidNumber(Mismatch {
@@ -384,11 +419,11 @@ fn verify_parent(header: &Header, parent: &Header, engine: &dyn Engine) -> Resul
 	}
 
 	if header.number() == 0 {
-		return Err(BlockError::RidiculousNumber(OutOfBounds {
+		return Err(From::from(BlockError::RidiculousNumber(OutOfBounds {
 			min: Some(1),
 			max: None,
 			found: header.number()
-		}).into());
+		})));
 	}
 	if engine.gas_limit_override(header).is_none() {
 		let gas_limit_divisor = engine.params().gas_limit_bound_divisor;
@@ -408,24 +443,30 @@ fn verify_parent(header: &Header, parent: &Header, engine: &dyn Engine) -> Resul
 }
 
 /// Verify block data against header: transactions root and uncles hash.
-fn verify_block_integrity(block: &Unverified) -> Result<(), Error> {
+fn verify_block_integrity(block: Unverified) -> Result<Unverified, Error> {
 	let block_rlp = Rlp::new(&block.bytes);
 	let tx = block_rlp.at(1)?;
 	let expected_root = ordered_trie_root(tx.iter().map(|r| r.as_raw()));
 	if &expected_root != block.header.transactions_root() {
-		return Err(BlockError::InvalidTransactionsRoot(Mismatch {
-			expected: expected_root,
-			found: *block.header.transactions_root(),
-		}).into());
+		return Err(Error::Block(BlockErrorWithData {
+			error: BlockError::InvalidTransactionsRoot(Mismatch {
+				expected: expected_root,
+				found: *block.header.transactions_root(),
+			}),
+			data: Some(block.bytes)
+		}));
 	}
 	let expected_uncles = keccak(block_rlp.at(2)?.as_raw());
-	if &expected_uncles != block.header.uncles_hash(){
-		return Err(BlockError::InvalidUnclesHash(Mismatch {
-			expected: expected_uncles,
-			found: *block.header.uncles_hash(),
-		}).into());
+	if &expected_uncles != block.header.uncles_hash() {
+		return Err(Error::Block(BlockErrorWithData {
+			error: BlockError::InvalidUnclesHash(Mismatch {
+				expected: expected_uncles,
+				found: *block.header.uncles_hash(),
+			}),
+			data: Some(block.bytes),
+		}));
 	}
-	Ok(())
+	Ok(block)
 }
 
 #[cfg(test)]

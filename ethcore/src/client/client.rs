@@ -119,7 +119,7 @@ use types::{
 		MAX_UNCLE_AGE,
 		SealingState,
 	},
-	errors::{BlockError, EngineError, EthcoreError, EthcoreResult, ExecutionError, ImportError, SnapshotError},
+	errors::{BlockError, BlockErrorWithData, EngineError, EthcoreError, EthcoreResult, ExecutionError, ImportError, SnapshotError},
 	filter::Filter,
 	header::Header,
 	ids::{BlockId, TraceId, TransactionId, UncleId},
@@ -1450,26 +1450,31 @@ impl ImportBlock for Client {
 
 		let status = self.block_status(BlockId::Hash(unverified.parent_hash()));
 		if status == BlockStatus::Unknown {
-			return Err(EthcoreError::Block(BlockError::UnknownParent(unverified.parent_hash())));
+			return Err(EthcoreError::Block(BlockErrorWithData {
+				error: BlockError::UnknownParent(unverified.parent_hash()),
+				data: Some(unverified.bytes)
+			}));
 		}
 
-		let bytes = unverified.bytes.clone();
 		let raw = if self.importer.block_queue.is_empty() {
-			Some((unverified.header.hash(), *unverified.header.difficulty()))
+			Some((
+				unverified.bytes.clone(),
+				*unverified.header.difficulty()
+			))
 		} else {
 			None
 		};
 
 		match self.importer.block_queue.import(unverified) {
 			Ok(hash) => {
-				if let Some((hash, difficulty)) = raw {
+				if let Some((bytes, difficulty)) = raw {
 					self.notify(move |n| n.block_pre_import(&bytes, &hash, &difficulty));
 				}
 				Ok(hash)
 			},
 			// we only care about block errors (not import errors)
 			Err(EthcoreError::Block(err)) => {
-				self.importer.bad_blocks.report(bytes, err.to_string());
+				self.importer.bad_blocks.report(err.data.clone().unwrap_or_default(), err.error.to_string());
 				Err(EthcoreError::Block(err))
 			},
 			err => err,
@@ -2223,7 +2228,7 @@ impl IoClient for Client {
 			// (and attempt to acquire lock)
 			let is_parent_pending = self.queued_ancient_blocks.read().0.contains(&parent_hash);
 			if !is_parent_pending && !self.chain.read().is_known(&parent_hash) {
-				return Err(EthcoreError::Block(BlockError::UnknownParent(parent_hash)));
+				return Err(EthcoreError::Block(BlockError::UnknownParent(parent_hash).into()));
 			}
 		}
 

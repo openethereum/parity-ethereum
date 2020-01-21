@@ -1640,7 +1640,10 @@ impl Engine for AuthorityRound {
 		if header.number() >= self.validate_score_transition {
 			let expected_difficulty = calculate_score(parent_step.into(), step.into(), empty_steps_len.into());
 			if header.difficulty() != &expected_difficulty {
-				return Err(From::from(BlockError::InvalidDifficulty(Mismatch { expected: expected_difficulty, found: header.difficulty().clone() })));
+				return Err(From::from(BlockError::InvalidDifficulty(Mismatch {
+					expected: expected_difficulty,
+					found: *header.difficulty()
+				})));
 			}
 		}
 
