@@ -29,7 +29,7 @@
 /// Whenever you create or modify a record, use a signing function provided by
 /// the identity scheme to add the signature.
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use rlp::{encode, Encodable, RlpStream};
 use std::net::IpAddr;
 use log::error;
@@ -45,11 +45,11 @@ pub trait Entry {
 
 /// Provide custom verify method for each scheme.
 pub trait Scheme {
-    fn verify(&self, r: &Record, sig: &Vec<u8>) -> bool;
+    fn verify(&self, r: &Record, sig: &[u8]) -> bool;
 }
 
-/// Holes scheme for some type.
-pub struct SchemeMap<T: Scheme>(HashMap<String, T>);
+/// Holds scheme for some type.
+pub struct SchemeMap<T>(HashMap<String, T>);
 
 impl<T: Scheme> SchemeMap<T> {
     /// Create new object.
@@ -113,7 +113,7 @@ pub struct Record {
     seq: u64,
     signature: Option<Vec<u8>>,
     raw: Option<Vec<u8>>, // RLP encoded record.
-    pairs: HashMap<String, Value>, // Sorted list of key/value pairs.
+    pairs: BTreeMap<String, Value>, // Sorted list of key/value pairs.
 }
 
 impl Record {
@@ -122,10 +122,9 @@ impl Record {
     }
 
     /// Add or update a value for a key.
-    pub fn set(&mut self, value: &Value) {
+    pub fn set(&mut self, value: Value) {
         self.invalidate();
-        let val = self.pairs.entry(value.enr_key()).or_insert(value.clone());
-        *val = value.clone();
+        self.pairs.insert(value.enr_key(), value);
     }
 
     fn invalidate(&mut self) {
@@ -141,6 +140,10 @@ impl Record {
         self.signature.clone()
     }
 
+    /// Get the scheme represented by a string.
+    /// Since parameter `id` of `get()` has a `Id` type,
+    /// `get` can call `enr_key()`.
+    /// So, we just pass it with empty string.
     pub fn scheme(&self) -> Option<String> {
         let id = Id("".to_owned());
         let value = self.get(&id);
@@ -175,7 +178,7 @@ impl Record {
         self.raw = None;
     }
 
-    pub fn seq(&self) -> u64 {
+    pub fn get_seq(&self) -> u64 {
         self.seq
     }
 }
@@ -217,7 +220,7 @@ impl Encodable for Value {
 
 /// Tcp port of a node
 #[derive(Clone, PartialEq, Debug)]
-pub struct Tcp(u16);
+pub struct Tcp(pub u16);
 
 impl Entry for Tcp {
     fn enr_key(&self) -> String {
@@ -227,7 +230,7 @@ impl Entry for Tcp {
 
 /// Tcp version 6 port of a node
 #[derive(Clone, PartialEq, Debug)]
-pub struct Tcp6(u16);
+pub struct Tcp6(pub u16);
 
 impl Entry for Tcp6 {
     fn enr_key(&self) -> String {
@@ -237,7 +240,7 @@ impl Entry for Tcp6 {
 
 /// Udp port of a node
 #[derive(Clone, PartialEq, Debug)]
-pub struct Udp(u16);
+pub struct Udp(pub u16);
 
 impl Entry for Udp {
     fn enr_key(&self) -> String {
@@ -247,7 +250,7 @@ impl Entry for Udp {
 
 /// Udp version 6 port of a node
 #[derive(Clone, PartialEq, Debug)]
-pub struct Udp6(u16);
+pub struct Udp6(pub u16);
 
 impl Entry for Udp6 {
     fn enr_key(&self) -> String {
@@ -256,7 +259,7 @@ impl Entry for Udp6 {
 }
 
 #[derive(Clone, PartialEq, Debug)]
-pub struct Id(String);
+pub struct Id(pub String);
 
 pub const ID_V4: &str  = "v4";
 
@@ -284,14 +287,14 @@ mod tests {
     struct TestEnr {}
 
     impl Scheme for TestEnr {
-        fn verify(&self, r: &Record, sig: &Vec<u8>) -> bool {
+        fn verify(&self, r: &Record, sig: &[u8]) -> bool {
             let id = Id("".to_owned());
             let id = match r.get(&id).unwrap() {
                 Value::Id(id) => id.clone(),
                 _ => panic!("Can't get Id")
             };
 
-            *sig == make_test_signature(id, r.seq)
+            sig == make_test_signature(id, r.seq).as_slice()
         }
     }
 
@@ -304,14 +307,14 @@ mod tests {
     struct TestEnr2 {}
 
     impl Scheme for TestEnr2 {
-        fn verify(&self, r: &Record, sig: &Vec<u8>) -> bool {
+        fn verify(&self, r: &Record, sig: &[u8]) -> bool {
             let id = Id("".to_owned());
             let id = match r.get(&id).unwrap() {
                 Value::Id(id) => id.clone(),
                 _ => panic!("Can't get Id")
             };
 
-            *sig == make_test_signature(id, r.seq)
+            sig == make_test_signature(id, r.seq).as_slice()
         }
     }
 
@@ -339,7 +342,7 @@ mod tests {
         let id = Value::Id(Id("test_id".to_owned()));
         let mut r = Record::default();
 
-        r.set(&id);
+        r.set(id.clone());
 
         let id2 = Id("".to_owned());
         let id2 = r.get(&id2).unwrap();
@@ -351,7 +354,7 @@ mod tests {
         let ip = Value::IpAddr("127.0.0.1".parse().unwrap());
         let mut r = Record::default();
 
-        r.set(&ip);
+        r.set(ip.clone());
 
         let ip2 = Value::IpAddr("0.0.0.0".parse().unwrap());
         let ip2 = r.get(&ip2).unwrap();
@@ -363,7 +366,7 @@ mod tests {
         let udp = Value::Udp(Udp(12345));
         let mut r = Record::default();
 
-        r.set(&udp);
+        r.set(udp.clone());
 
         let udp2 = Udp(11);
         let udp2 = r.get(&udp2).unwrap();
@@ -376,7 +379,7 @@ mod tests {
     }
 
     impl Scheme for Enr {
-        fn verify(&self, record: &Record, sig: &Vec<u8>) -> bool {
+        fn verify(&self, record: &Record, sig: &[u8]) -> bool {
             match self {
                 Enr::TestEnr(enr) => enr.verify(record, sig),
                 Enr::TestEnr2(enr) => enr.verify(record, sig),
@@ -393,8 +396,8 @@ mod tests {
 
         let mut record = Record::default();
         let mut record2 = Record::default();
-        record.set(&Value::Id(Id("test_scheme".to_owned())));
-        record2.set(&Value::Id(Id("test_scheme_2".to_owned())));
+        record.set(Value::Id(Id("test_scheme".to_owned())));
+        record2.set(Value::Id(Id("test_scheme_2".to_owned())));
 
         let test_scheme = record.scheme().unwrap();
         let test_scheme_2 = record2.scheme().unwrap();
@@ -408,7 +411,7 @@ mod tests {
         let test_enr = TestEnr {};
 
         let mut record = Record::default();
-        record.set(&Value::Id(Id("test_scheme".to_owned())));
+        record.set(Value::Id(Id("test_scheme".to_owned())));
 
         let test_sig = make_test_signature(Id("test_scheme".to_owned()), record.seq);
         record.set_signature(&test_enr, &test_sig);
@@ -422,7 +425,7 @@ mod tests {
         let map = new_scheme_map("test_scheme".to_owned(),Enr::TestEnr(test_enr.clone()));
 
         let mut record = Record::default();
-        record.set(&Value::Id(Id("test_scheme".to_owned())));
+        record.set(Value::Id(Id("test_scheme".to_owned())));
 
         let test_sig = make_test_signature(Id("test_scheme".to_owned()), record.seq);
         record.set_signature(&test_enr, &test_sig);
