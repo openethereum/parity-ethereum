@@ -283,8 +283,7 @@ impl OperationsClient for OperationsContractClient {
 		// if the minor version has changed, let's check the minor version on a different track
 		while in_minor.as_ref().expect(PROOF).version.version.minor != this.version.minor {
 			let track = match in_minor.as_ref().expect(PROOF).version.track {
-				ReleaseTrack::Beta => ReleaseTrack::Stable,
-				ReleaseTrack::Nightly => ReleaseTrack::Beta,
+				ReleaseTrack::Nightly => ReleaseTrack::Stable,
 				_ => { in_minor = None; break; }
 			};
 
@@ -841,7 +840,7 @@ pub mod tests {
 		let rng = FakeGenRange::new();
 
 		let this = VersionInfo {
-			track: ReleaseTrack::Beta,
+			track: ReleaseTrack::Nightly,
 			version: Version::parse("1.0.0").unwrap(),
 			hash: H160::zero(),
 		};
@@ -881,7 +880,7 @@ pub mod tests {
 
 	fn new_upgrade(version: &str) -> (VersionInfo, ReleaseInfo, OperationsInfo) {
 		let latest_version = VersionInfo {
-			track: ReleaseTrack::Beta,
+			track: ReleaseTrack::Nightly,
 			version: Version::parse(version).unwrap(),
 			hash: H160::from_low_u64_be(1),
 		};
