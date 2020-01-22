@@ -8,7 +8,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 build = "build.rs"
 
 [package.metadata]
-# This versions track. Should be changed to `stable` or `beta` when on respective branches.
+# This versions track. Should be changed to `stable` when on respective branches.
 # Used by auto-updater and for Parity version string.
 track = "stable"
 

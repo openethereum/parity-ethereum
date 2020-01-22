@@ -49,8 +49,6 @@ impl Into<ConsensusCapability> for CapState {
 pub enum ReleaseTrack {
 	/// Stable track.
 	Stable,
-	/// Beta track.
-	Beta,
 	/// Nightly track.
 	Nightly,
 	/// Testing track.
@@ -64,9 +62,7 @@ impl Into<ReleaseTrack> for updater::ReleaseTrack {
 	fn into(self) -> ReleaseTrack {
 		match self {
 			updater::ReleaseTrack::Stable => ReleaseTrack::Stable,
-			updater::ReleaseTrack::Beta => ReleaseTrack::Beta,
 			updater::ReleaseTrack::Nightly => ReleaseTrack::Nightly,
-			updater::ReleaseTrack::Testing => ReleaseTrack::Testing,
 			updater::ReleaseTrack::Unknown => ReleaseTrack::Unknown,
 		}
 	}
