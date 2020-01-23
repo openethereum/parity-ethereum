@@ -809,7 +809,7 @@ mod tests {
 		match duplicate_import {
 			Err(e) => {
 				match e {
-					EthcoreError::Import(ImportError::AlreadyQueued) => {},
+					(EthcoreError::Import(ImportError::AlreadyQueued), _) => {},
 					_ => { panic!("must return AlreadyQueued error"); }
 				}
 			}
