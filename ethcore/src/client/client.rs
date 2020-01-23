@@ -1453,26 +1453,25 @@ impl ImportBlock for Client {
 			return Err(EthcoreError::Block(BlockError::UnknownParent(unverified.parent_hash())));
 		}
 
-		let bytes = unverified.bytes.clone();
 		let raw = if self.importer.block_queue.is_empty() {
-			Some((unverified.header.hash(), *unverified.header.difficulty()))
+			Some((unverified.bytes.clone(), *unverified.header.difficulty()))
 		} else {
 			None
 		};
 
 		match self.importer.block_queue.import(unverified) {
 			Ok(hash) => {
-				if let Some((hash, difficulty)) = raw {
+				if let Some((bytes, difficulty)) = raw {
 					self.notify(move |n| n.block_pre_import(&bytes, &hash, &difficulty));
 				}
 				Ok(hash)
 			},
 			// we only care about block errors (not import errors)
-			Err(EthcoreError::Block(err)) => {
-				self.importer.bad_blocks.report(bytes, err.to_string());
+			Err((EthcoreError::Block(err), input)) => {
+				self.importer.bad_blocks.report(input.map_or(Bytes::new(), |i| i.bytes), err.to_string());
 				Err(EthcoreError::Block(err))
 			},
-			err => err,
+			Err((e, _input)) => Err(e),
 		}
 	}
 

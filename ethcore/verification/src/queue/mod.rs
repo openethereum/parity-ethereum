@@ -467,29 +467,29 @@ impl<K: Kind, C> VerificationQueue<K, C> {
 	}
 
 	/// Add a block to the queue.
-	pub fn import(&self, input: K::Input) -> Result<H256, Error> {
+	pub fn import(&self, input: K::Input) -> Result<H256, (Error, Option<K::Input>)> {
 		let hash = input.hash();
 		let raw_hash = input.raw_hash();
 		{
 			if self.processing.read().contains_key(&hash) {
-				return Err(Error::Import(ImportError::AlreadyQueued));
+				return Err((Error::Import(ImportError::AlreadyQueued), Some(input)));
 			}
 
 			let mut bad = self.verification.bad.lock();
 			if bad.contains(&hash) || bad.contains(&raw_hash)  {
-				return Err(Error::Import(ImportError::KnownBad));
+				return Err((Error::Import(ImportError::KnownBad), Some(input)));
 			}
 
 			if bad.contains(&input.parent_hash()) {
 				bad.insert(hash);
-				return Err(Error::Import(ImportError::KnownBad));
+				return Err((Error::Import(ImportError::KnownBad), Some(input)));
 			}
 		}
 
 		match K::create(input, &*self.engine, self.verification.check_seal) {
 			Ok(item) => {
 				if self.processing.write().insert(hash, item.difficulty()).is_some() {
-					return Err(Error::Import(ImportError::AlreadyQueued));
+					return Err((Error::Import(ImportError::AlreadyQueued), None));
 				}
 				self.verification.sizes.unverified.fetch_add(item.malloc_size_of(), AtomicOrdering::SeqCst);
 				{
@@ -500,7 +500,7 @@ impl<K: Kind, C> VerificationQueue<K, C> {
 				self.more_to_verify.notify_all();
 				Ok(hash)
 			},
-			Err(err) => {
+			Err((err, input)) => {
 				match err {
 					// Don't mark future blocks as bad.
 					Error::Block(BlockError::TemporarilyInvalid(_)) => {},
@@ -518,7 +518,7 @@ impl<K: Kind, C> VerificationQueue<K, C> {
 						self.verification.bad.lock().insert(hash);
 					}
 				}
-				Err(err)
+				Err((err, input))
 			}
 		}
 	}

@@ -62,7 +62,14 @@ pub trait Kind: 'static + Sized + Send + Sync {
 	type Verified: Sized + Send + BlockLike + MallocSizeOf;
 
 	/// Attempt to create the `Unverified` item from the input.
-	fn create(input: Self::Input, engine: &dyn Engine, check_seal: bool) -> Result<Self::Unverified, Error>;
+	///
+	/// The return type is quite complex because in some scenarios the input
+	/// is needed (typically for BlockError) to get the raw block bytes without cloning them
+	fn create(
+		input: Self::Input,
+		engine: &dyn Engine,
+		check_seal: bool
+	) -> Result<Self::Unverified, (Error, Option<Self::Input>)>;
 
 	/// Attempt to verify the `Unverified` item using the given engine.
 	fn verify(unverified: Self::Unverified, engine: &dyn Engine, check_seal: bool) -> Result<Self::Verified, Error>;
@@ -91,16 +98,20 @@ pub mod blocks {
 		type Unverified = Unverified;
 		type Verified = PreverifiedBlock;
 
-		fn create(input: Self::Input, engine: &dyn Engine, check_seal: bool) -> Result<Self::Unverified, Error> {
+		fn create(
+			input: Self::Input,
+			engine: &dyn Engine,
+			check_seal: bool
+		) -> Result<Self::Unverified, (Error, Option<Self::Input>)> {
 			match verify_block_basic(&input, engine, check_seal) {
 				Ok(()) => Ok(input),
 				Err(Error::Block(BlockError::TemporarilyInvalid(oob))) => {
 					debug!(target: "client", "Block received too early {}: {:?}", input.hash(), oob);
-					Err(BlockError::TemporarilyInvalid(oob).into())
+					Err((BlockError::TemporarilyInvalid(oob).into(), Some(input)))
 				},
 				Err(e) => {
 					warn!(target: "client", "Stage 1 block verification failed for {}: {:?}", input.hash(), e);
-					Err(e)
+					Err((e, Some(input)))
 				}
 			}
 		}
@@ -182,13 +193,17 @@ pub mod headers {
 		type Unverified = Header;
 		type Verified = Header;
 
-		fn create(input: Self::Input, engine: &dyn Engine, check_seal: bool) -> Result<Self::Unverified, Error> {
+		fn create(
+			input: Self::Input,
+			engine: &dyn Engine,
+			check_seal: bool
+		) -> Result<Self::Unverified, (Error, Option<Self::Input>)> {
 			let res = verify_header_params(&input, engine, check_seal)
 				.and_then(|_| verify_header_time(&input));
 
 			match res {
 				Ok(_) => Ok(input),
-				Err(e) => Err(e),
+				Err(e) => Err((e, Some(input))),
 			}
 		}
 
