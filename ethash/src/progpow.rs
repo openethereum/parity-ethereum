@@ -29,6 +29,9 @@
 //!
 //! ProgPoW audits have been proposed to analyse the efficiency of a ProgPoW ASICs over
 //! GPUs and analysis of the economic impact on the Ethereum protocol.
+//!
+//! We use ProgPoW 0.9.3 version as suggested on Specification
+//! https://github.com/ethereum/EIPs/blob/master/EIPS/eip-1057.md#specification
 
 use compute::{FNV_PRIME, calculate_dag_item};
 use keccak::H256;
@@ -36,12 +39,12 @@ use shared::{ETHASH_ACCESSES, ETHASH_MIX_BYTES, Node, get_data_size};
 
 const PROGPOW_CACHE_BYTES: usize = 16 * 1024;
 const PROGPOW_CACHE_WORDS: usize = PROGPOW_CACHE_BYTES / 4;
-const PROGPOW_CNT_CACHE: usize = 12;
-const PROGPOW_CNT_MATH: usize = 20;
+const PROGPOW_CNT_CACHE: usize = 11;
+const PROGPOW_CNT_MATH: usize = 18;
 const PROGPOW_CNT_DAG: usize = ETHASH_ACCESSES;
 const PROGPOW_DAG_LOADS: usize = 4;
 const PROGPOW_MIX_BYTES: usize = 2 * ETHASH_MIX_BYTES;
-const PROGPOW_PERIOD_LENGTH: usize = 50; // blocks per progpow epoch (N)
+const PROGPOW_PERIOD_LENGTH: usize = 10; // blocks per progpow epoch (N)
 const PROGPOW_LANES: usize = 16;
 const PROGPOW_REGS: usize = 32;
 
@@ -546,8 +549,8 @@ mod test {
 			&c_dag,
 		);
 
-		let expected_digest = FromHex::from_hex("63155f732f2bf556967f906155b510c917e48e99685ead76ea83f4eca03ab12b").unwrap();
-		let expected_result = FromHex::from_hex("faeb1be51075b03a4ff44b335067951ead07a3b078539ace76fd56fc410557a3").unwrap();
+		let expected_digest = FromHex::from_hex("b3bad9ca6f7c566cf0377d1f8cce29d6516a96562c122d924626281ec948ef02").unwrap();
+		let expected_result = FromHex::from_hex("f4ac202715ded4136e72887c39e63a4738331c57fd9eb79f6ec421c281aa8743").unwrap();
 
 		assert_eq!(
 			digest.to_vec(),
