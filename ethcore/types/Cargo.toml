@@ -5,7 +5,7 @@ version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
-derive_more = "0.15.0"
+derive_more = "0.99"
 ethbloom = "0.8.0"
 ethcore-io = { path = "../../util/io" }
 ethereum-types = "0.8.0"
