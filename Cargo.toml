@@ -138,4 +138,5 @@ members = [
 ]
 
 [patch.crates-io]
-parity-crypto = { path = "../parity-common/parity-crypto" }
+parity-crypto = { git = "https://github.com/paritytech/parity-common", branch = "dp/chore/secp256k1-from-upstream" }
+#parity-crypto = { path = "../parity-common/parity-crypto" }
