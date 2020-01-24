@@ -233,7 +233,7 @@ impl ValidatorSafeContract {
 		}
 	}
 
-	pub(crate) fn queue_report(&self, addr: Address, block: BlockNumber, data: Vec<u8>) {
+	pub(crate) fn enqueue_report(&self, addr: Address, block: BlockNumber, data: Vec<u8>) {
 		// Skip the rest of the function unless there has been a transition to POSDAO AuRa.
 		if self.posdao_transition.map_or(true, |block_num| block < block_num) {
 			trace!(target: "engine", "Skipping queueing a malicious behavior report");

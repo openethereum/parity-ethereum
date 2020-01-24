@@ -64,8 +64,7 @@ impl ValidatorContract {
 }
 
 impl ValidatorContract {
-	fn transact(&self, data: Bytes, gas_price: Option<U256>) -> Result<(), String> {
-		let client = self.client.read().as_ref().and_then(Weak::upgrade).ok_or("No client!")?;
+	fn transact(&self, data: Bytes, gas_price: Option<U256>, client: &dyn EngineClient) -> Result<(), String> {
 		let full_client = client.as_full_client().ok_or("No full client!")?;
 		let tx_request = TransactionRequest::call(self.contract_address, data).gas_price(gas_price);
 		match full_client.transact(tx_request) {
@@ -82,9 +81,9 @@ impl ValidatorContract {
 			return Ok(());
 		}
 		let data = validator_report::functions::report_malicious::encode_input(*address, block, proof);
-		self.validators.queue_report(*address, block, data.clone());
+		self.validators.enqueue_report(*address, block, data.clone());
 		let gas_price = self.report_gas_price(latest.number());
-		self.transact(data, gas_price)?;
+		self.transact(data, gas_price, &*client)?;
 		warn!(target: "engine", "Reported malicious validator {} at block {}", address, block);
 		Ok(())
 	}
@@ -94,7 +93,7 @@ impl ValidatorContract {
 		let latest = client.block_header(BlockId::Latest).ok_or("No latest block!")?;
 		let data = validator_report::functions::report_benign::encode_input(*address, block);
 		let gas_price = self.report_gas_price(latest.number());
-		self.transact(data, gas_price)?;
+		self.transact(data, gas_price, &*client)?;
 		warn!(target: "engine", "Benign report for validator {} at block {}", address, block);
 		Ok(())
 	}
