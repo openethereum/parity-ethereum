@@ -467,30 +467,33 @@ impl<K: Kind, C> VerificationQueue<K, C> {
 	}
 
 	/// Add a block to the queue.
-	pub fn import(&self, input: K::Input) -> Result<H256, (K::Input, Error)> {
+	//
+	// TODO: #11403 - rework `EthcoreError::Block` to include raw bytes of the error cause
+	pub fn import(&self, input: K::Input) -> Result<H256, (Error, Option<K::Input>)> {
 		let hash = input.hash();
 		let raw_hash = input.raw_hash();
 		{
 			if self.processing.read().contains_key(&hash) {
-				return Err((input, Error::Import(ImportError::AlreadyQueued).into()));
+				return Err((Error::Import(ImportError::AlreadyQueued), Some(input)));
 			}
 
 			let mut bad = self.verification.bad.lock();
 			if bad.contains(&hash) || bad.contains(&raw_hash)  {
-				return Err((input, Error::Import(ImportError::KnownBad).into()));
+				return Err((Error::Import(ImportError::KnownBad), Some(input)));
 			}
 
 			if bad.contains(&input.parent_hash()) {
 				bad.insert(hash);
-				return Err((input, Error::Import(ImportError::KnownBad).into()));
+				return Err((Error::Import(ImportError::KnownBad), Some(input)));
 			}
 		}
 
 		match K::create(input, &*self.engine, self.verification.check_seal) {
 			Ok(item) => {
+				if self.processing.write().insert(hash, item.difficulty()).is_some() {
+					return Err((Error::Import(ImportError::AlreadyQueued), None));
+				}
 				self.verification.sizes.unverified.fetch_add(item.malloc_size_of(), AtomicOrdering::SeqCst);
-
-				self.processing.write().insert(hash, item.difficulty());
 				{
 					let mut td = self.total_difficulty.write();
 					*td = *td + item.difficulty();
@@ -499,7 +502,7 @@ impl<K: Kind, C> VerificationQueue<K, C> {
 				self.more_to_verify.notify_all();
 				Ok(hash)
 			},
-			Err((input, err)) => {
+			Err((err, input)) => {
 				match err {
 					// Don't mark future blocks as bad.
 					Error::Block(BlockError::TemporarilyInvalid(_)) => {},
@@ -517,7 +520,7 @@ impl<K: Kind, C> VerificationQueue<K, C> {
 						self.verification.bad.lock().insert(hash);
 					}
 				}
-				Err((input, err))
+				Err((err, input))
 			}
 		}
 	}
@@ -582,7 +585,7 @@ impl<K: Kind, C> VerificationQueue<K, C> {
 		let count = cmp::min(max, verified.len());
 		let result = verified.drain(..count).collect::<Vec<_>>();
 
-		let drained_size = result.iter().map(MallocSizeOfExt::malloc_size_of).fold(0, |a, c| a + c);
+		let drained_size = result.iter().map(MallocSizeOfExt::malloc_size_of).sum();
 		self.verification.sizes.verified.fetch_sub(drained_size, AtomicOrdering::SeqCst);
 
 		self.ready_signal.reset();
@@ -636,7 +639,7 @@ impl<K: Kind, C> VerificationQueue<K, C> {
 
 	/// Get the total difficulty of all the blocks in the queue.
 	pub fn total_difficulty(&self) -> U256 {
-		self.total_difficulty.read().clone()
+		*self.total_difficulty.read()
 	}
 
 	/// Get the current number of working verifiers.
@@ -806,9 +809,9 @@ mod tests {
 
 		let duplicate_import = queue.import(new_unverified(get_good_dummy_block()));
 		match duplicate_import {
-			Err((_, e)) => {
+			Err(e) => {
 				match e {
-					EthcoreError::Import(ImportError::AlreadyQueued) => {},
+					(EthcoreError::Import(ImportError::AlreadyQueued), _) => {},
 					_ => { panic!("must return AlreadyQueued error"); }
 				}
 			}
