@@ -467,6 +467,11 @@ impl<K: Kind, C> VerificationQueue<K, C> {
 	}
 
 	/// Add a block to the queue.
+	///
+	/// NOTE: Error condition `Error::Block` must return `(Error, Some(input))` because the caller asserts that
+	/// the input exist in order to printout the error trace accordingly.
+	//
+	// TODO: #11403 - rework `EthcoreError::Block` to include raw bytes of the error cause
 	pub fn import(&self, input: K::Input) -> Result<H256, (Error, Option<K::Input>)> {
 		let hash = input.hash();
 		let raw_hash = input.raw_hash();
