@@ -8,7 +8,7 @@ edition = "2018"
 
 [dependencies]
 common-types = { path = "../types"}
-derive_more = "0.15.0"
+derive_more = "0.99"
 ethereum-types = "0.8.0"
 ethtrie = { package = "patricia-trie-ethereum", path = "../../util/patricia-trie-ethereum" }
 trie-vm-factories = { path = "../trie-vm-factories" }
