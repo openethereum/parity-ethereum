@@ -323,14 +323,14 @@ pub mod tests {
 			author: Default::default(),
 			threshold: 100,
 			public: Public::default(),
-			common_point: Some(Random.generate().unwrap().public().clone()),
-			encrypted_point: Some(Random.generate().unwrap().public().clone()),
+			common_point: Some(Random.generate().public().clone()),
+			encrypted_point: Some(Random.generate().public().clone()),
 			versions: vec![DocumentKeyShareVersion {
 				hash: Default::default(),
 				id_numbers: vec![
-					(Random.generate().unwrap().public().clone(), Random.generate().unwrap().secret().clone())
+					(Random.generate().public().clone(), Random.generate().secret().clone())
 				].into_iter().collect(),
-				secret_share: Random.generate().unwrap().secret().clone(),
+				secret_share: Random.generate().secret().clone(),
 			}],
 		};
 		let key2 = ServerKeyId::from_low_u64_be(2);
@@ -338,14 +338,14 @@ pub mod tests {
 			author: Default::default(),
 			threshold: 200,
 			public: Public::default(),
-			common_point: Some(Random.generate().unwrap().public().clone()),
-			encrypted_point: Some(Random.generate().unwrap().public().clone()),
+			common_point: Some(Random.generate().public().clone()),
+			encrypted_point: Some(Random.generate().public().clone()),
 			versions: vec![DocumentKeyShareVersion {
 				hash: Default::default(),
 				id_numbers: vec![
-					(Random.generate().unwrap().public().clone(), Random.generate().unwrap().secret().clone())
+					(Random.generate().public().clone(), Random.generate().secret().clone())
 				].into_iter().collect(),
-				secret_share: Random.generate().unwrap().secret().clone(),
+				secret_share: Random.generate().secret().clone(),
 			}],
 		};
 		let key3 = ServerKeyId::from_low_u64_be(3);

@@ -926,7 +926,7 @@ mod tests {
 
 	#[test]
 	fn ping_queue() {
-		let key = Random.generate().unwrap();
+		let key = Random.generate();
 		let ep = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40445").unwrap(), udp_port: 40445 };
 		let mut discovery = Discovery::new(&key, ep.clone(), IpFilter::default());
 
@@ -947,7 +947,7 @@ mod tests {
 	#[test]
 	fn discovery() {
 		let mut discovery_handlers = (0..5).map(|i| {
-			let key = Random.generate().unwrap();
+			let key = Random.generate();
 			let ep = NodeEndpoint {
 				address: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 41000 + i),
 				udp_port: 41000 + i,
@@ -997,7 +997,7 @@ mod tests {
 
 	#[test]
 	fn removes_expired() {
-		let key = Random.generate().unwrap();
+		let key = Random.generate();
 		let ep = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40446").unwrap(), udp_port: 40447 };
 		let discovery = Discovery::new(&key, ep.clone(), IpFilter::default());
 
@@ -1042,7 +1042,7 @@ mod tests {
 		let from = SocketAddr::from_str("99.99.99.99:40445").unwrap();
 
 		// FIND_NODE times out because it doesn't receive k results.
-		let key = Random.generate().unwrap();
+		let key = Random.generate();
 		discovery.send_find_node(&node_entries[100], key.public()).unwrap();
 		for payload in Discovery::prepare_neighbours_packets(&node_entries[101..116]) {
 			let packet = assemble_packet(PACKET_NEIGHBOURS, &payload, &key.secret()).unwrap();
@@ -1089,7 +1089,7 @@ mod tests {
 	fn find_nearest_saturated() {
 		use super::*;
 
-		let key = Random.generate().unwrap();
+		let key = Random.generate();
 		let ep = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40447").unwrap(), udp_port: 40447 };
 		let mut discovery = Discovery::new(&key, ep.clone(), IpFilter::default());
 
@@ -1191,7 +1191,7 @@ mod tests {
 
 	#[test]
 	fn packets() {
-		let key = Random.generate().unwrap();
+		let key = Random.generate();
 		let ep = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40449").unwrap(), udp_port: 40449 };
 		let mut discovery = Discovery::new(&key, ep.clone(), IpFilter::default());
 		discovery.check_timestamps = false;
@@ -1256,9 +1256,9 @@ mod tests {
 
 	#[test]
 	fn test_ping() {
-		let key1 = Random.generate().unwrap();
-		let key2 = Random.generate().unwrap();
-		let key3 = Random.generate().unwrap();
+		let key1 = Random.generate();
+		let key2 = Random.generate();
+		let key3 = Random.generate();
 		let ep1 = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40344").unwrap(), udp_port: 40344 };
 		let ep2 = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40345").unwrap(), udp_port: 40345 };
 		let ep3 = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40346").unwrap(), udp_port: 40345 };

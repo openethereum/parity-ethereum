@@ -295,7 +295,7 @@ impl TestBlockChainClient {
 					_ => 1,
 				};
 				let mut txs = RlpStream::new_list(num_transactions);
-				let keypair = Random.generate().unwrap();
+				let keypair = Random.generate();
 				let mut nonce = U256::zero();
 
 				for _ in 0..num_transactions {
@@ -364,7 +364,7 @@ impl TestBlockChainClient {
 
 	/// Inserts a transaction with given gas price to miners transactions queue.
 	pub fn insert_transaction_with_gas_price_to_queue(&self, gas_price: U256) -> H256 {
-		let keypair = Random.generate().unwrap();
+		let keypair = Random.generate();
 		let tx = Transaction {
 			action: Action::Create,
 			value: U256::from(100),

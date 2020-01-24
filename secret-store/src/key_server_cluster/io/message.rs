@@ -323,10 +323,10 @@ pub mod tests {
 
 	impl TestIo {
 		pub fn new() -> Self {
-			let self_session_key_pair = Random.generate().unwrap();
-			let peer_session_key_pair = Random.generate().unwrap();
-			let self_key_pair = Random.generate().unwrap();
-			let peer_key_pair = Random.generate().unwrap();
+			let self_session_key_pair = Random.generate();
+			let peer_session_key_pair = Random.generate();
+			let self_key_pair = Random.generate();
+			let peer_key_pair = Random.generate();
 			let shared_key_pair = fix_shared_key(&agree(self_session_key_pair.secret(), peer_session_key_pair.public()).unwrap()).unwrap();
 			TestIo {
 				self_key_pair: self_key_pair,

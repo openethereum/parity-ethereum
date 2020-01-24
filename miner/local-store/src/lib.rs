@@ -229,7 +229,7 @@ mod tests {
 
 	#[test]
 	fn with_condition() {
-		let keypair = Brain::new("abcd".into()).generate().unwrap();
+		let keypair = Brain::new("abcd".into()).generate();
 		let transactions: Vec<_> = (0..10u64).map(|nonce| {
 			let mut tx = Transaction::default();
 			tx.nonce = nonce.into();
@@ -264,7 +264,7 @@ mod tests {
 
 	#[test]
 	fn skips_bad_transactions() {
-		let keypair = Brain::new("abcd".into()).generate().unwrap();
+		let keypair = Brain::new("abcd".into()).generate();
 		let mut transactions: Vec<_> = (0..10u64).map(|nonce| {
 			let mut tx = Transaction::default();
 			tx.nonce = nonce.into();

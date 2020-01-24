@@ -44,12 +44,12 @@ pub fn to_scalar(hash: H256) -> Result<Secret, Error> {
 
 /// Generate random scalar.
 pub fn generate_random_scalar() -> Result<Secret, Error> {
-	Ok(Random.generate()?.secret().clone())
+	Ok(Random.generate().secret().clone())
 }
 
 /// Generate random point.
 pub fn generate_random_point() -> Result<Public, Error> {
-	Ok(Random.generate()?.public().clone())
+	Ok(Random.generate().public().clone())
 }
 
 /// Get X coordinate of point.
@@ -253,7 +253,7 @@ pub fn compute_joint_secret_from_shares<'a>(t: usize, secret_shares: &[&'a Secre
 /// Encrypt secret with joint public key.
 pub fn encrypt_secret(secret: &Public, joint_public: &Public) -> Result<EncryptedSecret, Error> {
 	// this is performed by KS-cluster client (or KS master)
-	let key_pair = Random.generate()?;
+	let key_pair = Random.generate();
 
 	// k * T
 	let mut common_point = ec_math_utils::generation_point();
@@ -570,7 +570,7 @@ pub mod tests {
 		// === PART1: DKG ===
 
 		// data, gathered during initialization
-		let derived_point = Random.generate().unwrap().public().clone();
+		let derived_point = Random.generate().public().clone();
 		let id_numbers: Vec<_> = match id_numbers {
 			Some(id_numbers) => id_numbers,
 			None => (0..n).map(|_| generate_random_scalar().unwrap()).collect(),
@@ -801,7 +801,7 @@ pub mod tests {
 
 	#[test]
 	fn local_signature_works() {
-		let key_pair = Random.generate().unwrap();
+		let key_pair = Random.generate();
 		let message_hash = "0000000000000000000000000000000000000000000000000000000000000042".parse().unwrap();
 		let nonce = generate_random_scalar().unwrap();
 		let signature = local_compute_schnorr_signature(&nonce, key_pair.secret(), &message_hash).unwrap();
@@ -887,8 +887,8 @@ pub mod tests {
 		let test_cases = [(2, 5), (2, 6), (3, 11), (4, 11)];
 		for &(t, n) in &test_cases {
 			// values that can be hardcoded
-			let joint_secret: Secret = Random.generate().unwrap().secret().clone();
-			let joint_nonce: Secret = Random.generate().unwrap().secret().clone();
+			let joint_secret: Secret = Random.generate().secret().clone();
+			let joint_nonce: Secret = Random.generate().secret().clone();
 			let message_hash: H256 = H256::random();
 
 			// convert message hash to EC scalar

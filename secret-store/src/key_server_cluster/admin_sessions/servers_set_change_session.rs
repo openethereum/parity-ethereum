@@ -1171,7 +1171,7 @@ pub mod tests {
 			let isolated_nodes_ids = isolated_nodes_ids.unwrap_or_default();
 
 			// generate admin key pair
-			let admin_key_pair = Random.generate().unwrap();
+			let admin_key_pair = Random.generate();
 			let admin_public = admin_key_pair.public().clone();
 
 			// all active nodes set
@@ -1195,7 +1195,7 @@ pub mod tests {
 			let meta = ShareChangeSessionMeta {
 				self_node_id: master,
 				master_node_id: master,
-				id: SessionId::default(),
+				id: SessionId::from([1u8; 32]),
 				configured_nodes_count: all_nodes_set.len(),
 				connected_nodes_count: all_nodes_set.len(),
 			};
@@ -1265,8 +1265,8 @@ pub mod tests {
 			let document_secret_plain = math::generate_random_point().unwrap();
 			for n1 in 0..n {
 				for n2 in n1+1..n {
-					let share1 = key_storages[n1].get(&SessionId::default()).unwrap();
-					let share2 = key_storages[n2].get(&SessionId::default()).unwrap();
+					let share1 = key_storages[n1].get(&SessionId::from([1u8; 32])).unwrap();
+					let share2 = key_storages[n2].get(&SessionId::from([1u8; 32])).unwrap();
 
 					let id_number1 = share1.as_ref().unwrap().last_version().unwrap().id_numbers[nodes[n1]].clone();
 					let id_number2 = share1.as_ref().unwrap().last_version().unwrap().id_numbers[nodes[n2]].clone();
@@ -1310,7 +1310,7 @@ pub mod tests {
 		let gml = generate_key(3, 1);
 
 		// add 1 node so that it becames 2-of-4 session
-		let add = vec![Random.generate().unwrap()];
+		let add = vec![Random.generate()];
 		let master = gml.0.node(0);
 		let ml = MessageLoop::with_gml::<Adapter>(gml, master, Some(add), None, None).run_at(master);
 
@@ -1328,7 +1328,7 @@ pub mod tests {
 		// 1) add session is delegated to one of old nodes
 		// 2) key share is pushed to new node
 		// 3) delegated session is returned back to added node
-		let add = vec![Random.generate().unwrap()];
+		let add = vec![Random.generate()];
 		let master = add[0].public().clone();
 		let ml = MessageLoop::with_gml::<Adapter>(gml, master, Some(add), None, None).run_at(master);
 
@@ -1344,7 +1344,7 @@ pub mod tests {
 		// remove 1 node && insert 1 node so that one share is moved
 		let master = gml.0.node(0);
 		let remove: BTreeSet<_> = ::std::iter::once(gml.0.node(1)).collect();
-		let add = vec![Random.generate().unwrap()];
+		let add = vec![Random.generate()];
 		let ml = MessageLoop::with_gml::<Adapter>(gml, master, Some(add), Some(remove.clone()), None).run_at(master);
 
 		// check that secret is still the same as before moving the share
@@ -1353,7 +1353,7 @@ pub mod tests {
 
 		// check that all removed nodes do not own key share
 		assert!(ml.sessions.keys().filter(|k| remove.contains(k))
-			.all(|k| ml.ml.key_storage_of(k).get(&SessionId::default()).unwrap().is_none()));
+			.all(|k| ml.ml.key_storage_of(k).get(&SessionId::from([1u8; 32])).unwrap().is_none()));
 	}
 
 	#[test]
@@ -1372,7 +1372,7 @@ pub mod tests {
 
 		// check that all removed nodes do not own key share
 		assert!(ml.sessions.keys().filter(|k| remove.contains(k))
-			.all(|k| ml.ml.key_storage_of(k).get(&SessionId::default()).unwrap().is_none()));
+			.all(|k| ml.ml.key_storage_of(k).get(&SessionId::from([1u8; 32])).unwrap().is_none()));
 	}
 
 	#[test]
@@ -1392,7 +1392,7 @@ pub mod tests {
 
 		// check that all isolated nodes still OWN key share
 		assert!(ml.sessions.keys().filter(|k| isolate.contains(k))
-			.all(|k| ml.ml.key_storage_of(k).get(&SessionId::default()).unwrap().is_some()));
+			.all(|k| ml.ml.key_storage_of(k).get(&SessionId::from([1u8; 32])).unwrap().is_some()));
 	}
 
 	#[test]
@@ -1408,17 +1408,17 @@ pub mod tests {
 
 		// check that all removed nodes do not own key share
 		assert!(ml.sessions.keys().filter(|k| remove.contains(k))
-			.all(|k| ml.ml.key_storage_of(k).get(&SessionId::default()).unwrap().is_none()));
+			.all(|k| ml.ml.key_storage_of(k).get(&SessionId::from([1u8; 32])).unwrap().is_none()));
 
 		// and now let's add new node (make sure the session is completed, even though key is still irrecoverable)
 		// isolated here are not actually isolated, but removed on the previous step
-		let add = vec![Random.generate().unwrap()];
+		let add = vec![Random.generate()];
 		let master = add[0].public().clone();
 		let ml = ml.and_then::<Adapter>(master, Some(add.clone()), None, Some(remove)).run_at(master);
 
 		// check that all added nodes do not own key share (there's not enough nodes to run share add session)
 		assert!(ml.sessions.keys().filter(|k| add.iter().any(|n| n.public() == *k))
-			.all(|k| ml.ml.key_storage_of(k).get(&SessionId::default()).unwrap().is_none()));
+			.all(|k| ml.ml.key_storage_of(k).get(&SessionId::from([1u8; 32])).unwrap().is_none()));
 	}
 
 	#[test]
@@ -1439,7 +1439,7 @@ pub mod tests {
 		let gml = generate_key(2, 1);
 
 		// insert 1 node so that it becames 2-of-3 session
-		let add = vec![Random.generate().unwrap()];
+		let add = vec![Random.generate()];
 		let master = gml.0.node(0);
 		let ml = MessageLoop::with_gml::<Adapter>(gml, master, Some(add.clone()), None, None)
 			.run_at(master);

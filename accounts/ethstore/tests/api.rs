@@ -42,7 +42,7 @@ fn secret_store_open_not_existing() {
 }
 
 fn random_secret() -> Secret {
-	Random.generate().unwrap().secret().clone()
+	Random.generate().secret().clone()
 }
 
 #[test]
@@ -62,9 +62,10 @@ fn secret_store_sign() {
 	let store = EthStore::open(Box::new(dir)).unwrap();
 	assert!(store.insert_account(SecretVaultRef::Root, random_secret(), &"".into()).is_ok());
 	let accounts = store.accounts().unwrap();
+	let message = [1u8; 32].into();
 	assert_eq!(accounts.len(), 1);
-	assert!(store.sign(&accounts[0], &"".into(), &Default::default()).is_ok());
-	assert!(store.sign(&accounts[0], &"1".into(), &Default::default()).is_err());
+	assert!(store.sign(&accounts[0], &"".into(), &message).is_ok());
+	assert!(store.sign(&accounts[0], &"1".into(), &message).is_err());
 }
 
 #[test]
@@ -73,11 +74,12 @@ fn secret_store_change_password() {
 	let store = EthStore::open(Box::new(dir)).unwrap();
 	assert!(store.insert_account(SecretVaultRef::Root, random_secret(), &"".into()).is_ok());
 	let accounts = store.accounts().unwrap();
+	let message = [1u8; 32].into();
 	assert_eq!(accounts.len(), 1);
-	assert!(store.sign(&accounts[0], &"".into(), &Default::default()).is_ok());
+	assert!(store.sign(&accounts[0], &"".into(), &message).is_ok());
 	assert!(store.change_password(&accounts[0], &"".into(), &"1".into()).is_ok());
-	assert!(store.sign(&accounts[0], &"".into(), &Default::default()).is_err());
-	assert!(store.sign(&accounts[0], &"1".into(), &Default::default()).is_ok());
+	assert!(store.sign(&accounts[0], &"".into(), &message).is_err());
+	assert!(store.sign(&accounts[0], &"1".into(), &message).is_ok());
 }
 
 #[test]
@@ -95,7 +97,7 @@ fn secret_store_remove_account() {
 fn test_path() -> &'static str {
 	match ::std::fs::metadata("ethstore") {
 		Ok(_) => "ethstore/tests/res/geth_keystore",
- 		Err(_) => "tests/res/geth_keystore",
+		Err(_) => "tests/res/geth_keystore",
 	}
 }
 
@@ -148,7 +150,7 @@ fn test_decrypting_files_with_short_ciphertext() {
 		StoreAccountRef::root(Address::from_str("d1e64e5480bfaf733ba7d48712decb8227797a4e").unwrap()),
 	]);
 
-	let message = Default::default();
+	let message = [1u8; 32].into();
 
 	let s1 = store.sign(&accounts[0], &"foo".into(), &message).unwrap();
 	let s2 = store.sign(&accounts[1], &"foo".into(), &message).unwrap();

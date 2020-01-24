@@ -671,7 +671,7 @@ mod tests {
 	}
 
 	fn dummy_signed_tx() -> SignedTransaction {
-		let keypair = Random.generate().unwrap();
+		let keypair = Random.generate();
 		Transaction::default().sign(keypair.secret(), None)
 	}
 

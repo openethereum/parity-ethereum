@@ -125,7 +125,7 @@ impl AccountProvider {
 
 	/// Creates new random account and returns address and public key
 	pub fn new_account_and_public(&self, password: &Password) -> Result<(Address, Public), Error> {
-		let acc = Random.generate().expect("secp context has generation capabilities; qed");
+		let acc = Random.generate();
 		let public = acc.public().clone();
 		let secret = acc.secret().clone();
 		let account = self.sstore.insert_account(SecretVaultRef::Root, secret, password)?;
@@ -290,9 +290,10 @@ impl AccountProvider {
 			let secret = self.sstore.raw_secret(&account, &password)?;
 			self.unlocked_secrets.write().insert(account.clone(), secret);
 		} else {
-			// verify password by signing dump message
+			// verify password by signing a dummy message
 			// result may be discarded
-			let _ = self.sstore.sign(&account, &password, &Default::default())?;
+			let dummy_msg = [1u8;32].into();
+			let _ = self.sstore.sign(&account, &password, &dummy_msg)?;
 		}
 
 		let data = AccountData { unlock, password };
@@ -509,18 +510,19 @@ mod tests {
 
 	#[test]
 	fn unlock_account_temp() {
-		let kp = Random.generate().unwrap();
+		let kp = Random.generate();
 		let ap = AccountProvider::transient_provider();
+		let dummy_msg = [1u8; 32].into();
 		assert!(ap.insert_account(kp.secret().clone(), &"test".into()).is_ok());
 		assert!(ap.unlock_account_temporarily(kp.address(), "test1".into()).is_err());
 		assert!(ap.unlock_account_temporarily(kp.address(), "test".into()).is_ok());
-		assert!(ap.sign(kp.address(), None, Default::default()).is_ok());
-		assert!(ap.sign(kp.address(), None, Default::default()).is_err());
+		assert!(ap.sign(kp.address(), None, dummy_msg).is_ok());
+		assert!(ap.sign(kp.address(), None, dummy_msg).is_err());
 	}
 
 	#[test]
 	fn derived_account_nosave() {
-		let kp = Random.generate().unwrap();
+		let kp = Random.generate();
 		let ap = AccountProvider::transient_provider();
 		assert!(ap.insert_account(kp.secret().clone(), &"base".into()).is_ok());
 		assert!(ap.unlock_account_permanently(kp.address(), "base".into()).is_ok());
@@ -538,7 +540,7 @@ mod tests {
 
 	#[test]
 	fn derived_account_save() {
-		let kp = Random.generate().unwrap();
+		let kp = Random.generate();
 		let ap = AccountProvider::transient_provider();
 		assert!(ap.insert_account(kp.secret().clone(), &"base".into()).is_ok());
 		assert!(ap.unlock_account_permanently(kp.address(), "base".into()).is_ok());
@@ -559,7 +561,7 @@ mod tests {
 
 	#[test]
 	fn derived_account_sign() {
-		let kp = Random.generate().unwrap();
+		let kp = Random.generate();
 		let ap = AccountProvider::transient_provider();
 		assert!(ap.insert_account(kp.secret().clone(), &"base".into()).is_ok());
 		assert!(ap.unlock_account_permanently(kp.address(), "base".into()).is_ok());
@@ -573,7 +575,7 @@ mod tests {
 		ap.unlock_account_permanently(derived_addr, "base".into())
 			.expect("Should be ok because account is saved and password is valid");
 
-		let msg = Default::default();
+		let msg = [2u8; 32].into();
 		let signed_msg1 = ap.sign(derived_addr, None, msg)
 			.expect("Signing with existing unlocked account should not fail");
 		let signed_msg2 = ap.sign_derived(
@@ -589,44 +591,48 @@ mod tests {
 
 	#[test]
 	fn unlock_account_perm() {
-		let kp = Random.generate().unwrap();
+		let kp = Random.generate();
 		let ap = AccountProvider::transient_provider();
+		let dummy_msg = [1u8; 32].into();
 		assert!(ap.insert_account(kp.secret().clone(), &"test".into()).is_ok());
 		assert!(ap.unlock_account_permanently(kp.address(), "test1".into()).is_err());
 		assert!(ap.unlock_account_permanently(kp.address(), "test".into()).is_ok());
-		assert!(ap.sign(kp.address(), None, Default::default()).is_ok());
-		assert!(ap.sign(kp.address(), None, Default::default()).is_ok());
+		assert!(ap.sign(kp.address(), None, dummy_msg).is_ok());
+		assert!(ap.sign(kp.address(), None, dummy_msg).is_ok());
 		assert!(ap.unlock_account_temporarily(kp.address(), "test".into()).is_ok());
-		assert!(ap.sign(kp.address(), None, Default::default()).is_ok());
-		assert!(ap.sign(kp.address(), None, Default::default()).is_ok());
+		assert!(ap.sign(kp.address(), None, dummy_msg).is_ok());
+		assert!(ap.sign(kp.address(), None, dummy_msg).is_ok());
 	}
 
 	#[test]
 	fn unlock_account_timer() {
-		let kp = Random.generate().unwrap();
+		let kp = Random.generate();
 		let ap = AccountProvider::transient_provider();
+		let dummy_msg = [1u8; 32].into();
+
 		assert!(ap.insert_account(kp.secret().clone(), &"test".into()).is_ok());
 		assert!(ap.unlock_account_timed(kp.address(), "test1".into(), Duration::from_secs(60)).is_err());
 		assert!(ap.unlock_account_timed(kp.address(), "test".into(), Duration::from_secs(60)).is_ok());
-		assert!(ap.sign(kp.address(), None, Default::default()).is_ok());
+		assert!(ap.sign(kp.address(), None, dummy_msg).is_ok());
 		ap.unlocked.write().get_mut(&StoreAccountRef::root(kp.address())).unwrap().unlock = Unlock::Timed(Instant::now());
-		assert!(ap.sign(kp.address(), None, Default::default()).is_err());
+		assert!(ap.sign(kp.address(), None, dummy_msg).is_err());
 	}
 
 	#[test]
 	fn should_sign_and_return_token() {
 		// given
-		let kp = Random.generate().unwrap();
+		let kp = Random.generate();
 		let ap = AccountProvider::transient_provider();
+		let dummy_msg = [1u8; 32].into();
 		assert!(ap.insert_account(kp.secret().clone(), &"test".into()).is_ok());
 
 		// when
-		let (_signature, token) = ap.sign_with_token(kp.address(), "test".into(), Default::default()).unwrap();
+		let (_signature, token) = ap.sign_with_token(kp.address(), "test".into(), dummy_msg).unwrap();
 
 		// then
-		ap.sign_with_token(kp.address(), token.clone(), Default::default())
+		ap.sign_with_token(kp.address(), token.clone(), dummy_msg)
 			.expect("First usage of token should be correct.");
-		assert!(ap.sign_with_token(kp.address(), token, Default::default()).is_err(), "Second usage of the same token should fail.");
+		assert!(ap.sign_with_token(kp.address(), token, dummy_msg).is_err(), "Second usage of the same token should fail.");
 	}
 
 	#[test]

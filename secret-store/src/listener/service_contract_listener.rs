@@ -639,13 +639,13 @@ mod tests {
 	fn is_not_processed_by_this_key_server_with_zero_servers() {
 		assert_eq!(is_processed_by_this_key_server(
 			&MapKeyServerSet::default(),
-			Random.generate().unwrap().public(),
+			Random.generate().public(),
 			&Default::default()), false);
 	}
 
 	#[test]
 	fn is_processed_by_this_key_server_with_single_server() {
-		let self_key_pair = Random.generate().unwrap();
+		let self_key_pair = Random.generate();
 		assert_eq!(is_processed_by_this_key_server(
 			&MapKeyServerSet::new(false, vec![
 				(self_key_pair.public().clone(), "127.0.0.1:8080".parse().unwrap())
@@ -658,9 +658,9 @@ mod tests {
 	fn is_not_processed_by_this_key_server_when_not_a_part_of_servers_set() {
 		assert!(is_processed_by_this_key_server(
 			&MapKeyServerSet::new(false, vec![
-				(Random.generate().unwrap().public().clone(), "127.0.0.1:8080".parse().unwrap())
+				(Random.generate().public().clone(), "127.0.0.1:8080".parse().unwrap())
 			].into_iter().collect()),
-			Random.generate().unwrap().public(),
+			Random.generate().public(),
 			&Default::default()));
 	}
 

@@ -304,7 +304,7 @@ mod tests {
 	}
 
 	fn new_tx<T: Into<U256>>(nonce: T) -> Arc<Transaction> {
-		let keypair = Random.generate().unwrap();
+		let keypair = Random.generate();
 		let signed = transaction::Transaction {
 			action: transaction::Action::Create,
 			value: U256::from(100),

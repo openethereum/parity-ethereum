@@ -231,13 +231,13 @@ mod tests {
 
 	fn create_connections() -> TriggerConnections {
 		TriggerConnections {
-			self_key_pair: Arc::new(PlainNodeKeyPair::new(Random.generate().unwrap())),
+			self_key_pair: Arc::new(PlainNodeKeyPair::new(Random.generate())),
 		}
 	}
 
 	#[test]
 	fn do_not_disconnect_if_set_is_not_changed() {
-		let node_id = Random.generate().unwrap().public().clone();
+		let node_id = Random.generate().public().clone();
 		assert_eq!(select_nodes_to_disconnect(
 			&vec![(node_id, "127.0.0.1:8081".parse().unwrap())].into_iter().collect(),
 			&vec![(node_id, "127.0.0.1:8081".parse().unwrap())].into_iter().collect()),
@@ -246,7 +246,7 @@ mod tests {
 
 	#[test]
 	fn disconnect_if_address_has_changed() {
-		let node_id = Random.generate().unwrap().public().clone();
+		let node_id = Random.generate().public().clone();
 		assert_eq!(select_nodes_to_disconnect(
 			&vec![(node_id.clone(), "127.0.0.1:8081".parse().unwrap())].into_iter().collect(),
 			&vec![(node_id.clone(), "127.0.0.1:8082".parse().unwrap())].into_iter().collect()),
@@ -255,7 +255,7 @@ mod tests {
 
 	#[test]
 	fn disconnect_if_node_has_removed() {
-		let node_id = Random.generate().unwrap().public().clone();
+		let node_id = Random.generate().public().clone();
 		assert_eq!(select_nodes_to_disconnect(
 			&vec![(node_id.clone(), "127.0.0.1:8081".parse().unwrap())].into_iter().collect(),
 			&vec![].into_iter().collect()),
@@ -264,19 +264,19 @@ mod tests {
 
 	#[test]
 	fn does_not_disconnect_if_node_has_added() {
-		let node_id = Random.generate().unwrap().public().clone();
+		let node_id = Random.generate().public().clone();
 		assert_eq!(select_nodes_to_disconnect(
 			&vec![(node_id.clone(), "127.0.0.1:8081".parse().unwrap())].into_iter().collect(),
 			&vec![(node_id.clone(), "127.0.0.1:8081".parse().unwrap()),
-				(Random.generate().unwrap().public().clone(), "127.0.0.1:8082".parse().unwrap())]
+				(Random.generate().public().clone(), "127.0.0.1:8082".parse().unwrap())]
 				.into_iter().collect()),
 			vec![]);
 	}
 
 	#[test]
 	fn adjust_connections_disconnects_from_all_nodes_if_not_a_part_of_key_server() {
-		let self_node_id = Random.generate().unwrap().public().clone();
-		let other_node_id = Random.generate().unwrap().public().clone();
+		let self_node_id = Random.generate().public().clone();
+		let other_node_id = Random.generate().public().clone();
 		let mut connection_data = default_connection_data();
 		connection_data.nodes.insert(other_node_id.clone(), "127.0.0.1:8081".parse().unwrap());
 
@@ -288,8 +288,8 @@ mod tests {
 
 	#[test]
 	fn adjust_connections_connects_to_new_nodes() {
-		let self_node_id = Random.generate().unwrap().public().clone();
-		let other_node_id = Random.generate().unwrap().public().clone();
+		let self_node_id = Random.generate().public().clone();
+		let other_node_id = Random.generate().public().clone();
 		let mut connection_data = default_connection_data();
 
 		let required_set = vec![(self_node_id.clone(), "127.0.0.1:8081".parse().unwrap()),
@@ -301,8 +301,8 @@ mod tests {
 
 	#[test]
 	fn adjust_connections_reconnects_from_changed_nodes() {
-		let self_node_id = Random.generate().unwrap().public().clone();
-		let other_node_id = Random.generate().unwrap().public().clone();
+		let self_node_id = Random.generate().public().clone();
+		let other_node_id = Random.generate().public().clone();
 		let mut connection_data = default_connection_data();
 		connection_data.nodes.insert(other_node_id.clone(), "127.0.0.1:8082".parse().unwrap());
 
@@ -315,8 +315,8 @@ mod tests {
 
 	#[test]
 	fn adjust_connections_disconnects_from_removed_nodes() {
-		let self_node_id = Random.generate().unwrap().public().clone();
-		let other_node_id = Random.generate().unwrap().public().clone();
+		let self_node_id = Random.generate().public().clone();
+		let other_node_id = Random.generate().public().clone();
 		let mut connection_data = default_connection_data();
 		connection_data.nodes.insert(other_node_id.clone(), "127.0.0.1:8082".parse().unwrap());
 
@@ -328,7 +328,7 @@ mod tests {
 
 	#[test]
 	fn adjust_connections_does_not_connects_to_self() {
-		let self_node_id = Random.generate().unwrap().public().clone();
+		let self_node_id = Random.generate().public().clone();
 		let mut connection_data = default_connection_data();
 
 		let required_set = vec![(self_node_id.clone(), "127.0.0.1:8081".parse().unwrap())].into_iter().collect();
@@ -341,9 +341,9 @@ mod tests {
 	fn maintain_connects_to_current_set_works() {
 		let connections = create_connections();
 		let self_node_id = connections.self_key_pair.public().clone();
-		let current_node_id = Random.generate().unwrap().public().clone();
-		let migration_node_id = Random.generate().unwrap().public().clone();
-		let new_node_id = Random.generate().unwrap().public().clone();
+		let current_node_id = Random.generate().public().clone();
+		let migration_node_id = Random.generate().public().clone();
+		let new_node_id = Random.generate().public().clone();
 
 		let mut connections_data = default_connection_data();
 		connections.maintain(ConnectionsAction::ConnectToCurrentSet, &mut connections_data, &KeyServerSetSnapshot {
@@ -363,9 +363,9 @@ mod tests {
 	fn maintain_connects_to_migration_set_works() {
 		let connections = create_connections();
 		let self_node_id = connections.self_key_pair.public().clone();
-		let current_node_id = Random.generate().unwrap().public().clone();
-		let migration_node_id = Random.generate().unwrap().public().clone();
-		let new_node_id = Random.generate().unwrap().public().clone();
+		let current_node_id = Random.generate().public().clone();
+		let migration_node_id = Random.generate().public().clone();
+		let new_node_id = Random.generate().public().clone();
 
 		let mut connections_data = default_connection_data();
 		connections.maintain(ConnectionsAction::ConnectToMigrationSet, &mut connections_data, &KeyServerSetSnapshot {
@@ -385,7 +385,7 @@ mod tests {
 	#[test]
 	fn simple_connections_trigger_only_maintains_connections() {
 		let key_server_set = Arc::new(MapKeyServerSet::new(false, Default::default()));
-		let self_key_pair = Arc::new(PlainNodeKeyPair::new(Random.generate().unwrap()));
+		let self_key_pair = Arc::new(PlainNodeKeyPair::new(Random.generate()));
 		let mut trigger = SimpleConnectionTrigger::new(key_server_set, self_key_pair, None);
 		assert_eq!(trigger.on_maintain(), Some(Maintain::Connections));
 	}

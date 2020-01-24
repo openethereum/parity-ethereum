@@ -31,7 +31,7 @@ const INIT_VEC_LEN: usize = 16;
 /// Generate document key to store in secret store.
 pub fn generate_document_key(account_public: Public, server_key_public: Public) -> Result<EncryptedDocumentKey, Error> {
 	// generate random plain document key
-	let document_key = Random.generate().map_err(errors::encryption)?;
+	let document_key = Random.generate();
 
 	// encrypt document key using server key
 	let (common_point, encrypted_point) = encrypt_secret(document_key.public(), &server_key_public)?;
@@ -141,8 +141,7 @@ fn encrypt_secret(secret: &Public, joint_public: &Public) -> Result<(Public, Pub
 	// TODO: it is copypaste of `encrypt_secret` from secret_store/src/key_server_cluster/math.rs
 	// use shared version from SS math library, when it'll be available
 
-	let key_pair = Random.generate()
-		.map_err(errors::encryption)?;
+	let key_pair = Random.generate();
 
 	// k * T
 	let mut common_point = ec_math_utils::generation_point();

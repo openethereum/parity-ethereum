@@ -33,7 +33,7 @@ pub fn brain_recover(
 ) -> Option<String> {
 	let it = PhrasesIterator::from_known_phrase(known_phrase, expected_words);
 	for phrase in it {
-		let keypair = Brain::new(phrase.clone()).generate().expect("Brain wallets are infallible; qed");
+		let keypair = Brain::new(phrase.clone()).generate();
 		trace!("Testing: {}, got: {:?}", phrase, keypair.address());
 		if &keypair.address() == address {
 			return Some(phrase);

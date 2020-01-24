@@ -136,3 +136,6 @@ members = [
 	"ethcore/wasm/run",
 	"evmbin",
 ]
+
+[patch.crates-io]
+parity-crypto = { path = "../parity-common/parity-crypto" }

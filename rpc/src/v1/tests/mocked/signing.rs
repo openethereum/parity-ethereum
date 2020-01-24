@@ -496,7 +496,7 @@ fn should_decrypt_message_if_account_is_unlocked() {
 fn should_add_decryption_to_the_queue() {
 	// given
 	let tester = eth_signing(true);
-	let acc = Random.generate().unwrap();
+	let acc = Random.generate();
 	assert_eq!(tester.signer.requests().len(), 0);
 
 	// when
@@ -533,7 +533,7 @@ fn should_add_decryption_to_the_queue() {
 fn should_compose_transaction() {
 	// given
 	let tester = eth_signing(true);
-	let acc = Random.generate().unwrap();
+	let acc = Random.generate();
 	assert_eq!(tester.signer.requests().len(), 0);
 	let from = format!("{:x}", acc.address());
 
