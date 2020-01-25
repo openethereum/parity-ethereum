@@ -43,6 +43,7 @@ pub enum SpecType {
 	Ellaism,
 	Mix,
 	Callisto,
+	EtherCore,
 	Morden,
 	Mordor,
 	Ropsten,
@@ -78,6 +79,7 @@ impl str::FromStr for SpecType {
 			"ellaism" => SpecType::Ellaism,
 			"mix" => SpecType::Mix,
 			"callisto" => SpecType::Callisto,
+			"ethercore" => SpecType::EtherCore,
 			"morden" => SpecType::Morden,
 			"mordor" | "classic-testnet" => SpecType::Mordor,
 			"ropsten" => SpecType::Ropsten,
@@ -108,6 +110,7 @@ impl fmt::Display for SpecType {
 			SpecType::Ellaism => "ellaism",
 			SpecType::Mix => "mix",
 			SpecType::Callisto => "callisto",
+			SpecType::EtherCore => "ethercore",
 			SpecType::Morden => "morden",
 			SpecType::Mordor => "mordor",
 			SpecType::Ropsten => "ropsten",
@@ -138,6 +141,7 @@ impl SpecType {
 			SpecType::Ellaism => Ok(spec::new_ellaism(params)),
 			SpecType::Mix => Ok(spec::new_mix(params)),
 			SpecType::Callisto => Ok(spec::new_callisto(params)),
+			SpecType::EtherCore => Ok(spec::new_ethercore(params)),
 			SpecType::Morden => Ok(spec::new_morden(params)),
 			SpecType::Mordor => Ok(spec::new_mordor(params)),
 			SpecType::Ropsten => Ok(spec::new_ropsten(params)),
@@ -397,6 +401,7 @@ mod tests {
 		assert_eq!(SpecType::Ellaism, "ellaism".parse().unwrap());
 		assert_eq!(SpecType::Mix, "mix".parse().unwrap());
 		assert_eq!(SpecType::Callisto, "callisto".parse().unwrap());
+		assert_eq!(SpecType::EtherCore, "ethercore".parse().unwrap());
 		assert_eq!(SpecType::Morden, "morden".parse().unwrap());
 		assert_eq!(SpecType::Mordor, "mordor".parse().unwrap());
 		assert_eq!(SpecType::Mordor, "classic-testnet".parse().unwrap());
@@ -430,6 +435,7 @@ mod tests {
 		assert_eq!(format!("{}", SpecType::Ellaism), "ellaism");
 		assert_eq!(format!("{}", SpecType::Mix), "mix");
 		assert_eq!(format!("{}", SpecType::Callisto), "callisto");
+		assert_eq!(format!("{}", SpecType::EtherCore), "ethercore");
 		assert_eq!(format!("{}", SpecType::Morden), "morden");
 		assert_eq!(format!("{}", SpecType::Mordor), "mordor");
 		assert_eq!(format!("{}", SpecType::Ropsten), "ropsten");
