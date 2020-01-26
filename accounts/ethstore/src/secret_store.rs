@@ -166,6 +166,7 @@ impl StoreAccountRef {
 	}
 }
 
+#[allow(clippy::derive_hash_xor_eq)] // If they are equal, they have the same address and hence the same hash.
 impl Hash for StoreAccountRef {
 	fn hash<H: Hasher>(&self, state: &mut H) {
 		self.address.hash(state);

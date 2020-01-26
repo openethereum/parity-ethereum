@@ -467,34 +467,28 @@ impl SimpleSecretStore for EthMultiStore {
 		-> Result<StoreAccountRef, Error>
 	{
 		let accounts = self.get_matching(account_ref, password)?;
-		for account in accounts {
-			let extended = self.generate(account.crypto.secret(password)?, derivation)?;
-			return self.insert_account(vault, extended.secret().as_raw().clone(), password);
-		}
-		Err(Error::InvalidPassword)
+		let account = accounts.first().ok_or(Error::InvalidPassword)?;
+		let extended = self.generate(account.crypto.secret(password)?, derivation)?;
+		self.insert_account(vault, extended.secret().as_raw().clone(), password)
 	}
 
 	fn generate_derived(&self, account_ref: &StoreAccountRef, password: &Password, derivation: Derivation)
 	    -> Result<Address, Error>
 	{
 		let accounts = self.get_matching(&account_ref, password)?;
-		for account in accounts {
-			let extended = self.generate(account.crypto.secret(password)?, derivation)?;
-			return Ok(crypto::publickey::public_to_address(extended.public().public()));
-		}
-		Err(Error::InvalidPassword)
+		let account = accounts.first().ok_or(Error::InvalidPassword)?;
+		let extended = self.generate(account.crypto.secret(password)?, derivation)?;
+		Ok(crypto::publickey::public_to_address(extended.public().public()))
 	}
 
 	fn sign_derived(&self, account_ref: &StoreAccountRef, password: &Password, derivation: Derivation, message: &Message)
 		-> Result<Signature, Error>
 	{
 		let accounts = self.get_matching(&account_ref, password)?;
-		for account in accounts {
-			let extended = self.generate(account.crypto.secret(password)?, derivation)?;
-			let secret = extended.secret().as_raw();
-			return Ok(crypto::publickey::sign(&secret, message)?)
-		}
-		Err(Error::InvalidPassword)
+		let account = accounts.first().ok_or(Error::InvalidPassword)?;
+		let extended = self.generate(account.crypto.secret(password)?, derivation)?;
+		let secret = extended.secret().as_raw();
+		Ok(crypto::publickey::sign(&secret, message)?)
 	}
 
 	fn account_ref(&self, address: &Address) -> Result<StoreAccountRef, Error> {
@@ -521,12 +515,8 @@ impl SimpleSecretStore for EthMultiStore {
 
 	fn remove_account(&self, account_ref: &StoreAccountRef, password: &Password) -> Result<(), Error> {
 		let accounts = self.get_matching(account_ref, password)?;
-
-		for account in accounts {
-			return self.remove_safe_account(account_ref, &account);
-		}
-
-		Err(Error::InvalidPassword)
+		let account = accounts.first().ok_or(Error::InvalidPassword)?;
+		self.remove_safe_account(account_ref, &account)
 	}
 
 	fn change_password(&self, account_ref: &StoreAccountRef, old_password: &Password, new_password: &Password) -> Result<(), Error> {

@@ -185,6 +185,7 @@ fn make_memmapped_cache(path: &Path, num_nodes: usize, ident: &H256) -> io::Resu
 
 	let mut memmap = unsafe { MmapMut::map_mut(&file)? };
 
+	#[allow(clippy::cast_ptr_alignment)] // TODO: Why is this okay?
 	unsafe { initialize_memory(memmap.as_mut_ptr() as *mut Node, num_nodes, ident) };
 
 	Ok(memmap)
@@ -265,6 +266,7 @@ fn read_from_path(path: &Path) -> io::Result<Vec<Node>> {
 	}
 
 	let out: Vec<Node> = unsafe {
+		#[allow(clippy::cast_ptr_alignment)] // TODO: Why is this okay?
 		Vec::from_raw_parts(
 			nodes.as_mut_ptr() as *mut _,
 			nodes.len() / NODE_BYTES,
@@ -287,6 +289,7 @@ impl AsRef<[Node]> for NodeCache {
 				// people manually messing with the files unless it can cause unsafety, but if we're
 				// generating incorrect files then we want to catch that in CI.
 				debug_assert_eq!(mmap.len() % NODE_BYTES, 0);
+				#[allow(clippy::cast_ptr_alignment)] // TODO: Why is this okay?
 				slice::from_raw_parts(bytes as _, mmap.len() / NODE_BYTES)
 			},
 		}

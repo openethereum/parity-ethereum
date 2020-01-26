@@ -588,7 +588,7 @@ fn execute_export_state(cmd: ExportState) -> Result<(), String> {
 			}
 
 			if i != 0 {
-				out.write(b",").expect("Write error");
+				out.write_all(b",").expect("Write error");
 			}
 			out.write_fmt(format_args!("\n\"0x{:x}\": {{\"balance\": \"{:x}\", \"nonce\": \"{:x}\"", account, balance, client.nonce(&account, at).unwrap_or_else(U256::zero))).expect("Write error");
 			let code = match client.code(&account, at.into()) {
@@ -615,16 +615,16 @@ fn execute_export_state(cmd: ExportState) -> Result<(), String> {
 
 						for key in keys.into_iter() {
 							if last_storage.is_some() {
-								out.write(b",").expect("Write error");
+								out.write_all(b",").expect("Write error");
 							}
 							out.write_fmt(format_args!("\n\t\"0x{:x}\": \"0x{:x}\"", key, client.storage_at(&account, &key, at.into()).unwrap_or_else(Default::default))).expect("Write error");
 							last_storage = Some(key);
 						}
 					}
-					out.write(b"\n}").expect("Write error");
+					out.write_all(b"\n}").expect("Write error");
 				}
 			}
-			out.write(b"}").expect("Write error");
+			out.write_all(b"}").expect("Write error");
 			i += 1;
 			if i % 10000 == 0 {
 				info!("Account #{}", i);
