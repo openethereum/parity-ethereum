@@ -8,6 +8,13 @@ track should switch to the `stable` track.
 The full list of included changes from `v2.5-stable` to `v2.7-stable` (the
 `v2.6-beta` branch will already include some of these changes):
 
+* Update POA bootnodes (#11411)
+* Update ProgPoW to 0.9.3 (#11407)
+* Add EtherCore support (#11402)
+* json-tests: Fix compile error (#11384)
+* ethcore/res: fix ethereum classic chainspec blake2_f activation block num (#11391)
+* Switching to stable-track (#11377)
+* Update copyright notice 2020 (#11386)
 * miner: fix deprecation warning Error::description (#11380)
 * Fix Aztlan hard fork issues (#11347)
 * authority_round: Fix next_step_time_duration. (#11379)
