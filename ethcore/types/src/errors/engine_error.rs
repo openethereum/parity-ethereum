@@ -16,12 +16,11 @@
 
 use std::fmt;
 
-use derive_more::From;
 use ethereum_types::{Address, H64, H256};
 use unexpected::{Mismatch, OutOfBounds};
 
 /// Voting errors.
-#[derive(Debug, From)]
+#[derive(Debug)]
 pub enum EngineError {
 	/// Signature or author field does not belong to an authority.
 	NotAuthorized(Address),
@@ -78,11 +77,11 @@ impl fmt::Display for EngineError {
 		use self::EngineError::*;
 		let msg = match *self {
 			CliqueMissingCheckpoint(ref hash) => format!("Missing checkpoint block: {}", hash),
-			CliqueMissingVanity => format!("Extra data is missing vanity data"),
-			CliqueMissingSignature => format!("Extra data is missing signature"),
+			CliqueMissingVanity => "Extra data is missing vanity data".into(),
+			CliqueMissingSignature => "Extra data is missing signature".into(),
 			CliqueCheckpointInvalidSigners(len) => format!("Checkpoint block list was of length: {} of checkpoint but
 															it needs to be bigger than zero and a divisible by 20", len),
-			CliqueCheckpointNoSigner => format!("Checkpoint block list of signers was empty"),
+			CliqueCheckpointNoSigner => "Checkpoint block list of signers was empty".into(),
 			CliqueInvalidNonce(ref mis) => format!("Unexpected nonce {} expected {} or {}", mis, 0_u64, u64::max_value()),
 			CliqueWrongAuthorCheckpoint(ref oob) => format!("Unexpected checkpoint author: {}", oob),
 			CliqueFaultyRecoveredSigners(ref mis) => format!("Faulty recovered signers {:?}", mis),
@@ -98,9 +97,9 @@ impl fmt::Display for EngineError {
 			SystemCallResultDecoding(ref msg) => format!("Failed to decode the result of a system call: {}", msg),
 			SystemCallResultInvalid(ref msg) => format!("The result of a system call is invalid: {}", msg),
 			MalformedMessage(ref msg) => format!("Received malformed consensus message: {}", msg),
-			RequiresClient => format!("Call requires client but none registered"),
-			RequiresSigner => format!("Call requires signer but none registered"),
-			InvalidEngine => format!("Invalid engine specification or implementation"),
+			RequiresClient => "Call requires client but none registered".into(),
+			RequiresSigner => "Call requires signer but none registered".into(),
+			InvalidEngine => "Invalid engine specification or implementation".into(),
 			MissingParent(ref hash) => format!("Parent Epoch is missing from database: {}", hash),
 		};
 

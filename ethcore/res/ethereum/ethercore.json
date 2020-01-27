@@ -1,0 +1,189 @@
+{
+	"name": "EtherCore",
+	"dataDir": "ethercore",
+	"engine": {
+		"Ethash": {
+			"params": {
+				"minimumDifficulty": "0x20000",
+				"difficultyBoundDivisor": "0x800",
+				"durationLimit": "0xd",
+				"blockReward": "0xde0b6b3a7640000",
+				"homesteadTransition": "0x0",
+				"eip100bTransition": "0x0",
+				"bombDefuseTransition":"0x0",
+				"ecip1017EraRounds":"0x5f5e100",
+				"progpowTransition": "0x0"
+			}
+		}
+	},
+	"params": {
+		"gasLimitBoundDivisor": "0x400",
+		"accountStartNonce": "0x0",
+		"maximumExtraDataSize": "0x20",
+		"minGasLimit": "0x1388",
+		"networkID": "0x1d2",
+		"eip150Transition": "0x0",
+		"eip160Transition": "0x0",
+		"eip161abcTransition": "0x0",
+		"eip161dTransition": "0x0",
+		"eip155Transition": "0x0",
+		"maxCodeSize":"0x6000",
+		"maxCodeSizeTransition":"0x0",
+		"eip140Transition": "0x0",
+		"eip211Transition": "0x0",
+		"eip214Transition": "0x0",
+		"eip658Transition": "0x0",
+		"eip145Transition": "0x0",
+		"eip1014Transition": "0x0",
+		"eip1052Transition": "0x0",
+		"eip1283Transition": "0x0",
+		"eip1344Transition": "0x0",
+		"eip1706Transition": "0x0",
+		"eip1884Transition": "0x0",
+		"eip2028Transition": "0x0"
+	},
+	"genesis": {
+		"seal": {
+			"ethereum": {
+				"nonce": "0x0000000000000042",
+				"mixHash": "0x0000000000000000000000000000000000000000000000000000000000000000"
+			}
+		},
+		"difficulty": "0x80000",
+		"author": "0x0000000000000000000000000000000000000000",
+		"timestamp": "0x5e0be100",
+		"parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+		"extraData": "0x0000000000000000000000000000000000000000000000000000000000000000",
+		"gasLimit": "0x7a1200"
+	},
+	"nodes": [
+		"enode://dfcfd268e7d4631cec5a94d7eeb5981a2ed3f30235c774e1bf0a4e843672405e5a1c93502e1631edf108b6f1ea8701fb97e6d892eb5e3775c70dc53b2f773b9f@207.148.105.65:30303",
+		"enode://6c67afac3a018ee5641b0aba996f180fbb718aa7857174cad568b00440a43cccb1845124cd1cbe43c7ce1e95d597a3d20d175f0bf8494d875e83ec15e0f42cb4@207.148.105.65:30503"
+	],
+	"accounts": {
+		"0x0000000000000000000000000000000000000001":{
+			"builtin":{
+				"name":"ecrecover",
+				"pricing":{
+					"linear":{
+						"base":3000,
+						"word":0
+					}
+				}
+			}
+		},
+		"0x0000000000000000000000000000000000000002":{
+			"builtin":{
+				"name":"sha256",
+				"pricing":{
+					"linear":{
+						"base":60,
+						"word":12
+					}
+				}
+			}
+		},
+		"0x0000000000000000000000000000000000000003":{
+			"builtin":{
+				"name":"ripemd160",
+				"pricing":{
+					"linear":{
+						"base":600,
+						"word":120
+					}
+				}
+			}
+		},
+		"0x0000000000000000000000000000000000000004":{
+			"builtin":{
+				"name":"identity",
+				"pricing":{
+					"linear":{
+						"base":15,
+						"word":3
+					}
+				}
+			}
+		},
+		"0x0000000000000000000000000000000000000005":{
+			"builtin":{
+				"name":"modexp",
+				"activate_at":"0x0",
+				"pricing":{
+					"modexp":{
+						"divisor":20
+					}
+				}
+			}
+		},
+		"0x0000000000000000000000000000000000000006":{
+			"builtin":{
+				"name":"alt_bn128_add",
+				"pricing":{
+					"0x0":{
+						"info":"EIP 1108 transition",
+						"price":{
+							"alt_bn128_const_operations":{
+								"price":150
+							}
+						}
+					}
+				}
+			}
+		},
+		"0x0000000000000000000000000000000000000007":{
+			"builtin":{
+				"name":"alt_bn128_mul",
+				"pricing":{
+					"0x0":{
+						"info":"EIP 1108 transition",
+						"price":{
+							"alt_bn128_const_operations":{
+								"price":6000
+							}
+						}
+					}
+				}
+			}
+		},
+		"0x0000000000000000000000000000000000000008":{
+			"builtin":{
+				"name":"alt_bn128_pairing",
+				"pricing":{
+					"0x0":{
+						"info":"EIP 1108 transition",
+						"price":{
+							"alt_bn128_pairing":{
+								"base":45000,
+								"pair":34000
+							}
+						}
+					}
+				}
+			}
+		},
+		"0x0000000000000000000000000000000000000009":{
+			"builtin":{
+				"name":"blake2_f",
+				"activate_at":"0x0",
+				"pricing":{
+					"blake2_f":{
+						"gas_per_round":1
+					}
+				}
+			}
+		},
+		"0xaf6F001FdB3CD98CD38A3f6C7306706D98689dF0":{
+			"balance":"0x295be96e64066972000000"
+		},
+		"0xf182a7D9e7789E82e362A98eBC5fCAcdC2904182":{
+			"balance":"0x295be96e64066972000000"
+		},
+		"0x5A23b7d2ee9dccbb7C33103d22852e1cC88548b2":{
+			"balance":"0xf8277896582678ac000000"
+		},
+		"0x22e0176a4aDD34A2a32B4423437B6cf23F7dc638":{
+			"balance":"0x6342fd08f00f6378000000"
+		}
+	}
+}
