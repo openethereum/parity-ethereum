@@ -981,9 +981,7 @@ impl Configuration {
 			},
 			track: match self.args.arg_release_track.as_ref() {
 				"stable" => ReleaseTrack::Stable,
-				"beta" => ReleaseTrack::Beta,
 				"nightly" => ReleaseTrack::Nightly,
-				"testing" => ReleaseTrack::Testing,
 				"current" => ReleaseTrack::Unknown,
 				_ => return Err("Invalid value for `--releases-track`. See `--help` for more information.".into()),
 			},
@@ -1512,23 +1510,11 @@ mod tests {
 	#[test]
 	fn should_parse_updater_options() {
 		// when
-		let conf0 = parse(&["parity", "--release-track=testing"]);
-		let conf1 = parse(&["parity", "--auto-update", "all", "--no-consensus", "--auto-update-delay", "300"]);
-		let conf2 = parse(&["parity", "--no-download", "--auto-update=all", "--release-track=beta", "--auto-update-delay=300", "--auto-update-check-frequency=100"]);
-		let conf3 = parse(&["parity", "--auto-update=xxx"]);
+		let conf0 = parse(&["parity", "--auto-update", "all", "--no-consensus", "--auto-update-delay", "300"]);
+		let conf1 = parse(&["parity", "--auto-update=xxx"]);
 
 		// then
 		assert_eq!(conf0.update_policy().unwrap(), UpdatePolicy {
-			enable_downloading: true,
-			require_consensus: true,
-			filter: UpdateFilter::Critical,
-			track: ReleaseTrack::Testing,
-			path: default_hypervisor_path(),
-			max_size: 128 * 1024 * 1024,
-			max_delay: 100,
-			frequency: 20,
-		});
-		assert_eq!(conf1.update_policy().unwrap(), UpdatePolicy {
 			enable_downloading: true,
 			require_consensus: false,
 			filter: UpdateFilter::All,
@@ -1538,17 +1524,7 @@ mod tests {
 			max_delay: 300,
 			frequency: 20,
 		});
-		assert_eq!(conf2.update_policy().unwrap(), UpdatePolicy {
-			enable_downloading: false,
-			require_consensus: true,
-			filter: UpdateFilter::All,
-			track: ReleaseTrack::Beta,
-			path: default_hypervisor_path(),
-			max_size: 128 * 1024 * 1024,
-			max_delay: 300,
-			frequency: 100,
-		});
-		assert!(conf3.update_policy().is_err());
+		assert!(conf1.update_policy().is_err());
 	}
 
 	#[test]

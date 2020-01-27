@@ -19,7 +19,6 @@ variables:
 .releaseable_branches:             # list of git refs for building GitLab artifacts (think "pre-release binaries")
   only:                            &releaseable_branches
     - stable
-    - beta
     - tags
     - schedules
 
@@ -308,7 +307,7 @@ publish-release-awss3-nightly:     &publish-release-awss3
   script:
     - echo "__________Push binaries to AWS S3____________"
     - case "${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}" in
-       (beta|stable|nightly)
+       (stable|nightly)
          export BUCKET=releases.parity.io/ethereum;
          ;;
        (*)
