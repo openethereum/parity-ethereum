@@ -23,12 +23,15 @@
 //! When the entirety of the object is needed, it's better to upgrade it to a fully
 //! decoded object where parts like the hash can be saved.
 
+use std::fmt;
+
 use block::Block as FullBlock;
 use ethereum_types::{H256, Bloom, U256, Address};
 use hash::keccak;
 use header::{Header as FullHeader};
 use parity_util_mem::MallocSizeOf;
 use rlp::{self, Rlp, RlpStream};
+use rustc_hex::ToHex;
 use transaction::UnverifiedTransaction;
 use views::{self, BlockView, HeaderView, BodyView};
 use BlockNumber;
@@ -58,6 +61,12 @@ impl Header {
 
 	/// Consume the view and return the raw bytes.
 	pub fn into_inner(self) -> Vec<u8> { self.0 }
+}
+
+impl fmt::Display for Header {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		write!(f, "{}", self.0.to_hex())
+	}
 }
 
 // forwarders to borrowed view.
