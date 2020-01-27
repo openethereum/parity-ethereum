@@ -145,8 +145,8 @@ mod tests {
 		assert_eq!(s.balance(&"0000000000000000000000000000000000000002".parse().unwrap()).unwrap(), 1u64.into());
 		assert_eq!(s.balance(&"0000000000000000000000000000000000000003".parse().unwrap()).unwrap(), 1u64.into());
 		assert_eq!(s.balance(&"0000000000000000000000000000000000000004".parse().unwrap()).unwrap(), 1u64.into());
-		assert_eq!(s.balance(&"102e61f5d8f9bc71d0ad4a084df4e65e05ce0e1c".parse().unwrap()).unwrap(), U256::from(1u64) << 200);
-		assert_eq!(s.balance(&"0000000000000000000000000000000000000000".parse().unwrap()).unwrap(), 0u64.into());
+		assert_eq!(s.balance(&"874b54a8bd152966d63f706bae1ffeb0411921e5".parse().unwrap()).unwrap(), U256::from(1000000000000000000000000000000u128));
+		assert_eq!(s.balance(&"0000000000000000000000000000000000000000".parse().unwrap()).unwrap(), 1u64.into());
 	}
 
 	#[test]
@@ -154,9 +154,9 @@ mod tests {
 		let tempdir = TempDir::new("").unwrap();
 		let ropsten = new_ropsten(&tempdir.path());
 
-		assert_eq!(ropsten.state_root, "f3f4696bbf3b3b07775128eb7a3763279a394e382130f27c21e70233e04946a9".parse().unwrap());
+		assert_eq!(ropsten.state_root, "217b0bbcfb72e2d57e28f33cb361b9983513177755dc3f33ce3e7022ed62b77b".parse().unwrap());
 		let genesis = ropsten.genesis_block();
-		assert_eq!(view!(BlockView, &genesis).header_view().hash(), "0cd786a2425d16f152c658316c423e6ce1181e15c3295826d7c9904cba9ce303".parse().unwrap());
+		assert_eq!(view!(BlockView, &genesis).header_view().hash(), "41941023680923e0fe4d74a34bdac8141f2540e3ae90623718e47d66d1ca4a2d".parse().unwrap());
 	}
 
 	#[test]
