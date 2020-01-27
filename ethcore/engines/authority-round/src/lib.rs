@@ -62,7 +62,6 @@ use rlp::{encode, Decodable, DecoderError, Encodable, RlpStream, Rlp};
 use ethereum_types::{H256, H520, Address, U128, U256};
 use parity_bytes::Bytes;
 use parking_lot::{Mutex, RwLock};
-use time_utils::CheckedSystemTime;
 use common_types::{
 	ancestry_action::AncestryAction,
 	BlockNumber,
@@ -759,10 +758,10 @@ fn verify_timestamp(step: &Step, header_step: u64) -> Result<(), BlockError> {
 			// Returning it further won't recover the sync process.
 			trace!(target: "engine", "verify_timestamp: block too early");
 
-			let found = CheckedSystemTime::checked_add(UNIX_EPOCH, Duration::from_secs(oob.found))
+			let found = UNIX_EPOCH.checked_add(Duration::from_secs(oob.found))
 				.ok_or(BlockError::TimestampOverflow)?;
-			let max = oob.max.and_then(|m| CheckedSystemTime::checked_add(UNIX_EPOCH, Duration::from_secs(m)));
-			let min = oob.min.and_then(|m| CheckedSystemTime::checked_add(UNIX_EPOCH, Duration::from_secs(m)));
+			let max = oob.max.and_then(|m| UNIX_EPOCH.checked_add(Duration::from_secs(m)));
+			let min = oob.min.and_then(|m| UNIX_EPOCH.checked_add(Duration::from_secs(m)));
 
 			let new_oob = OutOfBounds { min, max, found };
 

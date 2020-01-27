@@ -84,7 +84,6 @@ use macros::map;
 use parking_lot::RwLock;
 use rand::Rng;
 use unexpected::{Mismatch, OutOfBounds};
-use time_utils::CheckedSystemTime;
 use common_types::{
 	BlockNumber,
 	ids::BlockId,
@@ -571,7 +570,7 @@ impl Engine for Clique {
 
 		// Don't waste time checking blocks from the future
 		{
-			let limit = CheckedSystemTime::checked_add(SystemTime::now(), Duration::from_secs(self.period))
+			let limit = SystemTime::now().checked_add(Duration::from_secs(self.period))
 				.ok_or(BlockError::TimestampOverflow)?;
 
 			// This should succeed under the constraints that the system clock works
@@ -581,7 +580,7 @@ impl Engine for Clique {
 
 			let hdr = Duration::from_secs(header.timestamp());
 			if hdr > limit_as_dur {
-				let found = CheckedSystemTime::checked_add(UNIX_EPOCH, hdr).ok_or(BlockError::TimestampOverflow)?;
+				let found = UNIX_EPOCH.checked_add(hdr).ok_or(BlockError::TimestampOverflow)?;
 
 				Err(BlockError::TemporarilyInvalid(OutOfBounds {
 					min: None,
@@ -692,8 +691,8 @@ impl Engine for Clique {
 		// Ensure that the block's timestamp isn't too close to it's parent
 		let limit = parent.timestamp().saturating_add(self.period);
 		if limit > header.timestamp() {
-			let max = CheckedSystemTime::checked_add(UNIX_EPOCH, Duration::from_secs(header.timestamp()));
-			let found = CheckedSystemTime::checked_add(UNIX_EPOCH, Duration::from_secs(limit))
+			let max = UNIX_EPOCH.checked_add(Duration::from_secs(header.timestamp()));
+			let found = UNIX_EPOCH.checked_add(Duration::from_secs(limit))
 				.ok_or(BlockError::TimestampOverflow)?;
 
 			Err(BlockError::InvalidTimestamp(OutOfBounds {
