@@ -658,7 +658,7 @@ dependencies = [
  "patricia-trie-ethereum 0.1.0",
  "rlp 0.4.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp_derive 0.1.0",
- "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustc-hex 2.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "unexpected 0.1.0",
  "vm 0.1.0",
 ]
