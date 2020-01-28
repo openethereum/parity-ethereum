@@ -250,9 +250,10 @@ impl From<ethjson::spec::HardcodedSync> for SpecHardcodedSync {
 impl fmt::Display for SpecHardcodedSync {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		writeln!(f, "{{")?;
-		writeln!(f, r#"header": "{:?},"#, self.header)?;
-		writeln!(f, r#"total_difficulty": "{:?},"#, self.total_difficulty)?;
-		writeln!(f, r#"chts": {:#?}"#, self.chts.iter().map(|x| format!(r#"{:?}"#, x)).collect::<Vec<_>>())?;
+		writeln!(f, r#""header": "{:x}","#, self.header)?;
+		writeln!(f, r#""totalDifficulty": "{:?}""#, self.total_difficulty)?;
+		// TODO: #11415 - fix trailing comma for CHTs
+		writeln!(f, r#""CHTs": {:#?}"#, self.chts.iter().map(|x| format!("{:?}", x)).collect::<Vec<_>>())?;
 		writeln!(f, "}}")
 	}
 }

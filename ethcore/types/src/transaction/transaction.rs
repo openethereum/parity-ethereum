@@ -548,14 +548,16 @@ impl From<SignedTransaction> for PendingTransaction {
 
 #[cfg(test)]
 mod tests {
+	use std::str::FromStr;
+
 	use super::*;
 	use ethereum_types::{U256, Address};
 	use hash::keccak;
-	use std::str::FromStr;
+	use rustc_hex::FromHex;
 
 	#[test]
 	fn sender_test() {
-		let bytes = ::rustc_hex::FromHex::from_hex("f85f800182520894095e7baea6a6c7c4c2dfeb977efac326af552d870a801ba048b55bfa915ac795c431978d8a6a992b628d557da5ff759b307d495a36649353a0efffd310ac743f371de3b9f7f9cb56c0b28ad43601b4ab949f53faa07bd2c804").unwrap();
+		let bytes: Vec<u8> = FromHex::from_hex("f85f800182520894095e7baea6a6c7c4c2dfeb977efac326af552d870a801ba048b55bfa915ac795c431978d8a6a992b628d557da5ff759b307d495a36649353a0efffd310ac743f371de3b9f7f9cb56c0b28ad43601b4ab949f53faa07bd2c804").unwrap();
 		let t: UnverifiedTransaction = rlp::decode(&bytes).expect("decoding UnverifiedTransaction failed");
 		assert_eq!(t.data, b"");
 		assert_eq!(t.gas, U256::from(0x5208u64));
@@ -675,11 +677,9 @@ mod tests {
 
 	#[test]
 	fn should_agree_with_vitalik() {
-		use rustc_hex::FromHex;
-
 		let test_vector = |tx_data: &str, address: &'static str| {
-			let signed = rlp::decode(&FromHex::from_hex(tx_data).unwrap()).expect("decoding tx data failed");
-			let signed = SignedTransaction::new(signed).unwrap();
+			let bytes = rlp::decode(&tx_data.from_hex::<Vec<u8>>().unwrap()).expect("decoding tx data failed");
+			let signed = SignedTransaction::new(bytes).unwrap();
 			assert_eq!(signed.sender(), Address::from_str(&address[2..]).unwrap());
 			println!("chainid: {:?}", signed.chain_id());
 		};

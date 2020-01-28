@@ -26,7 +26,7 @@
 use block::Block as FullBlock;
 use ethereum_types::{H256, Bloom, U256, Address};
 use hash::keccak;
-use header::{Header as FullHeader};
+use header::Header as FullHeader;
 use parity_util_mem::MallocSizeOf;
 use rlp::{self, Rlp, RlpStream};
 use transaction::UnverifiedTransaction;
@@ -58,6 +58,15 @@ impl Header {
 
 	/// Consume the view and return the raw bytes.
 	pub fn into_inner(self) -> Vec<u8> { self.0 }
+}
+
+impl std::fmt::LowerHex for Header {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		for byte in &self.0 {
+			write!(f, "{:02x}", byte)?;
+		}
+		Ok(())
+	}
 }
 
 // forwarders to borrowed view.

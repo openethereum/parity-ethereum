@@ -90,14 +90,14 @@ mod tests {
 
 	#[test]
 	fn test_transaction_view() {
-		let rlp = "f87c80018261a894095e7baea6a6c7c4c2dfeb977efac326af552d870a9d00000000000000000000000000000000000000000000000000000000001ba048b55bfa915ac795c431978d8a6a992b628d557da5ff759b307d495a36649353a0efffd310ac743f371de3b9f7f9cb56c0b28ad43601b4ab949f53faa07bd2c804".from_hex().unwrap();
+		let rlp: Vec<u8> = "f87c80018261a894095e7baea6a6c7c4c2dfeb977efac326af552d870a9d00000000000000000000000000000000000000000000000000000000001ba048b55bfa915ac795c431978d8a6a992b628d557da5ff759b307d495a36649353a0efffd310ac743f371de3b9f7f9cb56c0b28ad43601b4ab949f53faa07bd2c804".from_hex().unwrap();
 
 		let view = view!(TransactionView, &rlp);
 		assert_eq!(view.nonce(), 0.into());
 		assert_eq!(view.gas_price(), 1.into());
 		assert_eq!(view.gas(), 0x61a8.into());
 		assert_eq!(view.value(), 0xa.into());
-		assert_eq!(view.data(), "0000000000000000000000000000000000000000000000000000000000".from_hex().unwrap());
+		assert_eq!(view.data(), "0000000000000000000000000000000000000000000000000000000000".from_hex::<Vec<u8>>().unwrap());
 		assert_eq!(view.r(), "48b55bfa915ac795c431978d8a6a992b628d557da5ff759b307d495a36649353".into());
 		assert_eq!(view.s(), "efffd310ac743f371de3b9f7f9cb56c0b28ad43601b4ab949f53faa07bd2c804".into());
 		assert_eq!(view.v(), 0x1b);
