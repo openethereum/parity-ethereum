@@ -1106,7 +1106,7 @@ pub mod tests {
 		ml.0.take_and_process_message();
 		ml.0.take_and_process_message();
 		assert_eq!(ml.session_at(0).on_confirm_initialization(ml.0.node(1), &message::ConfirmInitialization {
-			session: Default::default(),
+			session: [1u8; 32].into(),
 			session_nonce: 0,
 			derived_point: math::generate_random_point().unwrap().into(),
 		}), Err(Error::InvalidStateForRequest));
