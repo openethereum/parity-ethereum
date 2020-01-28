@@ -1,5 +1,6 @@
 {
-	"name": "Morden",
+	"name": "Null Morden with Finality",
+	"dataDir": "null_finality",
 	"engine": {
 		"null": {
 			"params": {

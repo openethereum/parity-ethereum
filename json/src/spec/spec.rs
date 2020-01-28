@@ -87,7 +87,7 @@ mod tests {
 	#[test]
 	fn should_error_on_unknown_fields() {
 		let s = r#"{
-		"name": "Morden",
+		"name": "Null Morden",
 		"dataDir": "morden",
 		"engine": {
 			"Ethash": {
@@ -152,7 +152,7 @@ mod tests {
 	#[test]
 	fn spec_deserialization() {
 		let s = r#"{
-		"name": "Morden",
+		"name": "Null Morden",
 		"dataDir": "morden",
 		"engine": {
 			"Ethash": {

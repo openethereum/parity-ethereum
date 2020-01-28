@@ -505,14 +505,14 @@ mod tests {
 		test_helpers::get_temp_state_db,
 	};
 	use rlp;
-	use spec::{new_morden, new_mcip3_test, new_homestead_test_machine, Spec};
+	use spec::{new_ropsten, new_mcip3_test, new_homestead_test_machine, Spec};
 	use tempdir::TempDir;
 
 	use super::{Ethash, EthashParams, ecip1017_eras_block_reward};
 
 	fn test_spec() -> Spec {
 		let tempdir = TempDir::new("").unwrap();
-		new_morden(&tempdir.path())
+		new_ropsten(&tempdir.path())
 	}
 
 	fn get_default_ethash_params() -> EthashParams {
@@ -553,7 +553,7 @@ mod tests {
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![], false).unwrap();
 		let b = b.close().unwrap();
-		assert_eq!(b.state.balance(&Address::zero()).unwrap(), U256::from_str("4563918244f40000").unwrap());
+		assert_eq!(b.state.balance(&Address::zero()).unwrap(), U256::from_str("4563918244f40001").unwrap());
 	}
 
 	#[test]
@@ -607,7 +607,7 @@ mod tests {
 		b.push_uncle(uncle).unwrap();
 
 		let b = b.close().unwrap();
-		assert_eq!(b.state.balance(&Address::zero()).unwrap(), "478eae0e571ba000".into());
+		assert_eq!(b.state.balance(&Address::zero()).unwrap(), "478eae0e571ba001".into());
 		assert_eq!(b.state.balance(&uncle_author).unwrap(), "3cb71f51fc558000".into());
 	}
 
@@ -641,7 +641,7 @@ mod tests {
 		assert!(schedule.stack_limit > 0);
 
 		let schedule = engine.schedule(100);
-		assert!(!schedule.have_delegate_call);
+		assert!(schedule.have_delegate_call);
 	}
 
 	#[test]

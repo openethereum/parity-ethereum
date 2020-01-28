@@ -44,7 +44,6 @@ pub enum SpecType {
 	Mix,
 	Callisto,
 	EtherCore,
-	Morden,
 	Mordor,
 	Ropsten,
 	Kovan,
@@ -80,7 +79,6 @@ impl str::FromStr for SpecType {
 			"mix" => SpecType::Mix,
 			"callisto" => SpecType::Callisto,
 			"ethercore" => SpecType::EtherCore,
-			"morden" => SpecType::Morden,
 			"mordor" | "classic-testnet" => SpecType::Mordor,
 			"ropsten" => SpecType::Ropsten,
 			"kovan" => SpecType::Kovan,
@@ -111,7 +109,6 @@ impl fmt::Display for SpecType {
 			SpecType::Mix => "mix",
 			SpecType::Callisto => "callisto",
 			SpecType::EtherCore => "ethercore",
-			SpecType::Morden => "morden",
 			SpecType::Mordor => "mordor",
 			SpecType::Ropsten => "ropsten",
 			SpecType::Kovan => "kovan",
@@ -142,7 +139,6 @@ impl SpecType {
 			SpecType::Mix => Ok(spec::new_mix(params)),
 			SpecType::Callisto => Ok(spec::new_callisto(params)),
 			SpecType::EtherCore => Ok(spec::new_ethercore(params)),
-			SpecType::Morden => Ok(spec::new_morden(params)),
 			SpecType::Mordor => Ok(spec::new_mordor(params)),
 			SpecType::Ropsten => Ok(spec::new_ropsten(params)),
 			SpecType::Kovan => Ok(spec::new_kovan(params)),
@@ -402,7 +398,6 @@ mod tests {
 		assert_eq!(SpecType::Mix, "mix".parse().unwrap());
 		assert_eq!(SpecType::Callisto, "callisto".parse().unwrap());
 		assert_eq!(SpecType::EtherCore, "ethercore".parse().unwrap());
-		assert_eq!(SpecType::Morden, "morden".parse().unwrap());
 		assert_eq!(SpecType::Mordor, "mordor".parse().unwrap());
 		assert_eq!(SpecType::Mordor, "classic-testnet".parse().unwrap());
 		assert_eq!(SpecType::Ropsten, "ropsten".parse().unwrap());
@@ -436,7 +431,6 @@ mod tests {
 		assert_eq!(format!("{}", SpecType::Mix), "mix");
 		assert_eq!(format!("{}", SpecType::Callisto), "callisto");
 		assert_eq!(format!("{}", SpecType::EtherCore), "ethercore");
-		assert_eq!(format!("{}", SpecType::Morden), "morden");
 		assert_eq!(format!("{}", SpecType::Mordor), "mordor");
 		assert_eq!(format!("{}", SpecType::Ropsten), "ropsten");
 		assert_eq!(format!("{}", SpecType::Kovan), "kovan");
