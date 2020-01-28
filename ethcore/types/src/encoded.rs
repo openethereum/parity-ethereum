@@ -29,7 +29,6 @@ use hash::keccak;
 use header::Header as FullHeader;
 use parity_util_mem::MallocSizeOf;
 use rlp::{self, Rlp, RlpStream};
-use rustc_hex::ToHex;
 use transaction::UnverifiedTransaction;
 use views::{self, BlockView, HeaderView, BodyView};
 use BlockNumber;
@@ -59,10 +58,14 @@ impl Header {
 
 	/// Consume the view and return the raw bytes.
 	pub fn into_inner(self) -> Vec<u8> { self.0 }
+}
 
-	/// Get the hexadecimal representation of the header
-	pub fn to_hex(&self) -> String {
-		self.0.to_hex()
+impl std::fmt::LowerHex for Header {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		for byte in &self.0 {
+			write!(f, "{:02x}", byte)?;
+		}
+		Ok(())
 	}
 }
 

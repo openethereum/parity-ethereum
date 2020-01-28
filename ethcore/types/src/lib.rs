@@ -44,13 +44,15 @@ extern crate parity_bytes as bytes;
 extern crate patricia_trie_ethereum as ethtrie;
 extern crate parity_snappy;
 extern crate rlp;
-extern crate rustc_hex;
 extern crate unexpected;
 
 #[macro_use]
 extern crate rlp_derive;
 extern crate parity_util_mem;
 extern crate parity_util_mem as malloc_size_of;
+
+#[cfg(test)]
+extern crate rustc_hex;
 
 #[macro_use]
 pub mod views;
