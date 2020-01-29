@@ -28,6 +28,12 @@ pub struct EncryptedSecret {
 	pub encrypted_point: Public,
 }
 
+/// Calculate the inversion of a Secret key (in place) using the `libsecp256k1` crate.
+fn invert_secret(s: &mut Secret) -> Result<(), Error> {
+	*s = secp256k1::SecretKey::parse(&s.0)?.inv().serialize().into();
+	Ok(())
+}
+
 /// Create zero scalar.
 pub fn zero_scalar() -> Secret {
 	Secret::zero()
@@ -97,12 +103,13 @@ pub fn compute_shadow_mul<'a, I>(coeff: &Secret, self_secret: &Secret, mut other
 
 	let mut shadow_mul = self_secret.clone();
 	shadow_mul.sub(other_secret)?;
-	shadow_mul.inv()?;
+	invert_secret(&mut shadow_mul)?;
+
 	shadow_mul.mul(other_secret)?;
 	while let Some(other_secret) = other_secrets.next() {
 		let mut shadow_mul_element = self_secret.clone();
 		shadow_mul_element.sub(other_secret)?;
-		shadow_mul_element.inv()?;
+		invert_secret(&mut shadow_mul_element)?;
 		shadow_mul_element.mul(other_secret)?;
 		shadow_mul.mul(&shadow_mul_element)?;
 	}
@@ -315,8 +322,7 @@ pub fn compute_joint_shadow_point_test<'a, I>(access_key: &Secret, common_point:
 /// Decrypt data using joint shadow point.
 pub fn decrypt_with_joint_shadow(threshold: usize, access_key: &Secret, encrypted_point: &Public, joint_shadow_point: &Public) -> Result<Public, Error> {
 	let mut inv_access_key = access_key.clone();
-	inv_access_key.inv()?;
-
+	invert_secret(&mut inv_access_key)?;
 	let mut mul = joint_shadow_point.clone();
 	ec_math_utils::public_mul_secret(&mut mul, &inv_access_key)?;
 
@@ -526,14 +532,14 @@ pub fn compute_ecdsa_inversed_secret_coeff_from_shares(t: usize, id_numbers: &[S
 
 	// compute inv(u)
 	let mut u_inv = u;
-	u_inv.inv()?;
+	invert_secret(&mut u_inv)?;
 	Ok(u_inv)
 }
 
 #[cfg(test)]
 pub mod tests {
 	use std::iter::once;
-	use crypto::publickey::{KeyPair, recover, verify_public};
+	use crypto::publickey::{KeyPair, Secret, recover, verify_public};
 	use super::*;
 
 	#[derive(Clone)]
@@ -1065,7 +1071,7 @@ pub mod tests {
 			// calculate inversion of original shared secret
 			let joint_secret = compute_joint_secret(artifacts.polynoms1.iter().map(|p| &p[0])).unwrap();
 			let mut expected_joint_secret_inv = joint_secret.clone();
-			expected_joint_secret_inv.inv().unwrap();
+			invert_secret(&mut expected_joint_secret_inv).unwrap();
 
 			// run inversion protocol
 			let reciprocal_shares = run_reciprocal_protocol(t, &artifacts);
@@ -1079,4 +1085,18 @@ pub mod tests {
 			assert_eq!(actual_joint_secret_inv, expected_joint_secret_inv);
 		}
 	}
+
+	#[test]
+	fn multiplying_secret_inversion_with_secret_gives_one() {
+		use std::str::FromStr;
+		let secret = Random.generate().secret().clone();
+		let mut inversion = secret.clone();
+		invert_secret(&mut inversion).unwrap();
+		inversion.mul(&secret).unwrap();
+		assert_eq!(
+			inversion,
+			Secret::from_str("0000000000000000000000000000000000000000000000000000000000000001").unwrap()
+		);
+	}
+
 }

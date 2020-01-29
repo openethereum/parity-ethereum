@@ -1504,6 +1504,7 @@ dependencies = [
  "kvdb 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "kvdb-rocksdb 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libsecp256k1 0.3.4 (git+https://github.com/paritytech/libsecp256k1.git)",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-bytes 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-crypto 0.4.2 (git+https://github.com/paritytech/parity-common?branch=dp/chore/secp256k1-from-upstream)",
@@ -1926,7 +1927,7 @@ name = "generic-array"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "typenum 1.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "typenum 1.11.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -1934,7 +1935,7 @@ name = "generic-array"
 version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "typenum 1.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "typenum 1.11.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -2529,6 +2530,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "libsecp256k1"
+version = "0.3.4"
+source = "git+https://github.com/paritytech/libsecp256k1.git#a922afe6fec34fecb865cf6a8bd592bf0fd7fa5f"
+dependencies = [
+ "arrayref 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
+ "crunchy 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "digest 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rand 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "subtle 2.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "linked-hash-map"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3015,7 +3028,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "parity-crypto"
 version = "0.4.2"
-source = "git+https://github.com/paritytech/parity-common?branch=dp/chore/secp256k1-from-upstream#0144dc1c6707530d5e4371368d796f831227ba11"
+source = "git+https://github.com/paritytech/parity-common?branch=dp/chore/secp256k1-from-upstream#56dea96dcd8708a7d68d957b2403ef72e7dfafda"
 dependencies = [
  "aes 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "aes-ctr 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -3029,7 +3042,7 @@ dependencies = [
  "ripemd160 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-hex 2.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "scrypt 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "secp256k1 0.17.2 (git+https://github.com/paritytech/rust-secp256k1.git?branch=dp/chore/update-to-upstream)",
+ "secp256k1 0.17.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "sha2 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "subtle 2.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "tiny-keccak 2.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -4178,16 +4191,16 @@ dependencies = [
 [[package]]
 name = "secp256k1"
 version = "0.17.2"
-source = "git+https://github.com/paritytech/rust-secp256k1.git?branch=dp/chore/update-to-upstream#3e771be73ad78fd2f09fbb0ab29d086feed082ae"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "rand 0.6.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "secp256k1-sys 0.1.1 (git+https://github.com/paritytech/rust-secp256k1.git?branch=dp/chore/update-to-upstream)",
+ "secp256k1-sys 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "secp256k1-sys"
-version = "0.1.1"
-source = "git+https://github.com/paritytech/rust-secp256k1.git?branch=dp/chore/update-to-upstream#3e771be73ad78fd2f09fbb0ab29d086feed082ae"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "cc 1.0.41 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -5079,7 +5092,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "typenum"
-version = "1.10.0"
+version = "1.11.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
@@ -5724,6 +5737,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum libc 0.2.65 (registry+https://github.com/rust-lang/crates.io-index)" = "1a31a0627fdf1f6a39ec0dd577e101440b7db22672c0901fe00a9a6fbb5c24e8"
 "checksum libloading 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)" = "9c3ad660d7cb8c5822cd83d10897b0f1f1526792737a179e73896152f85b88c2"
 "checksum librocksdb-sys 6.2.4 (registry+https://github.com/rust-lang/crates.io-index)" = "0a0785e816e1e11e7599388a492c61ef80ddc2afc91e313e61662cce537809be"
+"checksum libsecp256k1 0.3.4 (git+https://github.com/paritytech/libsecp256k1.git)" = "<none>"
 "checksum linked-hash-map 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)" = "70fb39025bc7cdd76305867c4eccf2f2dcf6e9a57f5b21a93e1c2d86cd03ec9e"
 "checksum lock_api 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)" = "775751a3e69bde4df9b38dd00a1b5d6ac13791e4223d4a0506577f0dd27cfb7a"
 "checksum lock_api 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)" = "f8912e782533a93a167888781b836336a6ca5da6175c05944c86cf28c31104dc"
@@ -5858,8 +5872,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum scopeguard 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "b42e15e59b18a828bbf5c58ea01debb36b9b096346de35d941dcb89009f24a0d"
 "checksum scrypt 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "656c79d0e90d0ab28ac86bf3c3d10bfbbac91450d3f190113b4e76d9fec3cfdd"
 "checksum sct 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)" = "e3042af939fca8c3453b7af0f1c66e533a15a86169e39de2657310ade8f98d3c"
-"checksum secp256k1 0.17.2 (git+https://github.com/paritytech/rust-secp256k1.git?branch=dp/chore/update-to-upstream)" = "<none>"
-"checksum secp256k1-sys 0.1.1 (git+https://github.com/paritytech/rust-secp256k1.git?branch=dp/chore/update-to-upstream)" = "<none>"
+"checksum secp256k1 0.17.2 (registry+https://github.com/rust-lang/crates.io-index)" = "2932dc07acd2066ff2e3921a4419606b220ba6cd03a9935123856cc534877056"
+"checksum secp256k1-sys 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "7ab2c26f0d3552a0f12e639ae8a64afc2e3db9c52fe32f5fc6c289d38519f220"
 "checksum security-framework 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)" = "8ef2429d7cefe5fd28bd1d2ed41c944547d4ff84776f5935b456da44593a16df"
 "checksum security-framework-sys 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)" = "e31493fc37615debb8c5090a7aeb4a9730bc61e77ab10b9af59f1a202284f895"
 "checksum semver 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)" = "1d7eb9ef2c18661902cc47e535f9bc51b78acd254da71d375c2f6720d9a40403"
@@ -5938,7 +5952,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum trie-standardmap 0.15.0 (registry+https://github.com/rust-lang/crates.io-index)" = "64fda153c00484d640bc91334624be22ead0e5baca917d9fd53ff29bdebcf9b2"
 "checksum triehash 0.8.2 (registry+https://github.com/rust-lang/crates.io-index)" = "a518c10ed2591fd67bbafd7d5daf725767d07b129d8c99b3b3831eeabd639ed9"
 "checksum try-lock 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "e604eb7b43c06650e854be16a2a03155743d3752dd1c943f6829e26b7a36e382"
-"checksum typenum 1.10.0 (registry+https://github.com/rust-lang/crates.io-index)" = "612d636f949607bdf9b123b4a6f6d966dedf3ff669f7f045890d3a4a73948169"
+"checksum typenum 1.11.2 (registry+https://github.com/rust-lang/crates.io-index)" = "6d2783fe2d6b8c1101136184eb41be8b1ad379e4657050b8aaff0c79ee7575f9"
 "checksum uint 0.8.2 (registry+https://github.com/rust-lang/crates.io-index)" = "e75a4cdd7b87b28840dba13c483b9a88ee6bbf16ba5c951ee1ecfcf723078e0d"
 "checksum unicase 1.4.2 (registry+https://github.com/rust-lang/crates.io-index)" = "7f4765f83163b74f957c797ad9253caf97f103fb064d3999aea9568d09fc8a33"
 "checksum unicase 2.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "9d3218ea14b4edcaccfa0df0a64a3792a2c32cc706f1b336e48867f9d3147f90"

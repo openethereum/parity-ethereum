@@ -18,6 +18,7 @@ extern crate byteorder;
 extern crate ethabi;
 extern crate ethereum_types;
 extern crate hyper;
+extern crate secp256k1;
 extern crate keccak_hash as hash;
 extern crate kvdb;
 extern crate kvdb_rocksdb;
