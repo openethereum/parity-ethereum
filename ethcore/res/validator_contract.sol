@@ -108,7 +108,7 @@ contract TestValidatorSet {
 			return false;
 		}
 		if (isValidatorBanned[_maliciousValidator]) {
-			// We shouldn't report of the malicious validator
+			// We shouldn't report the malicious validator
 			// as it has already been reported and banned
 			return false;
 		}
