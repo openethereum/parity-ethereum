@@ -100,6 +100,9 @@ pub struct AuthorityRoundParams {
 	/// The addresses of contracts that determine the block gas limit starting from the block number
 	/// associated with each of those contracts.
 	pub block_gas_limit_contract_transitions: Option<BTreeMap<Uint, Address>>,
+	/// The block number at which the consensus engine switches from AuRa to AuRa with POSDAO
+	/// modifications.
+	pub posdao_transition: Option<Uint>,
 }
 
 /// Authority engine deserialization.

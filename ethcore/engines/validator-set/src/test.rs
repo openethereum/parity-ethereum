@@ -33,7 +33,7 @@ use ethereum_types::{H256, Address};
 use machine::Machine;
 use parity_bytes::Bytes;
 
-use super::{ValidatorSet, SimpleList};
+use super::{SystemCall, ValidatorSet, SimpleList};
 
 /// Set used for testing with a single validator.
 #[derive(Clone, MallocSizeOf, Debug)]
@@ -80,6 +80,16 @@ impl TestSet {
 impl ValidatorSet for TestSet {
 	fn default_caller(&self, _block_id: BlockId) -> Box<Call> {
 		Box::new(|_, _| Err("Test set doesn't require calls.".into()))
+	}
+
+	fn generate_engine_transactions(&self, _first: bool, _header: &Header, _call: &mut SystemCall)
+		-> Result<Vec<(Address, Bytes)>, EthcoreError>
+	{
+		Ok(Vec::new())
+	}
+
+	fn on_close_block(&self, _header: &Header, _address: &Address) -> Result<(), EthcoreError> {
+		Ok(())
 	}
 
 	fn is_epoch_end(&self, _first: bool, _chain_head: &Header) -> Option<Vec<u8>> { None }

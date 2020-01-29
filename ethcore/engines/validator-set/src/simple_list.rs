@@ -26,9 +26,10 @@ use common_types::{
 use ethereum_types::{H256, Address};
 use log::warn;
 use machine::Machine;
+use parity_bytes::Bytes;
 use parity_util_mem::MallocSizeOf;
 
-use super::ValidatorSet;
+use super::{SystemCall, ValidatorSet};
 
 /// Validator set containing a known set of addresses.
 #[derive(Clone, Debug, PartialEq, Eq, Default, MallocSizeOf)]
@@ -69,6 +70,16 @@ impl From<Vec<Address>> for SimpleList {
 impl ValidatorSet for SimpleList {
 	fn default_caller(&self, _block_id: BlockId) -> Box<Call> {
 		Box::new(|_, _| Err("Simple list doesn't require calls.".into()))
+	}
+
+	fn generate_engine_transactions(&self, _first: bool, _header: &Header, _call: &mut SystemCall)
+		-> Result<Vec<(Address, Bytes)>, EthcoreError>
+	{
+		Ok(Vec::new())
+	}
+
+	fn on_close_block(&self, _header: &Header, _address: &Address) -> Result<(), EthcoreError> {
+		Ok(())
 	}
 
 	fn is_epoch_end(&self, first: bool, _chain_head: &Header) -> Option<Vec<u8>> {
