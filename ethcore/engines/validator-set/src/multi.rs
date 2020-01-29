@@ -51,6 +51,14 @@ impl Multi {
 		}
 	}
 
+	fn map_children<T, F>(&self, header: &Header, mut func: F) -> Result<T, EthcoreError>
+		where F: FnMut(&dyn ValidatorSet, bool) -> Result<T, EthcoreError>
+	{
+		let (set_block, set) = self.correct_set_by_number(header.number());
+		let first = set_block == header.number();
+		func(set, first)
+	}
+
 	fn correct_set(&self, id: BlockId) -> Option<&dyn ValidatorSet> {
 		match self.block_number.read()(id).map(|parent_block| self.correct_set_by_number(parent_block)) {
 			Ok((_, set)) => Some(set),
@@ -82,11 +90,20 @@ impl ValidatorSet for Multi {
 			.unwrap_or_else(|| Box::new(|_, _| Err("No validator set for given ID.".into())))
 	}
 
-	fn on_epoch_begin(&self, _first: bool, header: &Header, call: &mut SystemCall) -> Result<(), EthcoreError> {
-		let (set_block, set) = self.correct_set_by_number(header.number());
-		let first = set_block == header.number();
+	fn generate_engine_transactions(&self, _first: bool, header: &Header, call: &mut SystemCall)
+		-> Result<Vec<(Address, Bytes)>, EthcoreError>
+	{
+		self.map_children(header, &mut |set: &dyn ValidatorSet, first| {
+			set.generate_engine_transactions(first, header, call)
+		})
+	}
 
-		set.on_epoch_begin(first, header, call)
+	fn on_close_block(&self, header: &Header, address: &Address) -> Result<(), EthcoreError> {
+		self.map_children(header, &mut |set: &dyn ValidatorSet, _first| set.on_close_block(header, address))
+	}
+
+	fn on_epoch_begin(&self, _first: bool, header: &Header, call: &mut SystemCall) -> Result<(), EthcoreError> {
+		self.map_children(header, &mut |set: &dyn ValidatorSet, first| set.on_epoch_begin(first, header, call))
 	}
 
 	fn genesis_epoch_data(&self, header: &Header, call: &Call) -> Result<Vec<u8>, String> {
