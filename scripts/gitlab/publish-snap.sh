@@ -11,7 +11,6 @@ SNAP_PACKAGE="parity_"$VERSION"_"$BUILD_ARCH".snap"
 # Choose snap release channel based on parity ethereum version track
 case ${TRACK} in
   nightly) export GRADE="devel" CHANNEL="edge";;
-  beta) export GRADE="stable" CHANNEL="beta";;
   stable) export GRADE="stable" CHANNEL="stable";;
   *) echo "No release" && exit 0;;
 esac

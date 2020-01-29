@@ -1,5 +1,6 @@
 {
-	"name": "Morden",
+	"name": "Null Morden",
+	"dataDir": "null_morden",
 	"engine": {
 		"null": {
 			"params": {}

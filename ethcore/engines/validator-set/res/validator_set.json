@@ -1,5 +1,55 @@
 [
 	{"constant":false,"inputs":[],"name":"finalizeChange","outputs":[],"payable":false,"type":"function"},
 	{"constant":true,"inputs":[],"name":"getValidators","outputs":[{"name":"validators","type":"address[]"}],"payable":false,"type":"function"},
-	{"anonymous":false,"inputs":[{"indexed":true,"name":"_parent_hash","type":"bytes32"},{"indexed":false,"name":"_new_set","type":"address[]"}],"name":"InitiateChange","type":"event"}
+	{"anonymous":false,"inputs":[{"indexed":true,"name":"_parent_hash","type":"bytes32"},{"indexed":false,"name":"_new_set","type":"address[]"}],"name":"InitiateChange","type":"event"},
+	{
+		"constant": true,
+		"inputs": [],
+		"name": "emitInitiateChangeCallable",
+		"outputs": [
+			{
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": false,
+		"inputs": [],
+		"name": "emitInitiateChange",
+		"outputs": [],
+		"payable": false,
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+	  "constant": true,
+	  "inputs": [
+		{
+		  "name": "_reportingValidator",
+		  "type": "address"
+		},
+		{
+		  "name": "_maliciousValidator",
+		  "type": "address"
+		},
+		{
+			"name": "_blockNumber",
+			"type": "uint256"
+		}
+	  ],
+	  "name": "shouldValidatorReport",
+	  "outputs": [
+		{
+		  "name": "",
+		  "type": "bool"
+		}
+	  ],
+	  "payable": false,
+	  "stateMutability": "view",
+	  "type": "function"
+	}
 ]

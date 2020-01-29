@@ -1,4 +1,4 @@
-// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// Copyright 2015-2020 Parity Technologies (UK) Ltd.
 // This file is part of Parity Ethereum.
 
 // Parity Ethereum is free software: you can redistribute it and/or modify
@@ -21,7 +21,7 @@ use derive_more::{Display, From};
 use ethereum_types::{U256, U512};
 use ethtrie::TrieError;
 use parity_snappy::InvalidInput;
-use parity_crypto::publickey::{Error as EthPublicKeyCryptoError};
+use parity_crypto::publickey::Error as EthPublicKeyCryptoError;
 
 use errors::{BlockError, EngineError, ImportError, SnapshotError};
 use transaction::Error as TransactionError;

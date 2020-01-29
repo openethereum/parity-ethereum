@@ -1,4 +1,4 @@
-// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// Copyright 2015-2020 Parity Technologies (UK) Ltd.
 // This file is part of Parity Ethereum.
 
 // Parity Ethereum is free software: you can redistribute it and/or modify
@@ -42,8 +42,8 @@ extern crate derive_more;
 extern crate keccak_hash as hash;
 extern crate parity_bytes as bytes;
 extern crate patricia_trie_ethereum as ethtrie;
-extern crate rlp;
 extern crate parity_snappy;
+extern crate rlp;
 extern crate unexpected;
 
 #[macro_use]
@@ -51,11 +51,11 @@ extern crate rlp_derive;
 extern crate parity_util_mem;
 extern crate parity_util_mem as malloc_size_of;
 
-#[macro_use]
-pub mod views;
-
 #[cfg(test)]
 extern crate rustc_hex;
+
+#[macro_use]
+pub mod views;
 
 pub mod account_diff;
 pub mod ancestry_action;

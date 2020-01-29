@@ -1,4 +1,4 @@
-// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// Copyright 2015-2020 Parity Technologies (UK) Ltd.
 // This file is part of Parity Ethereum.
 
 // Parity Ethereum is free software: you can redistribute it and/or modify
@@ -72,7 +72,7 @@ impl UpdateService for TestUpdater {
 
 	fn version_info(&self) -> VersionInfo {
 		VersionInfo {
-			track: ReleaseTrack::Beta,
+			track: ReleaseTrack::Stable,
 			version: Version{major: 1, minor: 5, patch: 0, build: vec![], pre: vec![]},
 			hash: H160::from_low_u64_be(150),
 		}
@@ -84,7 +84,7 @@ impl UpdateService for TestUpdater {
 			this_fork: Some(15000),
 			track: ReleaseInfo {
 				version: VersionInfo {
-					track: ReleaseTrack::Beta,
+					track: ReleaseTrack::Stable,
 					version: Version{major: 1, minor: 5, patch: 1, build: vec![], pre: vec![]},
 					hash: H160::from_low_u64_be(151),
 				},

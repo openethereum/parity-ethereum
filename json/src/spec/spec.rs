@@ -1,4 +1,4 @@
-// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// Copyright 2015-2020 Parity Technologies (UK) Ltd.
 // This file is part of Parity Ethereum.
 
 // Parity Ethereum is free software: you can redistribute it and/or modify
@@ -87,7 +87,7 @@ mod tests {
 	#[test]
 	fn should_error_on_unknown_fields() {
 		let s = r#"{
-		"name": "Morden",
+		"name": "Null Morden",
 		"dataDir": "morden",
 		"engine": {
 			"Ethash": {
@@ -152,7 +152,7 @@ mod tests {
 	#[test]
 	fn spec_deserialization() {
 		let s = r#"{
-		"name": "Morden",
+		"name": "Null Morden",
 		"dataDir": "morden",
 		"engine": {
 			"Ethash": {

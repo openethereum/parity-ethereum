@@ -1,5 +1,6 @@
 {
-	"name": "Morden",
+	"name": "Null Morden with Reward",
+	"dataDir": "null_reward",
 	"engine": {
 		"null": {
 			"params": {

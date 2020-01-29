@@ -1,4 +1,4 @@
-// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// Copyright 2015-2020 Parity Technologies (UK) Ltd.
 // This file is part of Parity Ethereum.
 
 // Parity Ethereum is free software: you can redistribute it and/or modify
@@ -220,7 +220,7 @@ impl<T: ChainDataFetcher> Client<T> {
 
 	/// Import a header to the queue for additional verification.
 	pub fn import_header(&self, header: Header) -> EthcoreResult<H256> {
-		self.queue.import(header).map_err(|(_, e)| e)
+		self.queue.import(header).map_err(|(e, _)| e)
 	}
 
 	/// Inquire about the status of a given header.

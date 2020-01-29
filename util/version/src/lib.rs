@@ -1,4 +1,4 @@
-// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// Copyright 2015-2020 Parity Technologies (UK) Ltd.
 // This file is part of Parity Ethereum.
 
 // Parity Ethereum is free software: you can redistribute it and/or modify
@@ -30,7 +30,7 @@ mod generated {
 
 #[cfg(feature = "final")]
 const THIS_TRACK: &'static str = generated::TRACK;
-// ^^^ should be reset in Cargo.toml to "stable" or "beta" according to the release branch.
+// ^^^ should be reset in Cargo.toml to "stable" according to the release branch.
 
 #[cfg(not(feature = "final"))]
 const THIS_TRACK: &'static str = "unstable";

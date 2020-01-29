@@ -1,4 +1,4 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
+// Copyright 2015-2020 Parity Technologies (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -81,7 +81,7 @@ mod accounts {
 		let account_settings = AccountProviderSettings {
 			unlock_keep_secret: cfg.enable_fast_unlock,
 			blacklisted_accounts: 	match *spec {
-				SpecType::Morden | SpecType::Mordor | SpecType::Ropsten | SpecType::Kovan | SpecType::Goerli | SpecType::Kotti | SpecType::Sokol | SpecType::Dev => vec![],
+				SpecType::Mordor | SpecType::Ropsten | SpecType::Kovan | SpecType::Goerli | SpecType::Kotti | SpecType::Sokol | SpecType::Dev => vec![],
 				_ => vec![
 					H160::from_str("00a329c0648769a73afac7f9381e08fb43dbea72").expect("the string is valid hex; qed"),
 				],

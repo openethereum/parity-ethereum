@@ -1,4 +1,4 @@
-// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// Copyright 2015-2020 Parity Technologies (UK) Ltd.
 // This file is part of Parity Ethereum.
 
 // Parity Ethereum is free software: you can redistribute it and/or modify
@@ -444,9 +444,9 @@ impl TransactionRequest {
 		self
 	}
 
-	/// Sets a gas price. If this is not specified, a sensible default is used.
-	pub fn gas_price(mut self, gas_price: U256) -> TransactionRequest {
-		self.gas_price = Some(gas_price);
+	/// Sets a gas price. If this is not specified or `None`, a sensible default is used.
+	pub fn gas_price<T: Into<Option<U256>>>(mut self, gas_price: T) -> TransactionRequest {
+		self.gas_price = gas_price.into();
 		self
 	}
 

@@ -11,7 +11,7 @@ block-gas-limit = { path = "../../block-gas-limit" }
 block-reward = { path = "../../block-reward" }
 client-traits = { path = "../../client-traits" }
 common-types = { path = "../../types" }
-derive_more = "0.15.0"
+derive_more = "0.99"
 ethabi = "9.0.1"
 ethabi-contract = "9.0.0"
 ethabi-derive = "9.0.1"

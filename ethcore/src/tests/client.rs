@@ -1,4 +1,4 @@
-// Copyright 2015-2019 Parity Technologies (UK) Ltd.
+// Copyright 2015-2020 Parity Technologies (UK) Ltd.
 // This file is part of Parity Ethereum.
 
 // Parity Ethereum is free software: you can redistribute it and/or modify
@@ -70,7 +70,7 @@ fn imports_from_empty() {
 fn should_return_registrar() {
 	let db = test_helpers::new_db();
 	let tempdir = TempDir::new("").unwrap();
-	let spec = spec::new_morden(&tempdir.path().to_owned());
+	let spec = spec::new_ropsten(&tempdir.path().to_owned());
 
 	let client = Client::new(
 		ClientConfig::default(),
@@ -80,7 +80,7 @@ fn should_return_registrar() {
 		IoChannel::disconnected(),
 	).unwrap();
 	let address = client.registrar_address();
-	assert_eq!(address, Some("52dff57a8a1532e6afb3dc07e2af58bb9eb05b3d".parse().unwrap()));
+	assert_eq!(address, Some("81a4b044831c4f12ba601adb9274516939e9b8a2".parse().unwrap()));
 }
 
 #[test]
