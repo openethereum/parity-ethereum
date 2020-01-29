@@ -1145,7 +1145,7 @@ impl AuthorityRound {
 	fn run_posdao(&self, block: &ExecutedBlock, nonce: Option<U256>) -> Result<Vec<SignedTransaction>, Error> {
 		// Skip the rest of the function unless there has been a transition to POSDAO AuRa.
 		if self.posdao_transition.map_or(true, |posdao_block| block.header.number() < posdao_block) {
-			trace!(target: "engine", "Skipping calls to POSDAO randomness and validator set contracts");
+			trace!(target: "engine", "Skipping POSDAO calls to validator set contracts");
 			return Ok(Vec::new());
 		}
 

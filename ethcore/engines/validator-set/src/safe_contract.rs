@@ -53,6 +53,8 @@ use_contract!(validator_set, "res/validator_set.json");
 const MAX_QUEUED_REPORTS: usize = 10;
 /// The maximum number of malice reports to include when creating a new block.
 const MAX_REPORTS_PER_BLOCK: usize = 10;
+/// Don't re-send malice reports every block. Skip this many before retrying.
+const REPORTS_SKIP_BLOCKS: u64 = 1;
 
 const MEMOIZE_CAPACITY: usize = 500;
 
@@ -233,6 +235,13 @@ impl ValidatorSafeContract {
 		}
 	}
 
+	/// Puts a malice report into the queue for later resending.
+	///
+	/// # Arguments
+	///
+	/// * `addr` - The address of the misbehaving validator.
+	/// * `block` - The block number at which the misbehavior occurred.
+	/// * `data` - The call data for the `reportMalicious` contract call.
 	pub(crate) fn enqueue_report(&self, addr: Address, block: BlockNumber, data: Vec<u8>) {
 		// Skip the rest of the function unless there has been a transition to POSDAO AuRa.
 		if self.posdao_transition.map_or(true, |block_num| block < block_num) {
@@ -388,7 +397,7 @@ impl ValidatorSet for ValidatorSafeContract {
 		let mut resent_reports_in_block = self.resent_reports_in_block.lock();
 
 		// Skip at least one block after sending malicious reports last time.
-		if header.number() > *resent_reports_in_block + 1 {
+		if header.number() > *resent_reports_in_block + REPORTS_SKIP_BLOCKS {
 			*resent_reports_in_block = header.number();
 			let mut nonce = client.latest_nonce(our_address);
 			for (address, block, data) in report_queue.iter() {

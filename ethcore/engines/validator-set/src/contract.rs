@@ -22,7 +22,7 @@ use std::sync::Weak;
 use parity_bytes::Bytes;
 use ethabi_contract::use_contract;
 use ethereum_types::{H256, U256, Address};
-use log::{warn, trace};
+use log::{info, warn, trace};
 use machine::Machine;
 use parking_lot::RwLock;
 use common_types::{
