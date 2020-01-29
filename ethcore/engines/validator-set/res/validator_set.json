@@ -29,11 +29,11 @@
 	  "constant": true,
 	  "inputs": [
 		{
-		  "name": "_reportingMiningAddress",
+		  "name": "_reportingValidator",
 		  "type": "address"
 		},
 		{
-		  "name": "_maliciousMiningAddress",
+		  "name": "_maliciousValidator",
 		  "type": "address"
 		},
 		{
