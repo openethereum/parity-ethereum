@@ -1,4 +1,4 @@
-// Source for the test AuRa validator set contract.
+// Source for the test AuRa validator set contract. DO NOT USE IN PRODUCTION.
 //
 // Contains POSDAO features. The full POSDAO ValidatorSet contract production code is available at
 // https://github.com/poanetwork/posdao-contracts/blob/master/contracts/ValidatorSetAuRa.sol
