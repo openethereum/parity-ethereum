@@ -1178,7 +1178,7 @@ pub mod tests {
 
 		// now remove share from node2
 		assert!((0..3).all(|i| ml.cluster(i).data.sessions.generation_sessions.is_empty()));
-		ml.cluster(2).data.config.key_storage.remove(&Default::default()).unwrap();
+		ml.cluster(2).data.config.key_storage.remove(&dummy_session_id).unwrap();
 
 		// and try to sign message with generated key
 		let dummy_message = [1u8; 32].into();
@@ -1202,7 +1202,7 @@ pub mod tests {
 		session2.into_wait_future().wait().unwrap();
 
 		// now remove share from node1
-		ml.cluster(1).data.config.key_storage.remove(&Default::default()).unwrap();
+		ml.cluster(1).data.config.key_storage.remove(&dummy_session_id).unwrap();
 
 		// and try to sign message with generated key
 		let signature = sign(Random.generate().secret(), &dummy_message).unwrap();
@@ -1211,9 +1211,7 @@ pub mod tests {
 		let session = ml.cluster(0).data.sessions.schnorr_signing_sessions.first().unwrap();
 
 		ml.loop_until(|| session.is_finished());
-		// todo[dvdplm] with my changes this does not return an error anymore. Not sure why.
-//		session1.into_wait_future().wait().unwrap_err();
-		session1.into_wait_future().wait().unwrap();
+		session1.into_wait_future().wait().unwrap_err();
 	}
 
 	#[test]
@@ -1232,7 +1230,7 @@ pub mod tests {
 
 		// now remove share from node2
 		assert!((0..3).all(|i| ml.cluster(i).data.sessions.generation_sessions.is_empty()));
-		ml.cluster(2).data.config.key_storage.remove(&Default::default()).unwrap();
+		ml.cluster(2).data.config.key_storage.remove(&dummy_session_id).unwrap();
 
 		// and try to sign message with generated key
 		let dummy_message = [1u8; 32].into();
@@ -1255,7 +1253,7 @@ pub mod tests {
 		session2.into_wait_future().wait().unwrap();
 
 		// now remove share from node1
-		ml.cluster(1).data.config.key_storage.remove(&Default::default()).unwrap();
+		ml.cluster(1).data.config.key_storage.remove(&dummy_session_id).unwrap();
 
 		// and try to sign message with generated key
 		let signature = sign(Random.generate().secret(), &dummy_message).unwrap();
@@ -1263,8 +1261,6 @@ pub mod tests {
 			.new_ecdsa_signing_session(dummy_session_id, signature.into(), None, H256::random()).unwrap();
 		let session = ml.cluster(0).data.sessions.ecdsa_signing_sessions.first().unwrap();
 		ml.loop_until(|| session.is_finished());
-		// todo[dvdplm] with my changes this does not return an error anymore. Not sure why.
-//		session1.into_wait_future().wait().unwrap_err();
-		session1.into_wait_future().wait().unwrap();
+		session1.into_wait_future().wait().unwrap_err();
 	}
 }
