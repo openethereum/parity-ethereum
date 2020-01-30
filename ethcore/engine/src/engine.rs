@@ -42,7 +42,7 @@ use machine::{
 	Machine,
 	executed_block::ExecutedBlock,
 };
-use vm::{EnvInfo, Schedule, ActionType, ActionValue};
+use vm::{EnvInfo, Schedule, CallType, ActionValue};
 
 use crate::signer::EngineSigner;
 
@@ -82,7 +82,7 @@ pub fn default_system_or_code_call<'a>(machine: &'a Machine, block: &'a mut Exec
 					Some(ActionValue::Apparent(U256::zero())),
 					U256::max_value(),
 					Some(data),
-					Some(ActionType::StaticCall),
+					Some(CallType::StaticCall),
 				)
 			},
 		};

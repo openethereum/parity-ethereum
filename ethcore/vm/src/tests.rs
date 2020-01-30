@@ -20,7 +20,7 @@ use std::collections::{HashMap, HashSet};
 use ethereum_types::{U256, H256, Address};
 use bytes::Bytes;
 use {
-	ActionType, Schedule, EnvInfo,
+	CallType, Schedule, EnvInfo,
 	ReturnData, Ext, ContractCreateResult, MessageCallResult,
 	CreateContractAddress, Result, GasLeft,
 };
@@ -185,7 +185,7 @@ impl Ext for FakeExt {
 		value: Option<U256>,
 		data: &[u8],
 		code_address: &Address,
-		_call_type: ActionType,
+		_call_type: CallType,
 		_trap: bool,
 	) -> ::std::result::Result<MessageCallResult, TrapKind> {
 		self.calls.insert(FakeCall {

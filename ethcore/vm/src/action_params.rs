@@ -20,7 +20,7 @@ use bytes::Bytes;
 use hash::{keccak, KECCAK_EMPTY};
 use ethjson;
 
-use action_type::ActionType;
+use call_type::CallType;
 
 use std::sync::Arc;
 
@@ -88,8 +88,8 @@ pub struct ActionParams {
 	pub code_version: U256,
 	/// Input data.
 	pub data: Option<Bytes>,
-	/// Type of action (e.g. CALL, DELEGATECALL, CREATE, etc.)
-	pub action_type: ActionType,
+	/// Type of call
+	pub call_type: CallType,
 	/// Param types encoding
 	pub params_type: ParamsType,
 }
@@ -109,7 +109,7 @@ impl Default for ActionParams {
 			code: None,
 			code_version: U256::zero(),
 			data: None,
-			action_type: ActionType::Create,
+			call_type: CallType::None,
 			params_type: ParamsType::Separate,
 		}
 	}
@@ -130,7 +130,7 @@ impl From<ethjson::vm::Transaction> for ActionParams {
 			gas: t.gas.into(),
 			gas_price: t.gas_price.into(),
 			value: ActionValue::Transfer(t.value.into()),
-			action_type: ActionType::Call,
+			call_type: match address.is_zero() { true => CallType::None, false => CallType::Call },	// TODO @debris is this correct?
 			params_type: ParamsType::Separate,
 		}
 	}

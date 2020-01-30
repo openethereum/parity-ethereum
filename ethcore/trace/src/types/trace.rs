@@ -16,13 +16,12 @@
 
 //! Tracing data types.
 
-use std::convert::TryFrom;
 use ethereum_types::{U256, Address, Bloom, BloomInput};
 use parity_bytes::Bytes;
 use rlp::{Rlp, RlpStream, Encodable, DecoderError, Decodable};
 use rlp_derive::{RlpEncodable, RlpDecodable};
 use vm::ActionParams;
-use evm::ActionType;
+use evm::CallType;
 use super::error::Error;
 
 /// `Call` result.
@@ -32,57 +31,6 @@ pub struct CallResult {
 	pub gas_used: U256,
 	/// Call Output.
 	pub output: Bytes,
-}
-
-/// `Call` type. Distinguish between different types of contract interactions.
-#[derive(Debug, Clone, PartialEq)]
-pub enum CallType {
-	/// Call
-	Call,
-	/// Call code
-	CallCode,
-	/// Delegate call
-	DelegateCall,
-	/// Static call
-	StaticCall,
-}
-
-impl TryFrom<ActionType> for CallType {
-	type Error = &'static str;
-	fn try_from(action_type: ActionType) -> Result<Self, Self::Error> {
-		match action_type {
-			ActionType::Call => Ok(CallType::Call),
-			ActionType::CallCode => Ok(CallType::CallCode),
-			ActionType::DelegateCall => Ok(CallType::DelegateCall),
-			ActionType::StaticCall => Ok(CallType::StaticCall),
-			ActionType::Create => Err("Create cannot be converted to CallType"),
-			ActionType::Create2 => Err("Create2 cannot be converted to CallType"),
-		}
-	}
-}
-
-impl Encodable for CallType {
-	fn rlp_append(&self, s: &mut RlpStream) {
-		let v = match *self {
-			CallType::Call => 0u32,
-			CallType::CallCode => 1,
-			CallType::DelegateCall => 2,
-			CallType::StaticCall => 3,
-		};
-		Encodable::rlp_append(&v, s);
-	}
-}
-
-impl Decodable for CallType {
-	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
-		rlp.as_val().and_then(|v| Ok(match v {
-			0u32 => CallType::Call,
-			1 => CallType::CallCode,
-			2 => CallType::DelegateCall,
-			3 => CallType::StaticCall,
-			_ => return Err(DecoderError::Custom("Invalid value of RewardType item")),
-		}))
-	}
 }
 
 /// `Create` result.
@@ -103,49 +51,6 @@ impl CreateResult {
 	}
 }
 
-/// `Create` method. Distinguish between use of `CREATE` and `CREATE2` opcodes in an action.
-#[derive(Debug, Clone, PartialEq)]
-pub enum CreationMethod {
-	/// Create
-	Create,
-	/// Create2
-	Create2,
-}
-
-impl TryFrom<ActionType> for CreationMethod {
-	type Error = &'static str;
-	fn try_from(action_type: ActionType) -> Result<Self, Self::Error> {
-		match action_type {
-			ActionType::Call => Err("Call cannot be converted to CreationMethod"),
-			ActionType::CallCode => Err("CallCode cannot be converted to CreationMethod"),
-			ActionType::DelegateCall => Err("DelegateCall cannot be converted to CreationMethod"),
-			ActionType::StaticCall => Err("StaticCall cannot be converted to CreationMethod"),
-			ActionType::Create => Ok(CreationMethod::Create),
-			ActionType::Create2 => Ok(CreationMethod::Create2),
-		}
-	}
-}
-
-impl Encodable for CreationMethod {
-	fn rlp_append(&self, s: &mut RlpStream) {
-		let v = match *self {
-			CreationMethod::Create => 0u32,
-			CreationMethod::Create2 => 1,
-		};
-		Encodable::rlp_append(&v, s);
-	}
-}
-
-impl Decodable for CreationMethod {
-	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
-		rlp.as_val().and_then(|v| Ok(match v {
-			0u32 => CreationMethod::Create,
-			1 => CreationMethod::Create2,
-			_ => return Err(DecoderError::Custom("Invalid value of RewardType item")),
-		}))
-	}
-}
-
 /// Description of a _call_ action, either a `CALL` operation or a message transaction.
 #[derive(Debug, Clone, PartialEq, RlpEncodable, RlpDecodable)]
 pub struct Call {
@@ -160,19 +65,19 @@ pub struct Call {
 	/// The input data provided to the call.
 	pub input: Bytes,
 	/// The type of the call.
-	pub call_type: Option<CallType>,
+	pub call_type: CallType,
 }
 
 impl From<ActionParams> for Call {
 	fn from(p: ActionParams) -> Self {
-		match p.action_type {
-			ActionType::DelegateCall | ActionType::CallCode => Call {
+		match p.call_type {
+			CallType::DelegateCall | CallType::CallCode => Call {
 				from: p.address,
 				to: p.code_address,
 				value: p.value.value(),
 				gas: p.gas,
 				input: p.data.unwrap_or_else(Vec::new),
-				call_type: CallType::try_from(p.action_type).ok(),
+				call_type: p.call_type,
 			},
 			_ => Call {
 				from: p.sender,
@@ -180,7 +85,7 @@ impl From<ActionParams> for Call {
 				value: p.value.value(),
 				gas: p.gas,
 				input: p.data.unwrap_or_else(Vec::new),
-				call_type: CallType::try_from(p.action_type).ok(),
+				call_type: p.call_type,
 			},
 		}
 	}
@@ -208,8 +113,6 @@ pub struct Create {
 	pub gas: U256,
 	/// The init code.
 	pub init: Bytes,
-	/// Creation method (CREATE vs CREATE2).
-	pub creation_method: Option<CreationMethod>,
 }
 
 impl From<ActionParams> for Create {
@@ -219,7 +122,6 @@ impl From<ActionParams> for Create {
 			value: p.value.value(),
 			gas: p.gas,
 			init: p.code.map_or_else(Vec::new, |c| (*c).clone()),
-			creation_method: CreationMethod::try_from(p.action_type).ok(),
 		}
 	}
 }

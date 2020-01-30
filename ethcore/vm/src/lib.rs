@@ -24,7 +24,7 @@ extern crate keccak_hash as hash;
 extern crate patricia_trie_ethereum as ethtrie;
 
 mod action_params;
-mod action_type;
+mod call_type;
 mod env_info;
 mod schedule;
 mod ext;
@@ -34,7 +34,7 @@ mod error;
 pub mod tests;
 
 pub use action_params::{ActionParams, ActionValue, ParamsType};
-pub use action_type::ActionType;
+pub use call_type::CallType;
 pub use env_info::{EnvInfo, LastHashes};
 pub use schedule::{Schedule, VersionedSchedule, CleanDustMode, WasmCosts};
 pub use ext::{Ext, MessageCallResult, ContractCreateResult, CreateContractAddress};
