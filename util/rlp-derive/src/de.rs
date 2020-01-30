@@ -14,8 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use syn;
 use proc_macro2::{TokenStream, Span};
+use quote::quote;
 
 struct ParseQuotes {
 	single: TokenStream,
@@ -130,7 +130,7 @@ fn decodable_field(index: usize, field: &syn::Field, quotes: ParseQuotes) -> Tok
 
 	match field.ty {
 		syn::Type::Path(ref path) => {
-			let ident = &path.path.segments.first().expect("there must be at least 1 segment").value().ident;
+			let ident = &path.path.segments.first().expect("there must be at least 1 segment").ident;
 			if &ident.to_string() == "Vec" {
 				if quotes.takes_index {
 					quote! { #id: #list(#index)?, }

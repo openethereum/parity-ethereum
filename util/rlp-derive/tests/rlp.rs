@@ -14,11 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-extern crate rlp;
-#[macro_use]
-extern crate rlp_derive;
-
 use rlp::{encode, decode};
+use rlp_derive::{RlpEncodable, RlpDecodable, RlpEncodableWrapper, RlpDecodableWrapper};
 
 #[derive(Debug, PartialEq, RlpEncodable, RlpDecodable)]
 struct Foo {

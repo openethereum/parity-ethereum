@@ -14,8 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use syn;
 use proc_macro2::{TokenStream, Span};
+use quote::quote;
 
 pub fn impl_encodable(ast: &syn::DeriveInput) -> TokenStream {
 	let body = match ast.data {
@@ -101,13 +101,13 @@ fn encodable_field(index: usize, field: &syn::Field) -> TokenStream {
 	match field.ty {
 		syn::Type::Path(ref path) => {
 			let top_segment = path.path.segments.first().expect("there must be at least 1 segment");
-			let ident = &top_segment.value().ident;
+			let ident = &top_segment.ident;
 			if &ident.to_string() == "Vec" {
-				let inner_ident = match top_segment.value().arguments {
+				let inner_ident = match top_segment.arguments {
 					syn::PathArguments::AngleBracketed(ref angle) => {
 						let ty = angle.args.first().expect("Vec has only one angle bracketed type; qed");
-						match **ty.value() {
-							syn::GenericArgument::Type(syn::Type::Path(ref path)) => &path.path.segments.first().expect("there must be at least 1 segment").value().ident,
+						match *ty {
+							syn::GenericArgument::Type(syn::Type::Path(ref path)) => &path.path.segments.first().expect("there must be at least 1 segment").ident,
 							_ => panic!("rlp_derive not supported"),
 						}
 					},
