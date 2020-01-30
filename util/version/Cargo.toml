@@ -3,7 +3,7 @@
 [package]
 name = "parity-version"
 # NOTE: this value is used for Parity Ethereum version string (via env CARGO_PKG_VERSION)
-version = "2.7.0"
+version = "2.7.1"
 authors = ["Parity Technologies <admin@parity.io>"]
 build = "build.rs"
 

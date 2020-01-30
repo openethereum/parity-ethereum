@@ -1,3 +1,14 @@
+## Parity-Ethereum [v2.7.1](https://github.com/paritytech/parity-ethereum/releases/tag/v2.7.1)
+Parity Ethereum v2.7.1-stable is a patch version release of parity-ethereum. 
+Starting in the 2.7.x series of releases, parity-ethereum is switching to a single `stable` release
+track. As a result, any clients that currently receive updates from the `beta`
+track should switch to the `stable` track.
+Due to database format changes, upgrading from 2.5.x or 2.6.x is one-way only. 
+
+The full list of included changes from `v2.7.0` to `v2.7.1`:
+
+* Revert "Distinguish between `create` and `create2` (#11311)" (#11427)
+
 ## Parity-Ethereum [v2.7.0](https://github.com/paritytech/parity-ethereum/releases/tag/v2.7.0)
 
 Parity Ethereum v2.7.0-stable is a minor version release of parity-ethereum. As
