@@ -29,6 +29,7 @@ case "${SCHEDULE_TAG:-${CI_COMMIT_REF_NAME}}" in
             --build-arg VCS_REF="${CI_COMMIT_SHA}" \
             --build-arg BUILD_DATE="$(date -u '+%Y-%m-%dT%H:%M:%SZ')" \
             --tag "parity/parity:${VERSION}-${CI_COMMIT_REF_NAME}" \
+            --tag "parity/parity:latest" \
             --tag "parity/parity:stable" \
             --file tools/Dockerfile .;
         docker push "parity/parity:${VERSION}-${CI_COMMIT_REF_NAME}";
