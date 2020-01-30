@@ -14,51 +14,47 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! EVM action types.
+//! EVM call types.
 
 use rlp::{Encodable, Decodable, DecoderError, RlpStream, Rlp};
 
-/// The type of the instruction.
+/// The type of the call-like instruction.
 #[derive(Debug, PartialEq, Clone)]
-pub enum ActionType {
-	/// CREATE.
-	Create,
+pub enum CallType {
+	/// Not a CALL.
+	None,
 	/// CALL.
 	Call,
 	/// CALLCODE.
 	CallCode,
 	/// DELEGATECALL.
 	DelegateCall,
-	/// STATICCALL.
+	/// STATICCALL
 	StaticCall,
-	/// CREATE2.
-	Create2
 }
 
-impl Encodable for ActionType {
+impl Encodable for CallType {
 	fn rlp_append(&self, s: &mut RlpStream) {
 		let v = match *self {
-			ActionType::Create => 0u32,
-			ActionType::Call => 1,
-			ActionType::CallCode => 2,
-			ActionType::DelegateCall => 3,
-			ActionType::StaticCall => 4,
-			ActionType::Create2 => 5,
+			CallType::None => 0u32,
+			CallType::Call => 1,
+			CallType::CallCode => 2,
+			CallType::DelegateCall => 3,
+			CallType::StaticCall => 4,
 		};
 		Encodable::rlp_append(&v, s);
 	}
 }
 
-impl Decodable for ActionType {
+impl Decodable for CallType {
 	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
 		rlp.as_val().and_then(|v| Ok(match v {
-			0u32 => ActionType::Create,
-			1 => ActionType::Call,
-			2 => ActionType::CallCode,
-			3 => ActionType::DelegateCall,
-			4 => ActionType::StaticCall,
-			5 => ActionType::Create2,
-			_ => return Err(DecoderError::Custom("Invalid value of ActionType item")),
+			0u32 => CallType::None,
+			1 => CallType::Call,
+			2 => CallType::CallCode,
+			3 => CallType::DelegateCall,
+			4 => CallType::StaticCall,
+			_ => return Err(DecoderError::Custom("Invalid value of CallType item")),
 		}))
 	}
 }
@@ -66,11 +62,11 @@ impl Decodable for ActionType {
 #[cfg(test)]
 mod tests {
 	use rlp::*;
-	use super::ActionType;
+	use super::CallType;
 
 	#[test]
 	fn encode_call_type() {
-		let ct = ActionType::Call;
+		let ct = CallType::Call;
 
 		let mut s = RlpStream::new_list(2);
 		s.append(&ct);
@@ -82,9 +78,9 @@ mod tests {
 
 	#[test]
 	fn should_encode_and_decode_call_type() {
-		let original = ActionType::Call;
+		let original = CallType::Call;
 		let encoded = encode(&original);
-		let decoded = decode(&encoded).expect("failure decoding ActionType");
+		let decoded = decode(&encoded).expect("failure decoding CallType");
 		assert_eq!(original, decoded);
 	}
 }

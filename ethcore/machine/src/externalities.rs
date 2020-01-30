@@ -29,7 +29,7 @@ use common_types::{
 };
 use trace::{Tracer, VMTracer};
 use vm::{
-	self, ActionParams, ActionValue, EnvInfo, ActionType, Schedule,
+	self, ActionParams, ActionValue, EnvInfo, CallType, Schedule,
 	Ext, ContractCreateResult, MessageCallResult, CreateContractAddress,
 	ReturnData, TrapKind
 };
@@ -193,7 +193,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 				code_hash,
 				code_version,
 				data: Some(data.as_bytes().to_vec()),
-				action_type: ActionType::Call,
+				call_type: CallType::Call,
 				params_type: vm::ParamsType::Separate,
 			};
 
@@ -241,12 +241,6 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 			}
 		};
 
-		let create_type = match address_scheme {
-			CreateContractAddress::FromSenderAndNonce => ActionType::Create,
-			CreateContractAddress::FromSenderSaltAndCodeHash(_) => ActionType::Create2,
-			CreateContractAddress::FromSenderAndCodeHash => ActionType::Create2,
-		};
-
 		// prepare the params
 		let params = ActionParams {
 			code_address: address.clone(),
@@ -260,7 +254,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 			code_hash,
 			code_version: *parent_version,
 			data: None,
-			action_type: create_type,
+			call_type: CallType::None,
 			params_type: vm::ParamsType::Embedded,
 		};
 
@@ -291,7 +285,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 		value: Option<U256>,
 		data: &[u8],
 		code_address: &Address,
-		call_type: ActionType,
+		call_type: CallType,
 		trap: bool,
 	) -> ::std::result::Result<MessageCallResult, TrapKind> {
 		trace!(target: "externalities", "call");
@@ -317,7 +311,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 			code_hash,
 			code_version,
 			data: Some(data.to_vec()),
-			action_type: call_type,
+			call_type,
 			params_type: vm::ParamsType::Separate,
 		};
 
@@ -463,7 +457,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for Externalities<'a, T, V, B>
 mod tests {
 	use std::str::FromStr;
 	use ethereum_types::{U256, Address};
-	use evm::{EnvInfo, Ext, ActionType};
+	use evm::{EnvInfo, Ext, CallType};
 	use account_state::State;
 	use ethcore::test_helpers::get_temp_state;
 	use trace::{NoopTracer, NoopVMTracer};
@@ -597,7 +591,7 @@ mod tests {
 			Some("0000000000000000000000000000000000000000000000000000000000150000".parse::<U256>().unwrap()),
 			&[],
 			&Address::zero(),
-			ActionType::Call,
+			CallType::Call,
 			false,
 		).ok().unwrap();
 	}
