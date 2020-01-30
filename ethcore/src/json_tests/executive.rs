@@ -20,7 +20,7 @@ use super::test_common::*;
 use account_state::{Backend as StateBackend, State};
 use evm::Finalize;
 use vm::{
-	self, ActionParams, ActionType, Schedule, Ext,
+	self, ActionParams, CallType, Schedule, Ext,
 	ContractCreateResult, EnvInfo, MessageCallResult,
 	CreateContractAddress, ReturnData,
 };
@@ -172,7 +172,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for TestExt<'a, T, V, B>
 		value: Option<U256>,
 		data: &[u8],
 		_code_address: &Address,
-		_call_type: ActionType,
+		_call_type: CallType,
 		_trap: bool
 	) -> Result<MessageCallResult, vm::TrapKind> {
 		self.callcreates.push(CallCreate {
