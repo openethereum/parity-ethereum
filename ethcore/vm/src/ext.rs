@@ -19,7 +19,7 @@
 use std::sync::Arc;
 use ethereum_types::{U256, H256, Address};
 use bytes::Bytes;
-use action_type::ActionType;
+use call_type::CallType;
 use env_info::EnvInfo;
 use schedule::Schedule;
 use return_data::ReturnData;
@@ -115,7 +115,7 @@ pub trait Ext {
 		value: Option<U256>,
 		data: &[u8],
 		code_address: &Address,
-		call_type: ActionType,
+		call_type: CallType,
 		trap: bool
 	) -> ::std::result::Result<MessageCallResult, TrapKind>;
 

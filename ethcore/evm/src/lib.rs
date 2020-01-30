@@ -47,7 +47,7 @@ mod instructions;
 mod tests;
 
 pub use vm::{
-    Schedule, CleanDustMode, EnvInfo, ActionType, ActionParams, Ext,
+    Schedule, CleanDustMode, EnvInfo, CallType, ActionParams, Ext,
     ContractCreateResult, MessageCallResult, CreateContractAddress,
     GasLeft, ReturnData
 };
