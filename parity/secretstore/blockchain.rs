@@ -192,10 +192,7 @@ impl SecretStoreChain for TrustedClient {
 	}
 
 	fn retrieve_last_logs(&self, filter: Filter) -> Option<Vec<RawLog>> {
-		let confirmed_block = match self.get_confirmed_block_hash() {
-			Some(confirmed_block) => confirmed_block,
-			None => return None, // no block with enough confirmations
-		};
+		let confirmed_block = self.get_confirmed_block_hash()?; // no block with enough confirmations
 
 		let from_block = self.block_hash(filter.from_block).unwrap_or_else(|| confirmed_block);
 		let first_block = match self.tree_route(&from_block, &confirmed_block) {

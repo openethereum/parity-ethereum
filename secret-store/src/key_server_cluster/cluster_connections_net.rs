@@ -182,10 +182,7 @@ impl ConnectionProvider for RwLock<NetConnectionsContainer> {
 	}
 
 	fn connection(&self, node: &NodeId) -> Option<Arc<dyn Connection>> {
-		match self.read().connections.get(node).cloned() {
-			Some(connection) => Some(connection),
-			None => None,
-		}
+		self.read().connections.get(node).cloned()
 	}
 }
 

@@ -437,8 +437,7 @@ fn select_master_node(snapshot: &KeyServerSetSnapshot) -> &NodeId {
 	match snapshot.migration.as_ref() {
 		Some(migration) => &migration.master,
 		None => snapshot.current_set.keys()
-			.filter(|n| snapshot.new_set.contains_key(n))
-			.nth(0)
+			.find(|n| snapshot.new_set.contains_key(n))
 			.or_else(|| snapshot.new_set.keys().nth(0))
 			.unwrap_or_else(|| snapshot.current_set.keys().nth(0)
 				.expect("select_master_node is only called when migration is Required or Started;\

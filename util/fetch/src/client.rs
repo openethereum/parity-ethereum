@@ -686,8 +686,7 @@ mod test {
 				assert!(resp.is_success());
 				resp
 			})
-			.map(|resp| resp.concat2())
-			.flatten()
+			.flat_map(|resp| resp.concat2())
 			.map(|body| assert_eq!(&body[..], b"123"))
 			.map_err(|err| panic!(err));
 
@@ -705,8 +704,7 @@ mod test {
 				assert!(resp.is_success());
 				resp
 			})
-			.map(|resp| resp.concat2())
-			.flatten()
+			.flat_map(|resp| resp.concat2())
 			.map(|body| assert_eq!(&body[..], b"123"))
 			.map_err(|err| panic!(err));
 
@@ -792,8 +790,7 @@ mod test {
 			.and_then(|resp| {
 				if resp.is_success() { Ok(resp) } else { panic!("Response unsuccessful") }
 			})
-			.map(|resp| resp.concat2())
-			.flatten()
+			.flat_map(|resp| resp.concat2())
 			.map(|body| assert_eq!(&body[..], b"abcdefghijklmnopqrstuvwxyz"));
 
 		runtime.block_on(future).unwrap();
@@ -810,8 +807,7 @@ mod test {
 			.and_then(|resp| {
 				if resp.is_success() { Ok(resp) } else { panic!("Response unsuccessful") }
 			})
-			.map(|resp| resp.concat2())
-			.flatten()
+			.flat_map(|resp| resp.concat2())
 			.then(|body| {
 				match body {
 					Err(Error::SizeLimit) => Ok::<_, ()>(()),

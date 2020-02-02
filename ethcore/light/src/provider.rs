@@ -248,10 +248,7 @@ impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 				}
 			};
 
-			match cht::build(cht_number, block_info) {
-				Some(cht) => cht,
-				None => return None, // incomplete CHT.
-			}
+			cht::build(cht_number, block_info)? // None => incomplete CHT
 		};
 
 		let (needed_hdr, needed_td) = needed.expect("`needed` always set in loop, number checked before; qed");
@@ -275,10 +272,7 @@ impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 		use common_types::transaction::Transaction;
 
 		let id = BlockId::Hash(req.block_hash);
-		let nonce = match self.nonce(&req.from, id) {
-			Some(nonce) => nonce,
-			None => return None,
-		};
+		let nonce = self.nonce(&req.from, id)?;
 		let transaction = Transaction {
 			nonce,
 			gas: req.gas,

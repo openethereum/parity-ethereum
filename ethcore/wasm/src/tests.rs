@@ -59,11 +59,8 @@ macro_rules! reqrep_test {
 }
 
 fn test_finalize(res: Result<GasLeft, vm::Error>) -> Result<U256, vm::Error> {
-	match res {
-		Ok(GasLeft::Known(gas)) => Ok(gas),
-		Ok(GasLeft::NeedsReturn{..}) => unimplemented!(), // since ret is unimplemented.
-		Err(e) => Err(e),
-	}
+	res.and_then(|GasLeft::Known(gas)| { Ok(gas),
+		Ok(GasLeft::NeedsReturn{..}) => unimplemented!() }) // since ret is unimplemented
 }
 
 fn wasm_interpreter(params: ActionParams) -> Box<WasmInterpreter> {

@@ -70,8 +70,7 @@ pub fn import_geth_accounts(dst: &dyn KeyDirectory, desired: HashSet<Address>, t
 	let existing_accounts = dst.load()?.into_iter().map(|a| a.address).collect::<HashSet<_>>();
 
 	accounts.into_iter()
-		.filter(|a| !existing_accounts.contains(&a.address))
-		.filter(|a| desired.contains(&a.address))
+		.filter(|a| !existing_accounts.contains(&a.address) &&  desired.contains(&a.address))
 		.map(|a| {
 			let address = a.address.clone();
 			dst.insert(a)?;

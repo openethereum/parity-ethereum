@@ -620,10 +620,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 		let num = num.unwrap_or_default();
 
 		try_bf!(check_known(&*self.client, num.clone()));
-		let res = match self.client.balance(&address, self.get_state(num)) {
-			Some(balance) => Ok(balance),
-			None => Err(errors::state_pruned()),
-		};
+		let res = self.client.balance(&address, self.get_state(num)).ok_or_else(|| { errors::state_pruned() });
 
 		Box::new(future::done(res))
 	}
@@ -706,10 +703,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 			},
 			number => {
 				try_bf!(check_known(&*self.client, number.clone()));
-				match self.client.nonce(&address, block_number_to_id(number)) {
-					Some(nonce) => Ok(nonce),
-					None => Err(errors::state_pruned()),
-				}
+				self.client.nonce(&address, block_number_to_id(number)).ok_or_else(|| { errors::state_pruned() })
 			}
 		};
 
