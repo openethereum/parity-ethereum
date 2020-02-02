@@ -395,10 +395,7 @@ impl SessionImpl {
 		let mut other_consensus_group_nodes = consensus_group.clone();
 		other_consensus_group_nodes.remove(&self.core.meta.self_node_id);
 
-		let key_share = match self.core.key_share.as_ref() {
-			None => return Err(Error::InvalidMessage),
-			Some(key_share) => key_share,
-		};
+		let key_share = self.core.key_share.as_ref().ok_or_else(|| Error::InvalidMessage)?;
 
 		let generation_session = GenerationSession::new(GenerationSessionParams {
 			id: self.core.meta.id.clone(),
@@ -488,10 +485,7 @@ impl SessionImpl {
 		debug_assert!(self.core.access_key == *message.sub_session);
 		debug_assert!(sender != &self.core.meta.self_node_id);
 
-		let key_share = match self.core.key_share.as_ref() {
-			None => return Err(Error::InvalidMessage),
-			Some(key_share) => key_share,
-		};
+		let key_share = self.core.key_share.as_ref().ok_or_else(|| Error::InvalidMessage)?;
 
 		let mut data = self.data.lock();
 
@@ -745,10 +739,7 @@ impl SessionCore {
 	}
 
 	pub fn disseminate_jobs(&self, consensus_session: &mut SigningConsensusSession, version: &H256, session_public: Public, session_secret_share: Secret, message_hash: H256) -> Result<(), Error> {
-		let key_share = match self.key_share.as_ref() {
-			None => return Err(Error::InvalidMessage),
-			Some(key_share) => key_share,
-		};
+		let key_share = self.key_share.as_ref().ok_or_else(|| Error::InvalidMessage)?;
 
 		let key_version = key_share.version(version)?.hash.clone();
 		let signing_job = SchnorrSigningJob::new_on_master(self.meta.self_node_id.clone(), key_share.clone(), key_version,

@@ -667,10 +667,7 @@ impl SessionImpl {
 		debug_assert!(self.core.access_key == *message.sub_session);
 		debug_assert!(sender != &self.core.meta.self_node_id);
 
-		let key_share = match self.core.key_share.as_ref() {
-			None => return Err(Error::InvalidMessage),
-			Some(key_share) => key_share,
-		};
+		let key_share = self.core.key_share.as_ref().ok_or_else(|| Error::InvalidMessage)?;
 
 		let mut data = self.data.lock();
 
@@ -999,10 +996,7 @@ impl SessionCore {
 	}
 
 	pub fn disseminate_jobs(&self, consensus_session: &mut SigningConsensusSession, version: &H256, nonce_public: Public, inv_nonce_share: Secret, inversed_nonce_coeff: Secret, message_hash: H256) -> Result<(), Error> {
-		let key_share = match self.key_share.as_ref() {
-			None => return Err(Error::InvalidMessage),
-			Some(key_share) => key_share,
-		};
+		let key_share = self.key_share.as_ref().ok_or_else(|| Error::InvalidMessage)?;
 
 		let key_version = key_share.version(version)?.hash.clone();
 		let signing_job = EcdsaSigningJob::new_on_master(key_share.clone(), key_version, nonce_public, inv_nonce_share, inversed_nonce_coeff, message_hash)?;

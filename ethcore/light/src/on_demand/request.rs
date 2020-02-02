@@ -461,10 +461,7 @@ impl CheckedRequest {
 				let block_hash = req.hash.as_ref()
 					.cloned()
 					.or_else(|| check.0.as_ref().ok().map(|hdr| hdr.hash()));
-				let block_hash = match block_hash {
-					Some(hash) => hash,
-					None => return None,
-				};
+				let block_hash = block_hash?;
 
 				let mut cache = cache.lock();
 				let cached_header;

@@ -143,20 +143,11 @@ impl<'a> Visitor<'a> for KeyFileVisitor {
 			}
 		}
 
-		let id = match id {
-			Some(id) => id,
-			None => return Err(V::Error::missing_field("id")),
-		};
+		let id = id.ok_or_else(|| V::Error::missing_field("id"))?;
 
-		let version = match version {
-			Some(version) => version,
-			None => return Err(V::Error::missing_field("version")),
-		};
+		let version = version.ok_or_else(|| V::Error::missing_field("version"))?;
 
-		let crypto = match crypto {
-			Some(crypto) => crypto,
-			None => return Err(V::Error::missing_field("crypto")),
-		};
+		let crypto = crypto.ok_or_else(|| V::Error::missing_field("crypto"))?;
 
 		let result = KeyFile {
 			id: id,

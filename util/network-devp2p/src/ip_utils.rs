@@ -427,10 +427,7 @@ fn search_natpmp(local: &NodeEndpoint) -> Option<NodeEndpoint> {
 pub fn map_external_address(local: &NodeEndpoint, nat_type: &NatType) -> Option<NodeEndpoint> {
 	match *nat_type {
 		NatType::Any => {
-			match search_natpmp(local) {
-				Some(end_point) => Some(end_point),
-				None => search_upnp(local),
-			}
+			search_natpmp(local).or_else(|| { search_upnp(local) })
 		},
 		NatType::NatPMP => search_natpmp(local),
 		NatType::UPnP => search_upnp(local),

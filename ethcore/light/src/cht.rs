@@ -110,10 +110,7 @@ pub fn build<F>(cht_num: u64, mut fetcher: F)
 	{
 		let mut t = TrieDBMut::new(&mut db, &mut root);
 		for blk_num in (0..SIZE).map(|n| last_num - n) {
-			let info = match fetcher(id) {
-				Some(info) => info,
-				None => return None,
-			};
+			let info = fetcher(id)?;
 
 			id = BlockId::Hash(info.parent_hash);
 			t.insert(&key!(blk_num), &val!(info.hash, info.total_difficulty))

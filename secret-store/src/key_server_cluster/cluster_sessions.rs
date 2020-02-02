@@ -99,9 +99,7 @@ pub trait ClusterSession {
 		result_reader: F
 	) -> Option<Result<T, Error>> {
 		let mut locked_data = session_data.lock();
-		match result_reader(&locked_data) {
-			Some(result) => Some(result),
-			None => {
+		result_reader(&locked_data).or_else(|| { {
 				let completion_condvar = completion.completion_condvar.as_ref().expect("created in test mode");
 				match timeout {
 					None => completion_condvar.wait(&mut locked_data),
@@ -111,8 +109,7 @@ pub trait ClusterSession {
 				}
 
 				result_reader(&locked_data)
-			},
-		}
+			} })
 	}
 }
 

@@ -393,10 +393,7 @@ impl<T: ChainDataFetcher> Client<T> {
 
 	/// Get environment info for a given block.
 	pub fn env_info(&self, id: BlockId) -> Option<EnvInfo> {
-		let header = match self.block_header(id) {
-			Some(hdr) => hdr,
-			None => return None,
-		};
+		let header = self.block_header(id)?;
 
 		Some(EnvInfo {
 			number: header.number(),
