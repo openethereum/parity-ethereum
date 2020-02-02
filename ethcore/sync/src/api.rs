@@ -421,10 +421,7 @@ impl SyncProvider for EthSync {
 
 			let peer_info = self.eth_handler.sync.peer_info(&peer_ids);
 			peer_ids.into_iter().zip(peer_info).filter_map(|(peer_id, peer_info)| {
-				let session_info = match ctx.session_info(peer_id) {
-					None => return None,
-					Some(info) => info,
-				};
+				let session_info = ctx.session_info(peer_id)?;
 
 				Some(PeerInfo {
 					id: session_info.id.map(|id| format!("{:x}", id)),
@@ -1041,10 +1038,7 @@ impl LightSyncProvider for LightSync {
 			let peer_ids = self.network.connected_peers();
 
 			peer_ids.into_iter().filter_map(|peer_id| {
-				let session_info = match ctx.session_info(peer_id) {
-					None => return None,
-					Some(info) => info,
-				};
+				let session_info = ctx.session_info(peer_id)?;
 
 				Some(PeerInfo {
 					id: session_info.id.map(|id| format!("{:x}", id)),

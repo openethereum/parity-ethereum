@@ -174,10 +174,7 @@ pub fn signer_sign(
 			}
 		}
 		None => {
-			password = match rpassword::prompt_password_stdout("Password: ") {
-				Ok(p) => p,
-				Err(e) => return Err(format!("{}", e)),
-			}
+			password = rpassword::prompt_password_stdout("Password: ").map_err(|e| format!("{}", e))?
 		}
 	}
 

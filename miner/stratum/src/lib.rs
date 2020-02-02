@@ -143,13 +143,10 @@ impl StratumImpl {
 		trace!(target: "stratum", "Subscription request from {:?}", meta.addr());
 
 		Ok(match self.dispatcher.initial() {
-			Some(initial) => match jsonrpc_core::Value::from_str(&initial) {
-				Ok(val) => Ok(val),
-				Err(e) => {
+			Some(initial) => jsonrpc_core::Value::from_str(&initial).or_else(|e| { {
 					warn!(target: "stratum", "Invalid payload: '{}' ({:?})", &initial, e);
 					to_value(&[0u8; 0])
-				},
-			},
+				} }),
 			None => to_value(&[0u8; 0]),
 		}.expect("Empty slices are serializable; qed"))
 	}

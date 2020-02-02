@@ -74,10 +74,7 @@ impl RequestSet {
 
 	/// Remove a set of requests from the stack.
 	pub fn remove(&mut self, req_id: ReqId, now: Instant) -> Option<Requests> {
-		let id = match self.ids.remove(&req_id) {
-			Some(id) => id,
-			None => return None,
-		};
+		let id = self.ids.remove(&req_id)?;
 
 		let Entry(req, cost) = self.reqs.remove(&id).expect("entry in `ids` implies entry in `reqs`; qed");
 

@@ -156,13 +156,10 @@ impl Default for UserDefaults {
 impl UserDefaults {
 	pub fn load<P>(path: P) -> Result<Self, String> where P: AsRef<Path> {
 		match File::open(path) {
-			Ok(file) => match from_reader(file) {
-				Ok(defaults) => Ok(defaults),
-				Err(e) => {
+			Ok(file) => from_reader(file).or_else(|e| { {
 					warn!("Error loading user defaults file: {:?}", e);
 					Ok(UserDefaults::default())
-				},
-			},
+				} }),
 			_ => Ok(UserDefaults::default()),
 		}
 	}

@@ -471,10 +471,7 @@ impl<'a> CallCreateExecutive<'a> {
 				let out = match exec {
 					Some(exec) => {
 						let mut ext = Self::as_externalities(state, self.info, self.machine, self.schedule, self.depth, self.stack_depth, self.static_flag, &origin_info, &mut unconfirmed_substate, OutputPolicy::Return, tracer, vm_tracer);
-						match exec.exec(&mut ext) {
-							Ok(val) => Ok(val.finalize(ext)),
-							Err(err) => Err(err),
-						}
+						exec.exec(&mut ext).map(|val| { val.finalize(ext) })
 					},
 					None => Ok(Err(vm::Error::OutOfGas)),
 				};
@@ -522,10 +519,7 @@ impl<'a> CallCreateExecutive<'a> {
 				let out = match exec {
 					Some(exec) => {
 						let mut ext = Self::as_externalities(state, self.info, self.machine, self.schedule, self.depth, self.stack_depth, self.static_flag, &origin_info, &mut unconfirmed_substate, OutputPolicy::InitContract, tracer, vm_tracer);
-						match exec.exec(&mut ext) {
-							Ok(val) => Ok(val.finalize(ext)),
-							Err(err) => Err(err),
-						}
+						exec.exec(&mut ext).map(|val| { val.finalize(ext) })
 					},
 					None => Ok(Err(vm::Error::OutOfGas)),
 				};
@@ -559,10 +553,7 @@ impl<'a> CallCreateExecutive<'a> {
 					let exec = resume.resume_call(result);
 
 					let mut ext = Self::as_externalities(state, self.info, self.machine, self.schedule, self.depth, self.stack_depth, self.static_flag, &origin_info, &mut unconfirmed_substate, if self.is_create { OutputPolicy::InitContract } else { OutputPolicy::Return }, tracer, vm_tracer);
-					match exec.exec(&mut ext) {
-						Ok(val) => Ok(val.finalize(ext)),
-						Err(err) => Err(err),
-					}
+					exec.exec(&mut ext).map(|val| { val.finalize(ext) })
 				};
 
 				let res = match out {
@@ -598,10 +589,7 @@ impl<'a> CallCreateExecutive<'a> {
 					let exec = resume.resume_create(result);
 
 					let mut ext = Self::as_externalities(state, self.info, self.machine, self.schedule, self.depth, self.stack_depth, self.static_flag, &origin_info, &mut unconfirmed_substate, if self.is_create { OutputPolicy::InitContract } else { OutputPolicy::Return }, tracer, vm_tracer);
-					match exec.exec(&mut ext) {
-						Ok(val) => Ok(val.finalize(ext)),
-						Err(err) => Err(err),
-					}
+					exec.exec(&mut ext).map(|val| { val.finalize(ext) })
 				};
 
 				let res = match out {

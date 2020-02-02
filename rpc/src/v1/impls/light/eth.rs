@@ -573,10 +573,7 @@ where
 }
 
 fn extract_uncle_at_index<T: LightChainClient>(block: encoded::Block, index: Index, client: Arc<T>) -> Option<RichBlock> {
-		let uncle = match block.uncles().into_iter().nth(index.value()) {
-			Some(u) => u,
-			None => return None,
-		};
+		let uncle = block.uncles().into_iter().nth(index.value())?;
 
 		let extra_info = client.engine().extra_info(&uncle);
 		Some(RichBlock {

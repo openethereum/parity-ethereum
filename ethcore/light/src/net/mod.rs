@@ -475,10 +475,7 @@ impl LightProtocol {
 	/// with an event.
 	pub fn request_from(&self, io: &dyn IoContext, peer_id: PeerId, requests: Requests) -> Result<ReqId, Error> {
 		let peers = self.peers.read();
-		let peer = match peers.get(&peer_id) {
-			Some(peer) => peer,
-			None => return Err(Error::UnknownPeer),
-		};
+		let peer = peers.get(&peer_id).ok_or_else(|| Error::UnknownPeer)?;
 
 		let mut peer = peer.lock();
 		let peer = &mut *peer;
@@ -492,10 +489,7 @@ impl LightProtocol {
 
 				// compute and deduct cost.
 				let pre_creds = creds.current();
-				let cost = match params.compute_cost_multi(requests.requests()) {
-					Some(cost) => cost,
-					None => return Err(Error::NotServer),
-				};
+				let cost = params.compute_cost_multi(requests.requests()).ok_or_else(|| Error::NotServer)?;
 
 				creds.deduct_cost(cost)?;
 
@@ -1111,10 +1105,7 @@ impl LightProtocol {
 
 		trace!(target: "pip", "Received an acknowledgement for new request credit params from peer {}", peer_id);
 
-		let (_, new_params) = match peer.awaiting_acknowledge.take() {
-			Some(x) => x,
-			None => return Err(Error::UnsolicitedResponse),
-		};
+		let (_, new_params) = peer.awaiting_acknowledge.take().ok_or_else(|| Error::UnsolicitedResponse)?;
 
 		let old_limit = *peer.local_flow.limit();
 		peer.local_credits.maintain_ratio(old_limit, *new_params.limit());

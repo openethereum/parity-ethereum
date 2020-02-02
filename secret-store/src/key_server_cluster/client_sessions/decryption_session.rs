@@ -430,10 +430,7 @@ impl SessionImpl {
 		debug_assert!(self.core.access_key == *message.sub_session);
 		debug_assert!(sender != &self.core.meta.self_node_id);
 
-		let key_share = match self.core.key_share.as_ref() {
-			None => return Err(Error::InvalidMessage),
-			Some(key_share) => key_share,
-		};
+		let key_share = self.core.key_share.as_ref().ok_or_else(|| Error::InvalidMessage)?;
 
 		let mut data = self.data.lock();
 		let key_version = key_share.version(data.version.as_ref().ok_or(Error::InvalidMessage)?)?.hash.clone();
@@ -538,16 +535,13 @@ impl SessionImpl {
 		let mut data = self.data.lock();
 
 		// if it is a broadcast session, wait for all answers before completing the session
-		let decryption_result = match data.broadcast_job_session.as_ref() {
-			Some(broadcast_job_session) => {
+		let decryption_result = data.broadcast_job_session.as_ref().and_then(|broadcast_job_session| { {
 				if !broadcast_job_session.is_result_ready() {
 					return Err(Error::TooEarlyForRequest);
 				}
 
 				Some(broadcast_job_session.result())
-			},
-			None => None,
-		};
+			} });
 		if let Some(decryption_result) = decryption_result {
 			Self::set_decryption_result(&self.core, &mut *data, decryption_result);
 		}
@@ -599,10 +593,7 @@ impl SessionImpl {
 
 	/// Disseminate jobs on session master.
 	fn disseminate_jobs(core: &SessionCore, data: &mut SessionData, version: &H256, is_shadow_decryption: bool, is_broadcast_session: bool) -> Result<(), Error> {
-		let key_share = match core.key_share.as_ref() {
-			None => return Err(Error::InvalidMessage),
-			Some(key_share) => key_share,
-		};
+		let key_share = core.key_share.as_ref().ok_or_else(|| Error::InvalidMessage)?;
 
 		let key_version = key_share.version(version)?.hash.clone();
 		let requester = data.consensus_session.consensus_job().executor().requester().ok_or(Error::InvalidStateForRequest)?.clone();

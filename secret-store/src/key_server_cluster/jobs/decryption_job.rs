@@ -148,10 +148,7 @@ impl JobExecutor for DecryptionJob {
 		Ok(JobPartialRequestAction::Respond(PartialDecryptionResponse {
 			request_id: partial_request.id,
 			shadow_point: shadow_point,
-			decrypt_shadow: match decrypt_shadow.clone() {
-				None => None,
-				Some(decrypt_shadow) => Some(encrypt(&self.requester, &DEFAULT_MAC, decrypt_shadow.as_bytes())?),
-			},
+			decrypt_shadow: decrypt_shadow.clone().map(|decrypt_shadow| { encrypt(&self.requester, &DEFAULT_MAC, decrypt_shadow.as_bytes())? }),
 		}))
 	}
 

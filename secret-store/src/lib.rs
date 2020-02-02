@@ -110,10 +110,7 @@ pub fn start(trusted_client: Arc<dyn SecretStoreChain>, self_key_pair: Arc<dyn S
 	let key_server: Arc<dyn KeyServer> = key_server;
 
 	// prepare HTTP listener
-	let http_listener = match config.listener_address {
-		Some(listener_address) => Some(listener::http_listener::KeyServerHttpListener::start(listener_address, config.cors, Arc::downgrade(&key_server), executor)?),
-		None => None,
-	};
+	let http_listener = config.listener_address.map(|listener_address| { listener::http_listener::KeyServerHttpListener::start(listener_address, config.cors, Arc::downgrade(&key_server), executor)? });
 
 	// prepare service contract listeners
 	let create_service_contract = |address, name, api_mask|
@@ -157,8 +154,7 @@ pub fn start(trusted_client: Arc<dyn SecretStoreChain>, self_key_pair: Arc<dyn S
 		_ => Some(Arc::new(listener::service_contract_aggregate::OnChainServiceContractAggregate::new(contracts))),
 	};
 
-	let contract_listener = match contract {
-		Some(contract) => Some({
+	let contract_listener = contract.map(|contract| { {
 			let listener = listener::service_contract_listener::ServiceContractListener::new(
 				listener::service_contract_listener::ServiceContractListenerParams {
 					contract: contract,
@@ -171,9 +167,7 @@ pub fn start(trusted_client: Arc<dyn SecretStoreChain>, self_key_pair: Arc<dyn S
 			)?;
 			trusted_client.add_listener(listener.clone());
 			listener
-		}),
-		None => None,
-	};
+		} });
 
 	Ok(Box::new(listener::Listener::new(key_server, http_listener, contract_listener)))
 }

@@ -294,11 +294,7 @@ impl Account {
 	pub fn cached_original_storage_at(&self, key: &H256) -> Option<H256> {
 		match &self.original_storage_cache {
 			Some((_, ref original_storage_cache)) => {
-				if let Some(value) = original_storage_cache.borrow_mut().get_mut(key) {
-					Some(value.clone())
-				} else {
-					None
-				}
+				original_storage_cache.borrow_mut().get_mut(key).cloned()
 			},
 			None => {
 				self.cached_moved_original_storage_at(key)
@@ -314,11 +310,7 @@ impl Account {
 			return Some(H256::zero());
 		}
 
-		if let Some(value) = self.storage_cache.borrow_mut().get_mut(key) {
-			Some(value.clone())
-		} else {
-			None
-		}
+		self.storage_cache.borrow_mut().get_mut(key).cloned()
 	}
 
 	/// return the balance associated with this account.
