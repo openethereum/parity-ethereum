@@ -43,14 +43,14 @@ stats = { path = "../../util/stats" }
 keccak-hash = "0.4.0"
 keccak-hasher = { path = "../../util/keccak-hasher" }
 triehash-ethereum = { version = "0.2",  path = "../../util/triehash-ethereum" }
-kvdb = "0.2"
+kvdb = "0.3.1"
 memory-cache = { path = "../../util/memory-cache" }
 journaldb = { path = "../../util/journaldb" }
 verification = { path = "../verification" }
 
 [dev-dependencies]
 ethcore = { path = "..", features = ["test-helpers"] }
-kvdb-memorydb = "0.2.0"
+kvdb-memorydb = "0.3.1"
 tempdir = "0.3"
 
 [features]
