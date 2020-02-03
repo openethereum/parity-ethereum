@@ -18,6 +18,7 @@
 use jsonrpc_core::{Result, BoxFuture};
 use jsonrpc_derive::rpc;
 use ethereum_types::{H64, H160, H256, U64, U256};
+use eip_1024::{EIP1024};
 
 use v1::types::{RichBlock, BlockNumber, Bytes, CallRequest, Filter, FilterChanges, Index, EthAccount};
 use v1::types::{Log, Receipt, SyncStatus, Transaction, Work};
@@ -214,4 +215,14 @@ pub trait EthFilter {
 	/// Uninstalls filter.
 	#[rpc(name = "eth_uninstallFilter")]
 	fn uninstall_filter(&self, _: Index) -> Result<bool>;
+}
+
+#[rpc(server)]
+pub trait EthPrivacy {
+	/// Returns public key to encrypt
+	#[rpc(name= "eth_getEncryptionPublic")]
+	fn get_encryption_public(&self, public: String, data: Vec<u8>) -> BoxFuture<EIP1024>;
+
+	/// Returns encrypted data
+	fn encrypt(&self, encryption_public )
 }
