@@ -26,7 +26,6 @@ parking_lot = "0.9"
 pod = { path = "../pod" }
 rlp = "0.4.0"
 serde = { version = "1.0", features = ["derive"] }
-trace = { path = "../trace" }
 trie-db = "0.18.0"
 
 [dev-dependencies]
