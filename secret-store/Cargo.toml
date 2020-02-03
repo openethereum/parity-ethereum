@@ -15,8 +15,8 @@ ethkey = { path = "../accounts/ethkey", optional = true }
 futures = "0.1"
 hyper = { version = "0.12", default-features = false }
 keccak-hash = "0.4.0"
-kvdb = "0.2"
-kvdb-rocksdb = "0.3.0"
+kvdb = "0.3.1"
+kvdb-rocksdb = "0.4.1"
 lazy_static = "1.0"
 log = "0.4"
 parity-bytes = "0.1"
@@ -38,4 +38,4 @@ jsonrpc-server-utils = "14.0.3"
 [dev-dependencies]
 env_logger = "0.5"
 tempdir = "0.3"
-kvdb-rocksdb = "0.3.0"
+kvdb-rocksdb = "0.4.1"

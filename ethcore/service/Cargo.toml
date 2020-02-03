@@ -14,7 +14,7 @@ ethcore-io = { path = "../../util/io" }
 ethcore-private-tx = { path = "../private-tx" }
 ethcore-sync = { path = "../sync" }
 ethereum-types = "0.8.0"
-kvdb = "0.2"
+kvdb = "0.3.1"
 log = "0.4"
 snapshot = { path = "../snapshot" }
 spec = { path = "../spec" }
@@ -23,5 +23,5 @@ trace-time = "0.1"
 [dev-dependencies]
 ethcore = { path = "..", features = ["test-helpers"] }
 ethcore-db = { path = "../db" }
-kvdb-rocksdb = "0.3.0"
+kvdb-rocksdb = "0.4.1"
 tempdir = "0.3"
