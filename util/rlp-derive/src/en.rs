@@ -43,7 +43,6 @@ pub fn impl_encodable(ast: &syn::DeriveInput) -> TokenStream {
 	};
 
 	quote! {
-		#[allow(non_upper_case_globals, unused_attributes, unused_qualifications)]
 		const _: () = {
 			extern crate rlp;
 			#impl_block
@@ -78,7 +77,6 @@ pub fn impl_encodable_wrapper(ast: &syn::DeriveInput) -> TokenStream {
 	};
 
 	quote! {
-		#[allow(non_upper_case_globals, unused_attributes, unused_qualifications)]
 		const _: () = {
 			extern crate rlp;
 			#impl_block
