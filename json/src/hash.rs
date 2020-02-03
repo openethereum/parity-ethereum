@@ -25,7 +25,7 @@ use ethereum_types::{H64 as Hash64, H160 as Hash160, H256 as Hash256, H520 as Ha
 macro_rules! impl_hash {
 	($name: ident, $inner: ident) => {
 		/// Lenient hash json deserialization for test json files.
-		#[derive(Default, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Clone)]
+		#[derive(Default, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Clone, Copy)]
 		pub struct $name(pub $inner);
 
 		impl From<$name> for $inner {
