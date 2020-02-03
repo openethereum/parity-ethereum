@@ -15,7 +15,7 @@ common-types = { path = "../types" }
 ethcore-db = { path = "../db" }
 ethcore-miner = { path = "../../miner" }
 ethereum-types = "0.8.0"
-kvdb = "0.2"
+kvdb = "0.3.1"
 registrar = { path = "../../util/registrar" }
 stats = { path = "../../util/stats" }
 trace = { path = "../trace" }
