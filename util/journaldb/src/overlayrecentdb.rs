@@ -281,18 +281,21 @@ impl JournalDB for OverlayRecentDB {
 
 	fn state(&self, key: &H256) -> Option<Bytes> {
 		let key = to_short_key(key);
+		// Hold the read lock for shortest possible amount of time.
 		let maybe_state_data = {
-			let journal_overlay = self.journal_overlay.try_read_for(Duration::from_secs(2))?;
-			journal_overlay.backing_overlay.get(&key, EMPTY_PREFIX)
+			let journal_overlay = self.journal_overlay.read();
+			journal_overlay
+				.backing_overlay
+				.get(&key, EMPTY_PREFIX)
 				.or_else(|| journal_overlay.pending_overlay.get(&key).map(|d| d.clone()))
 		};
-		match maybe_state_data {
-			Some(data) => Some(data),
-			None => {
-				let pkey = &key[..DB_PREFIX_LEN];
-				self.backing.get_by_prefix(self.column, &pkey).map(|b| b.to_vec())
-			}
-		}
+
+		maybe_state_data.or_else(|| {
+			let pkey = &key[..DB_PREFIX_LEN];
+			self.backing
+				.get_by_prefix(self.column, &pkey)
+				.map(|b| b.to_vec())
+		})
 	}
 
 	fn journal_under(&mut self, batch: &mut DBTransaction, now: u64, id: &H256) -> io::Result<u32> {
