@@ -20,7 +20,6 @@ use std::{
 	collections::{HashMap, hash_map::Entry},
 	io,
 	sync::Arc,
-	time::Duration,
 };
 
 use ethereum_types::H256;
