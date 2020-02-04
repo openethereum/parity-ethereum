@@ -281,7 +281,7 @@ impl SyncSupplier {
 			});
 			total_elpsd += elpsd.duration();
 			if elpsd.duration() > MAX_NODE_DATA_SINGLE_DURATION || total_elpsd > MAX_NODE_DATA_TOTAL_DURATION {
-				trace!(target: "sync", "{} -> GetNodeData:   item {}/{} – slow state fetch for hash {:?}; took {}",
+				warn!(target: "sync", "{} -> GetNodeData:   item {}/{} – slow state fetch for hash {:?}; took {}",
 					peer_id, i, count, hash, elpsd);
 				break;
 			}
