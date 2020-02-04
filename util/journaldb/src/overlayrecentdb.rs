@@ -20,6 +20,7 @@ use std::{
 	collections::{HashMap, hash_map::Entry},
 	io,
 	sync::Arc,
+	time::Duration,
 };
 
 use ethereum_types::H256;
@@ -279,11 +280,22 @@ impl JournalDB for OverlayRecentDB {
 	fn earliest_era(&self) -> Option<u64> { self.journal_overlay.read().earliest_era }
 
 	fn state(&self, key: &H256) -> Option<Bytes> {
-		let journal_overlay = self.journal_overlay.read();
 		let key = to_short_key(key);
-		journal_overlay.backing_overlay.get(&key, EMPTY_PREFIX)
-			.or_else(|| journal_overlay.pending_overlay.get(&key).map(|d| d.clone()))
-			.or_else(|| self.backing.get_by_prefix(self.column, &key[0..DB_PREFIX_LEN]).map(|b| b.to_vec()))
+		// Hold the read lock for shortest possible amount of time.
+		let maybe_state_data = {
+			let journal_overlay = self.journal_overlay.read();
+			journal_overlay
+				.backing_overlay
+				.get(&key, EMPTY_PREFIX)
+				.or_else(|| journal_overlay.pending_overlay.get(&key).map(|d| d.clone()))
+		};
+
+		maybe_state_data.or_else(|| {
+			let pkey = &key[..DB_PREFIX_LEN];
+			self.backing
+				.get_by_prefix(self.column, &pkey)
+				.map(|b| b.to_vec())
+		})
 	}
 
 	fn journal_under(&mut self, batch: &mut DBTransaction, now: u64, id: &H256) -> io::Result<u32> {

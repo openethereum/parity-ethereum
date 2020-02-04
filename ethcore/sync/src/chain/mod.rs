@@ -162,7 +162,12 @@ pub const PAR_PROTOCOL_VERSION_4: (u8, u8) = (4, 0x20);
 
 pub const MAX_BODIES_TO_SEND: usize = 256;
 pub const MAX_HEADERS_TO_SEND: usize = 512;
+/// Maximum number of "entries" to include in a GetDataNode request.
 pub const MAX_NODE_DATA_TO_SEND: usize = 1024;
+/// Maximum allowed duration for serving a batch GetNodeData request.
+const MAX_NODE_DATA_TOTAL_DURATION: Duration = Duration::from_secs(2);
+/// Maximum allowed duration for serving a single GetNodeData request.
+const MAX_NODE_DATA_SINGLE_DURATION: Duration = Duration::from_millis(100);
 pub const MAX_RECEIPTS_HEADERS_TO_SEND: usize = 256;
 const MIN_PEERS_PROPAGATION: usize = 4;
 const MAX_PEERS_PROPAGATION: usize = 128;
