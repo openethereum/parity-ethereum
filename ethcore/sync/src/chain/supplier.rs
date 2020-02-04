@@ -264,7 +264,7 @@ impl SyncSupplier {
 	fn return_node_data(io: &dyn SyncIo, r: &Rlp, peer_id: PeerId) -> RlpResponseResult {
 		let payload_soft_limit = io.payload_soft_limit(); // 4Mb
 		let mut count = r.item_count().unwrap_or(0);
-		trace!(target: "sync_dp", "{} -> GetNodeData: {} entries requested", peer_id, count);
+		trace!(target: "sync", "{} -> GetNodeData: {} entries requested", peer_id, count);
 		if count == 0 {
 			debug!(target: "sync", "Empty GetNodeData request, ignoring.");
 			return Ok(None);
@@ -281,7 +281,7 @@ impl SyncSupplier {
 			});
 			total_elpsd += elpsd.duration();
 			if elpsd.duration() > MAX_NODE_DATA_SINGLE_DURATION || total_elpsd > MAX_NODE_DATA_TOTAL_DURATION {
-				trace!(target: "sync_dp", "{} -> GetNodeData:   item {}/{} – slow state fetch for hash {:?}; took {}",
+				trace!(target: "sync", "{} -> GetNodeData:   item {}/{} – slow state fetch for hash {:?}; took {}",
 					peer_id, i, count, hash, elpsd);
 				break;
 			}
@@ -294,7 +294,7 @@ impl SyncSupplier {
 				added += 1;
 			}
 		}
-		trace!(target: "sync_dp", "{} -> GetNodeData: returning {}/{} entries ({} bytes total in {})",
+		trace!(target: "sync", "{} -> GetNodeData: returning {}/{} entries ({} bytes total in {})",
 			peer_id, added, count, total_bytes, elapsed::ElapsedDuration::new(total_elpsd));
 		let mut rlp = RlpStream::new_list(added);
 		for d in data {
