@@ -14,6 +14,16 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
+//! Derive macro for rlp serialization/deserialization.
+//!
+//! For example of usage see `./tests/rlp.rs`.
+//!
+//! This library also supports up to 1 `#[rlp(default)]` in a struct,
+//! which is similar to [`#[serde(default)]`](https://serde.rs/field-attrs.html#default)
+//! with the caveat that we use the `Default` value if
+//! the field deserialization fails, as we don't serialize field
+//! names and there is no way to tell if it is present or not.
+
 extern crate proc_macro;
 
 mod de;
