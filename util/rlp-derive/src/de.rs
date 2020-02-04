@@ -14,8 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use syn;
-use proc_macro2::{TokenStream, Span};
+use proc_macro2::TokenStream;
+use quote::quote;
 
 struct ParseQuotes {
 	single: TokenStream,
@@ -45,10 +45,14 @@ pub fn impl_decodable(ast: &syn::DeriveInput) -> TokenStream {
 		_ => panic!("#[derive(RlpDecodable)] is only defined for structs."),
 	};
 
-	let stmts: Vec<_> = body.fields.iter().enumerate().map(decodable_field_map).collect();
+	let stmts: Vec<_> = body
+		.fields
+		.iter()
+		.enumerate()
+		.map(decodable_field_map)
+		.collect();
 	let name = &ast.ident;
 
-	let dummy_const = syn::Ident::new(&format!("_IMPL_RLP_DECODABLE_FOR_{}", name), Span::call_site());
 	let impl_block = quote! {
 		impl rlp::Decodable for #name {
 			fn decode(rlp: &rlp::Rlp) -> Result<Self, rlp::DecoderError> {
@@ -62,8 +66,7 @@ pub fn impl_decodable(ast: &syn::DeriveInput) -> TokenStream {
 	};
 
 	quote! {
-		#[allow(non_upper_case_globals, unused_attributes, unused_qualifications)]
-		const #dummy_const: () = {
+		const _: () = {
 			extern crate rlp;
 			#impl_block
 		};
@@ -88,7 +91,6 @@ pub fn impl_decodable_wrapper(ast: &syn::DeriveInput) -> TokenStream {
 
 	let name = &ast.ident;
 
-	let dummy_const = syn::Ident::new(&format!("_IMPL_RLP_DECODABLE_FOR_{}", name), Span::call_site());
 	let impl_block = quote! {
 		impl rlp::Decodable for #name {
 			fn decode(rlp: &rlp::Rlp) -> Result<Self, rlp::DecoderError> {
@@ -102,8 +104,7 @@ pub fn impl_decodable_wrapper(ast: &syn::DeriveInput) -> TokenStream {
 	};
 
 	quote! {
-		#[allow(non_upper_case_globals, unused_attributes, unused_qualifications)]
-		const #dummy_const: () = {
+		const _: () = {
 			extern crate rlp;
 			#impl_block
 		};
@@ -130,7 +131,12 @@ fn decodable_field(index: usize, field: &syn::Field, quotes: ParseQuotes) -> Tok
 
 	match field.ty {
 		syn::Type::Path(ref path) => {
-			let ident = &path.path.segments.first().expect("there must be at least 1 segment").value().ident;
+			let ident = &path
+				.path
+				.segments
+				.first()
+				.expect("there must be at least 1 segment")
+				.ident;
 			if &ident.to_string() == "Vec" {
 				if quotes.takes_index {
 					quote! { #id: #list(#index)?, }
@@ -144,7 +150,7 @@ fn decodable_field(index: usize, field: &syn::Field, quotes: ParseQuotes) -> Tok
 					quote! { #id: #single()?, }
 				}
 			}
-		},
+		}
 		_ => panic!("rlp_derive not supported"),
 	}
 }
