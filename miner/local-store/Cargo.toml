@@ -8,7 +8,7 @@ edition = "2018"
 [dependencies]
 common-types = { path = "../../ethcore/types" }
 ethcore-io = { path = "../../util/io" }
-kvdb = "0.2"
+kvdb = "0.3.1"
 log = "0.4"
 rlp = "0.4.0"
 serde = "1.0"
@@ -18,4 +18,4 @@ serde_json = "1.0"
 [dev-dependencies]
 ethkey = { path = "../../accounts/ethkey" }
 parity-crypto = { version = "0.4.2", features = ["publickey"] }
-kvdb-memorydb = "0.2.0"
+kvdb-memorydb = "0.3.1"
