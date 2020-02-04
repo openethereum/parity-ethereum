@@ -230,7 +230,7 @@ fn display(result: (KeyPair, Option<String>), mode: DisplayMode) -> String {
 			if let Some(extra_data) = result.1 {
 				format!("{}\n{}", extra_data, keypair)
 			} else {
-				format!("{}", keypair)
+				keypair.to_string()
 			}
 		},
 		DisplayMode::Secret => format!("{:x}", keypair.secret()),
