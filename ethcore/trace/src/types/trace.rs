@@ -562,3 +562,104 @@ pub struct VMTrace {
 	/// Thre is a 1:1 correspondance between these and a CALL/CREATE/CALLCODE/DELEGATECALL instruction.
 	pub subs: Vec<VMTrace>,
 }
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn test_call_type_backwards_compatibility() {
+		// Call type in version < 2.7.
+		#[derive(Debug, Clone, PartialEq, RlpEncodable, RlpDecodable)]
+		struct OldCall {
+			from: Address,
+			to: Address,
+			value: U256,
+			gas: U256,
+			input: Bytes,
+			call_type: CallType,
+		}
+
+		let old_call = OldCall {
+			from: Address::from_low_u64_be(1),
+			to: Address::from_low_u64_be(2),
+			value: U256::from(3),
+			gas: U256::from(4),
+			input: vec![5],
+			call_type: CallType::DelegateCall,
+		};
+
+		let out = rlp::encode(&old_call);
+
+		let new_call = Call {
+			from: Address::from_low_u64_be(1),
+			to: Address::from_low_u64_be(2),
+			value: U256::from(3),
+			gas: U256::from(4),
+			input: vec![5],
+			call_type: Some(CallType::DelegateCall).into(),
+		};
+
+		// `old_call` should be deserialized successfully into `new_call`
+		assert_eq!(rlp::decode(&out), Ok(new_call.clone()));
+		// test a roundtrip with `Some` `call_type`
+		let out = rlp::encode(&new_call);
+		assert_eq!(rlp::decode(&out), Ok(new_call));
+
+		// test a roundtrip with `None` `call_type`
+		let none_call = Call {
+			from: Address::from_low_u64_be(1),
+			to: Address::from_low_u64_be(2),
+			value: U256::from(3),
+			gas: U256::from(4),
+			input: vec![5],
+			call_type: None.into(),
+		};
+		let out = rlp::encode(&none_call);
+		assert_eq!(rlp::decode(&out), Ok(none_call));
+	}
+
+	#[test]
+	fn test_creation_method_backwards_compatibility() {
+		#[derive(Debug, Clone, PartialEq, RlpEncodable, RlpDecodable)]
+		struct OldCreate {
+			from: Address,
+			value: U256,
+			gas: U256,
+			init: Bytes,
+		}
+
+		let old_create = OldCreate {
+			from: Address::from_low_u64_be(1),
+			value: U256::from(3),
+			gas: U256::from(4),
+			init: vec![5],
+		};
+
+		let out = rlp::encode(&old_create);
+		let new_create = Create {
+			from: Address::from_low_u64_be(1),
+			value: U256::from(3),
+			gas: U256::from(4),
+			init: vec![5],
+			creation_method: None,
+		};
+
+		// `old_create` should be deserialized successfully into `new_create`
+		assert_eq!(rlp::decode(&out), Ok(new_create.clone()));
+		// test a roundtrip with `None` `creation_method`
+		let out = rlp::encode(&new_create);
+		assert_eq!(rlp::decode(&out), Ok(new_create));
+
+		// test a roundtrip with `Some` `creation_method`
+		let some_create = Create {
+			from: Address::from_low_u64_be(1),
+			value: U256::from(3),
+			gas: U256::from(4),
+			init: vec![5],
+			creation_method: Some(CreationMethod::Create2),
+		};
+		let out = rlp::encode(&some_create);
+		assert_eq!(rlp::decode(&out), Ok(some_create));
+	}
+}
