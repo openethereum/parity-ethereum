@@ -14,10 +14,10 @@ ethereum-types = "0.8.0"
 ethjson = { path = "../../json" }
 keccak-hash = "0.4.0"
 log = "0.4"
-macros = { path = "../../util/macros" }
 num = { version = "0.1", default-features = false, features = ["bigint"] }
 parity-bytes = "0.1"
 parity-crypto = { version = "0.4.2", features = ["publickey"] }
 
 [dev-dependencies]
 hex-literal = "0.2.1"
+macros = { path = "../../util/macros" }
