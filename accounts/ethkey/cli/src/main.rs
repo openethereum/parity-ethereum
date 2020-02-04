@@ -323,7 +323,7 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 						return Ok(Some((phrase, keypair)))
 					}
 
-					if i > 1024 {
+					if i >= 1023 {
 						return Ok(None)
 					}
 				}
