@@ -281,12 +281,12 @@ impl JournalDB for OverlayRecentDB {
 
 	fn state(&self, key: &H256) -> Option<Bytes> {
 		let key = to_short_key(key);
-		let maybe_state_date = {
+		let maybe_state_data = {
 			let journal_overlay = self.journal_overlay.try_read_for(Duration::from_secs(2))?;
 			journal_overlay.backing_overlay.get(&key, EMPTY_PREFIX)
 				.or_else(|| journal_overlay.pending_overlay.get(&key).map(|d| d.clone()))
 		};
-		match maybe_state_date {
+		match maybe_state_data {
 			Some(data) => Some(data),
 			None => {
 				let pkey = &key[..DB_PREFIX_LEN];
