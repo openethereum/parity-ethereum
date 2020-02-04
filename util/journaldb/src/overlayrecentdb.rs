@@ -20,7 +20,6 @@ use std::{
 	collections::{HashMap, hash_map::Entry},
 	io,
 	sync::Arc,
-	time::Duration,
 };
 
 use ethereum_types::H256;
@@ -294,7 +293,7 @@ impl JournalDB for OverlayRecentDB {
 			let pkey = &key[..DB_PREFIX_LEN];
 			self.backing
 				.get_by_prefix(self.column, &pkey)
-				.map(|b| b.to_vec())
+				.map(|b| b.into_vec())
 		})
 	}
 
