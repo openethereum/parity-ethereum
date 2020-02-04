@@ -1538,7 +1538,7 @@ mod tests {
 				value: 23.into(),
 				gas: 67979.into(),
 				init: vec![96, 16, 128, 96, 12, 96, 0, 57, 96, 0, 243, 0, 96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53, 85],
-				creation_method: Some(trace::CreationMethod::Create).into(),
+				creation_method: Some(trace::CreationMethod::Create),
 			}),
 			result: trace::Res::Create(trace::CreateResult {
 				gas_used: U256::from(3224),
@@ -1655,7 +1655,7 @@ mod tests {
 				value: 23.into(),
 				gas: 66_917.into(),
 				init: vec![0x60, 0x01, 0x60, 0x00, 0xfd],
-				creation_method: Some(trace::CreationMethod::Create).into(),
+				creation_method: Some(trace::CreationMethod::Create),
 			}),
 			result: trace::Res::FailedCreate(vm::Error::Reverted.into()),
 		}];
@@ -1713,7 +1713,7 @@ mod tests {
 				value: 100.into(),
 				gas: params.gas,
 				init: vec![96, 16, 128, 96, 12, 96, 0, 57, 96, 0, 243, 0, 96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53, 85],
-				creation_method: Some(trace::CreationMethod::Create).into(),
+				creation_method: Some(trace::CreationMethod::Create),
 			}),
 			result: trace::Res::Create(trace::CreateResult {
 				gas_used: U256::from(3224),

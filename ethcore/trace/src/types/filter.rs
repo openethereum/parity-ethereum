@@ -293,7 +293,7 @@ mod tests {
 				value: 3.into(),
 				gas: 4.into(),
 				init: vec![0x5],
-				creation_method: Some(CreationMethod::Create).into(),
+				creation_method: Some(CreationMethod::Create),
 			}),
 			result: Res::Create(CreateResult {
 				gas_used: 10.into(),
@@ -413,7 +413,7 @@ mod tests {
 				gas: 4.into(),
 				init: vec![0x5],
 				value: 3.into(),
-				creation_method: Some(CreationMethod::Create).into(),
+				creation_method: Some(CreationMethod::Create),
 			}),
 			result: Res::FailedCall(TraceError::BadInstruction),
 			trace_address: vec![].into_iter().collect(),

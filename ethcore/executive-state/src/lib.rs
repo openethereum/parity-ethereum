@@ -323,7 +323,7 @@ mod tests {
 				value: 100.into(),
 				gas: 77412.into(),
 				init: vec![96, 16, 128, 96, 12, 96, 0, 57, 96, 0, 243, 0, 96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53, 85],
-				creation_method: Some(trace::CreationMethod::Create).into(),
+				creation_method: Some(trace::CreationMethod::Create),
 			}),
 			result: trace::Res::Create(trace::CreateResult {
 				gas_used: U256::from(3224),
@@ -381,7 +381,7 @@ mod tests {
 				value: 100.into(),
 				gas: 78792.into(),
 				init: vec![91, 96, 0, 86],
-				creation_method: Some(trace::CreationMethod::Create).into(),
+				creation_method: Some(trace::CreationMethod::Create),
 			}),
 			result: trace::Res::FailedCreate(TraceError::OutOfGas),
 			subtraces: 0

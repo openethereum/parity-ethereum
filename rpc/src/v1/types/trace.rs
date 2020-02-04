@@ -230,13 +230,12 @@ pub struct Create {
 
 impl From<trace::Create> for Create {
 	fn from(c: trace::Create) -> Self {
-		let optional: Option<trace::CreationMethod> = c.creation_method;
 		Create {
 			from: c.from,
 			value: c.value,
 			gas: c.gas,
 			init: Bytes::new(c.init),
-			creation_method: optional.map(|c| c.into()),
+			creation_method: c.creation_method.map(|c| c.into()),
 		}
 	}
 }
