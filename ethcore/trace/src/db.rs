@@ -374,13 +374,12 @@ mod tests {
 
 	use ethcore::test_helpers::new_db;
 	use ethereum_types::{H256, U256, Address};
-	use evm::CallType;
 	use kvdb::DBTransaction;
 
 	use crate::{
 		BlockNumber, Config, TraceDB, Database as TraceDatabase, ImportRequest, DatabaseExtras,
 		Filter, LocalizedTrace, AddressesFilter, TraceError,
-		trace::{Call, Action, Res},
+		trace::{Call, CallType, Action, Res},
 		flat::{FlatTrace, FlatBlockTraces, FlatTransactionTraces}
 	};
 
@@ -465,7 +464,7 @@ mod tests {
 					value: 3.into(),
 					gas: 4.into(),
 					input: vec![],
-					call_type: CallType::Call,
+					call_type: Some(CallType::Call),
 				}),
 				result: Res::FailedCall(TraceError::OutOfGas),
 			}])]),
@@ -487,7 +486,7 @@ mod tests {
 					value: 3.into(),
 					gas: 4.into(),
 					input: vec![],
-					call_type: CallType::Call,
+					call_type: Some(CallType::Call),
 				}),
 				result: Res::FailedCall(TraceError::OutOfGas),
 			}])]),
@@ -506,7 +505,7 @@ mod tests {
 				value: U256::from(3),
 				gas: U256::from(4),
 				input: vec![],
-				call_type: CallType::Call,
+				call_type: Some(CallType::Call),
 			}),
 			result: Res::FailedCall(TraceError::OutOfGas),
 			trace_address: vec![],

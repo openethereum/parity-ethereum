@@ -34,7 +34,7 @@ use common_types::{
 	errors::{EngineError, EthcoreError as Error},
 	transaction::{self, SYSTEM_ADDRESS, UNSIGNED_SENDER, UnverifiedTransaction, SignedTransaction},
 };
-use vm::{CallType, ActionParams, ActionValue, ParamsType};
+use vm::{ActionType, ActionParams, ActionValue, ParamsType};
 use vm::{EnvInfo, Schedule};
 
 use account_state::CleanupMode;
@@ -141,7 +141,7 @@ impl Machine {
 		value: Option<ActionValue>,
 		gas: U256,
 		data: Option<Vec<u8>>,
-		call_type: Option<CallType>,
+		action_type: Option<ActionType>,
 	) -> Result<Vec<u8>, Error> {
 		let env_info = {
 			let mut env_info = block.env_info();
@@ -163,7 +163,7 @@ impl Machine {
 			code_hash,
 			code_version: 0.into(),
 			data,
-			call_type: call_type.unwrap_or(CallType::Call),
+			action_type: action_type.unwrap_or(ActionType::Call),
 			params_type: ParamsType::Separate,
 		};
 		let schedule = self.schedule(env_info.number);
