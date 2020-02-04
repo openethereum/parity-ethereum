@@ -309,7 +309,7 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 		} else {
 			return Ok(USAGE.to_string())
 		};
-		Ok(format!("{}", ok))
+		Ok(ok.to_string())
 	} else if args.cmd_recover {
 		let display_mode = DisplayMode::new(&args);
 		let known_phrase = args.arg_known_phrase;
