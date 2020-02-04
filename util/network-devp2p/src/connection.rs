@@ -40,11 +40,11 @@ use crate::handshake::Handshake;
 
 const ENCRYPTED_HEADER_LEN: usize = 32;
 const RECEIVE_PAYLOAD: Duration = Duration::from_secs(30);
-pub const MAX_PAYLOAD_SIZE: usize = (1 << 24) - 1;
+pub const MAX_PAYLOAD_SIZE: usize = (1 << 24) - 1; // 16Mb
 
 /// Network responses should try not to go over this limit.
 /// This should be lower than MAX_PAYLOAD_SIZE
-pub const PAYLOAD_SOFT_LIMIT: usize = (1 << 22) - 1;
+pub const PAYLOAD_SOFT_LIMIT: usize = (1 << 22) - 1; // 4Mb
 
 pub trait GenericSocket : Read + Write {
 }
@@ -97,7 +97,7 @@ impl<Socket: GenericSocket> GenericConnection<Socket> {
 					else if self.rec_buf.len() > self.rec_size {
 						warn!(target:"network", "Read past buffer {} bytes", self.rec_buf.len() - self.rec_size);
 						return Ok(Some(::std::mem::replace(&mut self.rec_buf, Bytes::new())))
-                    }
+					}
 				},
 				Ok(_) => return Ok(None),
 				Err(e) => {
@@ -105,7 +105,7 @@ impl<Socket: GenericSocket> GenericConnection<Socket> {
 					return Err(e)
 				}
 			}
-        }
+		}
 	}
 
 	/// Add a packet to send queue.
@@ -222,7 +222,7 @@ impl Connection {
 	pub fn register_socket<Host: Handler>(&self, reg: Token, event_loop: &mut EventLoop<Host>) -> io::Result<()> {
 		if self.registered.compare_and_swap(false, true, AtomicOrdering::SeqCst) {
 			return Ok(());
-        }
+		}
 		trace!(target: "network", "connection register; token={:?}", reg);
 		if let Err(e) = event_loop.register(&self.socket, reg, self.interest, PollOpt::edge() /* | PollOpt::oneshot() */) { // TODO: oneshot is broken on windows
 			trace!(target: "network", "Failed to register {:?}, {:?}", reg, e);
@@ -235,7 +235,7 @@ impl Connection {
 		trace!(target: "network", "connection reregister; token={:?}", reg);
 		if !self.registered.load(AtomicOrdering::SeqCst) {
 			self.register_socket(reg, event_loop)
-        } else {
+		} else {
 			event_loop.reregister(&self.socket, reg, self.interest, PollOpt::edge() /* | PollOpt::oneshot() */ ).unwrap_or_else(|e| {  // TODO: oneshot is broken on windows
 				trace!(target: "network", "Failed to reregister {:?}, {:?}", reg, e);
 			});
