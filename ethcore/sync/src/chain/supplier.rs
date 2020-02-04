@@ -22,7 +22,7 @@ use crate::sync_io::SyncIo;
 use bytes::Bytes;
 use enum_primitive::FromPrimitive;
 use ethereum_types::H256;
-use log::{debug, trace};
+use log::{debug, trace, warn};
 use network::{self, PeerId};
 use parking_lot::RwLock;
 use rlp::{Rlp, RlpStream};
