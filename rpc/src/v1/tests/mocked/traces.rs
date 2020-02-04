@@ -44,7 +44,7 @@ fn io() -> Tester {
 			value: 0x1.into(),
 			gas: 0x100.into(),
 			input: vec![1, 2, 3],
-			call_type: Some(CallType::Call),
+			call_type: Some(CallType::Call).into(),
 		}),
 		result: Res::None,
 		subtraces: 0,

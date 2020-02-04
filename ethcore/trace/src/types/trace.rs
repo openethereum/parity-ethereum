@@ -35,7 +35,7 @@ pub struct CallResult {
 }
 
 /// `Call` type. Distinguish between different types of contract interactions.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum CallType {
 	/// Call
 	Call,
@@ -160,7 +160,41 @@ pub struct Call {
 	/// The input data provided to the call.
 	pub input: Bytes,
 	/// The type of the call.
-	pub call_type: Option<CallType>,
+	pub call_type: BackwardsCompatibleOption<CallType>,
+}
+
+/// This is essentially an `Option<T>`,
+/// but with a custom `rlp::Decodable` implementation
+/// which preserves backwards compatibility with
+/// the older encoding (`T`) used in parity-ethereum versions < 2.7.
+/// Note, that this only works if `T` is serialized `as_data`, not `as_list`.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct BackwardsCompatibleOption<T>(pub Option<T>);
+
+impl<T> From<Option<T>> for BackwardsCompatibleOption<T> {
+	fn from(option: Option<T>) -> Self {
+		BackwardsCompatibleOption(option)
+	}
+}
+
+// Encoding is the same as `Option<T>`
+impl<T: Encodable> Encodable for BackwardsCompatibleOption<T> {
+	fn rlp_append(&self, s: &mut RlpStream) {
+		self.0.rlp_append(s);
+	}
+}
+
+// Try to decode it as `T` first, and then as `Option<T>`.
+impl<T: Decodable> Decodable for BackwardsCompatibleOption<T> {
+	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
+		if rlp.is_data() {
+			let raw: T = Decodable::decode(rlp)?;
+			Ok(BackwardsCompatibleOption(Some(raw)))
+		} else {
+			let optional: Option<T> = Decodable::decode(rlp)?;
+			Ok(optional.into())
+		}
+	}
 }
 
 impl From<ActionParams> for Call {
@@ -172,7 +206,7 @@ impl From<ActionParams> for Call {
 				value: p.value.value(),
 				gas: p.gas,
 				input: p.data.unwrap_or_else(Vec::new),
-				call_type: CallType::try_from(p.action_type).ok(),
+				call_type: CallType::try_from(p.action_type).ok().into(),
 			},
 			_ => Call {
 				from: p.sender,
@@ -180,7 +214,7 @@ impl From<ActionParams> for Call {
 				value: p.value.value(),
 				gas: p.gas,
 				input: p.data.unwrap_or_else(Vec::new),
-				call_type: CallType::try_from(p.action_type).ok(),
+				call_type: CallType::try_from(p.action_type).ok().into(),
 			},
 		}
 	}
@@ -209,6 +243,7 @@ pub struct Create {
 	/// The init code.
 	pub init: Bytes,
 	/// Creation method (CREATE vs CREATE2).
+	#[rlp(default)]
 	pub creation_method: Option<CreationMethod>,
 }
 
@@ -219,7 +254,7 @@ impl From<ActionParams> for Create {
 			value: p.value.value(),
 			gas: p.gas,
 			init: p.code.map_or_else(Vec::new, |c| (*c).clone()),
-			creation_method: CreationMethod::try_from(p.action_type).ok(),
+			creation_method: CreationMethod::try_from(p.action_type).ok().into(),
 		}
 	}
 }

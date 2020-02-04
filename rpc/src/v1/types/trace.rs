@@ -230,12 +230,13 @@ pub struct Create {
 
 impl From<trace::Create> for Create {
 	fn from(c: trace::Create) -> Self {
+		let optional: Option<trace::CreationMethod> = c.creation_method;
 		Create {
 			from: c.from,
 			value: c.value,
 			gas: c.gas,
 			init: Bytes::new(c.init),
-			creation_method: c.creation_method.map(|c| c.into()),
+			creation_method: optional.map(|c| c.into()),
 		}
 	}
 }
@@ -304,13 +305,14 @@ pub struct Call {
 
 impl From<trace::Call> for Call {
 	fn from(c: trace::Call) -> Self {
+		let optional: Option<trace::CallType> = c.call_type.0;
 		Call {
 			from: c.from,
 			to: c.to,
 			value: c.value,
 			gas: c.gas,
 			input: c.input.into(),
-			call_type: c.call_type.map(|c| c.into()),
+			call_type: optional.map(|c| c.into()),
 		}
 	}
 }
@@ -749,7 +751,7 @@ mod tests {
 				value: 6.into(),
 				gas: 7.into(),
 				init: Bytes::new(vec![0x12, 0x34]),
-				creation_method: Some(CreationMethod::Create),
+				creation_method: Some(CreationMethod::Create).into(),
 			}),
 			result: Res::Create(CreateResult {
 				gas_used: 8.into(),
@@ -775,7 +777,7 @@ mod tests {
 				value: 6.into(),
 				gas: 7.into(),
 				init: Bytes::new(vec![0x12, 0x34]),
-				creation_method: Some(CreationMethod::Create),
+				creation_method: Some(CreationMethod::Create).into(),
 			}),
 			result: Res::FailedCreate(TraceError::OutOfGas),
 			trace_address: vec![10],
