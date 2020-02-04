@@ -3026,7 +3026,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "parity-crypto"
 version = "0.4.2"
-source = "git+https://github.com/paritytech/parity-common?branch=dp/chore/secp256k1-from-upstream#56dea96dcd8708a7d68d957b2403ef72e7dfafda"
+source = "git+https://github.com/paritytech/parity-common?branch=dp/chore/secp256k1-from-upstream#ca19aae6314ff6747fb736614fca2836a782d928"
 dependencies = [
  "aes 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "aes-ctr 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
