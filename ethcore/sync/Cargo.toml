@@ -9,7 +9,6 @@ edition = "2018"
 [lib]
 
 [dependencies]
-elapsed = "0.1.2"
 bytes = { package = "parity-bytes", version = "0.1" }
 client-traits = { path = "../client-traits" }
 common-types = { path = "../types" }

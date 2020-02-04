@@ -15,12 +15,11 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::cmp;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use crate::sync_io::SyncIo;
 
 use bytes::Bytes;
-use elapsed::measure_time;
 use enum_primitive::FromPrimitive;
 use ethereum_types::H256;
 use log::{debug, trace};
@@ -276,12 +275,12 @@ impl SyncSupplier {
 		let mut total_elpsd = Duration::from_secs(0);
 		for i in 0..count {
 			let hash = &r.val_at(i)?;
-			let (elpsd, state) = measure_time(|| {
-				io.chain().state_data(hash)
-			});
-			total_elpsd += elpsd.duration();
-			if elpsd.duration() > MAX_NODE_DATA_SINGLE_DURATION || total_elpsd > MAX_NODE_DATA_TOTAL_DURATION {
-				trace!(target: "sync", "{} -> GetNodeData:   item {}/{} – slow state fetch for hash {:?}; took {}",
+			let elpsd = Instant::now();
+			let state = io.chain().state_data(hash);
+
+			total_elpsd += elpsd.elapsed();
+			if elpsd.elapsed() > MAX_NODE_DATA_SINGLE_DURATION || total_elpsd > MAX_NODE_DATA_TOTAL_DURATION {
+				trace!(target: "sync", "{} -> GetNodeData:   item {}/{} – slow state fetch for hash {:?}; took {:?}",
 					peer_id, i, count, hash, elpsd);
 				break;
 			}
@@ -294,8 +293,8 @@ impl SyncSupplier {
 				added += 1;
 			}
 		}
-		trace!(target: "sync", "{} -> GetNodeData: returning {}/{} entries ({} bytes total in {})",
-			peer_id, added, count, total_bytes, elapsed::ElapsedDuration::new(total_elpsd));
+		trace!(target: "sync", "{} -> GetNodeData: returning {}/{} entries ({} bytes total in {:?})",
+			peer_id, added, count, total_bytes, total_elpsd);
 		let mut rlp = RlpStream::new_list(added);
 		for d in data {
 			rlp.append(&d);
