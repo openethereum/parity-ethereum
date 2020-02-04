@@ -318,7 +318,7 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 			let mut it = brain_recover::PhrasesIterator::from_known_phrase(&known_phrase, BRAIN_WORDS);
 			move || {
 				for (i, phrase) in (&mut it).enumerate() {
-					let keypair = Brain::new(phrase.clone()).generate().unwrap();
+					let keypair = Brain::new(phrase.clone()).generate().expect("always succeeds for Brain; qed");
 					if keypair.address() == address {
 						return Ok(Some((phrase, keypair)))
 					}
