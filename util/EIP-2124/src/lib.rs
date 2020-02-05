@@ -18,11 +18,13 @@
 
 use crc::crc32;
 use ethereum_types::H256;
+use maplit::*;
 use rlp::RlpStream;
+use std::collections::{BTreeMap, BTreeSet};
 
 pub type BlockNumber = u64;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct ForkHash(pub u32);
 
 impl rlp::Encodable for ForkHash {
@@ -62,12 +64,118 @@ impl rlp::Encodable for ForkId {
 	}
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum RejectReason {
+	RemoteStale,
+	LocalIncompatibleOrStale,
+}
+
+#[derive(Clone, Debug)]
+pub struct ForkFilter {
+	pub head: BlockNumber,
+	past_forks: BTreeMap<BlockNumber, ForkHash>,
+	next_forks: BTreeSet<BlockNumber>,
+}
+
+impl ForkFilter {
+	pub fn new<PF, NF>(head: BlockNumber, genesis: H256, past_forks: PF, next_forks: NF) -> Self
+	where
+		PF: IntoIterator<Item = BlockNumber>,
+		NF: IntoIterator<Item = BlockNumber>,
+	{
+		let genesis_fork_hash = ForkHash::from(genesis);
+		Self {
+			head,
+			past_forks: past_forks.into_iter().fold((btreemap! { 0 => genesis_fork_hash }, genesis_fork_hash), |(mut acc, base_hash), block| {
+				let fork_hash = base_hash + block;
+				acc.insert(block, fork_hash);
+				(acc, fork_hash)
+			}).0,
+			next_forks: next_forks.into_iter().collect(),
+		}
+	}
+
+	fn current_fork_hash(&self) -> ForkHash {
+		*self.past_forks.values().next_back().unwrap()
+	}
+
+	fn future_fork_hashes(&self) -> Vec<ForkHash> {
+		self.next_forks.iter().fold((Vec::new(), self.current_fork_hash()), |(mut acc, hash), fork| {
+			let next = hash + *fork;
+			acc.push(next);
+			(acc, next)
+		}).0
+	}
+
+	pub fn insert_past_fork(&mut self, height: BlockNumber) {
+		self.past_forks.insert(height, self.current_fork_hash() + height);
+	}
+
+	pub fn insert_next_fork(&mut self, height: BlockNumber) {
+		self.next_forks.insert(height);
+	}
+
+	pub fn promote_next_fork(&mut self, height: BlockNumber) -> bool {
+		let promoted = self.next_forks.remove(&height);
+		if promoted {
+			self.insert_past_fork(height);
+		}
+		promoted
+	}
+
+	pub fn is_valid(&self, fork_id: ForkId) -> Result<(), RejectReason> {
+		// 1) If local and remote FORK_HASH matches...
+		if self.current_fork_hash() == fork_id.hash {
+			if fork_id.next == 0 {
+				// 1b
+				return Ok(())
+			}
+
+			//... compare local head to FORK_NEXT.
+			if self.head < fork_id.next {
+				return Ok(())
+			} else {
+				return Err(RejectReason::LocalIncompatibleOrStale)
+			}
+		}
+		
+		// 2) If the remote FORK_HASH is a subset of the local past forks...
+		let mut it = self.past_forks.iter();
+		while let Some((_, hash)) = it.next() {
+			if *hash == fork_id.hash {
+				// ...and the remote FORK_NEXT matches with the locally following fork block number, connect.
+				if let Some((actual_fork_block, _)) = it.next() {
+					if *actual_fork_block == fork_id.next {
+						return Ok(())
+					} else {
+						return Err(RejectReason::RemoteStale);
+					}
+				}
+
+				break;
+			}
+		}
+
+		// 3) If the remote FORK_HASH is a superset of the local past forks and can be completed with locally known future forks, connect.
+		for future_fork_hash in self.future_fork_hashes() {
+			if future_fork_hash == fork_id.hash {
+				return Ok(())
+			}
+		}
+
+		// 4) Reject in all other cases
+		Err(RejectReason::LocalIncompatibleOrStale)
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
 	use hex_literal::hex;
 
 	const GENESIS_HASH: &str = "d4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3";
+	const BYZANTIUM_FORK_HEIGHT: BlockNumber = 4370000;
+	const PETERSBURG_FORK_HEIGHT: BlockNumber = 7280000;
 
 	#[test]
 	fn test_forkhash() {
@@ -79,6 +187,87 @@ mod tests {
 
 		fork_hash = fork_hash + 1920000;
 		assert_eq!(fork_hash.0, 0x91d1f948);
+	}
+
+	#[test]
+	fn test_compatibility_check() {
+		let spurious_filter = ForkFilter::new(
+			4369999,
+			GENESIS_HASH.parse().unwrap(),
+			vec![1150000, 1920000, 2463000, 2675000],
+			vec![BYZANTIUM_FORK_HEIGHT]
+		);
+		let mut byzantium_filter = spurious_filter.clone();
+		byzantium_filter.promote_next_fork(BYZANTIUM_FORK_HEIGHT);
+		byzantium_filter.insert_next_fork(PETERSBURG_FORK_HEIGHT);
+		byzantium_filter.head = 7279999;
+
+		let mut petersburg_filter = byzantium_filter.clone();
+		petersburg_filter.promote_next_fork(PETERSBURG_FORK_HEIGHT);
+		petersburg_filter.head = 7987396;
+
+		// Local is mainnet Petersburg, remote announces the same. No future fork is announced.
+		assert_eq!(petersburg_filter.is_valid(ForkId { hash: ForkHash(0x668db0af), next: 0 }), Ok(()));
+
+		// Local is mainnet Petersburg, remote announces the same. Remote also announces a next fork
+		// at block 0xffffffff, but that is uncertain.
+		assert_eq!(petersburg_filter.is_valid(ForkId { hash: ForkHash(0x668db0af), next: BlockNumber::max_value() }), Ok(()));
+
+		// Local is mainnet currently in Byzantium only (so it's aware of Petersburg),remote announces
+		// also Byzantium, but it's not yet aware of Petersburg (e.g. non updated node before the fork).
+		// In this case we don't know if Petersburg passed yet or not.
+		assert_eq!(byzantium_filter.is_valid(ForkId { hash: ForkHash(0xa00bc324), next: 0 }), Ok(()));
+
+		// Local is mainnet currently in Byzantium only (so it's aware of Petersburg), remote announces
+		// also Byzantium, and it's also aware of Petersburg (e.g. updated node before the fork). We
+		// don't know if Petersburg passed yet (will pass) or not.
+		assert_eq!(byzantium_filter.is_valid(ForkId { hash: ForkHash(0xa00bc324), next: PETERSBURG_FORK_HEIGHT }), Ok(()));
+
+		// Local is mainnet currently in Byzantium only (so it's aware of Petersburg), remote announces
+		// also Byzantium, and it's also aware of some random fork (e.g. misconfigured Petersburg). As
+		// neither forks passed at neither nodes, they may mismatch, but we still connect for now.
+		assert_eq!(byzantium_filter.is_valid(ForkId { hash: ForkHash(0xa00bc324), next: BlockNumber::max_value() }), Ok(()));
+
+		// Local is mainnet Petersburg, remote announces Byzantium + knowledge about Petersburg. Remote is simply out of sync, accept.
+		assert_eq!(petersburg_filter.is_valid(ForkId { hash: ForkHash(0xa00bc324), next: PETERSBURG_FORK_HEIGHT }), Ok(()));
+
+		// Local is mainnet Petersburg, remote announces Spurious + knowledge about Byzantium. Remote
+		// is definitely out of sync. It may or may not need the Petersburg update, we don't know yet.
+		assert_eq!(petersburg_filter.is_valid(ForkId { hash: ForkHash(0x3edd5b10), next: 4370000 }), Ok(()));
+
+		// Local is mainnet Byzantium, remote announces Petersburg. Local is out of sync, accept.
+		assert_eq!(byzantium_filter.is_valid(ForkId { hash: ForkHash(0x668db0af), next: 0 }), Ok(()));
+
+		// Local is mainnet Spurious, remote announces Byzantium, but is not aware of Petersburg. Local
+		// out of sync. Local also knows about a future fork, but that is uncertain yet.
+		assert_eq!(spurious_filter.is_valid(ForkId { hash: ForkHash(0xa00bc324), next: 0 }), Ok(()));
+
+		// Local is mainnet Petersburg. remote announces Byzantium but is not aware of further forks.
+		// Remote needs software update.
+		assert_eq!(petersburg_filter.is_valid(ForkId { hash: ForkHash(0xa00bc324), next: 0 }), Err(RejectReason::RemoteStale));
+
+		// Local is mainnet Petersburg, and isn't aware of more forks. Remote announces Petersburg +
+		// 0xffffffff. Local needs software update, reject.
+		assert_eq!(petersburg_filter.is_valid(ForkId { hash: ForkHash(0x5cddc0e1), next: 0 }), Err(RejectReason::LocalIncompatibleOrStale));
+
+		// Local is mainnet Byzantium, and is aware of Petersburg. Remote announces Petersburg +
+		// 0xffffffff. Local needs software update, reject.
+		assert_eq!(byzantium_filter.is_valid(ForkId { hash: ForkHash(0x5cddc0e1), next: 0 }), Err(RejectReason::LocalIncompatibleOrStale));
+
+		// Local is mainnet Petersburg, remote is Rinkeby Petersburg.
+		assert_eq!(petersburg_filter.is_valid(ForkId { hash: ForkHash(0xafec6b27), next: 0 }), Err(RejectReason::LocalIncompatibleOrStale));
+
+		// Local is mainnet Petersburg, far in the future. Remote announces Gopherium (non existing fork)
+		// at some future block 88888888, for itself, but past block for local. Local is incompatible.
+		//
+		// This case detects non-upgraded nodes with majority hash power (typical Ropsten mess).
+		let mut far_away_petersburg = petersburg_filter.clone();
+		far_away_petersburg.head = 88888888;
+		assert_eq!(far_away_petersburg.is_valid(ForkId { hash: ForkHash(0x668db0af), next: 88888888 }), Err(RejectReason::LocalIncompatibleOrStale));
+
+		// Local is mainnet Byzantium. Remote is also in Byzantium, but announces Gopherium (non existing
+		// fork) at block 7279999, before Petersburg. Local is incompatible.
+		assert_eq!(byzantium_filter.is_valid(ForkId { hash: ForkHash(0xa00bc324), next: 7279999 }), Err(RejectReason::LocalIncompatibleOrStale));
 	}
 
 	#[test]
