@@ -7,6 +7,7 @@ Due to database format changes, upgrading from 2.5.x or 2.6.x is one-way only.
 
 The full list of included changes:
 
+* chore: remove unused dependencies (#11432)
 * Cargo.lock: new lockfile format (#11448)
 * Cargo.lock: cargo update -p kvdb-rocksdb (#11447)
 * rlp_derive: cleanup (#11446)
