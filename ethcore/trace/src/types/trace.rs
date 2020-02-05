@@ -16,6 +16,12 @@
 
 //! Tracing data types.
 
+// ================== NOTE ========================
+// IF YOU'RE ADDING A FIELD TO A STRUCT WITH
+// RLP ENCODING, MAKE SURE IT'S DONE IN A BACKWARDS
+// COMPATIBLE WAY!
+// ================== NOTE ========================
+
 use std::convert::TryFrom;
 use ethereum_types::{U256, Address, Bloom, BloomInput};
 use parity_bytes::Bytes;
@@ -80,7 +86,7 @@ impl Decodable for CallType {
 			2 => CallType::CallCode,
 			3 => CallType::DelegateCall,
 			4 => CallType::StaticCall,
-			_ => return Err(DecoderError::Custom("Invalid value of RewardType item")),
+			_ => return Err(DecoderError::Custom("Invalid value of CallType item")),
 		}))
 	}
 }
@@ -141,7 +147,7 @@ impl Decodable for CreationMethod {
 		rlp.as_val().and_then(|v| Ok(match v {
 			0u32 => CreationMethod::Create,
 			1 => CreationMethod::Create2,
-			_ => return Err(DecoderError::Custom("Invalid value of RewardType item")),
+			_ => return Err(DecoderError::Custom("Invalid value of CreationMethod item")),
 		}))
 	}
 }
@@ -608,7 +614,9 @@ pub struct VMTrace {
 
 #[cfg(test)]
 mod tests {
-	use super::*;
+	use rlp::{RlpStream, Encodable};
+	use rlp_derive::{RlpEncodable, RlpDecodable};
+	use super::{Address, Bytes, Call, CallType, Create, CreationMethod, U256};
 
 	#[test]
 	fn test_call_type_backwards_compatibility() {
@@ -657,7 +665,7 @@ mod tests {
 			call_type: OldCallType::DelegateCall,
 		};
 
-		let out = rlp::encode(&old_call);
+		let old_encoded = rlp::encode(&old_call);
 
 		let new_call = Call {
 			from: Address::from_low_u64_be(1),
@@ -669,10 +677,10 @@ mod tests {
 		};
 
 		// `old_call` should be deserialized successfully into `new_call`
-		assert_eq!(rlp::decode(&out), Ok(new_call.clone()));
+		assert_eq!(rlp::decode(&old_encoded), Ok(new_call.clone()));
 		// test a roundtrip with `Some` `call_type`
-		let out = rlp::encode(&new_call);
-		assert_eq!(rlp::decode(&out), Ok(new_call));
+		let new_encoded = rlp::encode(&new_call);
+		assert_eq!(rlp::decode(&new_encoded), Ok(new_call));
 
 		// test a roundtrip with `None` `call_type`
 		let none_call = Call {
@@ -683,8 +691,8 @@ mod tests {
 			input: vec![5],
 			call_type: None.into(),
 		};
-		let out = rlp::encode(&none_call);
-		assert_eq!(rlp::decode(&out), Ok(none_call));
+		let none_encoded = rlp::encode(&none_call);
+		assert_eq!(rlp::decode(&none_encoded), Ok(none_call));
 	}
 
 	#[test]
@@ -705,7 +713,7 @@ mod tests {
 			init: vec![5],
 		};
 
-		let out = rlp::encode(&old_create);
+		let old_encoded = rlp::encode(&old_create);
 		let new_create = Create {
 			from: Address::from_low_u64_be(1),
 			value: U256::from(3),
@@ -715,10 +723,10 @@ mod tests {
 		};
 
 		// `old_create` should be deserialized successfully into `new_create`
-		assert_eq!(rlp::decode(&out), Ok(new_create.clone()));
+		assert_eq!(rlp::decode(&old_encoded), Ok(new_create.clone()));
 		// test a roundtrip with `None` `creation_method`
-		let out = rlp::encode(&new_create);
-		assert_eq!(rlp::decode(&out), Ok(new_create));
+		let new_encoded = rlp::encode(&new_create);
+		assert_eq!(rlp::decode(&new_encoded), Ok(new_create));
 
 		// test a roundtrip with `Some` `creation_method`
 		let some_create = Create {
@@ -728,7 +736,7 @@ mod tests {
 			init: vec![5],
 			creation_method: Some(CreationMethod::Create2),
 		};
-		let out = rlp::encode(&some_create);
-		assert_eq!(rlp::decode(&out), Ok(some_create));
+		let some_encoded = rlp::encode(&some_create);
+		assert_eq!(rlp::decode(&some_encoded), Ok(some_create));
 	}
 }
