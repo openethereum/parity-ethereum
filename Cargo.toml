@@ -135,4 +135,5 @@ members = [
 	"chainspec",
 	"ethcore/wasm/run",
 	"evmbin",
+	"util/EIP-2124"
 ]
