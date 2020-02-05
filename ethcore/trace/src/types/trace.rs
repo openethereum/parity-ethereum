@@ -67,30 +67,6 @@ impl TryFrom<ActionType> for CallType {
 	}
 }
 
-impl Encodable for CallType {
-	fn rlp_append(&self, s: &mut RlpStream) {
-		let v = match *self {
-			CallType::Call => 0u32,
-			CallType::CallCode => 1,
-			CallType::DelegateCall => 2,
-			CallType::StaticCall => 3,
-		};
-		Encodable::rlp_append(&v, s);
-	}
-}
-
-impl Decodable for CallType {
-	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
-		rlp.as_val().and_then(|v| Ok(match v {
-			1u32 => CallType::Call,
-			2 => CallType::CallCode,
-			3 => CallType::DelegateCall,
-			4 => CallType::StaticCall,
-			_ => return Err(DecoderError::Custom("Invalid value of CallType item")),
-		}))
-	}
-}
-
 /// `Create` result.
 #[derive(Debug, Clone, PartialEq, RlpEncodable, RlpDecodable)]
 pub struct CreateResult {
