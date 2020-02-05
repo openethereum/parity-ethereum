@@ -76,10 +76,10 @@ impl Encodable for CallType {
 impl Decodable for CallType {
 	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
 		rlp.as_val().and_then(|v| Ok(match v {
-			0u32 => CallType::Call,
-			1 => CallType::CallCode,
-			2 => CallType::DelegateCall,
-			3 => CallType::StaticCall,
+			1u32 => CallType::Call,
+			2 => CallType::CallCode,
+			3 => CallType::DelegateCall,
+			4 => CallType::StaticCall,
 			_ => return Err(DecoderError::Custom("Invalid value of RewardType item")),
 		}))
 	}
@@ -160,39 +160,82 @@ pub struct Call {
 	/// The input data provided to the call.
 	pub input: Bytes,
 	/// The type of the call.
-	pub call_type: BackwardsCompatibleOption<CallType>,
+	pub call_type: BackwardsCompatibleCallType,
 }
 
-/// This is essentially an `Option<T>`,
-/// but with a custom `rlp::Decodable` implementation
-/// which preserves backwards compatibility with
-/// the older encoding (`T`) used in parity-ethereum versions < 2.7.
-/// Note, that this only works if `T` is serialized `as_data`, not `as_list`.
+/// This is essentially an `Option<CallType>`, but with a custom
+/// `rlp` en/de-coding which preserves backwards compatibility with
+/// the older encodings used in parity-ethereum versions < 2.7 and 2.7.0.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct BackwardsCompatibleOption<T>(pub Option<T>);
+pub struct BackwardsCompatibleCallType(pub Option<CallType>);
 
-impl<T> From<Option<T>> for BackwardsCompatibleOption<T> {
-	fn from(option: Option<T>) -> Self {
-		BackwardsCompatibleOption(option)
+impl From<Option<CallType>> for BackwardsCompatibleCallType {
+	fn from(option: Option<CallType>) -> Self {
+		BackwardsCompatibleCallType(option)
 	}
 }
 
-// Encoding is the same as `Option<T>`
-impl<T: Encodable> Encodable for BackwardsCompatibleOption<T> {
+// Encoding is the same as `CallType_v2_6_x`.
+impl Encodable for BackwardsCompatibleCallType {
 	fn rlp_append(&self, s: &mut RlpStream) {
-		self.0.rlp_append(s);
+		let v = match self.0 {
+			None => 0u32,
+			Some(CallType::Call) => 1,
+			Some(CallType::CallCode) => 2,
+			Some(CallType::DelegateCall) => 3,
+			Some(CallType::StaticCall) => 4,
+		};
+		Encodable::rlp_append(&v, s);
 	}
 }
 
-// Try to decode it as `T` first, and then as `Option<T>`.
-impl<T: Decodable> Decodable for BackwardsCompatibleOption<T> {
+// Try to decode it as `CallType_v2_6_x` first, and then as `Option<CallType_v2_7_0>`.
+impl Decodable for BackwardsCompatibleCallType {
 	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
 		if rlp.is_data() {
-			let raw: T = Decodable::decode(rlp)?;
-			Ok(BackwardsCompatibleOption(Some(raw)))
+			rlp.as_val().and_then(|v| Ok(match v {
+				0u32 => None,
+				1 => Some(CallType::Call),
+				2 => Some(CallType::CallCode),
+				3 => Some(CallType::DelegateCall),
+				4 => Some(CallType::StaticCall),
+				_ => return Err(DecoderError::Custom("Invalid value of CallType item")),
+			}.into()))
 		} else {
-			let optional: Option<T> = Decodable::decode(rlp)?;
-			Ok(optional.into())
+			#[allow(non_camel_case_types)]
+			#[derive(Debug, Clone, Copy, PartialEq)]
+			enum CallType_v2_7_0 {
+				Call,
+				CallCode,
+				DelegateCall,
+				StaticCall,
+			}
+
+			impl Decodable for CallType_v2_7_0 {
+				fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
+					rlp.as_val().and_then(|v| Ok(match v {
+						0u32 => CallType_v2_7_0::Call,
+						1 => CallType_v2_7_0::CallCode,
+						2 => CallType_v2_7_0::DelegateCall,
+						3 => CallType_v2_7_0::StaticCall,
+						_ => return Err(DecoderError::Custom("Invalid value of CallType item")),
+					}))
+				}
+			}
+
+			impl From<CallType_v2_7_0> for CallType {
+				fn from(old_call_type: CallType_v2_7_0) -> Self {
+					match old_call_type {
+						CallType_v2_7_0::Call => Self::Call,
+						CallType_v2_7_0::CallCode => Self::CallCode,
+						CallType_v2_7_0::DelegateCall => Self::DelegateCall,
+						CallType_v2_7_0::StaticCall => Self::StaticCall,
+					}
+				}
+			}
+
+			let optional: Option<CallType_v2_7_0> = Decodable::decode(rlp)?;
+			Ok(optional.map(Into::into).into())
 		}
 	}
 }
@@ -570,14 +613,39 @@ mod tests {
 	#[test]
 	fn test_call_type_backwards_compatibility() {
 		// Call type in version < 2.7.
-		#[derive(Debug, Clone, PartialEq, RlpEncodable, RlpDecodable)]
+		#[derive(Debug, Clone, PartialEq, RlpEncodable)]
 		struct OldCall {
 			from: Address,
 			to: Address,
 			value: U256,
 			gas: U256,
 			input: Bytes,
-			call_type: CallType,
+			call_type: OldCallType,
+		}
+
+		// CallType type in version < 2.7.
+		#[allow(dead_code)]
+		#[derive(Debug, PartialEq, Clone)]
+		enum OldCallType {
+			None,
+			Call,
+			CallCode,
+			DelegateCall,
+			StaticCall,
+		}
+
+		// CallType rlp encoding in version < 2.7.
+		impl Encodable for OldCallType {
+			fn rlp_append(&self, s: &mut RlpStream) {
+				let v = match *self {
+					OldCallType::None => 0u32,
+					OldCallType::Call => 1,
+					OldCallType::CallCode => 2,
+					OldCallType::DelegateCall => 3,
+					OldCallType::StaticCall => 4,
+				};
+				Encodable::rlp_append(&v, s);
+			}
 		}
 
 		let old_call = OldCall {
@@ -586,7 +654,7 @@ mod tests {
 			value: U256::from(3),
 			gas: U256::from(4),
 			input: vec![5],
-			call_type: CallType::DelegateCall,
+			call_type: OldCallType::DelegateCall,
 		};
 
 		let out = rlp::encode(&old_call);
@@ -621,6 +689,7 @@ mod tests {
 
 	#[test]
 	fn test_creation_method_backwards_compatibility() {
+		// Create type in version < 2.7.
 		#[derive(Debug, Clone, PartialEq, RlpEncodable, RlpDecodable)]
 		struct OldCreate {
 			from: Address,
