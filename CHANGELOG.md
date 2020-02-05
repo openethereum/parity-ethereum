@@ -9,7 +9,6 @@ The full list of included changes:
 
 * chore: remove unused dependencies (#11432)
 * Cargo.lock: new lockfile format (#11448)
-* Cargo.lock: cargo update -p kvdb-rocksdb (#11447)
 * rlp_derive: cleanup (#11446)
 * Avoid long state queries when serving GetNodeData requests (#11444)
 * update kvdb-rocksdb to 0.4 (#11442)
