@@ -165,8 +165,6 @@ build-darwin:
   variables:
     CARGO_TARGET:                  x86_64-apple-darwin
     CARGO_HOME:                    "${CI_PROJECT_DIR}/.cargo"
-    CC:                            gcc
-    CXX:                           g++
   script:
     - scripts/gitlab/build-linux.sh
   tags:
