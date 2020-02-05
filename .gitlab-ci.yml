@@ -161,10 +161,12 @@ build-linux-armhf:
 build-darwin:
   stage:                           build
   <<:                              *collect_artifacts
-  only:                            *releaseable_branches
+  #only:                            *releaseable_branches
   variables:
     CARGO_TARGET:                  x86_64-apple-darwin
     CARGO_HOME:                    "${CI_PROJECT_DIR}/.cargo"
+    CC:                            'clang'
+    CXX:                           'clang'
   script:
     - scripts/gitlab/build-linux.sh
   tags:
