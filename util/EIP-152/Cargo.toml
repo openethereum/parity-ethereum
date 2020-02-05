@@ -11,11 +11,11 @@ license = "GPL-3.0"
 edition = "2018"
 
 [dependencies]
-rustc-hex = "2.0.1"
 arrayref = "0.3.5"
 
 [dev-dependencies]
 criterion = "0.3"
+rustc-hex = "2.0.1"
 
 [[bench]]
 name = "bench"

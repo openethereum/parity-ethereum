@@ -9,7 +9,6 @@ edition = "2018"
 [dependencies]
 client-traits = { path = "../ethcore/client-traits" }
 common-types = { path = "../ethcore/types" }
-ethcore = { path = "../ethcore" }
 bytes = { package = "parity-bytes", version = "0.1"}
 ethereum-types = "0.8.0"
 jsonrpc-core = "14.0.3"

@@ -15,19 +15,15 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 extern crate proc_macro;
-extern crate proc_macro2;
-extern crate syn;
-#[macro_use]
-extern crate quote;
 
-mod en;
 mod de;
+mod en;
 
-use proc_macro::TokenStream;
-use en::{impl_encodable, impl_encodable_wrapper};
 use de::{impl_decodable, impl_decodable_wrapper};
+use en::{impl_encodable, impl_encodable_wrapper};
+use proc_macro::TokenStream;
 
-#[proc_macro_derive(RlpEncodable)]
+#[proc_macro_derive(RlpEncodable, attributes(rlp))]
 pub fn encodable(input: TokenStream) -> TokenStream {
 	let ast = syn::parse(input).unwrap();
 	let gen = impl_encodable(&ast);
@@ -41,7 +37,7 @@ pub fn encodable_wrapper(input: TokenStream) -> TokenStream {
 	gen.into()
 }
 
-#[proc_macro_derive(RlpDecodable)]
+#[proc_macro_derive(RlpDecodable, attributes(rlp))]
 pub fn decodable(input: TokenStream) -> TokenStream {
 	let ast = syn::parse(input).unwrap();
 	let gen = impl_decodable(&ast);

@@ -14,11 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-extern crate rlp;
-#[macro_use]
-extern crate rlp_derive;
-
-use rlp::{encode, decode};
+use rlp::{decode, encode};
+use rlp_derive::{RlpDecodable, RlpDecodableWrapper, RlpEncodable, RlpEncodableWrapper};
 
 #[derive(Debug, PartialEq, RlpEncodable, RlpDecodable)]
 struct Foo {
@@ -32,9 +29,7 @@ struct FooWrapper {
 
 #[test]
 fn test_encode_foo() {
-	let foo = Foo {
-		a: "cat".into(),
-	};
+	let foo = Foo { a: "cat".into() };
 
 	let expected = vec![0xc4, 0x83, b'c', b'a', b't'];
 	let out = encode(&foo);
@@ -46,9 +41,7 @@ fn test_encode_foo() {
 
 #[test]
 fn test_encode_foo_wrapper() {
-	let foo = FooWrapper {
-		a: "cat".into(),
-	};
+	let foo = FooWrapper { a: "cat".into() };
 
 	let expected = vec![0x83, b'c', b'a', b't'];
 	let out = encode(&foo);
@@ -56,4 +49,31 @@ fn test_encode_foo_wrapper() {
 
 	let decoded = decode(&expected).expect("decode failure");
 	assert_eq!(foo, decoded);
+}
+
+#[test]
+fn test_encode_foo_default() {
+	#[derive(Debug, PartialEq, RlpEncodable, RlpDecodable)]
+	struct FooDefault {
+		a: String,
+		/// It works with other attributes.
+		#[rlp(default)]
+		b: Option<Vec<u8>>,
+	}
+
+	let attack_of = String::from("clones");
+	let foo = Foo { a: attack_of.clone() };
+
+	let expected = vec![0xc7, 0x86, b'c', b'l', b'o', b'n', b'e', b's'];
+	let out = encode(&foo);
+	assert_eq!(out, expected);
+
+	let foo_default = FooDefault { a: attack_of.clone(), b: None };
+
+	let decoded = decode(&expected).expect("default failure");
+	assert_eq!(foo_default, decoded);
+
+	let foo_some = FooDefault { a: attack_of.clone(), b: Some(vec![1, 2, 3]) };
+	let out = encode(&foo_some);
+	assert_eq!(decode(&out), Ok(foo_some));
 }
