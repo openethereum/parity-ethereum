@@ -36,7 +36,6 @@ dependencies = [
  "rlp",
  "rlp_compress",
  "serde",
- "trace",
  "trie-db",
  "trie-vm-factories",
 ]
