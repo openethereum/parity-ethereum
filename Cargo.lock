@@ -3286,7 +3286,7 @@ dependencies = [
 
 [[package]]
 name = "parity-ethereum"
-version = "2.7.1"
+version = "2.7.2"
 dependencies = [
  "ansi_term",
  "atty",
@@ -3659,7 +3659,7 @@ dependencies = [
 
 [[package]]
 name = "parity-version"
-version = "2.7.1"
+version = "2.7.2"
 dependencies = [
  "parity-bytes",
  "rlp",

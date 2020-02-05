@@ -1,4 +1,25 @@
 ## Parity-Ethereum [v2.7.1](https://github.com/paritytech/parity-ethereum/releases/tag/v2.7.1)
+Parity Ethereum v2.7.2-stable is a patch version release of parity-ethereum. 
+Starting in the 2.7.x series of releases, parity-ethereum is switching to a single `stable` release
+track. As a result, any clients that currently receive updates from the `beta`
+track should switch to the `stable` track.
+Due to database format changes, upgrading from 2.5.x or 2.6.x is one-way only. 
+
+The full list of included changes:
+
+* Cargo.lock: new lockfile format (#11448)
+* Cargo.lock: cargo update -p kvdb-rocksdb (#11447)
+* rlp_derive: cleanup (#11446)
+* Avoid long state queries when serving GetNodeData requests (#11444)
+* update kvdb-rocksdb to 0.4 (#11442)
+* Remove dead bootnodes, add new geth bootnodes (#11441)
+* goerli: replace foundation bootnode (#11433)
+* fix: export hardcoded sync format (#11416)
+* verification: fix race same block + misc (#11400)
+* update classic testnet bootnodes (#11398)
+* gcc to clang (#11453) 
+
+## Parity-Ethereum [v2.7.1](https://github.com/paritytech/parity-ethereum/releases/tag/v2.7.1)
 Parity Ethereum v2.7.1-stable is a patch version release of parity-ethereum. 
 Starting in the 2.7.x series of releases, parity-ethereum is switching to a single `stable` release
 track. As a result, any clients that currently receive updates from the `beta`
