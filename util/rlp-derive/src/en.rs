@@ -27,7 +27,7 @@ pub fn impl_encodable(ast: &syn::DeriveInput) -> TokenStream {
 		.fields
 		.iter()
 		.enumerate()
-		.map(encodable_field_map)
+		.map(|(i, field)| encodable_field(i, field))
 		.collect();
 	let name = &ast.ident;
 
@@ -82,10 +82,6 @@ pub fn impl_encodable_wrapper(ast: &syn::DeriveInput) -> TokenStream {
 			#impl_block
 		};
 	}
-}
-
-fn encodable_field_map(tuple: (usize, &syn::Field)) -> TokenStream {
-	encodable_field(tuple.0, tuple.1)
 }
 
 fn encodable_field(index: usize, field: &syn::Field) -> TokenStream {
