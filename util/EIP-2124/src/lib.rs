@@ -18,9 +18,9 @@
 
 use crc::crc32;
 use ethereum_types::H256;
-use maplit::*;
+use maplit::btreemap;
 use rlp::{DecoderError, Rlp, RlpStream};
-use rlp_derive::*;
+use rlp_derive::{RlpDecodable, RlpEncodable};
 use std::collections::{BTreeMap, BTreeSet};
 
 pub type BlockNumber = u64;
@@ -116,7 +116,7 @@ impl ForkFilter {
 	}
 
 	fn current_fork_hash(&self) -> ForkHash {
-		*self.past_forks.values().next_back().unwrap()
+		*self.past_forks.values().next_back().expect("there is always at least one - genesis - fork hash; qed")
 	}
 
 	fn future_fork_hashes(&self) -> Vec<ForkHash> {
@@ -152,15 +152,18 @@ impl ForkFilter {
 		// 1) If local and remote FORK_HASH matches...
 		if self.current_fork_hash() == fork_id.hash {
 			if fork_id.next == 0 {
-				// 1b
+				// 1b) No remotely announced fork, connect.
 				return Ok(())
 			}
 
 			//... compare local head to FORK_NEXT.
-			if self.head < fork_id.next {
-				return Ok(())
-			} else {
+			if self.head >= fork_id.next {
+				// 1a) A remotely announced but remotely not passed block is already passed locally, disconnect,
+				// since the chains are incompatible.
 				return Err(RejectReason::LocalIncompatibleOrStale)
+			} else {
+				// 1b) Remotely announced fork not yet passed locally, connect.
+				return Ok(())
 			}
 		}
 		
@@ -201,6 +204,8 @@ mod tests {
 	const GENESIS_HASH: &str = "d4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3";
 	const BYZANTIUM_FORK_HEIGHT: BlockNumber = 4370000;
 	const PETERSBURG_FORK_HEIGHT: BlockNumber = 7280000;
+
+	// EIP test vectors.
 
 	#[test]
 	fn test_forkhash() {
