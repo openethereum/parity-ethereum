@@ -25,6 +25,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 pub type BlockNumber = u64;
 
+/// `CRC32` hash of all previous forks starting from genesis block.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct ForkHash(pub u32);
 
@@ -71,6 +72,7 @@ impl std::ops::Add<BlockNumber> for ForkHash {
 }
 
 /// A fork identifier as defined by EIP-2124.
+/// Serves as the chain compatibility identifier.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, RlpEncodable, RlpDecodable)]
 pub struct ForkId {
 	/// CRC32 checksum of the all fork blocks from genesis.
@@ -85,14 +87,17 @@ pub enum RejectReason {
 	LocalIncompatibleOrStale,
 }
 
+/// Filter that describes the state of blockchain and can be used to check incoming `ForkId`s for compatibility.
 #[derive(Clone, Debug)]
 pub struct ForkFilter {
+	/// Blockchain head
 	pub head: BlockNumber,
 	past_forks: BTreeMap<BlockNumber, ForkHash>,
 	next_forks: BTreeSet<BlockNumber>,
 }
 
 impl ForkFilter {
+	/// Create the filter from provided head, genesis block hash, past forks and expected future forks.
 	pub fn new<PF, NF>(head: BlockNumber, genesis: H256, past_forks: PF, next_forks: NF) -> Self
 	where
 		PF: IntoIterator<Item = BlockNumber>,
@@ -122,14 +127,18 @@ impl ForkFilter {
 		}).0
 	}
 
+	/// Insert a new past fork
 	pub fn insert_past_fork(&mut self, height: BlockNumber) {
 		self.past_forks.insert(height, self.current_fork_hash() + height);
 	}
 
+	/// Insert a new upcoming fork
 	pub fn insert_next_fork(&mut self, height: BlockNumber) {
 		self.next_forks.insert(height);
 	}
 
+	/// Mark an upcoming fork as already happened and immutable.
+	/// Returns `false` if no such fork existed and the call was a no-op.
 	pub fn promote_next_fork(&mut self, height: BlockNumber) -> bool {
 		let promoted = self.next_forks.remove(&height);
 		if promoted {
@@ -138,6 +147,7 @@ impl ForkFilter {
 		promoted
 	}
 
+	/// Check whether the provided `ForkId` is compatible based on the validation rules in `EIP-2124`.
 	pub fn is_valid(&self, fork_id: ForkId) -> Result<(), RejectReason> {
 		// 1) If local and remote FORK_HASH matches...
 		if self.current_fork_hash() == fork_id.hash {
