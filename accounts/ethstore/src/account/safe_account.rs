@@ -109,7 +109,7 @@ impl SafeAccount {
 			address,
 			crypto,
 			filename,
-			name: json.name.unwrap_or_else(String::new),
+			name: json.name.unwrap_or_default(),
 			meta: json.meta.unwrap_or_else(|| "{}".to_string()),
 		})
 	}
