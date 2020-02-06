@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! EIP-2124 implementation based on <https://eips.ethereum.org/EIPS/eip-2124>
+//! EIP-2124 implementation based on <https://eips.ethereum.org/EIPS/eip-2124>.
 
 #![deny(missing_docs)]
 
@@ -162,7 +162,7 @@ impl ForkFilter {
 	/// Check whether the provided `ForkId` is compatible based on the validation rules in `EIP-2124`.
 	/// 
 	/// # Errors
-	/// Returns a `RejectReason` if the `ForkId` is not compatible
+	/// Returns a `RejectReason` if the `ForkId` is not compatible.
 	pub fn is_valid(&self, fork_id: ForkId) -> Result<(), RejectReason> {
 		// 1) If local and remote FORK_HASH matches...
 		if self.current_fork_hash() == fork_id.hash {
@@ -206,7 +206,7 @@ impl ForkFilter {
 			}
 		}
 
-		// 4) Reject in all other cases
+		// 4) Reject in all other cases.
 		Err(RejectReason::LocalIncompatibleOrStale)
 	}
 }
