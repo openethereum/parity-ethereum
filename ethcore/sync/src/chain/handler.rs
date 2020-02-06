@@ -562,17 +562,25 @@ impl SyncHandler {
 
 	/// Called by peer to report status
 	fn on_peer_status(sync: &mut ChainSync, io: &mut dyn SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), DownloaderImportError> {
+		let mut r = r.iter();
 		sync.handshaking_peers.remove(&peer_id);
-		let protocol_version: u8 = r.val_at(0)?;
+		let protocol_version: u8 = r.next().ok_or(rlp::DecoderError::RlpIsTooShort)?.as_val()?;
 		let warp_protocol_version = io.protocol_version(&WARP_SYNC_PROTOCOL_ID, peer_id);
 		let warp_protocol = warp_protocol_version != 0;
 		let private_tx_protocol = warp_protocol_version >= PAR_PROTOCOL_VERSION_3.0;
+		let network_id = r.next().ok_or(rlp::DecoderError::RlpIsTooShort)?.as_val()?;
+		let difficulty = Some(r.next().ok_or(rlp::DecoderError::RlpIsTooShort)?.as_val()?);
+		let latest_hash = r.next().ok_or(rlp::DecoderError::RlpIsTooShort)?.as_val()?;
+		let genesis = r.next().ok_or(rlp::DecoderError::RlpIsTooShort)?.as_val()?;
+		let snapshot_hash = if warp_protocol { Some(r.next().ok_or(rlp::DecoderError::RlpIsTooShort)?.as_val()?) } else { None };
+		let snapshot_number = if warp_protocol { Some(r.next().ok_or(rlp::DecoderError::RlpIsTooShort)?.as_val()?) } else { None };
+		let private_tx_enabled = if private_tx_protocol { r.next().and_then(|v| v.as_val().ok()).unwrap_or(false) } else { false };
 		let peer = PeerInfo {
 			protocol_version,
-			network_id: r.val_at(1)?,
-			difficulty: Some(r.val_at(2)?),
-			latest_hash: r.val_at(3)?,
-			genesis: r.val_at(4)?,
+			network_id,
+			difficulty,
+			latest_hash,
+			genesis,
 			asking: PeerAsking::Nothing,
 			asking_blocks: Vec::new(),
 			asking_hash: None,
@@ -583,10 +591,10 @@ impl SyncHandler {
 			expired: false,
 			confirmation: if sync.fork_block.is_none() { ForkConfirmation::Confirmed } else { ForkConfirmation::Unconfirmed },
 			asking_snapshot_data: None,
-			snapshot_hash: if warp_protocol { Some(r.val_at(5)?) } else { None },
-			snapshot_number: if warp_protocol { Some(r.val_at(6)?) } else { None },
+			snapshot_hash,
+			snapshot_number,
 			block_set: None,
-			private_tx_enabled: if private_tx_protocol { r.val_at(7).unwrap_or(false) } else { false },
+			private_tx_enabled,
 			client_version: ClientVersion::from(io.peer_version(peer_id)),
 		};
 
