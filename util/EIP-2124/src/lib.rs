@@ -18,6 +18,12 @@
 
 #![deny(missing_docs)]
 
+#![warn(
+	clippy::all,
+	clippy::pedantic,
+	clippy::nursery,
+)]
+
 use crc::crc32;
 use ethereum_types::H256;
 use maplit::btreemap;
@@ -48,7 +54,7 @@ impl rlp::Decodable for ForkHash {
 			let mut blob = [0; 4];
 			blob.copy_from_slice(&b[..]);
 
-			return Ok(Self(u32::from_be_bytes(blob)))
+			Ok(Self(u32::from_be_bytes(blob)))
 		})
 	}
 }
@@ -154,6 +160,9 @@ impl ForkFilter {
 	}
 
 	/// Check whether the provided `ForkId` is compatible based on the validation rules in `EIP-2124`.
+	/// 
+	/// # Errors
+	/// Returns a `RejectReason` if the `ForkId` is not compatible
 	pub fn is_valid(&self, fork_id: ForkId) -> Result<(), RejectReason> {
 		// 1) If local and remote FORK_HASH matches...
 		if self.current_fork_hash() == fork_id.hash {
