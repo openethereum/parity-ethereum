@@ -19,7 +19,7 @@
 use crc::crc32;
 use ethereum_types::H256;
 use maplit::*;
-use rlp::RlpStream;
+use rlp::{DecoderError, Rlp, RlpStream};
 use std::collections::{BTreeMap, BTreeSet};
 
 pub type BlockNumber = u64;
@@ -33,22 +33,44 @@ impl rlp::Encodable for ForkHash {
 	}
 }
 
+impl rlp::Decodable for ForkHash {
+	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
+		rlp.decoder().decode_value(|b| {
+			if b.len() != 4 {
+				return Err(DecoderError::RlpInvalidLength);
+			}
+
+			let mut blob = [0; 4];
+			blob.copy_from_slice(&b[..]);
+
+			return Ok(Self(u32::from_be_bytes(blob)))
+		})
+	}
+}
+
 impl From<H256> for ForkHash {
 	fn from(genesis: H256) -> Self {
 		Self(crc32::checksum_ieee(&genesis[..]))
 	}
 }
 
+impl std::ops::AddAssign<BlockNumber> for ForkHash {
+	fn add_assign(&mut self, height: BlockNumber) {
+		let blob = height.to_be_bytes();
+		self.0 = crc32::update(self.0, &crc32::IEEE_TABLE, &blob)
+	}
+}
+
 impl std::ops::Add<BlockNumber> for ForkHash {
 	type Output = Self;
-	fn add(self, height: BlockNumber) -> Self {
-		let blob = height.to_be_bytes();
-		Self(crc32::update(self.0, &crc32::IEEE_TABLE, &blob))
+	fn add(mut self, height: BlockNumber) -> Self {
+		self += height;
+		self
 	}
 }
 
 /// A fork identifier as defined by EIP-2124.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct ForkId {
 	/// CRC32 checksum of the all fork blocks from genesis.
 	pub hash: ForkHash,     
@@ -61,6 +83,15 @@ impl rlp::Encodable for ForkId {
 		s.begin_list(2);
 		s.append(&self.hash);
 		s.append(&self.next);
+	}
+}
+
+impl rlp::Decodable for ForkId {
+	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
+		Ok(Self {
+			hash: rlp.val_at(0)?,
+			next: rlp.val_at(1)?,
+		})
 	}
 }
 
@@ -182,10 +213,10 @@ mod tests {
 		let mut fork_hash = ForkHash::from(GENESIS_HASH.parse::<H256>().unwrap());
 		assert_eq!(fork_hash.0, 0xfc64ec04);
 
-		fork_hash = fork_hash + 1150000;
+		fork_hash += 1150000;
 		assert_eq!(fork_hash.0, 0x97c2c34c);
 
-		fork_hash = fork_hash + 1920000;
+		fork_hash += 1920000;
 		assert_eq!(fork_hash.0, 0x91d1f948);
 	}
 
@@ -275,5 +306,9 @@ mod tests {
 		assert_eq!(rlp::encode(&ForkId { hash: ForkHash(0), next: 0 }), hex!("c6840000000080"));
 		assert_eq!(rlp::encode(&ForkId { hash: ForkHash(0xdeadbeef), next: 0xBADDCAFE }), hex!("ca84deadbeef84baddcafe"));
 		assert_eq!(rlp::encode(&ForkId { hash: ForkHash(u32::max_value()), next: u64::max_value() }), hex!("ce84ffffffff88ffffffffffffffff"));
+
+		assert_eq!(rlp::decode::<ForkId>(&hex!("c6840000000080")).unwrap(), ForkId { hash: ForkHash(0), next: 0 });
+		assert_eq!(rlp::decode::<ForkId>(&hex!("ca84deadbeef84baddcafe")).unwrap(), ForkId { hash: ForkHash(0xdeadbeef), next: 0xBADDCAFE });
+		assert_eq!(rlp::decode::<ForkId>(&hex!("ce84ffffffff88ffffffffffffffff")).unwrap(), ForkId { hash: ForkHash(u32::max_value()), next: u64::max_value() });
 	}
 }
