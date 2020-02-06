@@ -21,10 +21,11 @@ ENV RUST_BACKTRACE 1
 RUN set -eux; \
 	apt-get update; \
 	apt-get install -y --no-install-recommends \
-		file curl jq; \
+		file curl jq ca-certificates; \
 # apt cleanup
 	apt-get autoremove -y; \
 	apt-get clean; \
+  update-ca-certificates; \
 	rm -rf /tmp/* /var/tmp/* /var/lib/apt/lists/*; \
 # add user
 	groupadd -g 1000 parity; \
