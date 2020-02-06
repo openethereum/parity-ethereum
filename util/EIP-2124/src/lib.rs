@@ -20,6 +20,7 @@ use crc::crc32;
 use ethereum_types::H256;
 use maplit::*;
 use rlp::{DecoderError, Rlp, RlpStream};
+use rlp_derive::*;
 use std::collections::{BTreeMap, BTreeSet};
 
 pub type BlockNumber = u64;
@@ -70,29 +71,12 @@ impl std::ops::Add<BlockNumber> for ForkHash {
 }
 
 /// A fork identifier as defined by EIP-2124.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, RlpEncodable, RlpDecodable)]
 pub struct ForkId {
 	/// CRC32 checksum of the all fork blocks from genesis.
 	pub hash: ForkHash,     
 	/// Next upcoming fork block number, 0 if not yet known.
 	pub next: BlockNumber
-}
-
-impl rlp::Encodable for ForkId {
-	fn rlp_append(&self, s: &mut RlpStream) {
-		s.begin_list(2);
-		s.append(&self.hash);
-		s.append(&self.next);
-	}
-}
-
-impl rlp::Decodable for ForkId {
-	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
-		Ok(Self {
-			hash: rlp.val_at(0)?,
-			next: rlp.val_at(1)?,
-		})
-	}
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]

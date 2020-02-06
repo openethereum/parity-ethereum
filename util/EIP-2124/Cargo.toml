@@ -15,6 +15,7 @@ crc = "1"
 ethereum-types = "0.8.0"
 maplit = "1"
 rlp = "0.4"
+rlp_derive = { path = "../rlp-derive" }
 
 [dev-dependencies]
 hex-literal = "0.2"

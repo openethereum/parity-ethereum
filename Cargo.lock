@@ -1012,6 +1012,7 @@ dependencies = [
  "hex-literal",
  "maplit",
  "rlp",
+ "rlp_derive",
 ]
 
 [[package]]
