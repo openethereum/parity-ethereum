@@ -78,8 +78,8 @@ extern crate parity_crypto;
 extern crate ethjson;
 #[cfg(any(test, feature = "test-helpers"))]
 extern crate kvdb_memorydb;
-#[cfg(any(test, feature = "kvdb-rocksdb"))]
-extern crate kvdb_rocksdb;
+#[cfg(any(test, feature = "kvdb-sled"))]
+extern crate kvdb_sled;
 #[cfg(feature = "json-tests")]
 #[macro_use]
 extern crate lazy_static;

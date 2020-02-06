@@ -14,13 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Blooms migration from rocksdb to blooms-db
+//! Blooms migration from sled to blooms-db
 
 use std::path::Path;
 use ethereum_types::Bloom;
 use types::errors::EthcoreError as Error;
 use rlp;
-use super::kvdb_rocksdb::DatabaseConfig;
+use super::sled::DatabaseConfig;
 use super::open_database;
 
 const LOG_BLOOMS_ELEMENTS_PER_INDEX: u64 = 16;

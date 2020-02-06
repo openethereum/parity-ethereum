@@ -17,7 +17,6 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use ethcore::client::DatabaseCompactionProfile;
 use spec::SpecParams;
 use light::client::fetch::Unavailable as UnavailableDataFetcher;
 use light::Cache as LightDataCache;
@@ -39,7 +38,6 @@ pub struct ExportHsyncCmd {
 	pub dirs: Directories,
 	pub spec: SpecType,
 	pub pruning: Pruning,
-	pub compaction: DatabaseCompactionProfile,
 }
 
 pub fn execute(cmd: ExportHsyncCmd) -> Result<String, String> {
@@ -65,7 +63,7 @@ pub fn execute(cmd: ExportHsyncCmd) -> Result<String, String> {
 	let algorithm = cmd.pruning.to_algorithm(&user_defaults);
 
 	// execute upgrades
-	execute_upgrades(&cmd.dirs.base, &db_dirs, algorithm, &cmd.compaction)?;
+	execute_upgrades(&cmd.dirs.base, &db_dirs, algorithm)?;
 
 	// create dirs used by parity
 	cmd.dirs.create_dirs(false, false)?;
@@ -89,7 +87,6 @@ pub fn execute(cmd: ExportHsyncCmd) -> Result<String, String> {
 	let db = db::open_db_light(
 		&db_dirs.client_path(algorithm).to_str().expect("DB path could not be converted to string."),
 		&cmd.cache_config,
-		&cmd.compaction,
 	).map_err(|e| format!("Failed to open database {:?}", e))?;
 
 	let service = light_client::Service::start(config, &spec, UnavailableDataFetcher, db, cache)

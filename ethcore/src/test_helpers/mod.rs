@@ -41,7 +41,7 @@ use evm::Factory as EvmFactory;
 use hash::keccak;
 use io::IoChannel;
 use kvdb::KeyValueDB;
-use kvdb_rocksdb::{self, Database, DatabaseConfig};
+use kvdb_sled as sled;
 use parking_lot::RwLock;
 use rlp::{self, RlpStream};
 use tempdir::TempDir;
@@ -324,8 +324,8 @@ pub fn new_temp_db(tempdir: &Path) -> Arc<dyn BlockChainDB> {
 	let trace_blooms_dir = TempDir::new("").unwrap();
 	let key_value_dir = tempdir.join("key_value");
 
-	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
-	let key_value_db = Database::open(&db_config, key_value_dir.to_str().unwrap()).unwrap();
+	let db_config = sled::DatabaseConfig::with_columns(::db::NUM_COLUMNS);
+	let key_value_db = sled::Database::open(&db_config, key_value_dir.to_str().unwrap()).unwrap();
 
 	let db = TestBlockChainDB {
 		blooms: blooms_db::Database::open(blooms_dir.path()).unwrap(),
@@ -339,9 +339,9 @@ pub fn new_temp_db(tempdir: &Path) -> Arc<dyn BlockChainDB> {
 }
 
 /// Creates new instance of KeyValueDBHandler
-pub fn restoration_db_handler(config: kvdb_rocksdb::DatabaseConfig) -> Box<dyn BlockChainDBHandler> {
+pub fn restoration_db_handler(config: sled::DatabaseConfig) -> Box<dyn BlockChainDBHandler> {
 	struct RestorationDBHandler {
-		config: kvdb_rocksdb::DatabaseConfig,
+		config: sled::DatabaseConfig,
 	}
 
 	struct RestorationDB {
@@ -366,7 +366,7 @@ pub fn restoration_db_handler(config: kvdb_rocksdb::DatabaseConfig) -> Box<dyn B
 
 	impl BlockChainDBHandler for RestorationDBHandler {
 		fn open(&self, db_path: &Path) -> io::Result<Arc<dyn BlockChainDB>> {
-			let key_value = Arc::new(kvdb_rocksdb::Database::open(&self.config, &db_path.to_string_lossy())?);
+			let key_value = Arc::new(sled::Database::open(&self.config, &db_path.to_string_lossy())?);
 			let blooms_path = db_path.join("blooms");
 			let trace_blooms_path = db_path.join("trace_blooms");
 			fs::create_dir_all(&blooms_path)?;

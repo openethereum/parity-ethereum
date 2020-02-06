@@ -21,7 +21,7 @@ use std::thread;
 
 use ansi_term::Colour;
 use client_traits::{BlockInfo, BlockChainClient};
-use ethcore::client::{Client, DatabaseCompactionProfile};
+use ethcore::client::Client;
 use ethcore::miner::{self, stratum, Miner, MinerService, MinerOptions};
 use snapshot::{self, SnapshotConfiguration};
 use spec::SpecParams;
@@ -112,7 +112,6 @@ pub struct RunCmd {
 	pub mode: Option<Mode>,
 	pub tracing: Switch,
 	pub fat_db: Switch,
-	pub compaction: DatabaseCompactionProfile,
 	pub geth_compatibility: bool,
 	pub experimental_rpcs: bool,
 	pub net_settings: NetworkSettings,
@@ -192,7 +191,7 @@ fn execute_light_impl<Cr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq
 	let algorithm = cmd.pruning.to_algorithm(&user_defaults);
 
 	// execute upgrades
-	execute_upgrades(&cmd.dirs.base, &db_dirs, algorithm, &cmd.compaction)?;
+	execute_upgrades(&cmd.dirs.base, &db_dirs, algorithm)?;
 
 	// create dirs used by parity
 	cmd.dirs.create_dirs(cmd.acc_conf.unlocked_accounts.len() == 0, cmd.secretstore_conf.enabled)?;
@@ -256,7 +255,6 @@ fn execute_light_impl<Cr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq
 	let db = db::open_db_light(
 		&db_dirs.client_path(algorithm).to_str().expect("DB path could not be converted to string."),
 		&cmd.cache_config,
-		&cmd.compaction,
 	).map_err(|e| format!("Failed to open database {:?}", e))?;
 
 	let service = light_client::Service::start(config, &spec, fetch, db, cache.clone())
@@ -410,7 +408,7 @@ fn execute_impl<Cr, Rr>(
 	let snapshot_path = db_dirs.snapshot_path();
 
 	// execute upgrades
-	execute_upgrades(&cmd.dirs.base, &db_dirs, algorithm, &cmd.compaction)?;
+	execute_upgrades(&cmd.dirs.base, &db_dirs, algorithm)?;
 
 	// create dirs used by parity
 	cmd.dirs.create_dirs(cmd.acc_conf.unlocked_accounts.len() == 0, cmd.secretstore_conf.enabled)?;
@@ -531,7 +529,6 @@ fn execute_impl<Cr, Rr>(
 		mode.clone(),
 		tracing,
 		fat_db,
-		cmd.compaction,
 		cmd.name,
 		algorithm,
 		cmd.pruning_history,
@@ -969,4 +966,3 @@ fn wait_for_drop<T>(w: Weak<T>) {
 
 	warn!("Shutdown timeout reached, exiting uncleanly.");
 }
-

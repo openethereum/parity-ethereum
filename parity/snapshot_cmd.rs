@@ -24,7 +24,7 @@ use hash::keccak;
 use snapshot::{SnapshotConfiguration, SnapshotService as SS, SnapshotClient};
 use snapshot::io::{SnapshotReader, PackedReader, PackedWriter};
 use snapshot::service::Service as SnapshotService;
-use ethcore::client::{Client, DatabaseCompactionProfile};
+use ethcore::client::Client;
 use ethcore::miner::Miner;
 use ethcore_service::ClientService;
 use parking_lot::RwLock;
@@ -63,7 +63,6 @@ pub struct SnapshotCommand {
 	pub pruning_memory: usize,
 	pub tracing: Switch,
 	pub fat_db: Switch,
-	pub compaction: DatabaseCompactionProfile,
 	pub file_path: Option<String>,
 	pub kind: Kind,
 	pub block_at: BlockId,
@@ -170,7 +169,7 @@ impl SnapshotCommand {
 		let snapshot_path = db_dirs.snapshot_path();
 
 		// execute upgrades
-		execute_upgrades(&self.dirs.base, &db_dirs, algorithm, &self.compaction)?;
+		execute_upgrades(&self.dirs.base, &db_dirs, algorithm)?;
 
 		// prepare client config
 		let mut client_config = to_client_config(
@@ -179,7 +178,6 @@ impl SnapshotCommand {
 			Mode::Active,
 			tracing,
 			fat_db,
-			self.compaction,
 			"".into(),
 			algorithm,
 			self.pruning_history,

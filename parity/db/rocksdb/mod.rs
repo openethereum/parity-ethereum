@@ -14,9 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-extern crate kvdb_rocksdb;
-extern crate migration_rocksdb;
 extern crate ethcore_blockchain;
+extern crate kvdb_sled;
 
 #[cfg(test)]
 extern crate tempdir;
@@ -26,10 +25,10 @@ use std::sync::Arc;
 use std::path::Path;
 use blooms_db;
 use ethcore_db::NUM_COLUMNS;
-use ethcore::client::{ClientConfig, DatabaseCompactionProfile};
+use ethcore::client::ClientConfig;
 use kvdb::KeyValueDB;
 use self::ethcore_blockchain::{BlockChainDBHandler, BlockChainDB};
-use self::kvdb_rocksdb::{Database, DatabaseConfig};
+use self::kvdb_sled as sled;
 
 use cache::CacheConfig;
 
@@ -64,7 +63,7 @@ pub fn restoration_db_handler(client_path: &Path, client_config: &ClientConfig) 
 	let client_db_config = helpers::client_db_config(client_path, client_config);
 
 	struct RestorationDBHandler {
-		config: DatabaseConfig,
+		config: sled::DatabaseConfig,
 	}
 
 	impl BlockChainDBHandler for RestorationDBHandler {
@@ -82,20 +81,18 @@ pub fn restoration_db_handler(client_path: &Path, client_config: &ClientConfig) 
 pub fn open_db_light(
 	client_path: &str,
 	cache_config: &CacheConfig,
-	compaction: &DatabaseCompactionProfile
 ) -> io::Result<Arc<dyn BlockChainDB>> {
 	let path = Path::new(client_path);
 
-	let db_config = DatabaseConfig {
+	let db_config = sled::DatabaseConfig {
 		memory_budget: helpers::memory_per_column_light(cache_config.blockchain() as usize),
-		compaction: helpers::compaction_profile(&compaction, path),
-		.. DatabaseConfig::with_columns(NUM_COLUMNS)
+		.. sled::DatabaseConfig::with_columns(NUM_COLUMNS)
 	};
 
 	open_database(client_path, &db_config)
 }
 
-pub fn open_database(client_path: &str, config: &DatabaseConfig) -> io::Result<Arc<dyn BlockChainDB>> {
+pub fn open_database(client_path: &str, config: &sled::DatabaseConfig) -> io::Result<Arc<dyn BlockChainDB>> {
 	let path = Path::new(client_path);
 
 	let blooms_path = path.join("blooms");
@@ -104,7 +101,7 @@ pub fn open_database(client_path: &str, config: &DatabaseConfig) -> io::Result<A
 	fs::create_dir_all(&trace_blooms_path)?;
 
 	let db = AppDB {
-		key_value: Arc::new(Database::open(&config, client_path)?),
+		key_value: Arc::new(sled::Database::open(&config, client_path)?),
 		blooms: blooms_db::Database::open(blooms_path)?,
 		trace_blooms: blooms_db::Database::open(trace_blooms_path)?,
 	};

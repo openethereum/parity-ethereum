@@ -8,7 +8,7 @@ dependencies = [
  "hash-db",
  "keccak-hash",
  "keccak-hasher 0.1.1",
- "kvdb",
+ "kvdb 0.4.0",
  "rlp",
 ]
 
@@ -24,13 +24,13 @@ dependencies = [
  "journaldb",
  "keccak-hash",
  "keccak-hasher 0.1.1",
- "kvdb",
+ "kvdb 0.4.0",
  "log",
  "lru-cache",
  "memory-db",
  "parity-bytes",
- "parity-util-mem 0.3.0",
- "parking_lot 0.9.0",
+ "parity-util-mem 0.5.0",
+ "parking_lot 0.10.0",
  "patricia-trie-ethereum",
  "pod",
  "rlp",
@@ -215,7 +215,7 @@ dependencies = [
  "macros",
  "parity-bytes",
  "parity-crypto",
- "parking_lot 0.9.0",
+ "parking_lot 0.10.0",
  "rand 0.7.2",
  "rlp",
  "serde_json",
@@ -295,7 +295,7 @@ dependencies = [
  "log",
  "machine",
  "parity-crypto",
- "parking_lot 0.9.0",
+ "parking_lot 0.10.0",
  "rlp",
  "spec",
  "tempdir",
@@ -451,7 +451,7 @@ version = "0.1.0"
 dependencies = [
  "criterion",
  "ethbloom",
- "parking_lot 0.9.0",
+ "parking_lot 0.10.0",
  "tempdir",
 ]
 
@@ -638,7 +638,7 @@ dependencies = [
  "ethcore-db",
  "ethcore-miner",
  "ethereum-types",
- "kvdb",
+ "kvdb 0.4.0",
  "parity-bytes",
  "registrar",
  "stats",
@@ -663,7 +663,7 @@ dependencies = [
  "machine",
  "macros",
  "parity-crypto",
- "parking_lot 0.9.0",
+ "parking_lot 0.10.0",
  "rand 0.7.2",
  "rlp",
  "spec",
@@ -703,7 +703,7 @@ dependencies = [
  "parity-bytes",
  "parity-crypto",
  "parity-snappy",
- "parity-util-mem 0.3.0",
+ "parity-util-mem 0.5.0",
  "patricia-trie-ethereum",
  "rlp",
  "rlp_derive",
@@ -749,6 +749,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e7ca8a5221364ef15ce201e8ed2f609fc312682a8f4e0e3d4aa5879764e0fa3b"
 
 [[package]]
+name = "crc32fast"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ba125de2af0df55319f41944744ad91c71113bf74a4646efff39afe1f6842db1"
+dependencies = [
+ "cfg-if",
+]
+
+[[package]]
 name = "criterion"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -789,7 +798,7 @@ version = "0.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "05e44b8cf3e1a625844d1750e1f7820da46044ff6d28f4d43e455ba3e5bb2c13"
 dependencies = [
- "crossbeam-epoch",
+ "crossbeam-epoch 0.7.2",
  "crossbeam-utils 0.6.6",
 ]
 
@@ -799,7 +808,7 @@ version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b18cd2e169ad86297e6bc0ad9aa679aee9daa4f19e8163860faf7c164e4f5a71"
 dependencies = [
- "crossbeam-epoch",
+ "crossbeam-epoch 0.7.2",
  "crossbeam-utils 0.6.6",
 ]
 
@@ -812,6 +821,20 @@ dependencies = [
  "arrayvec 0.4.11",
  "cfg-if",
  "crossbeam-utils 0.6.6",
+ "lazy_static",
+ "memoffset",
+ "scopeguard 1.0.0",
+]
+
+[[package]]
+name = "crossbeam-epoch"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5064ebdbf05ce3cb95e45c8b086f72263f4166b29b97f6baff7ef7fe047b55ac"
+dependencies = [
+ "autocfg",
+ "cfg-if",
+ "crossbeam-utils 0.7.0",
  "lazy_static",
  "memoffset",
  "scopeguard 1.0.0",
@@ -838,6 +861,17 @@ version = "0.6.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "04973fa96e96579258a5091af6003abde64af786b860f18622b82e026cca60e6"
 dependencies = [
+ "cfg-if",
+ "lazy_static",
+]
+
+[[package]]
+name = "crossbeam-utils"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ce446db02cdc3165b94ae73111e570793400d0794e46125cc4056c81cbb039f4"
+dependencies = [
+ "autocfg",
  "cfg-if",
  "lazy_static",
 ]
@@ -1128,7 +1162,7 @@ dependencies = [
  "keccak-hash",
  "log",
  "memmap",
- "parking_lot 0.9.0",
+ "parking_lot 0.10.0",
  "primal",
  "rustc-hex 1.0.0",
  "serde_json",
@@ -1203,9 +1237,9 @@ dependencies = [
  "itertools 0.5.10",
  "journaldb",
  "keccak-hash",
- "kvdb",
+ "kvdb 0.4.0",
  "kvdb-memorydb",
- "kvdb-rocksdb",
+ "kvdb-sled",
  "lazy_static",
  "log",
  "machine",
@@ -1214,7 +1248,7 @@ dependencies = [
  "parity-bytes",
  "parity-crypto",
  "parity-runtime",
- "parking_lot 0.9.0",
+ "parking_lot 0.10.0",
  "patricia-trie-ethereum",
  "pod",
  "rand 0.7.2",
@@ -1253,7 +1287,7 @@ dependencies = [
  "ethstore",
  "log",
  "parity-crypto",
- "parking_lot 0.9.0",
+ "parking_lot 0.10.0",
  "serde",
  "serde_derive",
  "serde_json",
@@ -1272,13 +1306,13 @@ dependencies = [
  "ethereum-types",
  "itertools 0.5.10",
  "keccak-hash",
- "kvdb",
+ "kvdb 0.4.0",
  "kvdb-memorydb",
  "log",
  "parity-bytes",
  "parity-crypto",
- "parity-util-mem 0.3.0",
- "parking_lot 0.9.0",
+ "parity-util-mem 0.5.0",
+ "parking_lot 0.10.0",
  "rand 0.7.2",
  "rayon",
  "rlp",
@@ -1330,9 +1364,9 @@ version = "0.1.0"
 dependencies = [
  "common-types",
  "ethereum-types",
- "kvdb",
- "parity-util-mem 0.3.0",
- "parking_lot 0.9.0",
+ "kvdb 0.4.0",
+ "parity-util-mem 0.5.0",
+ "parking_lot 0.10.0",
  "rlp",
  "rlp_derive",
 ]
@@ -1347,7 +1381,7 @@ dependencies = [
  "log",
  "mio",
  "num_cpus",
- "parking_lot 0.9.0",
+ "parking_lot 0.10.0",
  "slab 0.4.1",
  "time",
  "timer",
@@ -1378,15 +1412,15 @@ dependencies = [
  "journaldb",
  "keccak-hash",
  "keccak-hasher 0.1.1",
- "kvdb",
+ "kvdb 0.4.0",
  "kvdb-memorydb",
  "log",
  "machine",
  "memory-cache",
  "memory-db",
  "parity-bytes",
- "parity-util-mem 0.3.0",
- "parking_lot 0.9.0",
+ "parity-util-mem 0.5.0",
+ "parking_lot 0.10.0",
  "patricia-trie-ethereum",
  "rand 0.7.2",
  "rlp",
@@ -1413,7 +1447,7 @@ dependencies = [
  "env_logger 0.5.13",
  "lazy_static",
  "log",
- "parking_lot 0.9.0",
+ "parking_lot 0.10.0",
  "regex",
  "time",
 ]
@@ -1439,8 +1473,8 @@ dependencies = [
  "log",
  "parity-crypto",
  "parity-runtime",
- "parity-util-mem 0.3.0",
- "parking_lot 0.9.0",
+ "parity-util-mem 0.5.0",
+ "parking_lot 0.10.0",
  "price-info",
  "registrar",
  "rlp",
@@ -1495,7 +1529,7 @@ dependencies = [
  "parity-crypto",
  "parity-path",
  "parity-snappy",
- "parking_lot 0.9.0",
+ "parking_lot 0.10.0",
  "rand 0.7.2",
  "rlp",
  "rustc-hex 1.0.0",
@@ -1531,13 +1565,13 @@ dependencies = [
  "journaldb",
  "keccak-hash",
  "keccak-hasher 0.1.1",
- "kvdb",
+ "kvdb 0.4.0",
  "log",
  "machine",
  "parity-bytes",
  "parity-crypto",
- "parity-util-mem 0.3.0",
- "parking_lot 0.9.0",
+ "parity-util-mem 0.5.0",
+ "parking_lot 0.10.0",
  "patricia-trie-ethereum",
  "registrar",
  "rlp",
@@ -1572,14 +1606,14 @@ dependencies = [
  "hyper",
  "jsonrpc-server-utils",
  "keccak-hash",
- "kvdb",
+ "kvdb 0.4.0",
  "kvdb-rocksdb",
  "lazy_static",
  "log",
  "parity-bytes",
  "parity-crypto",
  "parity-runtime",
- "parking_lot 0.9.0",
+ "parking_lot 0.10.0",
  "percent-encoding 2.1.0",
  "rustc-hex 1.0.0",
  "serde",
@@ -1607,8 +1641,8 @@ dependencies = [
  "ethcore-private-tx",
  "ethcore-sync",
  "ethereum-types",
- "kvdb",
- "kvdb-rocksdb",
+ "kvdb 0.4.0",
+ "kvdb-sled",
  "log",
  "snapshot",
  "spec",
@@ -1626,7 +1660,7 @@ dependencies = [
  "jsonrpc-tcp-server",
  "keccak-hash",
  "log",
- "parking_lot 0.9.0",
+ "parking_lot 0.10.0",
  "tokio",
  "tokio-io",
 ]
@@ -1658,8 +1692,8 @@ dependencies = [
  "parity-bytes",
  "parity-crypto",
  "parity-runtime",
- "parity-util-mem 0.3.0",
- "parking_lot 0.9.0",
+ "parity-util-mem 0.5.0",
+ "parking_lot 0.10.0",
  "rand 0.7.2",
  "rand_xorshift 0.2.0",
  "rlp",
@@ -1736,7 +1770,7 @@ dependencies = [
  "matches",
  "parity-crypto",
  "parity-wordlist",
- "parking_lot 0.9.0",
+ "parking_lot 0.10.0",
  "rand 0.7.2",
  "rustc-hex 1.0.0",
  "serde",
@@ -1760,7 +1794,7 @@ dependencies = [
  "num_cpus",
  "panic_hook",
  "parity-crypto",
- "parking_lot 0.9.0",
+ "parking_lot 0.10.0",
  "rustc-hex 1.0.0",
  "serde",
  "serde_derive",
@@ -1780,8 +1814,8 @@ dependencies = [
  "log",
  "memory-cache",
  "parity-bytes",
- "parity-util-mem 0.3.0",
- "parking_lot 0.9.0",
+ "parity-util-mem 0.5.0",
+ "parking_lot 0.10.0",
  "rustc-hex 1.0.0",
  "vm",
 ]
@@ -1825,7 +1859,7 @@ dependencies = [
  "hash-db",
  "keccak-hash",
  "keccak-hasher 0.1.1",
- "kvdb",
+ "kvdb 0.4.0",
  "log",
  "machine",
  "parity-bytes",
@@ -1953,6 +1987,16 @@ dependencies = [
  "lazy_static",
  "libc",
  "libloading",
+ "winapi 0.3.8",
+]
+
+[[package]]
+name = "fs2"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9564fc758e15025b46aa6643b1b77d047d1a56a1aea6e01002ac0c7026876213"
+dependencies = [
+ "libc",
  "winapi 0.3.8",
 ]
 
@@ -2443,13 +2487,13 @@ dependencies = [
  "hash-db",
  "keccak-hash",
  "keccak-hasher 0.1.1",
- "kvdb",
+ "kvdb 0.4.0",
  "kvdb-memorydb",
  "log",
  "memory-db",
  "parity-bytes",
- "parity-util-mem 0.3.0",
- "parking_lot 0.9.0",
+ "parity-util-mem 0.5.0",
+ "parking_lot 0.10.0",
  "rlp",
 ]
 
@@ -2619,19 +2663,30 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8396be0e5561ccd1bf7ff0b2007487cdd7a87a056873fe6ea906b35d4dbf7ed8"
 dependencies = [
  "parity-bytes",
- "parity-util-mem 0.4.1",
+ "parity-util-mem 0.4.2",
+ "smallvec 1.0.0",
+]
+
+[[package]]
+name = "kvdb"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "03080afe6f42cd996da9f568d6add5d7fb5ee2ea7fb7802d2d2cbd836958fd87"
+dependencies = [
+ "parity-bytes",
+ "parity-util-mem 0.5.0",
  "smallvec 1.0.0",
 ]
 
 [[package]]
 name = "kvdb-memorydb"
-version = "0.3.1"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4d25ef14155e418515c4839e9144c839de3506e68946f255a32b7f166095493d"
+checksum = "b9355274e5a9e0a7e8ef43916950eae3949024de2a8dffe4d5a6c13974a37c8e"
 dependencies = [
- "kvdb",
- "parity-util-mem 0.4.1",
- "parking_lot 0.9.0",
+ "kvdb 0.4.0",
+ "parity-util-mem 0.5.0",
+ "parking_lot 0.10.0",
 ]
 
 [[package]]
@@ -2642,15 +2697,26 @@ checksum = "5a1053e90a54421a842b6bf5d0e4a5cb5364c0bf570f713c58e44a9906f501d9"
 dependencies = [
  "fs-swap",
  "interleaved-ordered",
- "kvdb",
+ "kvdb 0.3.1",
  "log",
  "num_cpus",
  "owning_ref 0.4.0",
- "parity-util-mem 0.4.1",
+ "parity-util-mem 0.4.2",
  "parking_lot 0.9.0",
  "regex",
  "rocksdb",
  "smallvec 1.0.0",
+]
+
+[[package]]
+name = "kvdb-sled"
+version = "0.1.0"
+source = "git+https://github.com/paritytech/parity-common?branch=ao-kvdb-sled#ef0adaafef43f619c494b8764f6a01ba971650e6"
+dependencies = [
+ "kvdb 0.4.0",
+ "log",
+ "parity-util-mem 0.5.0",
+ "sled",
 ]
 
 [[package]]
@@ -2669,7 +2735,7 @@ checksum = "ddba4c30a78328befecec92fc94970e53b3ae385827d28620f0f5bb2493081e0"
 name = "len-caching-lock"
 version = "0.1.1"
 dependencies = [
- "parking_lot 0.9.0",
+ "parking_lot 0.10.0",
 ]
 
 [[package]]
@@ -2758,6 +2824,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "lru"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0609345ddee5badacf857d4f547e0e5a2e987db77085c24cd887f73573a04237"
+dependencies = [
+ "hashbrown",
+]
+
+[[package]]
 name = "lru-cache"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2800,7 +2875,7 @@ dependencies = [
  "macros",
  "parity-bytes",
  "parity-crypto",
- "parking_lot 0.9.0",
+ "parking_lot 0.10.0",
  "rlp",
  "rustc-hex 1.0.0",
  "spec",
@@ -2865,7 +2940,7 @@ name = "memory-cache"
 version = "0.1.0"
 dependencies = [
  "lru-cache",
- "parity-util-mem 0.3.0",
+ "parity-util-mem 0.5.0",
 ]
 
 [[package]]
@@ -2885,17 +2960,6 @@ name = "memory_units"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "71d96e3f3c0b6325d8ccd83c33b28acb183edcb6c67938ba104ec546854b0882"
-
-[[package]]
-name = "migration-rocksdb"
-version = "0.1.0"
-dependencies = [
- "kvdb",
- "kvdb-rocksdb",
- "log",
- "macros",
- "tempdir",
-]
 
 [[package]]
 name = "mime"
@@ -3056,7 +3120,7 @@ dependencies = [
  "kvdb-memorydb",
  "log",
  "lru-cache",
- "parking_lot 0.9.0",
+ "parking_lot 0.10.0",
  "spec",
  "tempdir",
 ]
@@ -3308,10 +3372,9 @@ dependencies = [
  "journaldb",
  "jsonrpc-core",
  "keccak-hash",
- "kvdb",
- "kvdb-rocksdb",
+ "kvdb 0.4.0",
+ "kvdb-sled",
  "log",
- "migration-rocksdb",
  "node-filter",
  "num_cpus",
  "number_prefix",
@@ -3326,9 +3389,9 @@ dependencies = [
  "parity-rpc",
  "parity-runtime",
  "parity-updater",
- "parity-util-mem 0.3.0",
+ "parity-util-mem 0.5.0",
  "parity-version",
- "parking_lot 0.9.0",
+ "parking_lot 0.10.0",
  "pretty_assertions",
  "regex",
  "registrar",
@@ -3369,7 +3432,7 @@ dependencies = [
  "mime_guess",
  "parity-bytes",
  "parity-runtime",
- "parking_lot 0.9.0",
+ "parking_lot 0.10.0",
  "rand 0.7.2",
  "registrar",
  "rustc-hex 1.0.0",
@@ -3399,7 +3462,7 @@ dependencies = [
  "common-types",
  "ethcore-io",
  "ethkey",
- "kvdb",
+ "kvdb 0.4.0",
  "kvdb-memorydb",
  "log",
  "parity-crypto",
@@ -3462,7 +3525,7 @@ dependencies = [
  "parity-runtime",
  "parity-updater",
  "parity-version",
- "parking_lot 0.9.0",
+ "parking_lot 0.10.0",
  "pretty_assertions",
  "rand 0.7.2",
  "rand_xorshift 0.2.0",
@@ -3497,7 +3560,7 @@ dependencies = [
  "log",
  "matches",
  "parity-rpc",
- "parking_lot 0.9.0",
+ "parking_lot 0.10.0",
  "serde",
  "serde_json",
  "url 2.1.0",
@@ -3594,7 +3657,7 @@ dependencies = [
  "parity-hash-fetch",
  "parity-path",
  "parity-version",
- "parking_lot 0.9.0",
+ "parking_lot 0.10.0",
  "rand 0.7.2",
  "semver",
  "target_info",
@@ -3608,9 +3671,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8174d85e62c4d615fddd1ef67966bdc5757528891d0742f15b131ad04667b3f9"
 dependencies = [
  "cfg-if",
- "ethereum-types",
- "jemallocator",
  "malloc_size_of_derive",
+ "winapi 0.3.8",
+]
+
+[[package]]
+name = "parity-util-mem"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "01b04e4d2588668d5aa93144b3bd719be963542e60042d66c7586ca763838a5b"
+dependencies = [
+ "cfg-if",
+ "impl-trait-for-tuples",
+ "parity-util-mem-derive",
  "parking_lot 0.9.0",
  "smallvec 1.0.0",
  "winapi 0.3.8",
@@ -3618,14 +3691,19 @@ dependencies = [
 
 [[package]]
 name = "parity-util-mem"
-version = "0.4.1"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "900dd84654b048e5bad420bb341658fc2c4d7fea628c22bcf4621733e54859b4"
+checksum = "5326ed0dad4159b71b802166f63c310d327dad105d90eb00093f49613aa9e5cb"
 dependencies = [
  "cfg-if",
+ "ethereum-types",
+ "hashbrown",
  "impl-trait-for-tuples",
+ "jemallocator",
+ "lru",
  "parity-util-mem-derive",
- "parking_lot 0.9.0",
+ "parking_lot 0.10.0",
+ "primitive-types",
  "smallvec 1.0.0",
  "winapi 0.3.8",
 ]
@@ -3694,6 +3772,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "parking_lot"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "92e98c49ab0b7ce5b222f2cc9193fc4efe11c6d0bd4f648e374684a6857b1cfc"
+dependencies = [
+ "lock_api 0.3.1",
+ "parking_lot_core 0.7.0",
+]
+
+[[package]]
 name = "parking_lot_core"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3712,14 +3800,28 @@ version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b876b1b9e7ac6e1a74a6da34d25c42e17e8862aa409cbbbdcfc8d86c6f3bc62b"
 dependencies = [
+ "cfg-if",
+ "cloudabi",
+ "libc",
+ "redox_syscall",
+ "rustc_version",
+ "smallvec 0.6.10",
+ "winapi 0.3.8",
+]
+
+[[package]]
+name = "parking_lot_core"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7582838484df45743c8434fbff785e8edf260c28748353d44bc0da32e0ceabf1"
+dependencies = [
  "backtrace",
  "cfg-if",
  "cloudabi",
  "libc",
  "petgraph",
  "redox_syscall",
- "rustc_version",
- "smallvec 0.6.10",
+ "smallvec 1.0.0",
  "thread-id",
  "winapi 0.3.8",
 ]
@@ -3843,7 +3945,7 @@ dependencies = [
  "itertools 0.8.0",
  "keccak-hash",
  "keccak-hasher 0.1.1",
- "kvdb",
+ "kvdb 0.4.0",
  "log",
  "macros",
  "parity-bytes",
@@ -4675,6 +4777,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5f9776d6b986f77b35c6cf846c11ad986ff128fe0b2b63a3628e3755e8d3102d"
 
 [[package]]
+name = "sled"
+version = "0.31.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8fb6824dde66ad33bf20c6e8476f5b82b871bc8bc3c129a10ea2f7dae5060fa3"
+dependencies = [
+ "crc32fast",
+ "crossbeam-epoch 0.8.0",
+ "crossbeam-utils 0.7.0",
+ "fs2",
+ "fxhash",
+ "libc",
+ "log",
+ "parking_lot 0.10.0",
+]
+
+[[package]]
 name = "smallvec"
 version = "0.6.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4714,14 +4832,14 @@ dependencies = [
  "journaldb",
  "keccak-hash",
  "keccak-hasher 0.1.1",
- "kvdb",
- "kvdb-rocksdb",
+ "kvdb 0.4.0",
+ "kvdb-sled",
  "lazy_static",
  "log",
  "num_cpus",
  "parity-bytes",
  "parity-snappy",
- "parking_lot 0.9.0",
+ "parking_lot 0.10.0",
  "patricia-trie-ethereum",
  "rand 0.7.2",
  "rand_xorshift 0.2.0",
@@ -4760,14 +4878,14 @@ dependencies = [
  "journaldb",
  "keccak-hash",
  "keccak-hasher 0.1.1",
- "kvdb",
- "kvdb-rocksdb",
+ "kvdb 0.4.0",
+ "kvdb-sled",
  "lazy_static",
  "log",
  "parity-bytes",
  "parity-crypto",
  "parity-snappy",
- "parking_lot 0.9.0",
+ "parking_lot 0.10.0",
  "patricia-trie-ethereum",
  "rand 0.7.2",
  "rand_xorshift 0.2.0",
@@ -4861,11 +4979,11 @@ dependencies = [
  "journaldb",
  "keccak-hash",
  "keccak-hasher 0.1.1",
- "kvdb",
+ "kvdb 0.4.0",
  "log",
  "lru-cache",
  "memory-cache",
- "parking_lot 0.9.0",
+ "parking_lot 0.10.0",
 ]
 
 [[package]]
@@ -5375,11 +5493,11 @@ dependencies = [
  "ethcore-db",
  "ethereum-types",
  "evm",
- "kvdb",
+ "kvdb 0.4.0",
  "log",
  "parity-bytes",
- "parity-util-mem 0.3.0",
- "parking_lot 0.9.0",
+ "parity-util-mem 0.5.0",
+ "parking_lot 0.10.0",
  "rlp",
  "rlp_derive",
  "vm",
@@ -5622,15 +5740,15 @@ dependencies = [
  "ethjson",
  "executive-state",
  "keccak-hash",
- "kvdb",
+ "kvdb 0.4.0",
  "lazy_static",
  "log",
  "machine",
  "memory-cache",
  "parity-bytes",
  "parity-crypto",
- "parity-util-mem 0.3.0",
- "parking_lot 0.9.0",
+ "parity-util-mem 0.5.0",
+ "parking_lot 0.10.0",
  "rlp",
  "rustc-hex 1.0.0",
  "spec",
@@ -5693,8 +5811,8 @@ dependencies = [
  "num_cpus",
  "parity-bytes",
  "parity-crypto",
- "parity-util-mem 0.3.0",
- "parking_lot 0.9.0",
+ "parity-util-mem 0.5.0",
+ "parking_lot 0.10.0",
  "rlp",
  "spec",
  "tempdir",

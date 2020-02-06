@@ -19,4 +19,4 @@
 #[path="rocksdb/mod.rs"]
 mod impls;
 
-pub use self::impls::{open_db_light, restoration_db_handler, migrate};
+pub use self::impls::{open_db_light, restoration_db_handler};

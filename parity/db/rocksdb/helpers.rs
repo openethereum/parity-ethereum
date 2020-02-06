@@ -16,16 +16,7 @@
 
 use std::collections::HashMap;
 use std::path::Path;
-use ethcore::client::{ClientConfig, DatabaseCompactionProfile};
-use super::kvdb_rocksdb::{CompactionProfile, DatabaseConfig};
-
-pub fn compaction_profile(profile: &DatabaseCompactionProfile, db_path: &Path) -> CompactionProfile {
-	match profile {
-		&DatabaseCompactionProfile::Auto => CompactionProfile::auto(db_path),
-		&DatabaseCompactionProfile::SSD => CompactionProfile::ssd(),
-		&DatabaseCompactionProfile::HDD => CompactionProfile::hdd(),
-	}
-}
++use ethcore::client::ClientConfig;
 
 /// Spreads the `total` (in MiB) memory budget across the db columns.
 /// If it's `None`, the default memory budget will be used for each column.
@@ -64,10 +55,7 @@ pub fn memory_per_column_light(total: usize) -> HashMap<u32, usize> {
 }
 
 pub fn client_db_config(client_path: &Path, client_config: &ClientConfig) -> DatabaseConfig {
-	let mut client_db_config = DatabaseConfig::with_columns(ethcore_db::NUM_COLUMNS);
-
+	let mut client_db_config = super::sled::DatabaseConfig::with_columns(ethcore_db::NUM_COLUMNS);
 	client_db_config.memory_budget = memory_per_column(client_config.db_cache_size);
-	client_db_config.compaction = compaction_profile(&client_config.db_compaction, &client_path);
-
 	client_db_config
 }

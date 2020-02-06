@@ -21,7 +21,7 @@ use std::fs::File;
 use std::collections::HashSet;
 use ethereum_types::{U256, Address};
 use journaldb::Algorithm;
-use ethcore::client::{DatabaseCompactionProfile, ClientConfig};
+use ethcore::client::ClientConfig;
 use ethcore::miner::{PendingSet, Penalization};
 use verification::VerifierType;
 use miner::pool::PrioritizationStrategy;
@@ -30,7 +30,6 @@ use dir::DatabaseDirectories;
 use dir::helpers::replace_home;
 use upgrade::{upgrade, upgrade_data_paths};
 use sync::{validate_node_url, self};
-use db::migrate;
 use path;
 use ethkey::Password;
 use types::{
@@ -233,7 +232,6 @@ pub fn to_client_config(
 	mode: Mode,
 	tracing: bool,
 	fat_db: bool,
-	compaction: DatabaseCompactionProfile,
 	name: String,
 	pruning: Algorithm,
 	pruning_history: u64,
@@ -268,7 +266,6 @@ pub fn to_client_config(
 	client_config.fat_db = fat_db;
 	client_config.pruning = pruning;
 	client_config.history = pruning_history;
-	client_config.db_compaction = compaction;
 	client_config.name = name;
 	client_config.verifier_type = if check_seal { VerifierType::Canon } else { VerifierType::CanonNoSeal };
 	client_config.spec_name = spec_name;
@@ -280,7 +277,6 @@ pub fn execute_upgrades(
 	base_path: &str,
 	dirs: &DatabaseDirectories,
 	pruning: Algorithm,
-	compaction_profile: &DatabaseCompactionProfile
 ) -> Result<(), String> {
 
 	upgrade_data_paths(base_path, dirs, pruning);
@@ -296,7 +292,6 @@ pub fn execute_upgrades(
 	}
 
 	let client_path = dirs.db_path(pruning);
-	migrate(&client_path, compaction_profile).map_err(|e| format!("{}", e))
 }
 
 /// Prompts user asking for password.
