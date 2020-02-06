@@ -159,9 +159,10 @@ impl<T> DiskDirectory<T> where T: KeyFileManager {
 						// hidden files
 						!name.starts_with('.') &&
 						// other ignored files
-						!IGNORED_FILES.contains(&&*name) {
-							return Some(entry.path());
-						}
+						!IGNORED_FILES.contains(&&*name)
+					{
+						return Some(entry.path());
+					}
 				}
 
 				None
