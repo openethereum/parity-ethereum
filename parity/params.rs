@@ -297,7 +297,7 @@ impl GasPricerConfig {
 	}
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct MinerExtras {
 	pub author: Address,
 	pub engine_signer: Address,

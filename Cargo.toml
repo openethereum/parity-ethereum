@@ -122,7 +122,7 @@ path = "parity/main.rs"
 name = "parity"
 
 [profile.release]
-debug = false
+debug = true
 lto = true
 
 [workspace]

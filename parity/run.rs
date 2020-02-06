@@ -492,6 +492,7 @@ fn execute_impl<Cr, Rr>(
 	let fetch = fetch::Client::new(FETCH_FULL_NUM_DNS_THREADS).map_err(|e| format!("Error starting fetch client: {:?}", e))?;
 
 	let txpool_size = cmd.miner_options.pool_limits.max_count;
+	let mextras = cmd.miner_extras.clone();
 	// create miner
 	let miner = Arc::new(Miner::new(
 		cmd.miner_options,
@@ -502,6 +503,7 @@ fn execute_impl<Cr, Rr>(
 			account_utils::miner_local_accounts(account_provider.clone()),
 		)
 	));
+
 	miner.set_author(miner::Author::External(cmd.miner_extras.author));
 	miner.set_gas_range_target(cmd.miner_extras.gas_range_target);
 	miner.set_extra_data(cmd.miner_extras.extra_data);
@@ -512,12 +514,15 @@ fn execute_impl<Cr, Rr>(
 		));
 	}
 
+	trace!(target: "dp", "miner extras: {:?}", mextras);
 	let engine_signer = cmd.miner_extras.engine_signer;
 	if engine_signer != Default::default() {
+		trace!(target: "dp", "engine_signer is set: {:?}", engine_signer);
 		if let Some(author) = account_utils::miner_author(&cmd.spec, &cmd.dirs, &account_provider, engine_signer, &passwords)? {
+			trace!(target: "dp", "setting author to {:?}", author.address());
 			miner.set_author(author);
-		}
-	}
+		} else { trace!(target: "dp", "no author?");}
+	} else { trace!(target: "dp", "engine_signer is default, not setting author");}
 
 	// display warning if using --no-hardcoded-sync
 	if cmd.no_hardcoded_sync {

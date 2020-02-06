@@ -918,6 +918,7 @@ impl miner::MinerService for Miner {
 
 		match author_opt {
 			Some(Author::Sealer(signer)) => {
+				trace!(target: "dp", "[set_author] Author::Sealer");
 				if self.engine.sealing_state() != SealingState::External {
 					// Enable sealing
 					self.sealing.lock().enabled = true;
@@ -926,13 +927,18 @@ impl miner::MinerService for Miner {
 					// | (some `Engine`s call `EngineClient.update_sealing()`)                  |
 					// | Make sure to release the locks before calling that method.             |
 					// --------------------------------------------------------------------------
+					trace!(target: "dp", "[set_author] Author::Sealer, setting signer");
 					self.engine.set_signer(Some(signer));
 				} else {
 					warn!("Setting an EngineSigner while Engine does not require one.");
 				}
 			}
-			Some(Author::External(_address)) => (),
+			Some(Author::External(_address)) => {
+				trace!(target: "dp", "[set_author] Author::External with an address. Good.");
+				()
+			},
 			None => {
+				trace!(target: "dp", "[set_author] author_opt is none. wut?");
 				// Clear the author.
 				if self.engine.sealing_state() != SealingState::External {
 					// Disable sealing.
@@ -942,6 +948,7 @@ impl miner::MinerService for Miner {
 					// | (some `Engine`s call `EngineClient.update_sealing()`)                  |
 					// | Make sure to release the locks before calling that method.             |
 					// --------------------------------------------------------------------------
+					trace!(target: "dp", "[set_author] author_opt is none. wut? clearing signer");
 					self.engine.set_signer(None);
 				}
 			}
