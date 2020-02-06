@@ -16,6 +16,8 @@
 
 //! EIP-2124 implementation based on <https://eips.ethereum.org/EIPS/eip-2124>
 
+#![deny(missing_docs)]
+
 use crc::crc32;
 use ethereum_types::H256;
 use maplit::btreemap;
@@ -23,6 +25,7 @@ use rlp::{DecoderError, Rlp, RlpStream};
 use rlp_derive::{RlpDecodable, RlpEncodable};
 use std::collections::{BTreeMap, BTreeSet};
 
+/// Block number.
 pub type BlockNumber = u64;
 
 /// `CRC32` hash of all previous forks starting from genesis block.
@@ -81,9 +84,12 @@ pub struct ForkId {
 	pub next: BlockNumber
 }
 
+/// Reason for rejecting provided `ForkId`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum RejectReason {
+	/// Remote node is outdated and needs a software update.
 	RemoteStale,
+	/// Local node is on an incompatible chain or needs a sofwtare update.
 	LocalIncompatibleOrStale,
 }
 
