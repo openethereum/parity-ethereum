@@ -29,6 +29,8 @@
 /// Whenever you create or modify a record, use a signing function provided by
 /// the identity scheme to add the signature.
 
+/// This file is based on geth(https://github.com/ethereum/go-ethereum/pull/15585)
+
 use std::collections::{BTreeMap, HashMap};
 use rlp::{encode, Encodable, RlpStream};
 use std::net::IpAddr;
