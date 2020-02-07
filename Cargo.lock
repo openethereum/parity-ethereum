@@ -1159,7 +1159,7 @@ dependencies = [
  "primal",
  "rustc-hex 1.0.0",
  "serde_json",
- "static_assertions 0.3.3",
+ "static_assertions",
  "tempdir",
 ]
 
@@ -1955,7 +1955,7 @@ dependencies = [
  "libc",
  "rand 0.7.2",
  "rustc-hex 2.1.0",
- "static_assertions 1.1.0",
+ "static_assertions",
 ]
 
 [[package]]
@@ -4754,12 +4754,6 @@ dependencies = [
 
 [[package]]
 name = "static_assertions"
-version = "0.3.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b4f8de36da215253eb5f24020bfaa0646613b48bf7ebe36cdfa37c3b3b33b241"
-
-[[package]]
-name = "static_assertions"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
@@ -5362,7 +5356,7 @@ dependencies = [
  "byteorder",
  "crunchy 0.2.2",
  "rustc-hex 2.1.0",
- "static_assertions 1.1.0",
+ "static_assertions",
 ]
 
 [[package]]
