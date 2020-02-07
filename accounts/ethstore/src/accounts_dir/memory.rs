@@ -16,7 +16,6 @@
 
 use std::collections::HashMap;
 use parking_lot::RwLock;
-use itertools;
 use crypto::publickey::Address;
 
 use {SafeAccount, Error};
@@ -30,7 +29,7 @@ pub struct MemoryDirectory {
 
 impl KeyDirectory for MemoryDirectory {
 	fn load(&self) -> Result<Vec<SafeAccount>, Error> {
-		Ok(itertools::Itertools::flatten(self.accounts.read().values().cloned()).collect())
+		Ok(self.accounts.read().values().cloned().flatten().collect())
 	}
 
 	fn update(&self, account: SafeAccount) -> Result<SafeAccount, Error> {

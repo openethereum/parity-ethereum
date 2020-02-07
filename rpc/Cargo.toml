@@ -26,7 +26,7 @@ tempdir = "0.3"
 tiny-keccak = "1.4"
 tokio-timer = "0.1"
 transient-hashmap = "0.4"
-itertools = "0.5"
+itertools = "0.8.2"
 
 jsonrpc-core = "14.0.5"
 jsonrpc-derive = "14.0.5"
