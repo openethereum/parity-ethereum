@@ -711,17 +711,22 @@ fn header_signature(header: &Header, empty_steps_transition: u64) -> Result<Sign
 	.as_val::<H520>().map(Into::into)
 }
 
-// extracts the raw empty steps vec from the header seal. should only be called when there are 3 fields in the seal
-// (i.e. header.number() >= self.empty_steps_transition)
-fn header_empty_steps_raw(header: &Header) -> &[u8] {
-	header.seal().get(2).expect("was checked with verify_block_basic; has 3 fields; qed")
+// Extracts the empty steps from the header seal. Returns data only when there are 3 fields in the seal
+// (i.e. header.number() >= self.empty_steps_transition).
+fn header_empty_steps_raw(header: &Header) -> Option<&[u8]> {
+	header.seal().get(2).map(Vec::as_slice )
 }
 
-// extracts the empty steps from the header seal. should only be called when there are 3 fields in the seal
+// Extracts the empty steps from the header seal. Returns data only when there are 3 fields in the seal
 // (i.e. header.number() >= self.empty_steps_transition).
 fn header_empty_steps(header: &Header) -> Result<Vec<EmptyStep>, ::rlp::DecoderError> {
-	let empty_steps = Rlp::new(header_empty_steps_raw(header)).as_list::<SealedEmptyStep>()?;
-	Ok(empty_steps.into_iter().map(|s| EmptyStep::from_sealed(s, header.parent_hash())).collect())
+	header_empty_steps_raw(header).map_or(Ok(vec![]), |raw| {
+		let empty_steps = Rlp::new(raw).as_list::<SealedEmptyStep>()?;
+		Ok(empty_steps
+			.into_iter()
+			.map(|s| EmptyStep::from_sealed(s, header.parent_hash()))
+			.collect())
+	})
 }
 
 // gets the signers of empty step messages for the given header, does not include repeated signers
@@ -779,7 +784,7 @@ fn verify_external(header: &Header, validators: &dyn ValidatorSet, empty_steps_t
 	let correct_proposer = validators.get(header.parent_hash(), header_step as usize);
 	let is_invalid_proposer = *header.author() != correct_proposer || {
 		let empty_steps_rlp = if header.number() >= empty_steps_transition {
-			Some(header_empty_steps_raw(header))
+			header_empty_steps_raw(header)
 		} else {
 			None
 		};
