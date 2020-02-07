@@ -122,12 +122,6 @@ $ git checkout beta
 bash <(curl https://get.parity.io -L)
 ```
 
-The one-line installer always defaults to the latest beta release. To install a stable release, run:
-
-```bash
-bash <(curl https://get.parity.io -L) -r stable
-```
-
 ### 3.4 Starting Parity Ethereum <a id="chapter-0034"></a>
 
 #### Manually
