@@ -16,9 +16,6 @@
 
 //! Block verification utilities.
 
-// The MallocSizeOf derive looks for this in the root
-use parity_util_mem as malloc_size_of;
-
 #[cfg(feature = "bench" )]
 pub mod verification;
 #[cfg(not(feature = "bench" ))]
