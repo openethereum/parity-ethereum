@@ -14,7 +14,7 @@ vm = { path = "../../vm" }
 wasm = { path = "../" }
 clap = "2.24"
 env_logger = "0.5"
-rustc-hex = "1"
+rustc-hex = "1.0"
 
 [features]
 default = ["ethereum-types/std"]

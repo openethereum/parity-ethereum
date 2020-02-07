@@ -20,7 +20,7 @@ ethjson = { path = "../../../json" }
 parity-crypto = { version = "0.4.2", features = ["publickey"] }
 engine = { path = "../../engine" }
 io = { package = "ethcore-io", path = "../../../util/io" }
-itertools = "0.5"
+itertools = "0.8.2"
 keccak-hash = "0.4.0"
 lazy_static = "1.3.0"
 log = "0.4"

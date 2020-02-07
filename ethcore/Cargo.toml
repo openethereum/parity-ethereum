@@ -28,7 +28,7 @@ evm = { path = "evm" }
 executive-state = { path = "executive-state" }
 futures = "0.1"
 hash-db = "0.15.0"
-itertools = "0.5"
+itertools = "0.8.2"
 journaldb = { path = "../util/journaldb" }
 keccak-hash = "0.4.0"
 kvdb = "0.4.0"
@@ -50,7 +50,7 @@ rand_xorshift = "0.2"
 rayon = "1.1"
 registrar = { path = "../util/registrar" }
 rlp = "0.4.0"
-rustc-hex = "2"
+rustc-hex = "2.1.0"
 scopeguard = "1.0.0"
 serde = "1.0"
 serde_derive = "1.0"

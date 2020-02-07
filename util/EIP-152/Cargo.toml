@@ -15,7 +15,7 @@ arrayref = "0.3.5"
 
 [dev-dependencies]
 criterion = "0.3"
-rustc-hex = "2.0.1"
+rustc-hex = "2.1.0"
 
 [[bench]]
 name = "bench"

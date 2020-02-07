@@ -25,7 +25,7 @@ ethcore-io = { path = "../../util/io" }
 ethereum-types = "0.8.0"
 ethtrie  = { package = "patricia-trie-ethereum", path = "../../util/patricia-trie-ethereum" }
 hash-db = "0.15.0"
-itertools = "0.5"
+itertools = "0.8.2"
 journaldb = { path = "../../util/journaldb" }
 keccak-hash = "0.4.0"
 keccak-hasher = { path = "../../util/keccak-hasher" }
