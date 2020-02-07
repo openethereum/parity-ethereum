@@ -42,7 +42,7 @@ By default, Parity Ethereum runs a JSON-RPC HTTP server on port `:8545` and a We
 
 If you run into problems while using Parity Ethereum, check out the [wiki for documentation](https://wiki.parity.io/), feel free to [file an issue in this repository](https://github.com/paritytech/parity-ethereum/issues/new), or hop on our [Gitter](https://gitter.im/paritytech/parity) or [Riot](https://riot.im/app/#/group/+parity:matrix.parity.io) chat room to ask a question. We are glad to help! **For security-critical issues**, please refer to the security policy outlined in [SECURITY.md](SECURITY.md).
 
-Parity Ethereum's current beta-release is 2.6. You can download it at [the releases page](https://github.com/paritytech/parity-ethereum/releases) or follow the instructions below to build from source. Please, mind the [CHANGELOG.md](CHANGELOG.md) for a list of all changes between different versions.
+You can download Parity Ethereum's latest release at [the releases page](https://github.com/paritytech/parity-ethereum/releases) or follow the instructions below to build from source. Please, mind the [CHANGELOG.md](CHANGELOG.md) for a list of all changes between different versions.
 
 ## 3. Building <a id="chapter-003"></a>
 
@@ -104,16 +104,10 @@ Note, when compiling a crate and you receive errors, it's in most cases your out
 $ cargo clean
 ```
 
-This always compiles the latest nightly builds. If you want to build stable or beta, do a
+This always compiles the latest nightly builds. If you want to build stable, do a
 
 ```bash
 $ git checkout stable
-```
-
-or
-
-```bash
-$ git checkout beta
 ```
 
 ### 3.3 Simple One-Line Installer for Mac and Linux <a id="chapter-0033"></a>
