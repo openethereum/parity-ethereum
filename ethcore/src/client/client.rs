@@ -29,7 +29,6 @@ use bytes::ToPretty;
 use ethereum_types::{Address, H256, H264, U256};
 use hash::keccak;
 use hash_db::EMPTY_PREFIX;
-use itertools::Itertools;
 use kvdb::{DBTransaction, DBValue, KeyValueDB};
 use parking_lot::{Mutex, RwLock};
 use rand::rngs::OsRng;
@@ -2355,7 +2354,7 @@ impl PrepareOpenBlock for Client {
 			.unwrap_or_else(Vec::new)
 			.into_iter()
 			.take(engine.maximum_uncle_count(open_block.header.number()))
-			.foreach(|h| {
+			.for_each(|h| {
 				open_block.push_uncle(h.decode().expect("decoding failure")).expect("pushing maximum_uncle_count;
 												open_block was just created;
 												push_uncle is not ok only if more than maximum_uncle_count is pushed;

@@ -11,7 +11,7 @@ num_cpus = "1.6"
 rustc-hex = "1.0"
 serde = "1.0"
 serde_derive = "1.0"
-parking_lot = "0.9"
+parking_lot = "0.10.0"
 ethstore = { path = "../" }
 ethkey = { path = "../../ethkey" }
 parity-crypto = { version = "0.4.2", features = ["publickey"] }

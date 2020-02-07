@@ -41,8 +41,8 @@ futures = "0.1"
 journaldb = { path = "util/journaldb" }
 jsonrpc-core = "14.0.3"
 keccak-hash = "0.4.0"
-kvdb = "0.3.1"
-kvdb-rocksdb = "0.4.1"
+kvdb = "0.4.0"
+kvdb-rocksdb = "0.5.0"
 log = "0.4"
 migration-rocksdb = { path = "util/migration-rocksdb" }
 node-filter = { path = "ethcore/node-filter" }
@@ -59,9 +59,9 @@ parity-path = "0.1"
 parity-rpc = { path = "rpc" }
 parity-runtime = { path = "util/runtime" }
 parity-updater = { path = "updater" }
-parity-util-mem = { version = "0.3.0", features = ["jemalloc-global"] }
+parity-util-mem = { version = "0.5.1", features = ["jemalloc-global"] }
 parity-version = { path = "util/version" }
-parking_lot = "0.9"
+parking_lot = "0.10.0"
 regex = "1.0"
 registrar = { path = "util/registrar" }
 rlp = "0.4.0"
@@ -75,7 +75,7 @@ snapshot = { path = "ethcore/snapshot" }
 spec = { path = "ethcore/spec" }
 term_size = "0.3"
 textwrap = "0.9"
-toml = "0.4"
+toml = "0.5.6"
 verification = { path = "ethcore/verification" }
 
 [build-dependencies]

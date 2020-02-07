@@ -12,16 +12,16 @@ ethereum-types = "0.8.0"
 ethjson = { path = "../../json" }
 ethtrie = { package = "patricia-trie-ethereum", path = "../../util/patricia-trie-ethereum" }
 hash-db = "0.15.0"
-itertools = "0.8"
+itertools = "0.8.2"
 keccak-hash = "0.4.0"
 keccak-hasher = { path = "../../util/keccak-hasher" }
-kvdb = "0.3.1"
+kvdb = "0.4.0"
 log = "0.4"
 parity-bytes = "0.1.0"
 rlp = "0.4"
-rustc-hex = "1"
+rustc-hex = "1.0"
 serde = { version = "1.0", features = ["derive"] }
-trie-db = "0.18.0"
+trie-db = "0.20.0"
 triehash = { package = "triehash-ethereum", version = "0.2",  path = "../../util/triehash-ethereum" }
 
 [dev-dependencies]
