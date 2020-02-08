@@ -27,7 +27,7 @@ use hash_db::{HashDB, Prefix, EMPTY_PREFIX};
 use keccak_hasher::KeccakHasher;
 use kvdb::{KeyValueDB, DBTransaction, DBValue};
 use log::trace;
-use malloc_size_of::{MallocSizeOf, allocators::new_malloc_size_ops};
+use parity_util_mem::{MallocSizeOf, allocators::new_malloc_size_ops};
 use parity_bytes::Bytes;
 use rlp::{encode, decode};
 

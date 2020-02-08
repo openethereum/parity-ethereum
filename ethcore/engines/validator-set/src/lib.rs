@@ -37,8 +37,6 @@ use engine::SystemCall;
 use ethereum_types::{H256, Address};
 use ethjson::spec::ValidatorSet as ValidatorSpec;
 use machine::Machine;
-// The MallocSizeOf derive looks for this in the root
-use parity_util_mem as malloc_size_of;
 use parity_bytes::Bytes;
 
 #[cfg(any(test, feature = "test-helpers"))]

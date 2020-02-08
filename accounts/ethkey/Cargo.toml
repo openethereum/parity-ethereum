@@ -10,4 +10,4 @@ log = "0.4"
 serde = "1.0"
 serde_derive = "1.0"
 parity-crypto = { version = "0.4.2", features = ["publickey"] }
-parity-wordlist = "1.3"
+parity-wordlist = "1.3.1"

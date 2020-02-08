@@ -69,7 +69,7 @@ pub type NodeBytes = [u8; NODE_BYTES];
 pub type NodeWords = [u32; NODE_WORDS];
 pub type NodeDwords = [u64; NODE_DWORDS];
 
-assert_eq_size!(node; Node, NodeBytes, NodeWords, NodeDwords);
+assert_eq_size!(Node, NodeBytes, NodeWords, NodeDwords);
 
 #[repr(C)]
 pub union Node {

@@ -45,7 +45,7 @@ use ethereum_types::{U256, Address};
 use ethcore::{json_tests, test_helpers::TrieSpec};
 use spec;
 use serde::Deserialize;
-use vm::{ActionParams, CallType};
+use vm::{ActionParams, ActionType};
 
 mod info;
 mod display;
@@ -314,7 +314,7 @@ fn run_call<T: Informant>(args: Args, informant: T) {
 	}
 
 	let mut params = ActionParams::default();
-	params.call_type = if code.is_none() { CallType::Call } else { CallType::None };
+	params.action_type = if code.is_none() { ActionType::Call } else { ActionType::Create };
 	params.code = code.map(Arc::new);
 	params.code_address = to;
 	params.address = to;

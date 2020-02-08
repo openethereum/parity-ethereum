@@ -20,7 +20,6 @@ use std::{
 	collections::{HashMap, hash_map::Entry},
 	io,
 	sync::Arc,
-	time::Duration,
 };
 
 use ethereum_types::H256;
@@ -29,7 +28,7 @@ use hash_db::{HashDB, Prefix, EMPTY_PREFIX};
 use keccak_hasher::KeccakHasher;
 use kvdb::{KeyValueDB, DBTransaction, DBValue};
 use log::trace;
-use malloc_size_of::{MallocSizeOf, allocators::new_malloc_size_ops};
+use parity_util_mem::{MallocSizeOf, allocators::new_malloc_size_ops};
 use parity_bytes::Bytes;
 use parking_lot::RwLock;
 use rlp::{Rlp, RlpStream, encode, decode, DecoderError, Decodable, Encodable};
@@ -294,7 +293,7 @@ impl JournalDB for OverlayRecentDB {
 			let pkey = &key[..DB_PREFIX_LEN];
 			self.backing
 				.get_by_prefix(self.column, &pkey)
-				.map(|b| b.to_vec())
+				.map(|b| b.into_vec())
 		})
 	}
 

@@ -5,8 +5,8 @@ echo "________Running test-linux.sh________"
 set -e # fail on any error
 set -u # treat unset variables as error
 
-export CC="sccache gcc"
-export CXX="sccache g++"
+export CC="sccache "$CC
+export CXX="sccache "$CXX
 FEATURES="json-tests"
 
 OPTIONS="--release"
