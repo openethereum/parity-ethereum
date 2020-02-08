@@ -2696,7 +2696,8 @@ dependencies = [
 [[package]]
 name = "libsecp256k1"
 version = "0.3.5"
-source = "git+https://github.com/paritytech/libsecp256k1.git#d0eedf2569bea15b453d53fa53ef95302ba1d59e"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1fc1e2c808481a63dc6da2074752fdd4336a3c8fcc68b83db6f1fd5224ae7962"
 dependencies = [
  "arrayref",
  "crunchy 0.2.2",
@@ -3239,8 +3240,9 @@ checksum = "fa5168b4cf41f3835e4bc6ffb32f51bc9365dc50cb351904595b3931d917fd0c"
 
 [[package]]
 name = "parity-crypto"
-version = "0.4.2"
-source = "git+https://github.com/paritytech/parity-common#4c087c0e926a5bdfc495097aa6aa1edc7bee35e4"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e4015edcfb0304c3b32f6c4ad68fb8b0a14f1d7d250bd0c6b9cd312d38038000"
 dependencies = [
  "aes",
  "aes-ctr",
@@ -4039,7 +4041,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "556d3a1ca6600bfcbab7c7c91ccb085ac7fbbcd70e008a98742e7847f4f7bcef"
 dependencies = [
  "autocfg",
- "rand_core 0.2.2",
+ "rand_core 0.3.1",
 ]
 
 [[package]]
@@ -4091,7 +4093,7 @@ version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7b40677c7be09ae76218dc623efbf7b18e34bced3f38883af07bb75630a21bc4"
 dependencies = [
- "rand_core 0.2.2",
+ "rand_core 0.3.1",
 ]
 
 [[package]]
@@ -4163,7 +4165,7 @@ version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cbf7e9e623549b0e21f6e97cf8ecf247c1a8fd2e8a992ae265314300b2455d5c"
 dependencies = [
- "rand_core 0.2.2",
+ "rand_core 0.3.1",
 ]
 
 [[package]]
