@@ -196,7 +196,7 @@ impl From<secp256k1::Error> for Error {
 	fn from(e: secp256k1::Error) -> Self {
 		match e {
 			secp256k1::Error::InvalidSecretKey => Error::EthKey("Invalid SecretKey".into()),
-			_ => Error::EthKey("Unknown crypto error".into())
+			_ => Error::EthKey(format!("Crypto error: {}", e).into())
 		}
 	}
 }
