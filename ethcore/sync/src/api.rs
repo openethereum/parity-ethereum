@@ -15,7 +15,7 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::{Arc, mpsc, atomic};
-use std::collections::{HashMap, BTreeMap};
+use std::collections::{BTreeSet, HashMap, BTreeMap};
 use std::io;
 use std::ops::RangeInclusive;
 use std::time::Duration;
@@ -27,10 +27,11 @@ use crate::sync_io::NetSyncIo;
 use crate::light_sync::{self, SyncInfo};
 use crate::private_tx::PrivateTxHandler;
 use crate::chain::{
+	fork_filter::ForkFilterApi,
 	sync_packet::SyncPacket::{PrivateTransactionPacket, SignedPrivateTransactionPacket},
-	ChainSyncApi, SyncState, SyncStatus as EthSyncStatus, ETH_PROTOCOL_VERSION_62,
-	ETH_PROTOCOL_VERSION_63, PAR_PROTOCOL_VERSION_1, PAR_PROTOCOL_VERSION_2,
-	PAR_PROTOCOL_VERSION_3, PAR_PROTOCOL_VERSION_4,
+	ChainSyncApi, SyncState, SyncStatus as EthSyncStatus,
+	ETH_PROTOCOL_VERSION_63, ETH_PROTOCOL_VERSION_64,
+	PAR_PROTOCOL_VERSION_1, PAR_PROTOCOL_VERSION_2, PAR_PROTOCOL_VERSION_3, PAR_PROTOCOL_VERSION_4,
 };
 
 use bytes::Bytes;
@@ -268,6 +269,8 @@ pub struct Params {
 	pub executor: Executor,
 	/// Blockchain client.
 	pub chain: Arc<dyn BlockChainClient>,
+	/// Forks.
+	pub forks: BTreeSet<BlockNumber>,
 	/// Snapshot service.
 	pub snapshot_service: Arc<dyn SnapshotService>,
 	/// Private tx service.
@@ -348,10 +351,13 @@ impl EthSync {
 			})
 		};
 
+		let fork_filter = ForkFilterApi::new(&*params.chain, params.forks);
+
 		let (priority_tasks_tx, priority_tasks_rx) = mpsc::channel();
 		let sync = ChainSyncApi::new(
 			params.config,
 			&*params.chain,
+			fork_filter,
 			params.private_tx_handler.as_ref().cloned(),
 			priority_tasks_rx,
 		);
@@ -605,7 +611,7 @@ impl ChainNotify for EthSync {
 			_ => {},
 		}
 
-		self.network.register_protocol(self.eth_handler.clone(), self.subprotocol_name, &[ETH_PROTOCOL_VERSION_62, ETH_PROTOCOL_VERSION_63])
+		self.network.register_protocol(self.eth_handler.clone(), self.subprotocol_name, &[ETH_PROTOCOL_VERSION_63, ETH_PROTOCOL_VERSION_64])
 			.unwrap_or_else(|e| warn!("Error registering ethereum protocol: {:?}", e));
 		// register the warp sync subprotocol
 		self.network.register_protocol(self.eth_handler.clone(), WARP_SYNC_PROTOCOL_ID, &[PAR_PROTOCOL_VERSION_1, PAR_PROTOCOL_VERSION_2, PAR_PROTOCOL_VERSION_3, PAR_PROTOCOL_VERSION_4])

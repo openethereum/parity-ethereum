@@ -14,9 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::sync::{Arc, mpsc};
+use std::{collections::BTreeSet, sync::{Arc, mpsc}};
 
 use client_traits::{BlockChainClient, ChainNotify};
+use types::BlockNumber;
 use sync::{self, SyncConfig, NetworkConfiguration, Params, ConnectionFilter};
 use snapshot::SnapshotService;
 use ethcore_private_tx::PrivateStateDB;
@@ -38,6 +39,7 @@ pub fn sync(
 	executor: Executor,
 	network_config: NetworkConfiguration,
 	chain: Arc<dyn BlockChainClient>,
+	forks: BTreeSet<BlockNumber>,
 	snapshot_service: Arc<dyn SnapshotService>,
 	private_tx_handler: Option<Arc<dyn PrivateTxHandler>>,
 	private_state: Option<Arc<PrivateStateDB>>,
@@ -49,6 +51,7 @@ pub fn sync(
 		config,
 		executor,
 		chain,
+		forks,
 		provider,
 		snapshot_service,
 		private_tx_handler,

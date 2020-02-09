@@ -17,7 +17,7 @@
 //! Parameters for a block chain.
 
 use std::{
-	collections::BTreeMap,
+	collections::{BTreeMap, BTreeSet},
 	convert::TryFrom,
 	fmt,
 	io::Read,
@@ -47,6 +47,7 @@ use instant_seal::{InstantSeal, InstantSealParams};
 use keccak_hash::{KECCAK_NULL_RLP, keccak};
 use log::{trace, warn};
 use machine::{executive::Executive, Machine, substate::Substate};
+use maplit::btreeset;
 use null_engine::NullEngine;
 use pod::PodState;
 use rlp::{Rlp, RlpStream};
@@ -218,6 +219,8 @@ pub struct Spec {
 	pub seal_rlp: Bytes,
 	/// Hardcoded synchronization. Allows the light client to immediately jump to a specific block.
 	pub hardcoded_sync: Option<SpecHardcodedSync>,
+	/// List of hard forks in the network.
+	pub hard_forks: BTreeSet<BlockNumber>,
 	/// Contract constructors to be executed on genesis.
 	pub constructors: Vec<(Address, Bytes)>,
 	/// May be pre-populated if we know this in advance.
@@ -280,7 +283,7 @@ fn load_from(spec_params: SpecParams, s: ethjson::spec::Spec) -> Result<Spec, Er
 
 	let hardcoded_sync = s.hardcoded_sync.map(Into::into);
 
-	let engine = Spec::engine(spec_params, s.engine, params, builtins);
+	let (engine, hard_forks) = Spec::engine(spec_params, s.engine, params, builtins);
 	let author = g.author;
 	let timestamp = g.timestamp;
 	let difficulty = g.difficulty;
@@ -317,6 +320,7 @@ fn load_from(spec_params: SpecParams, s: ethjson::spec::Spec) -> Result<Spec, Er
 		timestamp,
 		extra_data: g.extra_data,
 		seal_rlp,
+		hard_forks,
 		hardcoded_sync,
 		constructors,
 		genesis_state,
@@ -347,12 +351,64 @@ impl Spec {
 		engine_spec: ethjson::spec::Engine,
 		params: CommonParams,
 		builtins: BTreeMap<Address, Builtin>,
-	) -> Arc<dyn Engine> {
+	) -> (Arc<dyn Engine>, BTreeSet<BlockNumber>) {
+		let mut hard_forks = btreeset![
+			params.eip150_transition,
+			params.eip160_transition,
+			params.eip161abc_transition,
+			params.eip161d_transition,
+			params.eip98_transition,
+			params.eip658_transition,
+			params.eip155_transition,
+			params.validate_receipts_transition,
+			params.validate_chain_id_transition,
+			params.eip140_transition,
+			params.eip210_transition,
+			params.eip211_transition,
+			params.eip214_transition,
+			params.eip145_transition,
+			params.eip1052_transition,
+			params.eip1283_transition,
+			params.eip1283_disable_transition,
+			params.eip1283_reenable_transition,
+			params.eip1014_transition,
+			params.eip1706_transition,
+			params.eip1344_transition,
+			params.eip1884_transition,
+			params.eip2028_transition,
+			params.eip2200_advance_transition,
+			params.dust_protection_transition,
+			params.wasm_activation_transition,
+			params.kip4_transition,
+			params.kip6_transition,
+			params.max_code_size_transition,
+			params.transaction_permission_contract_transition,
+		];
+		// BUG: Rinkeby has homestead transition at block 1 but we can't reflect that in specs for non-Ethash networks
+		if params.network_id == 0x4 {
+			hard_forks.insert(1);
+		}
+
 		let machine = Self::machine(&engine_spec, params, builtins);
 
-		match engine_spec {
+		let engine: Arc<dyn Engine> = match engine_spec {
 			ethjson::spec::Engine::Null(null) => Arc::new(NullEngine::new(null.params.into(), machine)),
-			ethjson::spec::Engine::Ethash(ethash) => Arc::new(Ethash::new(spec_params.cache_dir, ethash.params.into(), machine, spec_params.optimization_setting)),
+			ethjson::spec::Engine::Ethash(ethash) => {
+				// Specific transitions for Ethash-based networks
+				for block in &[ethash.params.homestead_transition, ethash.params.dao_hardfork_transition] {
+					if let Some(block) = *block {
+						hard_forks.insert(block.into());
+					}
+				}
+
+				// Ethereum's difficulty bomb delay is a fork too
+				if let Some(delays) = &ethash.params.difficulty_bomb_delays {
+					for delay in delays.keys().copied() {
+						hard_forks.insert(delay.into());
+					}
+				}
+				Arc::new(Ethash::new(spec_params.cache_dir, ethash.params.into(), machine, spec_params.optimization_setting))
+			},
 			ethjson::spec::Engine::InstantSeal(Some(instant_seal)) => Arc::new(InstantSeal::new(instant_seal.params.into(), machine)),
 			ethjson::spec::Engine::InstantSeal(None) => Arc::new(InstantSeal::new(InstantSealParams::default(), machine)),
 			ethjson::spec::Engine::BasicAuthority(basic_authority) => Arc::new(BasicAuthority::new(basic_authority.params.into(), machine)),
@@ -360,7 +416,12 @@ impl Spec {
 								.expect("Failed to start Clique consensus engine."),
 			ethjson::spec::Engine::AuthorityRound(authority_round) => AuthorityRound::new(authority_round.params.into(), machine)
 				.expect("Failed to start AuthorityRound consensus engine."),
-		}
+		};
+
+		// Dummy value is a filler for non-existent transitions
+		hard_forks.remove(&BlockNumber::max_value());
+
+		(engine, hard_forks)
 	}
 
 	/// Get common blockchain parameters.
