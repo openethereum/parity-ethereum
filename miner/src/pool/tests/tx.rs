@@ -47,7 +47,7 @@ impl Tx {
 	}
 
 	pub fn signed(self) -> SignedTransaction {
-		let keypair = Random.generate().unwrap();
+		let keypair = Random.generate();
 		self.unsigned().sign(keypair.secret(), None)
 	}
 
@@ -57,7 +57,7 @@ impl Tx {
 	}
 
 	pub fn signed_triple(mut self) -> (SignedTransaction, SignedTransaction, SignedTransaction) {
-		let keypair = Random.generate().unwrap();
+		let keypair = Random.generate();
 		let tx1 = self.clone().unsigned().sign(keypair.secret(), None);
 		self.nonce += 1;
 		let tx2 = self.clone().unsigned().sign(keypair.secret(), None);
@@ -68,7 +68,7 @@ impl Tx {
 	}
 
 	pub fn signed_replacement(mut self) -> (SignedTransaction, SignedTransaction) {
-		let keypair = Random.generate().unwrap();
+		let keypair = Random.generate();
 		let tx1 = self.clone().unsigned().sign(keypair.secret(), None);
 		self.gas_price += 1;
 		let tx2 = self.unsigned().sign(keypair.secret(), None);
@@ -88,7 +88,7 @@ impl Tx {
 	}
 
 	pub fn big_one(self) -> SignedTransaction {
-		let keypair = Random.generate().unwrap();
+		let keypair = Random.generate();
 		let tx = Transaction {
 			action: transaction::Action::Create,
 			value: U256::from(100),

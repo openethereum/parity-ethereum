@@ -364,7 +364,7 @@ mod test {
 		// given
 		let mut dir = env::temp_dir();
 		dir.push("ethstore_should_create_new_account");
-		let keypair = Random.generate().unwrap();
+		let keypair = Random.generate();
 		let password = "hello world".into();
 		let directory = RootDiskDirectory::create(dir.clone()).unwrap();
 
@@ -385,7 +385,7 @@ mod test {
 		// given
 		let mut dir = env::temp_dir();
 		dir.push("ethstore_should_handle_duplicate_filenames");
-		let keypair = Random.generate().unwrap();
+		let keypair = Random.generate();
 		let password = "hello world".into();
 		let directory = RootDiskDirectory::create(dir.clone()).unwrap();
 
@@ -472,7 +472,7 @@ mod test {
 			15130871412783076140
 		);
 
-		let keypair = Random.generate().unwrap();
+		let keypair = Random.generate();
 		let password = "test pass".into();
 		let account = SafeAccount::create(&keypair, [0u8; 16], &password, 1024, "Test".to_owned(), "{}".to_owned());
 		directory.insert(account.unwrap()).expect("Account should be inserted ok");
