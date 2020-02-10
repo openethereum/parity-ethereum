@@ -18,7 +18,6 @@ use std::sync::Arc;
 use std::collections::HashMap;
 
 use crate::chain::sync_packet::{PacketInfo, SyncPacket};
-use crate::ETH_PROTOCOL;
 
 use bytes::Bytes;
 use client_traits::BlockChainClient;
@@ -55,8 +54,6 @@ pub trait SyncIo {
 	fn peer_enode(&self, peer_id: PeerId) -> Option<String>;
 	/// Returns information on p2p session
 	fn peer_session_info(&self, peer_id: PeerId) -> Option<SessionInfo>;
-	/// Maximum mutually supported ETH protocol version
-	fn eth_protocol_version(&self, peer_id: PeerId) -> u8;
 	/// Maximum mutually supported version of a gien protocol.
 	fn protocol_version(&self, protocol: &ProtocolId, peer_id: PeerId) -> u8;
 	/// Returns if the chain block queue empty
@@ -140,10 +137,6 @@ impl<'s> SyncIo for NetSyncIo<'s> {
 
 	fn peer_session_info(&self, peer_id: PeerId) -> Option<SessionInfo> {
 		self.network.session_info(peer_id)
-	}
-
-	fn eth_protocol_version(&self, peer_id: PeerId) -> u8 {
-		self.network.protocol_version(ETH_PROTOCOL, peer_id).unwrap_or(0)
 	}
 
 	fn protocol_version(&self, protocol: &ProtocolId, peer_id: PeerId) -> u8 {
