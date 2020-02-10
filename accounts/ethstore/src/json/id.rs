@@ -27,7 +27,7 @@ pub struct Uuid([u8; 16]);
 
 impl From<[u8; 16]> for Uuid {
 	fn from(uuid: [u8; 16]) -> Self {
-		Uuid(uuid)
+		Self(uuid)
 	}
 }
 
@@ -56,7 +56,7 @@ impl Into<[u8; 16]> for Uuid {
 
 impl fmt::Display for Uuid {
 	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-		let s: String = (self as &Uuid).into();
+		let s: String = (self as &Self).into();
 		write!(f, "{}", s)
 	}
 }
@@ -76,13 +76,13 @@ impl str::FromStr for Uuid {
 	type Err = Error;
 
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
-		let parts: Vec<&str> = s.split("-").collect();
+		let parts: Vec<&str> = s.split('-').collect();
 
 		if parts.len() != 5 {
 			return Err(Error::InvalidUuid);
 		}
 
-		let mut uuid = [0u8; 16];
+		let mut uuid = [0_u8; 16];
 
 		copy_into(parts[0], &mut uuid[0..4])?;
 		copy_into(parts[1], &mut uuid[4..6])?;
@@ -90,13 +90,13 @@ impl str::FromStr for Uuid {
 		copy_into(parts[3], &mut uuid[8..10])?;
 		copy_into(parts[4], &mut uuid[10..16])?;
 
-		Ok(Uuid(uuid))
+		Ok(Self(uuid))
 	}
 }
 
 impl From<&'static str> for Uuid {
 	fn from(s: &'static str) -> Self {
-		s.parse().expect(&format!("invalid string literal for {}: '{}'", stringify!(Self), s))
+		s.parse().unwrap_or_else(|e| panic!("invalid string literal for {}: '{}': {}", stringify!(Self), s, e))
 	}
 }
 

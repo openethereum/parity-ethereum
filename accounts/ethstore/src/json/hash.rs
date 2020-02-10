@@ -83,14 +83,15 @@ macro_rules! impl_hash {
 			type Err = Error;
 
 			fn from_str(value: &str) -> Result<Self, Self::Err> {
-				match value.from_hex() {
-					Ok(ref hex) if hex.len() == $size => {
-						let mut hash = [0u8; $size];
-						hash.clone_from_slice(hex);
-						Ok($name(hash))
+				if let Ok(hex) = value.from_hex() {
+					if hex.len() == $size {
+						let mut hash = [0_u8; $size];
+						hash.copy_from_slice(&hex);
+						return Ok($name(hash));
 					}
-					_ => Err(Error::InvalidH256),
 				}
+
+				Err(Error::InvalidH256)
 			}
 		}
 

@@ -31,15 +31,15 @@ pub struct PresaleWallet {
 
 impl From<json::PresaleWallet> for PresaleWallet {
 	fn from(wallet: json::PresaleWallet) -> Self {
-		let mut iv = [0u8; 16];
+		let mut iv = [0_u8; 16];
 		iv.copy_from_slice(&wallet.encseed[..16]);
 
-		let mut ciphertext = vec![];
+		let mut ciphertext = Vec::new();
 		ciphertext.extend_from_slice(&wallet.encseed[16..]);
 
-		PresaleWallet {
-			iv: iv,
-			ciphertext: ciphertext,
+		Self {
+			iv,
+			ciphertext,
 			address: Address::from(wallet.address),
 		}
 	}
@@ -51,12 +51,12 @@ impl PresaleWallet {
 		let file = fs::File::open(path)?;
 		let presale = json::PresaleWallet::load(file)
 			.map_err(|e| Error::InvalidKeyFile(format!("{}", e)))?;
-		Ok(PresaleWallet::from(presale))
+		Ok(Self::from(presale))
 	}
 
 	/// Decrypt the wallet.
 	pub fn decrypt(&self, password: &Password) -> Result<KeyPair, Error> {
-		let mut derived_key = [0u8; 32];
+		let mut derived_key = [0_u8; 32];
 		let salt = pbkdf2::Salt(password.as_bytes());
 		let sec = pbkdf2::Secret(password.as_bytes());
 		pbkdf2::sha256(2000, salt, sec, &mut derived_key);

@@ -38,7 +38,7 @@ pub struct Crypto {
 
 impl From<json::Crypto> for Crypto {
 	fn from(json: json::Crypto) -> Self {
-		Crypto {
+		Self {
 			cipher: json.cipher.into(),
 			ciphertext: json.ciphertext.into(),
 			kdf: json.kdf.into(),
@@ -49,7 +49,7 @@ impl From<json::Crypto> for Crypto {
 
 impl From<Crypto> for json::Crypto {
 	fn from(c: Crypto) -> Self {
-		json::Crypto {
+		Self {
 			cipher: c.cipher.into(),
 			ciphertext: c.ciphertext.into(),
 			kdf: c.kdf.into(),
@@ -75,7 +75,7 @@ impl From<Crypto> for String {
 impl Crypto {
 	/// Encrypt account secret
 	pub fn with_secret(secret: &Secret, password: &Password, iterations: u32) -> Result<Self, crypto::Error> {
-		Crypto::with_plain(secret.as_ref(), password, iterations)
+		Self::with_plain(secret.as_ref(), password, iterations)
 	}
 
 	/// Encrypt custom plain data
@@ -99,9 +99,9 @@ impl Crypto {
 		// KECCAK(DK[16..31] ++ <ciphertext>), where DK[16..31] - derived_right_bits
 		let mac = crypto::derive_mac(&derived_right_bits, &*ciphertext).keccak256();
 
-		Ok(Crypto {
+		Ok(Self {
 			cipher: Cipher::Aes128Ctr(Aes128Ctr {
-				iv: iv,
+				iv,
 			}),
 			ciphertext: ciphertext.into_vec(),
 			kdf: Kdf::Pbkdf2(Pbkdf2 {
@@ -110,7 +110,7 @@ impl Crypto {
 				c: iterations,
 				prf: Prf::HmacSha256,
 			}),
-			mac: mac,
+			mac,
 		})
 	}
 
@@ -131,9 +131,9 @@ impl Crypto {
 	}
 
 	fn do_decrypt(&self, password: &Password, expected_len: usize) -> Result<Vec<u8>, Error> {
-		let (derived_left_bits, derived_right_bits) = match self.kdf {
-			Kdf::Pbkdf2(ref params) => crypto::derive_key_iterations(password.as_bytes(), &params.salt, params.c),
-			Kdf::Scrypt(ref params) => crypto::scrypt::derive_key(password.as_bytes(), &params.salt, params.n, params.p, params.r)?,
+		let (derived_left_bits, derived_right_bits) = match &self.kdf {
+			Kdf::Pbkdf2(params) => crypto::derive_key_iterations(password.as_bytes(), &params.salt, params.c),
+			Kdf::Scrypt(params) => crypto::scrypt::derive_key(password.as_bytes(), &params.salt, params.n, params.p, params.r)?,
 		};
 
 		let mac = crypto::derive_mac(&derived_right_bits, &self.ciphertext).keccak256();
@@ -144,8 +144,8 @@ impl Crypto {
 
 		let mut plain: SmallVec<[u8; 32]> = SmallVec::from_vec(vec![0; expected_len]);
 
-		match self.cipher {
-			Cipher::Aes128Ctr(ref params) => {
+		match &self.cipher {
+			Cipher::Aes128Ctr(params) => {
 				// checker by callers
 				debug_assert!(expected_len >= self.ciphertext.len());
 

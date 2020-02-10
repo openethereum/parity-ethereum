@@ -27,8 +27,8 @@ pub struct BrainPrefix {
 }
 
 impl BrainPrefix {
-	pub fn new(prefix: Vec<u8>, iterations: usize, no_of_words: usize) -> Self {
-		BrainPrefix {
+	pub const fn new(prefix: Vec<u8>, iterations: usize, no_of_words: usize) -> Self {
+		Self {
 			prefix,
 			iterations,
 			no_of_words,
@@ -65,7 +65,7 @@ mod tests {
 
 	#[test]
 	fn prefix_generator() {
-		let prefix = vec![0x00u8];
+		let prefix = vec![0x00_u8];
 		let keypair = BrainPrefix::new(prefix.clone(), usize::max_value(), 12).generate().unwrap();
 		assert!(keypair.address().as_bytes().starts_with(&prefix));
 	}

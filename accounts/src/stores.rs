@@ -33,7 +33,7 @@ pub struct AddressBook {
 impl AddressBook {
 	/// Creates new address book at given directory.
 	pub fn new(path: &Path) -> Self {
-		let mut r = AddressBook {
+		let mut r = Self {
 			cache: DiskMap::new(path, "address_book.json")
 		};
 		r.cache.revert(AccountMeta::read);
@@ -42,7 +42,7 @@ impl AddressBook {
 
 	/// Creates transient address book (no changes are saved to disk).
 	pub fn transient() -> Self {
-		AddressBook {
+		Self {
 			cache: DiskMap::transient()
 		}
 	}
@@ -60,7 +60,7 @@ impl AddressBook {
 	pub fn set_name(&mut self, a: Address, name: String) {
 		{
 			let x = self.cache.entry(a)
-				.or_insert_with(|| AccountMeta {name: Default::default(), meta: "{}".to_owned(), uuid: None});
+				.or_insert_with(|| AccountMeta { name: String::new(), meta: "{}".to_owned(), uuid: None });
 			x.name = name;
 		}
 		self.save();
@@ -70,7 +70,7 @@ impl AddressBook {
 	pub fn set_meta(&mut self, a: Address, meta: String) {
 		{
 			let x = self.cache.entry(a)
-				.or_insert_with(|| AccountMeta {name: "Anonymous".to_owned(), meta: Default::default(), uuid: None});
+				.or_insert_with(|| AccountMeta { name: "Anonymous".to_owned(), meta: String::new(), uuid: None });
 			x.meta = meta;
 		}
 		self.save();
@@ -83,7 +83,7 @@ impl AddressBook {
 	}
 }
 
-/// Disk-serializable HashMap
+/// Disk-serializable hash map
 #[derive(Debug)]
 struct DiskMap<K: hash::Hash + Eq, V> {
 	path: PathBuf,
@@ -109,15 +109,15 @@ impl<K: hash::Hash + Eq, V> DiskMap<K, V> {
 		let mut path = path.to_owned();
 		path.push(file_name);
 		trace!(target: "diskmap", "path={:?}", path);
-		DiskMap {
-			path: path,
+		Self {
+			path,
 			cache: HashMap::new(),
 			transient: false,
 		}
 	}
 
 	pub fn transient() -> Self {
-		let mut map = DiskMap::new(&PathBuf::new(), "diskmap.json".into());
+		let mut map = Self::new(&PathBuf::new(), "diskmap.json");
 		map.transient = true;
 		map
 	}
@@ -178,7 +178,7 @@ mod tests {
 		b.set_name(Address::from_low_u64_be(1), "One".to_owned());
 		b.set_name(Address::from_low_u64_be(2), "Two".to_owned());
 		b.set_name(Address::from_low_u64_be(3), "Three".to_owned());
-		b.remove(Address::from_low_u64_be(2).into());
+		b.remove(Address::from_low_u64_be(2));
 
 		let b = AddressBook::new(tempdir.path());
 		assert_eq!(b.get(), vec![

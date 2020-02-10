@@ -14,9 +14,57 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
+//! Account management.
+
 #![warn(missing_docs)]
 
-//! Account management.
+#![warn(
+	clippy::all,
+	clippy::pedantic,
+	clippy::nursery,
+)]
+#![allow(
+	clippy::blacklisted_name,
+	clippy::cast_lossless,
+	clippy::cast_possible_truncation,
+	clippy::cast_possible_wrap,
+	clippy::cast_precision_loss,
+	clippy::cast_ptr_alignment,
+	clippy::cast_sign_loss,
+	clippy::cognitive_complexity,
+	clippy::default_trait_access,
+	clippy::enum_glob_use,
+	clippy::eval_order_dependence,
+	clippy::fallible_impl_from,
+	clippy::float_cmp,
+	clippy::identity_op,
+	clippy::if_not_else,
+	clippy::indexing_slicing,
+	clippy::inline_always,
+	clippy::items_after_statements,
+	clippy::large_enum_variant,
+	clippy::many_single_char_names,
+	clippy::match_same_arms,
+	clippy::missing_errors_doc,
+	clippy::missing_safety_doc,
+	clippy::module_inception,
+	clippy::module_name_repetitions,
+	clippy::must_use_candidate,
+	clippy::needless_pass_by_value,
+	clippy::needless_update,
+	clippy::non_ascii_literal,
+	clippy::option_option,
+	clippy::pub_enum_variant_names,
+	clippy::same_functions_in_if_condition,
+	clippy::shadow_unrelated,
+	clippy::similar_names,
+	clippy::single_component_path_imports,
+	clippy::too_many_arguments,
+	clippy::too_many_lines,
+	clippy::type_complexity,
+	clippy::unused_self,
+	clippy::used_underscore_binding,
+)]
 
 mod account_data;
 mod error;
@@ -94,7 +142,7 @@ impl AccountProvider {
 			address_book.remove(*addr);
 		}
 
-		AccountProvider {
+		Self {
 			unlocked_secrets: RwLock::new(HashMap::new()),
 			unlocked: RwLock::new(HashMap::new()),
 			address_book: RwLock::new(address_book),
@@ -107,14 +155,14 @@ impl AccountProvider {
 
 	/// Creates not disk backed provider.
 	pub fn transient_provider() -> Self {
-		AccountProvider {
+		Self {
 			unlocked_secrets: RwLock::new(HashMap::new()),
 			unlocked: RwLock::new(HashMap::new()),
 			address_book: RwLock::new(AddressBook::transient()),
 			sstore: Box::new(EthStore::open(Box::new(MemoryDirectory::default())).expect("MemoryDirectory load always succeeds; qed")),
 			transient_sstore: transient_sstore(),
 			unlock_keep_secret: false,
-			blacklisted_accounts: vec![],
+			blacklisted_accounts: Vec::new(),
 		}
 	}
 
@@ -126,10 +174,10 @@ impl AccountProvider {
 	/// Creates new random account and returns address and public key
 	pub fn new_account_and_public(&self, password: &Password) -> Result<(Address, Public), Error> {
 		let acc = Random.generate().expect("secp context has generation capabilities; qed");
-		let public = acc.public().clone();
+		let public = acc.public();
 		let secret = acc.secret().clone();
 		let account = self.sstore.insert_account(SecretVaultRef::Root, secret, password)?;
-		Ok((account.address, public))
+		Ok((account.address, *public))
 	}
 
 	/// Inserts new account into underlying store.
@@ -138,7 +186,7 @@ impl AccountProvider {
 		let account = self.sstore.insert_account(SecretVaultRef::Root, secret, password)?;
 		if self.blacklisted_accounts.contains(&account.address) {
 			self.sstore.remove_account(&account, password)?;
-			return Err(Error::InvalidAccount.into());
+			return Err(Error::InvalidAccount);
 		}
 		Ok(account.address)
 	}
@@ -149,8 +197,8 @@ impl AccountProvider {
 	pub fn derive_account(&self, address: &Address, password: Option<Password>, derivation: Derivation, save: bool)
 		-> Result<Address, SignError>
 	{
-		let account = self.sstore.account_ref(&address)?;
-		let password = password.map(Ok).unwrap_or_else(|| self.password(&account))?;
+		let account = self.sstore.account_ref(address)?;
+		let password = password.map_or_else(|| self.password(&account), Ok)?;
 		Ok(
 			if save { self.sstore.insert_derived(SecretVaultRef::Root, &account, &password, derivation)?.address }
 			else { self.sstore.generate_derived(&account, &password, derivation)? }
@@ -160,7 +208,7 @@ impl AccountProvider {
 	/// Import a new presale wallet.
 	pub fn import_presale(&self, presale_json: &[u8], password: &Password) -> Result<Address, Error> {
 		let account = self.sstore.import_presale(SecretVaultRef::Root, presale_json, password)?;
-		Ok(Address::from(account.address).into())
+		Ok(account.address)
 	}
 
 	/// Import a new wallet.
@@ -168,9 +216,9 @@ impl AccountProvider {
 		let account = self.sstore.import_wallet(SecretVaultRef::Root, json, password, gen_id)?;
 		if self.blacklisted_accounts.contains(&account.address) {
 			self.sstore.remove_account(&account, password)?;
-			return Err(Error::InvalidAccount.into());
+			return Err(Error::InvalidAccount);
 		}
-		Ok(Address::from(account.address).into())
+		Ok(account.address)
 	}
 
 	/// Checks whether an account with a given address is present.
@@ -218,8 +266,7 @@ impl AccountProvider {
 	pub fn accounts_info(&self) -> Result<HashMap<Address, AccountMeta>, Error> {
 		let r = self.sstore.accounts()?
 			.into_iter()
-			.filter(|a| !self.blacklisted_accounts.contains(&a.address))
-			.map(|a| (a.address.clone(), self.account_meta(a.address).ok().unwrap_or_default()))
+			.filter_map(|a| if self.blacklisted_accounts.contains(&a.address) { None } else { Some((a.address, self.account_meta(a.address).ok().unwrap_or_default())) })
 			.collect();
 		Ok(r)
 	}
@@ -253,13 +300,13 @@ impl AccountProvider {
 
 	/// Returns `true` if the password for `account` is `password`. `false` if not.
 	pub fn test_password(&self, address: &Address, password: &Password) -> Result<bool, Error> {
-		self.sstore.test_password(&self.sstore.account_ref(&address)?, password)
+		self.sstore.test_password(&self.sstore.account_ref(address)?, password)
 			.map_err(Into::into)
 	}
 
 	/// Permanently removes an account.
 	pub fn kill_account(&self, address: &Address, password: &Password) -> Result<(), Error> {
-		self.sstore.remove_account(&self.sstore.account_ref(&address)?, &password)?;
+		self.sstore.remove_account(&self.sstore.account_ref(address)?, password)?;
 		Ok(())
 	}
 
@@ -292,7 +339,7 @@ impl AccountProvider {
 		} else {
 			// verify password by signing dump message
 			// result may be discarded
-			let _ = self.sstore.sign(&account, &password, &Default::default())?;
+			let _ = self.sstore.sign(&account, &password, &parity_crypto::publickey::Message::zero())?;
 		}
 
 		let data = AccountData { unlock, password };
@@ -307,8 +354,8 @@ impl AccountProvider {
 		if let Unlock::OneTime = data.unlock {
 			unlocked.remove(account).expect("data exists: so key must exist: qed");
 		}
-		if let Unlock::Timed(ref end) = data.unlock {
-			if Instant::now() > *end {
+		if let Unlock::Timed(end) = data.unlock {
+			if Instant::now() > end {
 				unlocked.remove(account).expect("data exists: so key must exist: qed");
 				return Err(SignError::NotUnlocked);
 			}
@@ -351,14 +398,11 @@ impl AccountProvider {
 	/// Signs the message. If password is not provided the account must be unlocked.
 	pub fn sign(&self, address: Address, password: Option<Password>, message: Message) -> Result<Signature, SignError> {
 		let account = self.sstore.account_ref(&address)?;
-		match self.unlocked_secrets.read().get(&account) {
-			Some(secret) => {
-				Ok(self.sstore.sign_with_secret(&secret, &message)?)
-			},
-			None => {
-				let password = password.map(Ok).unwrap_or_else(|| self.password(&account))?;
-				Ok(self.sstore.sign(&account, &password, &message)?)
-			}
+		if let Some(secret) = self.unlocked_secrets.read().get(&account) {
+			Ok(self.sstore.sign_with_secret(secret, &message)?)
+		} else {
+			let password = password.map_or_else(|| self.password(&account), Ok)?;
+			Ok(self.sstore.sign(&account, &password, &message)?)
 		}
 	}
 
@@ -367,7 +411,7 @@ impl AccountProvider {
 		-> Result<Signature, SignError>
 	{
 		let account = self.sstore.account_ref(address)?;
-		let password = password.map(Ok).unwrap_or_else(|| self.password(&account))?;
+		let password = password.map_or_else(|| self.password(&account), Ok)?;
 		Ok(self.sstore.sign_derived(&account, &password, derivation, &message)?)
 	}
 
@@ -418,20 +462,20 @@ impl AccountProvider {
 	/// Decrypts a message. If password is not provided the account must be unlocked.
 	pub fn decrypt(&self, address: Address, password: Option<Password>, shared_mac: &[u8], message: &[u8]) -> Result<Vec<u8>, SignError> {
 		let account = self.sstore.account_ref(&address)?;
-		let password = password.map(Ok).unwrap_or_else(|| self.password(&account))?;
+		let password = password.map_or_else(|| self.password(&account), Ok)?;
 		Ok(self.sstore.decrypt(&account, &password, shared_mac, message)?)
 	}
 
 	/// Agree on shared key.
 	pub fn agree(&self, address: Address, password: Option<Password>, other_public: &Public) -> Result<Secret, SignError> {
 		let account = self.sstore.account_ref(&address)?;
-		let password = password.map(Ok).unwrap_or_else(|| self.password(&account))?;
+		let password = password.map_or_else(|| self.password(&account), Ok)?;
 		Ok(self.sstore.agree(&account, &password, other_public)?)
 	}
 
 	/// Returns the underlying `SecretStore` reference if one exists.
 	pub fn list_geth_accounts(&self, testnet: bool) -> Vec<Address> {
-		self.sstore.list_geth_accounts(testnet).into_iter().map(|a| Address::from(a).into()).collect()
+		self.sstore.list_geth_accounts(testnet).into_iter().collect()
 	}
 
 	/// Returns the underlying `SecretStore` reference if one exists.
@@ -637,7 +681,7 @@ mod tests {
 		ap.blacklisted_accounts = vec![acc];
 
 		// then
-		assert_eq!(ap.accounts_info().unwrap().keys().cloned().collect::<Vec<Address>>(), vec![]);
-		assert_eq!(ap.accounts().unwrap(), vec![]);
+		assert_eq!(ap.accounts_info().unwrap().keys().cloned().collect::<Vec<Address>>(), Vec::new());
+		assert_eq!(ap.accounts().unwrap(), Vec::new());
 	}
 }

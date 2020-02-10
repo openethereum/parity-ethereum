@@ -43,7 +43,7 @@ pub struct StoreAccountRef {
 }
 
 impl PartialOrd for StoreAccountRef {
-	fn partial_cmp(&self, other: &StoreAccountRef) -> Option<Ordering> {
+	fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
 		Some(self.address.cmp(&other.address).then_with(|| self.vault.cmp(&other.vault)))
 	}
 }
@@ -148,24 +148,25 @@ pub trait SecretStore: SimpleSecretStore {
 
 impl StoreAccountRef {
 	/// Create reference to root account with given address
-	pub fn root(address: Address) -> Self {
-		StoreAccountRef::new(SecretVaultRef::Root, address)
+	pub const fn root(address: Address) -> Self {
+		Self::new(SecretVaultRef::Root, address)
 	}
 
 	/// Create reference to vault account with given address
 	pub fn vault(vault_name: &str, address: Address) -> Self {
-		StoreAccountRef::new(SecretVaultRef::Vault(vault_name.to_owned()), address)
+		Self::new(SecretVaultRef::Vault(vault_name.to_owned()), address)
 	}
 
 	/// Create new account reference
-	pub fn new(vault_ref: SecretVaultRef, address: Address) -> Self {
-		StoreAccountRef {
-			vault: vault_ref,
-			address: address,
+	pub const fn new(vault: SecretVaultRef, address: Address) -> Self {
+		Self {
+			vault,
+			address,
 		}
 	}
 }
 
+#[allow(clippy::derive_hash_xor_eq)]
 impl Hash for StoreAccountRef {
 	fn hash<H: Hasher>(&self, state: &mut H) {
 		self.address.hash(state);

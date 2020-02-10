@@ -82,20 +82,20 @@ impl PhrasesIterator {
 			let to_add = expected_words - words.len();
 			info!("Number of words is insuficcient adding {} more.", to_add);
 			for _ in 0..to_add {
-				words.push(parity_wordlist::WORDS.iter().cloned().collect());
+				words.push(parity_wordlist::WORDS.to_vec());
 			}
 		}
 
 		// start searching
-		PhrasesIterator::new(words)
+		Self::new(words)
 	}
 
 	pub fn new(words: Vec<Vec<&'static str>>) -> Self {
-		let combinations = words.iter().fold(1u64, |acc, x| acc * x.len() as u64);
+		let combinations = words.iter().fold(1_u64, |acc, x| acc * x.len() as u64);
 		let indexes = words.iter().map(|_| 0).collect();
 		info!("Starting to test {} possible combinations.", combinations);
 
-		PhrasesIterator {
+		Self {
 			words,
 			combinations,
 			indexes,
@@ -103,7 +103,7 @@ impl PhrasesIterator {
 		}
 	}
 
-	pub fn combinations(&self) -> u64 {
+	pub const fn combinations(&self) -> u64 {
 		self.combinations
 	}
 

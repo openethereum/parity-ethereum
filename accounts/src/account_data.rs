@@ -24,7 +24,7 @@ use std::{
 use parity_crypto::publickey::Address;
 use ethkey::Password;
 use serde_derive::{Serialize, Deserialize};
-use serde_json;
+
 
 /// Type of unlock.
 #[derive(Clone, PartialEq)]
@@ -57,14 +57,14 @@ pub struct AccountMeta {
 }
 
 impl AccountMeta {
-	/// Read a hash map of Address -> AccountMeta
+	/// Read a hash map of `Address` -> `AccountMeta`
 	pub fn read<R>(reader: R) -> Result<HashMap<Address, Self>, serde_json::Error> where
 		R: ::std::io::Read,
 	{
 		serde_json::from_reader(reader)
 	}
 
-	/// Write a hash map of Address -> AccountMeta
+	/// Write a hash map of `Address` -> `AccountMeta`
 	pub fn write<W>(m: &HashMap<Address, Self>, writer: &mut W) -> Result<(), serde_json::Error> where
 		W: ::std::io::Write,
 	{

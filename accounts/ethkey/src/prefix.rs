@@ -23,10 +23,10 @@ pub struct Prefix {
 }
 
 impl Prefix {
-	pub fn new(prefix: Vec<u8>, iterations: usize) -> Self {
-		Prefix {
-			prefix: prefix,
-			iterations: iterations,
+	pub const fn new(prefix: Vec<u8>, iterations: usize) -> Self {
+		Self {
+			prefix,
+			iterations,
 		}
 	}
 }
@@ -53,7 +53,7 @@ mod tests {
 
 	#[test]
 	fn prefix_generator() {
-		let prefix = vec![0xffu8];
+		let prefix = vec![0xff_u8];
 		let keypair = Prefix::new(prefix.clone(), usize::max_value()).generate().unwrap();
 		assert!(keypair.address().as_bytes().starts_with(&prefix));
 	}

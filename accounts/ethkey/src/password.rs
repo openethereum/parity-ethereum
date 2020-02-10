@@ -47,13 +47,13 @@ impl Drop for Password {
 }
 
 impl From<String> for Password {
-	fn from(s: String) -> Password {
-		Password(s)
+	fn from(s: String) -> Self {
+		Self(s)
 	}
 }
 
 impl<'a> From<&'a str> for Password {
-	fn from(s: &'a str) -> Password {
-		Password::from(String::from(s))
+	fn from(s: &'a str) -> Self {
+		Self::from(String::from(s))
 	}
 }

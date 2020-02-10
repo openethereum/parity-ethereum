@@ -25,7 +25,7 @@ use super::{KeyDirectory, VaultKeyDirectory, VaultKeyDirectoryProvider, VaultKey
 use super::vault::{VAULT_FILE_NAME, VaultDiskDirectory};
 use ethkey::Password;
 
-const IGNORED_FILES: &'static [&'static str] = &[
+const IGNORED_FILES: &[&str] = &[
 	"thumbs.db",
 	"address_book.json",
 	"dapps_policy.json",
@@ -141,28 +141,33 @@ impl RootDiskDirectory {
 impl<T> DiskDirectory<T> where T: KeyFileManager {
 	/// Create new disk directory instance
 	pub fn new<P>(path: P, key_manager: T) -> Self where P: AsRef<Path> {
-		DiskDirectory {
+		Self {
 			path: path.as_ref().to_path_buf(),
-			key_manager: key_manager,
+			key_manager,
 		}
 	}
 
 	fn files(&self) -> Result<Vec<PathBuf>, Error>  {
 		Ok(fs::read_dir(&self.path)?
-			.flat_map(Result::ok)
-			.filter(|entry| {
-				let metadata = entry.metadata().ok();
-				let file_name = entry.file_name();
-				let name = file_name.to_string_lossy();
-				// filter directories
-				metadata.map_or(false, |m| !m.is_dir()) &&
-					// hidden files
-					!name.starts_with(".") &&
-					// other ignored files
-					!IGNORED_FILES.contains(&&*name)
+			.filter_map(|entry| {
+				if let Ok(entry) = entry {
+					let metadata = entry.metadata().ok();
+					let file_name = entry.file_name();
+					let name = file_name.to_string_lossy();
+					// filter directories
+					if metadata.map_or(false, |m| !m.is_dir()) &&
+						// hidden files
+						!name.starts_with('.') &&
+						// other ignored files
+						!IGNORED_FILES.contains(&&*name)
+					{
+						return Some(entry.path());
+					}
+				}
+
+				None
 			})
-			.map(|entry| entry.path())
-			.collect::<Vec<PathBuf>>()
+			.collect()
 		)
 	}
 
@@ -180,8 +185,8 @@ impl<T> DiskDirectory<T> where T: KeyFileManager {
 	}
 
 	fn last_modification_date(&self) -> Result<u64, Error> {
-		use std::time::{Duration, UNIX_EPOCH};
-		let duration = fs::metadata(&self.path)?.modified()?.duration_since(UNIX_EPOCH).unwrap_or(Duration::default());
+		use std::time::UNIX_EPOCH;
+		let duration = fs::metadata(&self.path)?.modified()?.duration_since(UNIX_EPOCH).unwrap_or_default();
 		let timestamp = duration.as_secs() ^ (duration.subsec_nanos() as u64);
 		Ok(timestamp)
 	}
@@ -194,7 +199,7 @@ impl<T> DiskDirectory<T> where T: KeyFileManager {
 		Ok(paths
 			.into_iter()
 			.filter_map(|path| {
-				let filename = Some(path.file_name().and_then(|n| n.to_str()).expect("Keys have valid UTF8 names only.").to_owned());
+				let filename = Some(path.file_name().and_then(std::ffi::OsStr::to_str).expect("Keys have valid UTF8 names only.").to_owned());
 				fs::File::open(path.clone())
 					.map_err(Into::into)
 					.and_then(|file| self.key_manager.read(filename, file))
@@ -273,7 +278,7 @@ impl<T> KeyDirectory for DiskDirectory<T> where T: KeyFileManager {
 		// and find entry with given address
 		let to_remove = self.files_content()?
 			.into_iter()
-			.find(|&(_, ref acc)| acc.id == account.id && acc.address == account.address);
+			.find(|(_, acc)| acc.id == account.id && acc.address == account.address);
 
 		// remove it
 		match to_remove {
@@ -311,7 +316,7 @@ impl<T> VaultKeyDirectoryProvider for DiskDirectory<T> where T: KeyFileManager {
 				let mut vault_file_path = path.clone();
 				vault_file_path.push(VAULT_FILE_NAME);
 				if vault_file_path.is_file() {
-					path.file_name().and_then(|f| f.to_str()).map(|f| f.to_owned())
+					path.file_name().and_then(std::ffi::OsStr::to_str).map(std::borrow::ToOwned::to_owned)
 				} else {
 					None
 				}
@@ -369,7 +374,7 @@ mod test {
 		let directory = RootDiskDirectory::create(dir.clone()).unwrap();
 
 		// when
-		let account = SafeAccount::create(&keypair, [0u8; 16], &password, 1024, "Test".to_owned(), "{}".to_owned());
+		let account = SafeAccount::create(&keypair, [0_u8; 16], &password, 1024, "Test".to_owned(), "{}".to_owned());
 		let res = directory.insert(account.unwrap());
 
 		// then
@@ -390,14 +395,14 @@ mod test {
 		let directory = RootDiskDirectory::create(dir.clone()).unwrap();
 
 		// when
-		let account = SafeAccount::create(&keypair, [0u8; 16], &password, 1024, "Test".to_owned(), "{}".to_owned()).unwrap();
+		let account = SafeAccount::create(&keypair, [0_u8; 16], &password, 1024, "Test".to_owned(), "{}".to_owned()).unwrap();
 		let filename = "test".to_string();
 		let dedup = true;
 
 		directory.insert_with_filename(account.clone(), "foo".to_string(), dedup).unwrap();
 		let file1 = directory.insert_with_filename(account.clone(), filename.clone(), dedup).unwrap().filename.unwrap();
 		let file2 = directory.insert_with_filename(account.clone(), filename.clone(), dedup).unwrap().filename.unwrap();
-		let file3 = directory.insert_with_filename(account.clone(), filename.clone(), dedup).unwrap().filename.unwrap();
+		let file3 = directory.insert_with_filename(account, filename.clone(), dedup).unwrap().filename.unwrap();
 
 		// then
 		// the first file should have the original names
@@ -469,12 +474,12 @@ mod test {
 		let hash = directory.files_hash().expect("Files hash should be calculated ok");
 		assert_eq!(
 			hash,
-			15130871412783076140
+			15_130_871_412_783_076_140
 		);
 
 		let keypair = Random.generate().unwrap();
 		let password = "test pass".into();
-		let account = SafeAccount::create(&keypair, [0u8; 16], &password, 1024, "Test".to_owned(), "{}".to_owned());
+		let account = SafeAccount::create(&keypair, [0_u8; 16], &password, 1024, "Test".to_owned(), "{}".to_owned());
 		directory.insert(account.unwrap()).expect("Account should be inserted ok");
 
 		let new_hash = directory.files_hash().expect("New files hash should be calculated ok");

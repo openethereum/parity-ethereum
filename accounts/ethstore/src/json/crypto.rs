@@ -56,7 +56,7 @@ enum CryptoField {
 }
 
 impl<'a> Deserialize<'a> for CryptoField {
-	fn deserialize<D>(deserializer: D) -> Result<CryptoField, D::Error>
+	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
 		where D: Deserializer<'a>
 	{
 		deserializer.deserialize_any(CryptoFieldVisitor)
@@ -89,10 +89,10 @@ impl<'a> Visitor<'a> for CryptoFieldVisitor {
 }
 
 impl<'a> Deserialize<'a> for Crypto {
-	fn deserialize<D>(deserializer: D) -> Result<Crypto, D::Error>
+	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
 		where D: Deserializer<'a>
 	{
-		static FIELDS: &'static [&'static str] = &["id", "version", "crypto", "Crypto", "address"];
+		static FIELDS: &[&str] = &["id", "version", "crypto", "Crypto", "address"];
 		deserializer.deserialize_struct("Crypto", FIELDS, CryptoVisitor)
 	}
 }
@@ -155,10 +155,10 @@ impl<'a> Visitor<'a> for CryptoVisitor {
 		};
 
 		let result = Crypto {
-			cipher: cipher,
-			ciphertext: ciphertext,
-			kdf: kdf,
-			mac: mac,
+			cipher,
+			ciphertext,
+			kdf,
+			mac,
 		};
 
 		Ok(result)
@@ -170,19 +170,19 @@ impl Serialize for Crypto {
 		where S: Serializer
 	{
 		let mut crypto = serializer.serialize_struct("Crypto", 6)?;
-		match self.cipher {
-			Cipher::Aes128Ctr(ref params) => {
+		match &self.cipher {
+			Cipher::Aes128Ctr(params) => {
 				crypto.serialize_field("cipher", &CipherSer::Aes128Ctr)?;
 				crypto.serialize_field("cipherparams", params)?;
 			},
 		}
 		crypto.serialize_field("ciphertext", &self.ciphertext)?;
-		match self.kdf {
-			Kdf::Pbkdf2(ref params) => {
+		match &self.kdf {
+			Kdf::Pbkdf2(params) => {
 				crypto.serialize_field("kdf", &KdfSer::Pbkdf2)?;
 				crypto.serialize_field("kdfparams", params)?;
 			},
-			Kdf::Scrypt(ref params) => {
+			Kdf::Scrypt(params) => {
 				crypto.serialize_field("kdf", &KdfSer::Scrypt)?;
 				crypto.serialize_field("kdfparams", params)?;
 			},

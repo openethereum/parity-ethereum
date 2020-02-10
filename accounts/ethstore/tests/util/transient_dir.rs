@@ -35,9 +35,9 @@ pub struct TransientDir {
 impl TransientDir {
 	pub fn create() -> Result<Self, Error> {
 		let path = random_dir();
-		let result = TransientDir {
+		let result = Self {
 			dir: RootDiskDirectory::create(&path)?,
-			path: path,
+			path,
 		};
 
 		Ok(result)
@@ -45,9 +45,9 @@ impl TransientDir {
 
 	pub fn open() -> Self {
 		let path = random_dir();
-		TransientDir {
+		Self {
 			dir: RootDiskDirectory::at(&path),
-			path: path,
+			path,
 		}
 	}
 }

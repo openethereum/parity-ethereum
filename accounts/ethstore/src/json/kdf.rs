@@ -28,9 +28,9 @@ pub enum KdfSer {
 impl Serialize for KdfSer {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 	where S: Serializer {
-		match *self {
-			KdfSer::Pbkdf2 => serializer.serialize_str("pbkdf2"),
-			KdfSer::Scrypt => serializer.serialize_str("scrypt"),
+		match self {
+			Self::Pbkdf2 => serializer.serialize_str("pbkdf2"),
+			Self::Scrypt => serializer.serialize_str("scrypt"),
 		}
 	}
 }
@@ -72,8 +72,8 @@ pub enum Prf {
 impl Serialize for Prf {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 	where S: Serializer {
-		match *self {
-			Prf::HmacSha256 => serializer.serialize_str("hmac-sha256"),
+		match self {
+			Self::HmacSha256 => serializer.serialize_str("hmac-sha256"),
 		}
 	}
 }
@@ -132,9 +132,9 @@ pub enum KdfSerParams {
 impl Serialize for KdfSerParams {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 	where S: Serializer {
-		match *self {
-			KdfSerParams::Pbkdf2(ref params) => params.serialize(serializer),
-			KdfSerParams::Scrypt(ref params) => params.serialize(serializer),
+		match self {
+			Self::Pbkdf2(params) => params.serialize(serializer),
+			Self::Scrypt(params) => params.serialize(serializer),
 		}
 	}
 }
@@ -146,8 +146,8 @@ impl<'a> Deserialize<'a> for KdfSerParams {
 
 		let v: Value = Deserialize::deserialize(deserializer)?;
 
-		from_value(v.clone()).map(KdfSerParams::Pbkdf2)
-			.or_else(|_| from_value(v).map(KdfSerParams::Scrypt))
+		from_value(v.clone()).map(Self::Pbkdf2)
+			.or_else(|_| from_value(v).map(Self::Scrypt))
 			.map_err(|_| D::Error::custom("Invalid KDF algorithm"))
 	}
 }

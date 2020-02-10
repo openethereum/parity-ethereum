@@ -31,16 +31,16 @@ pub enum SignError {
 
 impl fmt::Display for SignError {
 	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-		match *self {
-			SignError::NotUnlocked => write!(f, "Account is locked"),
-			SignError::NotFound => write!(f, "Account does not exist"),
-			SignError::SStore(ref e) => write!(f, "{}", e),
+		match self {
+			Self::NotUnlocked => write!(f, "Account is locked"),
+			Self::NotFound => write!(f, "Account does not exist"),
+			Self::SStore(e) => write!(f, "{}", e),
 		}
 	}
 }
 
 impl From<SSError> for SignError {
 	fn from(e: SSError) -> Self {
-		SignError::SStore(e)
+		Self::SStore(e)
 	}
 }
