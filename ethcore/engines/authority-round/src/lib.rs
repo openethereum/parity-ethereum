@@ -487,8 +487,12 @@ impl EmptyStep {
 		let message = keccak(empty_step_rlp(self.step, &self.parent_hash));
 		let correct_proposer = step_proposer(validators, &self.parent_hash, self.step);
 
-		parity_crypto::publickey::verify_address(&correct_proposer, &self.signature.into(), &message)
-			.map_err(|e| e.into())
+		parity_crypto::publickey::verify_address(
+			&correct_proposer,
+			&self.signature.into(),
+			&message,
+		)
+		.map_err(Into::into)
 	}
 
 	fn author(&self) -> Result<Address, Error> {
@@ -531,12 +535,17 @@ impl Decodable for EmptyStep {
 	}
 }
 
+/// Given a signature and an rlp encoded partial empty step containing the step number and parent
+/// block hash), returns an RLP blob containing the signature and the partial empty step. This is
+/// the wire encoding of an EmptyStep.
 pub fn empty_step_full_rlp(signature: &H520, empty_step_rlp: &[u8]) -> Vec<u8> {
 	let mut s = RlpStream::new_list(2);
 	s.append(signature).append_raw(empty_step_rlp, 1);
 	s.out()
 }
 
+/// Given the hash of the parent block and a step number, returns an RLP encoded partial empty step
+/// ready to be signed.
 pub fn empty_step_rlp(step: u64, parent_hash: &H256) -> Vec<u8> {
 	let mut s = RlpStream::new_list(2);
 	s.append(&step).append(parent_hash);
@@ -934,6 +943,7 @@ impl AuthorityRound {
 		})
 	}
 
+	/// Return the `EmptyStep`s matching the step interval (non-inclusive) and parent hash.
 	fn empty_steps(&self, from_step: u64, to_step: u64, parent_hash: H256) -> Vec<EmptyStep> {
 		let from = EmptyStep {
 			step: from_step + 1,
@@ -957,8 +967,8 @@ impl AuthorityRound {
 			.collect()
 	}
 
+	/// Drops all `EmptySteps` less than or equal to the passed `step`, irregardless of the parent hash.
 	fn clear_empty_steps(&self, step: u64) {
-		// clear old `empty_steps` messages
 		let mut empty_steps = self.empty_steps.lock();
 		*empty_steps = empty_steps.split_off(&EmptyStep {
 			step: step + 1,
@@ -967,32 +977,26 @@ impl AuthorityRound {
 		});
 	}
 
-	fn handle_empty_step_message(&self, empty_step: EmptyStep) {
+	fn store_empty_step(&self, empty_step: EmptyStep) {
 		self.empty_steps.lock().insert(empty_step);
 	}
 
-	fn generate_empty_step(&self, parent_hash: &H256) {
+	/// Build an EmptyStep and broadcast it to the network.
+	fn emit_empty_step(&self, parent_hash: &H256) {
 		let step = self.step.inner.load();
 		let empty_step_rlp = empty_step_rlp(step, parent_hash);
 
 		if let Ok(signature) = self.sign(keccak(&empty_step_rlp)).map(Into::into) {
-			let message_rlp = empty_step_full_rlp(&signature, &empty_step_rlp);
-
 			let parent_hash = *parent_hash;
 			let empty_step = EmptyStep { signature, step, parent_hash };
 
 			trace!(target: "engine", "broadcasting empty step message: {:?}", empty_step);
-			self.broadcast_message(message_rlp);
-			self.handle_empty_step_message(empty_step);
-
+			if let Ok(c) = self.upgrade_client_or("could not broadcast empty step message") {
+				self.store_empty_step(empty_step);
+				c.broadcast_consensus_message(empty_step_full_rlp(&signature, &empty_step_rlp));
+			}
 		} else {
 			warn!(target: "engine", "generate_empty_step: FAIL: accounts secret key unavailable");
-		}
-	}
-
-	fn broadcast_message(&self, message: Vec<u8>) {
-		if let Ok(c) = self.upgrade_client_or(None) {
-			c.broadcast_consensus_message(message);
 		}
 	}
 
@@ -1362,6 +1366,7 @@ impl Engine for AuthorityRound {
 		SealingState::Ready
 	}
 
+	/// Handle incoming EmptyStep messages from the `Client`.
 	fn handle_message(&self, rlp: &[u8]) -> Result<(), EngineError> {
 		fn fmt_err<T: fmt::Debug>(x: T) -> EngineError {
 			EngineError::MalformedMessage(format!("{:?}", x))
@@ -1373,7 +1378,7 @@ impl Engine for AuthorityRound {
 		if empty_step.verify(&*self.validators).unwrap_or(false) {
 			if self.step.inner.check_future(empty_step.step).is_ok() {
 				trace!(target: "engine", "handle_message: received empty step message {:?}", empty_step);
-				self.handle_empty_step_message(empty_step);
+				self.store_empty_step(empty_step);
 			} else {
 				trace!(target: "engine", "handle_message: empty step message from the future {:?}", empty_step);
 			}
@@ -1445,8 +1450,8 @@ impl Engine for AuthorityRound {
 				empty_steps.len() < self.maximum_empty_steps {
 
 				if self.step.can_propose.compare_and_swap(true, false, AtomicOrdering::SeqCst) {
-					trace!(target: "engine", "generate_seal: generating empty step at step={}, block=#{}", step, header.number());
-					self.generate_empty_step(header.parent_hash());
+					trace!(target: "engine", "generate_seal: emitting empty step at step={}, block=#{}", step, header.number());
+					self.emit_empty_step(header.parent_hash());
 				}
 
 				return Seal::None;
@@ -2872,26 +2877,39 @@ mod tests {
 		});
 
 		let parent_hash = H256::from_low_u64_be(1);
+		let parent_hash2 = H256::from_low_u64_be(123);
 		let signature = H520::default();
-		let step = |step: u64| EmptyStep {
-			step,
-			parent_hash,
-			signature,
-		};
+		let step = |step, parent_hash| EmptyStep { step, parent_hash, signature };
 
-		engine.handle_empty_step_message(step(1));
-		engine.handle_empty_step_message(step(3));
-		engine.handle_empty_step_message(step(2));
-		engine.handle_empty_step_message(step(1));
+		engine.store_empty_step(step(1, parent_hash));
+		engine.store_empty_step(step(3, parent_hash2));
+		engine.store_empty_step(step(2, parent_hash));
+		engine.store_empty_step(step(1, parent_hash2));
+		engine.store_empty_step(step(4, parent_hash2));
 
-		assert_eq!(engine.empty_steps(0, 4, parent_hash), vec![step(1), step(2), step(3)]);
+		assert_eq!(
+			engine.empty_steps(0, 4, parent_hash),
+			vec![step(1, parent_hash), step(2, parent_hash)]
+		);
 		assert_eq!(engine.empty_steps(2, 3, parent_hash), vec![]);
-		assert_eq!(engine.empty_steps(2, 4, parent_hash), vec![step(3)]);
+		assert_eq!(engine.empty_steps(2, 4, parent_hash), vec![]);
+		assert_eq!(
+			engine.empty_steps(2, 4, parent_hash2),
+			vec![step(3, parent_hash2)]
+		);
+		assert_eq!(
+			engine.empty_steps(2, 5, parent_hash2),
+			vec![step(3, parent_hash2), step(4, parent_hash2)]
+		);
 
 		engine.clear_empty_steps(2);
 
 		assert_eq!(engine.empty_steps(0, 3, parent_hash), vec![]);
-		assert_eq!(engine.empty_steps(0, 4, parent_hash), vec![step(3)]);
+		assert_eq!(engine.empty_steps(0, 4, parent_hash), vec![]);
+		assert_eq!(
+			engine.empty_steps(0, 5, parent_hash2),
+			vec![step(3, parent_hash2), step(4, parent_hash2)]
+		);
 	}
 
 	#[test]
