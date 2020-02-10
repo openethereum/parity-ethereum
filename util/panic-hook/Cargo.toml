@@ -7,4 +7,4 @@ version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
-backtrace = "0.3.2"
+backtrace = "0.3.43"

@@ -363,7 +363,7 @@ fn rpc_parity_pending_transactions_with_limit_with_filter() {
 fn rpc_parity_encrypt() {
 	let deps = Dependencies::new();
 	let io = deps.default_client();
-	let key = format!("{:x}", Random.generate().unwrap().public());
+	let key = format!("{:x}", Random.generate().public());
 
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_encryptMessage", "params":["0x"#.to_owned() + &key + r#"", "0x01"], "id": 1}"#;
 	assert!(io.handle_request_sync(&request).unwrap().contains("result"), "Should return success.");

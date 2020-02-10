@@ -12,8 +12,8 @@ ethereum-types = "0.8.0"
 ethjson = { path = "../../json" }
 keccak-hash = "0.4.0"
 parity-bytes = "0.1"
-parity-crypto = { version = "0.4.2", features = ["publickey"] }
-parity-util-mem = "0.3.0"
+parity-crypto = { version = "0.5.0", features = ["publickey"] }
+parity-util-mem = "0.5.1"
 parity-snappy = "0.1"
 patricia-trie-ethereum = { path = "../../util/patricia-trie-ethereum" }
 rlp = "0.4.0"
@@ -22,7 +22,7 @@ unexpected = { path = "../../util/unexpected" }
 vm = { path = "../vm"}
 
 [dev-dependencies]
-rustc-hex = "2.0"
+rustc-hex = "2.1.0"
 
 [features]
 test-helpers = []

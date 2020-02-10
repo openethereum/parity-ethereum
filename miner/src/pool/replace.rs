@@ -148,7 +148,7 @@ mod tests {
 		let replace = ReplaceByScoreAndReadiness::new(scoring, client);
 
 		// same sender txs
-		let keypair = Random.generate().unwrap();
+		let keypair = Random.generate();
 
 		let same_sender_tx1 = local_tx_verified(Tx {
 			nonce: 1,
@@ -169,14 +169,14 @@ mod tests {
 		}, &keypair);
 
 		// different sender txs
-		let sender1 = Random.generate().unwrap();
+		let sender1 = Random.generate();
 		let different_sender_tx1 = local_tx_verified(Tx {
 			nonce: 2,
 			gas_price: 1,
 			..Default::default()
 		}, &sender1);
 
-		let sender2 = Random.generate().unwrap();
+		let sender2 = Random.generate();
 		let different_sender_tx2 = local_tx_verified(Tx {
 			nonce: 1,
 			gas_price: 10,
@@ -221,7 +221,7 @@ mod tests {
 			..Default::default()
 		};
 
-		let keypair = Random.generate().unwrap();
+		let keypair = Random.generate();
 		let txs = vec![tx1, tx2, tx3, tx4].into_iter().map(|tx| {
 			tx.unsigned().sign(keypair.secret(), None).verified()
 		}).collect::<Vec<_>>();
@@ -322,7 +322,7 @@ mod tests {
 		let client = TestClient::new().with_nonce(1);
 		let replace = ReplaceByScoreAndReadiness::new(scoring, client);
 
-		let old_sender = Random.generate().unwrap();
+		let old_sender = Random.generate();
 		let tx_old_ready_1 = {
 			let tx = Tx {
 				nonce: 1,
@@ -387,7 +387,7 @@ mod tests {
 			tx.signed().verified()
 		};
 
-		let new_sender = Random.generate().unwrap();
+		let new_sender = Random.generate();
 		let tx_new_ready_1 = {
 			let tx = Tx {
 				nonce: 1,
@@ -443,7 +443,7 @@ mod tests {
 			tx.signed().verified()
 		};
 
-		let new_sender = Random.generate().unwrap();
+		let new_sender = Random.generate();
 		let tx_new_ready_1 = local_tx_verified(Tx {
 			nonce: 1,
 			gas_price: 1,
@@ -485,7 +485,7 @@ mod tests {
 			tx.signed().verified()
 		};
 
-		let new_sender = Random.generate().unwrap();
+		let new_sender = Random.generate();
 		let tx_new_ready_1 = local_tx_verified(Tx {
 			nonce: 1,
 			gas_price: 2,

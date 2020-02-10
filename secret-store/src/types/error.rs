@@ -191,3 +191,12 @@ impl From<net::AddrParseError> for Error {
 		Error::Internal(err.to_string())
 	}
 }
+
+impl From<secp256k1::Error> for Error {
+	fn from(e: secp256k1::Error) -> Self {
+		match e {
+			secp256k1::Error::InvalidSecretKey => Error::EthKey("Invalid SecretKey".into()),
+			_ => Error::EthKey(format!("Crypto error: {}", e).into())
+		}
+	}
+}

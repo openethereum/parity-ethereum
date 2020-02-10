@@ -19,8 +19,6 @@
 use ethereum_types::{U256, Address};
 use kvdb::DBTransaction;
 use vm::{Error as VmError, ActionParams};
-// The MallocSizeOf derive looks for this in the root
-use parity_util_mem as malloc_size_of;
 
 mod config;
 mod db;

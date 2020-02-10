@@ -1576,7 +1576,7 @@ mod tests {
 	}
 
 	fn transaction_with_chain_id(chain_id: u64) -> SignedTransaction {
-		let keypair = Random.generate().unwrap();
+		let keypair = Random.generate();
 		Transaction {
 			action: Action::Create,
 			value: U256::zero(),
@@ -1676,7 +1676,7 @@ mod tests {
 	#[test]
 	fn should_treat_unfamiliar_locals_selectively() {
 		// given
-		let keypair = Random.generate().unwrap();
+		let keypair = Random.generate();
 		let client = TestBlockChainClient::default();
 		let mut local_accounts = ::std::collections::HashSet::new();
 		local_accounts.insert(keypair.address());
@@ -1820,7 +1820,7 @@ mod tests {
 		let addr = tap.insert_account(keccak("1").into(), &"".into()).unwrap();
 		let client = generate_dummy_client_with_spec(spec);
 		let engine_signer = Box::new((tap.clone(), addr, "".into()));
-		let msg = Default::default();
+		let msg = [1u8; 32].into();
 		assert!(client.engine().sign(msg).is_err());
 
 		// should set engine signer and miner author

@@ -2888,7 +2888,7 @@ mod tests {
 		let parent_hash = H256::from_low_u64_be(1);
 		let parent_hash2 = H256::from_low_u64_be(123);
 		let signature = H520::default();
-		let step = |step, parent_hash| EmptyStep { step, parent_hash, signature, };
+		let step = |step, parent_hash| EmptyStep { step, parent_hash, signature };
 
 		engine.store_empty_step(step(1, parent_hash));
 		engine.store_empty_step(step(3, parent_hash2));

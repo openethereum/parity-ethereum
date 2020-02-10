@@ -14,14 +14,14 @@ bytes = "0.4"
 rand = "0.7"
 tiny-keccak = "1.4"
 slab = "0.2"
-igd = "0.9"
+igd = "0.10.0"
 libc = "0.2.7"
-parking_lot = "0.9"
+parking_lot = "0.10.0"
 ansi_term = "0.11"
 rustc-hex = "1.0"
 ethcore-io = { path = "../io", features = ["mio"] }
 parity-bytes = "0.1"
-parity-crypto = { version = "0.4.2", features = ["publickey"] }
+parity-crypto = { version = "0.5.0", features = ["publickey"] }
 network = { package = "ethcore-network", path = "../network" }
 ethereum-types = "0.8.0"
 rlp = "0.4.0"

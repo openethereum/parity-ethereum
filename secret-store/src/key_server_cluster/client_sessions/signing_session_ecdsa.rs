@@ -1075,6 +1075,9 @@ mod tests {
 	use key_server_cluster::cluster::tests::{MessageLoop as ClusterMessageLoop};
 	use key_server_cluster::signing_session_ecdsa::SessionImpl;
 	use key_server_cluster::generation_session::tests::MessageLoop as GenerationMessageLoop;
+	use ServerKeyId;
+
+	const DUMMY_SESSION_ID: [u8; 32]  = [1u8; 32];
 
 	#[derive(Debug)]
 	pub struct MessageLoop(pub ClusterMessageLoop);
@@ -1089,21 +1092,21 @@ mod tests {
 
 		pub fn init_with_version(self, key_version: Option<H256>) -> Result<(Self, Public, H256), Error> {
 			let message_hash = H256::random();
-			let requester = Random.generate().unwrap();
-			let signature = crypto::publickey::sign(requester.secret(), &SessionId::default()).unwrap();
+			let requester = Random.generate();
+			let signature = crypto::publickey::sign(requester.secret(), &SessionId::from(DUMMY_SESSION_ID)).unwrap();
 			self.0.cluster(0).client()
-				.new_ecdsa_signing_session(Default::default(), signature.into(), key_version, message_hash)
+				.new_ecdsa_signing_session(SessionId::from(DUMMY_SESSION_ID), signature.into(), key_version, message_hash)
 				.map(|_| (self, *requester.public(), message_hash))
 		}
 
 		pub fn init(self) -> Result<(Self, Public, H256), Error> {
-			let key_version = self.0.key_storage(0).get(&Default::default())
+			let key_version = self.0.key_storage(0).get(&ServerKeyId::from(DUMMY_SESSION_ID))
 				.unwrap().unwrap().versions.iter().last().unwrap().hash;
 			self.init_with_version(Some(key_version))
 		}
 
 		pub fn init_delegated(self) -> Result<(Self, Public, H256), Error> {
-			self.0.key_storage(0).remove(&Default::default()).unwrap();
+			self.0.key_storage(0).remove(&ServerKeyId::from(DUMMY_SESSION_ID)).unwrap();
 			self.init_with_version(None)
 		}
 
@@ -1138,7 +1141,7 @@ mod tests {
 			let (ml, _, message) = MessageLoop::new(num_nodes, threshold).unwrap().init().unwrap();
 			ml.0.loop_until(|| ml.0.is_empty());
 
-			let signer_public = ml.0.key_storage(0).get(&Default::default()).unwrap().unwrap().public;
+			let signer_public = ml.0.key_storage(0).get(&ServerKeyId::from(DUMMY_SESSION_ID)).unwrap().unwrap().public;
 			let signature = ml.session_at(0).wait().unwrap();
 			assert!(verify_public(&signer_public, &signature, &message).unwrap());
 		}
@@ -1150,7 +1153,7 @@ mod tests {
 
 		// we need at least 3-of-4 nodes to agree to reach consensus
 		// let's say 1 of 4 nodes disagee
-		ml.0.acl_storage(1).prohibit(public_to_address(&requester), Default::default());
+		ml.0.acl_storage(1).prohibit(public_to_address(&requester), ServerKeyId::from(DUMMY_SESSION_ID));
 
 		// then consensus reachable, but single node will disagree
 		ml.ensure_completed();
@@ -1162,7 +1165,7 @@ mod tests {
 
 		// we need at least 3-of-4 nodes to agree to reach consensus
 		// let's say 1 of 4 nodes (here: master) disagee
-		ml.0.acl_storage(0).prohibit(public_to_address(&requester), Default::default());
+		ml.0.acl_storage(0).prohibit(public_to_address(&requester), ServerKeyId::from(DUMMY_SESSION_ID));
 
 		// then consensus reachable, but single node will disagree
 		ml.ensure_completed();

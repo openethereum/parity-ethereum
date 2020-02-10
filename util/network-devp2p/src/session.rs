@@ -110,7 +110,7 @@ impl Session {
 		nonce: &H256, host: &HostInfo) -> Result<Session, Error>
 		where Message: Send + Clone + Sync + 'static {
 		let originated = id.is_some();
-		let mut handshake = Handshake::new(token, id, socket, nonce).expect("Can't create handshake");
+		let mut handshake = Handshake::new(token, id, socket, nonce);
 		let local_addr = handshake.connection.local_addr_str();
 		handshake.start(io, host, originated)?;
 		Ok(Session {

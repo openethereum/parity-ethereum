@@ -556,7 +556,7 @@ mod tests {
 		good.set_timestamp(40);
 		good.set_number(10);
 
-		let keypair = Random.generate().unwrap();
+		let keypair = Random.generate();
 
 		let tr1 = Transaction {
 			action: Action::Create,
@@ -763,7 +763,7 @@ mod tests {
 		let mut header = Header::default();
 		header.set_number(1);
 
-		let keypair = Random.generate().unwrap();
+		let keypair = Random.generate();
 		let bad_transactions: Vec<_> = (0..3).map(|i| Transaction {
 			action: Action::Create,
 			value: U256::zero(),

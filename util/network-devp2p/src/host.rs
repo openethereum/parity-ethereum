@@ -290,7 +290,7 @@ impl Host {
 		} else {
 			config.config_path.clone().and_then(|ref p| load_key(Path::new(&p)))
 				.map_or_else(|| {
-				let key = Random.generate().expect("Error generating random key pair");
+				let key = Random.generate();
 				if let Some(path) = config.config_path.clone() {
 					save_key(Path::new(&path), key.secret());
 				}

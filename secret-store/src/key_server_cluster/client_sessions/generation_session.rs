@@ -952,7 +952,7 @@ pub mod tests {
 	use std::sync::Arc;
 	use ethereum_types::H256;
 	use crypto::publickey::{Random, Generator, KeyPair, Secret};
-	use key_server_cluster::{NodeId, Error, KeyStorage};
+	use key_server_cluster::{NodeId, Error, KeyStorage, SessionId};
 	use key_server_cluster::message::{self, Message, GenerationMessage, KeysDissemination,
 		PublicKeyShare, ConfirmInitialization};
 	use key_server_cluster::cluster::tests::{MessageLoop as ClusterMessageLoop, make_clusters_and_preserve_sessions};
@@ -960,6 +960,7 @@ pub mod tests {
 	use key_server_cluster::generation_session::{SessionImpl, SessionState};
 	use key_server_cluster::math;
 	use key_server_cluster::math::tests::do_encryption_and_decryption;
+	use ServerKeyId;
 
 	#[derive(Debug)]
 	pub struct MessageLoop(pub ClusterMessageLoop);
@@ -970,7 +971,7 @@ pub mod tests {
 		}
 
 		pub fn init(self, threshold: usize) -> Result<Self, Error> {
-			self.0.cluster(0).client().new_generation_session(Default::default(), None, Default::default(), threshold)
+			self.0.cluster(0).client().new_generation_session(SessionId::from([1u8; 32]), None, Default::default(), threshold)
 				.map(|_| self)
 		}
 
@@ -1021,7 +1022,8 @@ pub mod tests {
 		}
 
 		pub fn compute_key_pair(&self) -> KeyPair {
-			let t = self.0.key_storage(0).get(&Default::default()).unwrap().unwrap().threshold;
+			let server_key_id = ServerKeyId::from([1u8; 32]);
+			let t = self.0.key_storage(0).get(&server_key_id).unwrap().unwrap().threshold;
 			let secret_shares = self.nodes_secret_shares();
 			let id_numbers = self.nodes_id_numbers();
 			let secret_shares = secret_shares.iter().take(t + 1).collect::<Vec<_>>();
@@ -1032,7 +1034,8 @@ pub mod tests {
 		}
 
 		pub fn key_version(&self) -> H256 {
-			self.0.key_storage(0).get(&Default::default())
+			let server_key_id = ServerKeyId::from([1u8; 32]);
+			self.0.key_storage(0).get(&server_key_id)
 				.unwrap().unwrap().versions.iter().last().unwrap().hash
 		}
 	}
@@ -1103,7 +1106,7 @@ pub mod tests {
 		ml.0.take_and_process_message();
 		ml.0.take_and_process_message();
 		assert_eq!(ml.session_at(0).on_confirm_initialization(ml.0.node(1), &message::ConfirmInitialization {
-			session: Default::default(),
+			session: [1u8; 32].into(),
 			session_nonce: 0,
 			derived_point: math::generate_random_point().unwrap().into(),
 		}), Err(Error::InvalidStateForRequest));
@@ -1131,7 +1134,7 @@ pub mod tests {
 		let ml = MessageLoop::new(2).init(0).unwrap();
 		ml.0.take_and_process_message();
 		assert_eq!(ml.session_at(0).on_complete_initialization(ml.0.node(1), &message::CompleteInitialization {
-			session: Default::default(),
+			session: [1u8; 32].into(),
 			session_nonce: 0,
 			derived_point: math::generate_random_point().unwrap().into(),
 		}), Err(Error::InvalidStateForRequest));
@@ -1145,7 +1148,7 @@ pub mod tests {
 		ml.0.take_and_process_message();
 		ml.0.take_and_process_message();
 		assert_eq!(ml.session_at(1).on_complete_initialization(ml.0.node(2), &message::CompleteInitialization {
-			session: Default::default(),
+			session: [1u8; 32].into(),
 			session_nonce: 0,
 			derived_point: math::generate_random_point().unwrap().into(),
 		}), Err(Error::InvalidMessage));
@@ -1155,7 +1158,7 @@ pub mod tests {
 	fn fails_to_accept_keys_dissemination_if_not_waiting_for_it() {
 		let ml = MessageLoop::new(2).init(0).unwrap();
 		assert_eq!(ml.session_at(0).on_keys_dissemination(ml.0.node(1), &message::KeysDissemination {
-			session: Default::default(),
+			session: [1u8; 32].into(),
 			session_nonce: 0,
 			secret1: math::generate_random_scalar().unwrap().into(),
 			secret2: math::generate_random_scalar().unwrap().into(),
@@ -1197,7 +1200,7 @@ pub mod tests {
 	fn should_not_accept_public_key_share_when_is_not_waiting_for_it() {
 		let ml = MessageLoop::new(3).init(1).unwrap();
 		assert_eq!(ml.session_at(0).on_public_key_share(ml.0.node(1), &message::PublicKeyShare {
-			session: Default::default(),
+			session: [1u8; 32].into(),
 			session_nonce: 0,
 			public_share: math::generate_random_point().unwrap().into(),
 		}), Err(Error::InvalidStateForRequest));
@@ -1256,7 +1259,7 @@ pub mod tests {
 			}
 
 			// now let's encrypt some secret (which is a point on EC)
-			let document_secret_plain = Random.generate().unwrap().public().clone();
+			let document_secret_plain = Random.generate().public().clone();
 			let all_nodes_id_numbers = ml.nodes_id_numbers();
 			let all_nodes_secret_shares = ml.nodes_secret_shares();
 			let document_secret_decrypted = do_encryption_and_decryption(threshold, &joint_public_key,
@@ -1275,7 +1278,7 @@ pub mod tests {
 		ml.0.take_and_process_message();
 
 		let msg = message::GenerationMessage::KeysDissemination(message::KeysDissemination {
-			session: Default::default(),
+			session: [1u8; 32].into(),
 			session_nonce: 10,
 			secret1: math::generate_random_scalar().unwrap().into(),
 			secret2: math::generate_random_scalar().unwrap().into(),
