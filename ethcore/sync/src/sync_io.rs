@@ -18,6 +18,7 @@ use std::sync::Arc;
 use std::collections::HashMap;
 
 use crate::chain::sync_packet::{PacketInfo, SyncPacket};
+use crate::ETH_PROTOCOL;
 
 use bytes::Bytes;
 use client_traits::BlockChainClient;
@@ -142,7 +143,7 @@ impl<'s> SyncIo for NetSyncIo<'s> {
 	}
 
 	fn eth_protocol_version(&self, peer_id: PeerId) -> u8 {
-		self.network.protocol_version(self.network.subprotocol_name(), peer_id).unwrap_or(0)
+		self.network.protocol_version(ETH_PROTOCOL, peer_id).unwrap_or(0)
 	}
 
 	fn protocol_version(&self, protocol: &ProtocolId, peer_id: PeerId) -> u8 {
