@@ -48,9 +48,11 @@ use key_server_cluster::io::{write_message, write_encrypted_message, WriteMessag
 
 /// Start handshake procedure with another node from the cluster.
 pub fn handshake<A>(a: A, self_key_pair: Arc<dyn SigningKeyPair>, trusted_nodes: BTreeSet<NodeId>) -> Handshake<A> where A: AsyncWrite + AsyncRead {
-	let init_data = Random.generate().map(|kp| *kp.secret().clone()).map_err(Into::into)
-		.and_then(|cp| Random.generate().map(|kp| (cp, kp)).map_err(Into::into));
-	handshake_with_init_data(a, init_data, self_key_pair, trusted_nodes)
+	let init_data = (
+		*Random.generate().secret().clone(),
+		Random.generate()
+	);
+	handshake_with_init_data(a, Ok(init_data), self_key_pair, trusted_nodes)
 }
 
 /// Start handshake procedure with another node from the cluster and given plain confirmation + session key pair.
@@ -81,22 +83,16 @@ pub fn handshake_with_init_data<A>(a: A, init_data: Result<(H256, KeyPair), Erro
 
 /// Wait for handshake procedure to be started by another node from the cluster.
 pub fn accept_handshake<A>(a: A, self_key_pair: Arc<dyn SigningKeyPair>) -> Handshake<A> where A: AsyncWrite + AsyncRead {
-	let self_confirmation_plain = Random.generate().map(|kp| *kp.secret().clone()).map_err(Into::into);
-	let handshake_input_data = self_confirmation_plain
-		.and_then(|cp| Random.generate().map(|kp| (cp, kp)).map_err(Into::into));
-
-	let (error, cp, kp, state) = match handshake_input_data {
-		Ok((cp, kp)) => (None, cp, Some(kp), HandshakeState::ReceivePublicKey(read_message(a))),
-		Err(err) => (Some((a, Err(err))), Default::default(), None, HandshakeState::Finished),
-	};
+	let self_confirmation_plain = *Random.generate().secret().clone();
+	let keypair = Random.generate();
 
 	Handshake {
 		is_active: false,
-		error: error,
-		state: state,
-		self_key_pair: self_key_pair,
-		self_session_key_pair: kp,
-		self_confirmation_plain: cp,
+		error: None,
+		state: HandshakeState::ReceivePublicKey(read_message(a)),
+		self_key_pair,
+		self_session_key_pair: Some(keypair),
+		self_confirmation_plain,
 		trusted_nodes: None,
 		peer_node_id: None,
 		peer_session_public: None,
@@ -328,8 +324,8 @@ mod tests {
 	fn prepare_test_io() -> (H256, TestIo) {
 		let mut io = TestIo::new();
 
-		let self_confirmation_plain = *Random.generate().unwrap().secret().clone();
-		let peer_confirmation_plain = *Random.generate().unwrap().secret().clone();
+		let self_confirmation_plain = *Random.generate().secret().clone();
+		let peer_confirmation_plain = *Random.generate().secret().clone();
 
 		let self_confirmation_signed = sign(io.peer_key_pair().secret(), &self_confirmation_plain).unwrap();
 		let peer_confirmation_signed = sign(io.peer_session_key_pair().secret(), &peer_confirmation_plain).unwrap();

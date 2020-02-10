@@ -434,12 +434,12 @@ pub mod tests {
 	}
 
 	pub fn make_master_session_meta(threshold: usize) -> SessionMeta {
-		SessionMeta { id: SessionId::default(), master_node_id: NodeId::from_low_u64_be(1), self_node_id: NodeId::from_low_u64_be(1), threshold: threshold,
+		SessionMeta { id: SessionId::from([1u8; 32]), master_node_id: NodeId::from_low_u64_be(1), self_node_id: NodeId::from_low_u64_be(1), threshold: threshold,
 			configured_nodes_count: 5, connected_nodes_count: 5 }
 	}
 
 	pub fn make_slave_session_meta(threshold: usize) -> SessionMeta {
-		SessionMeta { id: SessionId::default(), master_node_id: NodeId::from_low_u64_be(1), self_node_id: NodeId::from_low_u64_be(2), threshold: threshold,
+		SessionMeta { id: SessionId::from([1u8; 32]), master_node_id: NodeId::from_low_u64_be(1), self_node_id: NodeId::from_low_u64_be(2), threshold: threshold,
 			configured_nodes_count: 5, connected_nodes_count: 5 }
 	}
 

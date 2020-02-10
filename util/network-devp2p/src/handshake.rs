@@ -83,20 +83,20 @@ const ECIES_OVERHEAD: usize = 113;
 
 impl Handshake {
 	/// Create a new handshake object
-	pub fn new(token: StreamToken, id: Option<&NodeId>, socket: TcpStream, nonce: &H256) -> Result<Handshake, Error> {
-		Ok(Handshake {
+	pub fn new(token: StreamToken, id: Option<&NodeId>, socket: TcpStream, nonce: &H256) -> Handshake {
+		Handshake {
 			id: if let Some(id) = id { *id } else { NodeId::default() },
 			connection: Connection::new(token, socket),
 			originated: false,
 			state: HandshakeState::New,
-			ecdhe: Random.generate()?,
+			ecdhe: Random.generate(),
 			nonce: *nonce,
 			remote_ephemeral: Public::default(),
 			remote_nonce: H256::zero(),
 			remote_version: PROTOCOL_VERSION,
 			auth_cipher: Bytes::new(),
 			ack_cipher: Bytes::new(),
-		})
+		}
 	}
 
 	/// Start a handshake
@@ -358,7 +358,7 @@ mod test {
 		let addr = "127.0.0.1:50556".parse().unwrap();
 		let socket = TcpStream::connect(&addr).unwrap();
 		let nonce = H256::zero();
-		Handshake::new(0, to, socket, &nonce).unwrap()
+		Handshake::new(0, to, socket, &nonce)
 	}
 
 	fn test_io() -> IoContext<i32> {

@@ -423,7 +423,7 @@ pub mod tests {
 	}
 
 	fn make_key_servers(start_port: u16, num_nodes: usize) -> (Vec<KeyServerImpl>, Vec<Arc<DummyKeyStorage>>, Runtime) {
-		let key_pairs: Vec<_> = (0..num_nodes).map(|_| Random.generate().unwrap()).collect();
+		let key_pairs: Vec<_> = (0..num_nodes).map(|_| Random.generate()).collect();
 		let configs: Vec<_> = (0..num_nodes).map(|i| ClusterConfiguration {
 				listener_address: NodeAddress {
 					address: "127.0.0.1".into(),
@@ -488,8 +488,8 @@ pub mod tests {
 
 		// generate document key
 		let threshold = 0;
-		let document = Random.generate().unwrap().secret().clone();
-		let secret = Random.generate().unwrap().secret().clone();
+		let document = Random.generate().secret().clone();
+		let secret = Random.generate().secret().clone();
 		let signature: Requester = crypto::publickey::sign(&secret, &document).unwrap().into();
 		let generated_key = key_servers[0].generate_document_key(
 			*document,
@@ -518,8 +518,8 @@ pub mod tests {
 		let test_cases = [0, 1, 2];
 		for threshold in &test_cases {
 			// generate document key
-			let document = Random.generate().unwrap().secret().clone();
-			let secret = Random.generate().unwrap().secret().clone();
+			let document = Random.generate().secret().clone();
+			let secret = Random.generate().secret().clone();
 			let signature: Requester = crypto::publickey::sign(&secret, &document).unwrap().into();
 			let generated_key = key_servers[0].generate_document_key(
 				*document,
@@ -553,8 +553,8 @@ pub mod tests {
 		let test_cases = [0, 1, 2];
 		for threshold in &test_cases {
 			// generate server key
-			let server_key_id = Random.generate().unwrap().secret().clone();
-			let requestor_secret = Random.generate().unwrap().secret().clone();
+			let server_key_id = Random.generate().secret().clone();
+			let requestor_secret = Random.generate().secret().clone();
 			let signature: Requester = crypto::publickey::sign(&requestor_secret, &server_key_id).unwrap().into();
 			let server_public = key_servers[0].generate_key(
 				*server_key_id,
@@ -563,7 +563,7 @@ pub mod tests {
 			).wait().unwrap();
 
 			// generate document key (this is done by KS client so that document key is unknown to any KS)
-			let generated_key = Random.generate().unwrap().public().clone();
+			let generated_key = Random.generate().public().clone();
 			let encrypted_document_key = math::encrypt_secret(&generated_key, &server_public).unwrap();
 
 			// store document key
@@ -589,8 +589,8 @@ pub mod tests {
 		let test_cases = [0, 1, 2];
 		for threshold in &test_cases {
 			// generate server key
-			let server_key_id = Random.generate().unwrap().secret().clone();
-			let requestor_secret = Random.generate().unwrap().secret().clone();
+			let server_key_id = Random.generate().secret().clone();
+			let requestor_secret = Random.generate().secret().clone();
 			let signature: Requester = crypto::publickey::sign(&requestor_secret, &server_key_id).unwrap().into();
 			let server_public = key_servers[0].generate_key(
 				*server_key_id,
@@ -622,8 +622,8 @@ pub mod tests {
 
 		// generate document key
 		let threshold = 0;
-		let document = Random.generate().unwrap().secret().clone();
-		let secret = Random.generate().unwrap().secret().clone();
+		let document = Random.generate().secret().clone();
+		let secret = Random.generate().secret().clone();
 		let signature: Requester = crypto::publickey::sign(&secret, &document).unwrap().into();
 		let generated_key = key_servers[0].generate_document_key(
 			*document,
@@ -649,8 +649,8 @@ pub mod tests {
 		let threshold = 1;
 
 		// generate server key
-		let server_key_id = Random.generate().unwrap().secret().clone();
-		let requestor_secret = Random.generate().unwrap().secret().clone();
+		let server_key_id = Random.generate().secret().clone();
+		let requestor_secret = Random.generate().secret().clone();
 		let signature: Requester = crypto::publickey::sign(&requestor_secret, &server_key_id).unwrap().into();
 		let server_public = key_servers[0].generate_key(*server_key_id, signature.clone(), threshold).wait().unwrap();
 
@@ -680,8 +680,8 @@ pub mod tests {
 		let threshold = 1;
 
 		// generate server key
-		let server_key_id = Random.generate().unwrap().secret().clone();
-		let requestor_secret = Random.generate().unwrap().secret().clone();
+		let server_key_id = Random.generate().secret().clone();
+		let requestor_secret = Random.generate().secret().clone();
 		let signature = crypto::publickey::sign(&requestor_secret, &server_key_id).unwrap();
 		let server_public = key_servers[0].generate_key(
 			*server_key_id,

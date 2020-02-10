@@ -589,7 +589,7 @@ mod tests {
 	fn signing_eip155_zero_chainid() {
 		use parity_crypto::publickey::{Random, Generator};
 
-		let key = Random.generate().unwrap();
+		let key = Random.generate();
 		let t = Transaction {
 			action: Action::Create,
 			nonce: U256::from(42),
@@ -610,7 +610,7 @@ mod tests {
 	fn signing() {
 		use parity_crypto::publickey::{Random, Generator};
 
-		let key = Random.generate().unwrap();
+		let key = Random.generate();
 		let t = Transaction {
 			action: Action::Create,
 			nonce: U256::from(42),
@@ -662,7 +662,7 @@ mod tests {
 	#[test]
 	fn should_recover_from_chain_specific_signing() {
 		use parity_crypto::publickey::{Random, Generator};
-		let key = Random.generate().unwrap();
+		let key = Random.generate();
 		let t = Transaction {
 			action: Action::Create,
 			nonce: U256::from(42),

@@ -1963,7 +1963,7 @@ mod tests {
 	// TODO: fix (preferred) or remove
 	evm_test_ignore!{test_transact_simple: test_transact_simple_int}
 	fn test_transact_simple(factory: Factory) {
-		let keypair = Random.generate().unwrap();
+		let keypair = Random.generate();
 		let t = Transaction {
 			action: Action::Create,
 			value: U256::from(17),
@@ -2002,7 +2002,7 @@ mod tests {
 
 	evm_test!{test_transact_invalid_nonce: test_transact_invalid_nonce_int}
 	fn test_transact_invalid_nonce(factory: Factory) {
-		let keypair = Random.generate().unwrap();
+		let keypair = Random.generate();
 		let t = Transaction {
 			action: Action::Create,
 			value: U256::from(17),
@@ -2035,7 +2035,7 @@ mod tests {
 
 	evm_test!{test_transact_gas_limit_reached: test_transact_gas_limit_reached_int}
 	fn test_transact_gas_limit_reached(factory: Factory) {
-		let keypair = Random.generate().unwrap();
+		let keypair = Random.generate();
 		let t = Transaction {
 			action: Action::Create,
 			value: U256::from(17),
@@ -2070,7 +2070,7 @@ mod tests {
 	evm_test!{test_not_enough_cash: test_not_enough_cash_int}
 	fn test_not_enough_cash(factory: Factory) {
 
-		let keypair = Random.generate().unwrap();
+		let keypair = Random.generate();
 		let t = Transaction {
 			action: Action::Create,
 			value: U256::from(18),

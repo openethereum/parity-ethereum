@@ -679,17 +679,17 @@ mod tests {
 		ClusterSessionsContainerState, SESSION_TIMEOUT_INTERVAL};
 
 	pub fn make_cluster_sessions() -> ClusterSessions {
-		let key_pair = Random.generate().unwrap();
+		let key_pair = Random.generate();
 		let config = ClusterConfiguration {
 			self_key_pair: Arc::new(PlainNodeKeyPair::new(key_pair.clone())),
 			key_server_set: Arc::new(MapKeyServerSet::new(false, vec![(key_pair.public().clone(), format!("127.0.0.1:{}", 100).parse().unwrap())].into_iter().collect())),
 			key_storage: Arc::new(DummyKeyStorage::default()),
 			acl_storage: Arc::new(DummyAclStorage::default()),
-			admin_public: Some(Random.generate().unwrap().public().clone()),
+			admin_public: Some(Random.generate().public().clone()),
 			preserve_sessions: false,
 		};
 		ClusterSessions::new(&config, Arc::new(SimpleServersSetChangeSessionCreatorConnector {
-			admin_public: Some(Random.generate().unwrap().public().clone()),
+			admin_public: Some(Random.generate().public().clone()),
 		}))
 	}
 
