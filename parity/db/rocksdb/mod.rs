@@ -33,10 +33,7 @@ use self::kvdb_sled as sled;
 use cache::CacheConfig;
 
 mod blooms;
-mod migration;
 mod helpers;
-
-pub use self::migration::migrate;
 
 struct AppDB {
 	key_value: Arc<dyn KeyValueDB>,
@@ -85,7 +82,7 @@ pub fn open_db_light(
 	let path = Path::new(client_path);
 
 	let db_config = sled::DatabaseConfig {
-		memory_budget: helpers::memory_per_column_light(cache_config.blockchain() as usize),
+		memory_budget_mb: Some(cache_config.blockchain() as u64),
 		.. sled::DatabaseConfig::with_columns(NUM_COLUMNS)
 	};
 

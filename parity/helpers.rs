@@ -292,6 +292,7 @@ pub fn execute_upgrades(
 	}
 
 	let client_path = dirs.db_path(pruning);
+	Ok(())
 }
 
 /// Prompts user asking for password.

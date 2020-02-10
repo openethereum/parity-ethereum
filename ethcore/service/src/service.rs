@@ -293,7 +293,6 @@ where
 
 #[cfg(test)]
 mod tests {
-	use std::collections::HashMap;
 	use std::sync::Arc;
 	use std::{time, thread};
 
@@ -304,7 +303,7 @@ mod tests {
 	use ethcore::miner::Miner;
 	use spec;
 	use ethcore::test_helpers;
-	use kvdb_rocksdb::{DatabaseConfig, CompactionProfile};
+	use kvdb_sled::DatabaseConfig;
 	use super::*;
 
 	use ethcore_private_tx;
@@ -315,10 +314,7 @@ mod tests {
 		let client_path = tempdir.path().join("client");
 		let snapshot_path = tempdir.path().join("snapshot");
 
-		let mut client_db_config = DatabaseConfig::with_columns(NUM_COLUMNS);
-
-		client_db_config.memory_budget = HashMap::new();
-		client_db_config.compaction = CompactionProfile::auto(&client_path);
+		let client_db_config = DatabaseConfig::with_columns(NUM_COLUMNS);
 
 		let client_db_handler = test_helpers::restoration_db_handler(client_db_config.clone());
 		let client_db = client_db_handler.open(&client_path).unwrap();

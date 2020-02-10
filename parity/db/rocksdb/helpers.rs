@@ -16,7 +16,7 @@
 
 use std::collections::HashMap;
 use std::path::Path;
-+use ethcore::client::ClientConfig;
+use ethcore::client::ClientConfig;
 
 /// Spreads the `total` (in MiB) memory budget across the db columns.
 /// If it's `None`, the default memory budget will be used for each column.
@@ -54,8 +54,8 @@ pub fn memory_per_column_light(total: usize) -> HashMap<u32, usize> {
 	memory_per_column
 }
 
-pub fn client_db_config(client_path: &Path, client_config: &ClientConfig) -> DatabaseConfig {
+pub fn client_db_config(client_path: &Path, client_config: &ClientConfig) -> super::sled::DatabaseConfig {
 	let mut client_db_config = super::sled::DatabaseConfig::with_columns(ethcore_db::NUM_COLUMNS);
-	client_db_config.memory_budget = memory_per_column(client_config.db_cache_size);
+	client_db_config.memory_budget_mb = client_config.db_cache_size.map(|s| s as u64);
 	client_db_config
 }

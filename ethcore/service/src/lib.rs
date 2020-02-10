@@ -40,6 +40,6 @@ extern crate tempdir;
 mod service;
 
 #[cfg(test)]
-extern crate kvdb_rocksdb;
+extern crate kvdb_sled;
 
 pub use service::{ClientService, PrivateTxService};

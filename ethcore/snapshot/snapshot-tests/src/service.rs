@@ -44,7 +44,7 @@ use ethcore::{
 
 use parking_lot::{Mutex, RwLock};
 use ethcore_io::{IoChannel, IoService};
-use kvdb_rocksdb::DatabaseConfig;
+use kvdb_sled::DatabaseConfig;
 use journaldb::Algorithm;
 
 #[test]
@@ -91,7 +91,6 @@ fn sends_async_messages() {
 #[test]
 fn cannot_finish_with_invalid_chunks() {
 	use ethereum_types::H256;
-	use kvdb_rocksdb::DatabaseConfig;
 
 	let spec = spec::new_test();
 	let tempdir = TempDir::new("").unwrap();

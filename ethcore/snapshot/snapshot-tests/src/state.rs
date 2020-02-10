@@ -34,7 +34,7 @@ use rand::SeedableRng;
 use rand_xorshift::XorShiftRng;
 use ethereum_types::H256;
 use journaldb::{self, Algorithm};
-use kvdb_rocksdb::{Database, DatabaseConfig};
+use kvdb_sled::{Database, DatabaseConfig};
 use parking_lot::{Mutex, RwLock};
 use tempdir::TempDir;
 

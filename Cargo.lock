@@ -2706,7 +2706,7 @@ dependencies = [
 [[package]]
 name = "kvdb-sled"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/parity-common?branch=ao-kvdb-sled#ef0adaafef43f619c494b8764f6a01ba971650e6"
+source = "git+https://github.com/paritytech/parity-common?branch=ao-kvdb-sled#60e39202994e5be107ba7eaf9e7562c79309c0df"
 dependencies = [
  "kvdb",
  "log",
