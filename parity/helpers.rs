@@ -291,7 +291,6 @@ pub fn execute_upgrades(
 		_ => {},
 	}
 
-	let client_path = dirs.db_path(pruning);
 	Ok(())
 }
 
