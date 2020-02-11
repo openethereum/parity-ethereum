@@ -59,7 +59,7 @@ ethkey = { path = "../accounts/ethkey" }
 ethstore = { path = "../accounts/ethstore" }
 fetch = { path = "../util/fetch" }
 keccak-hash = "0.4.0"
-parity-runtime = { path = "../util/runtime" }
+parity-runtime = { version = "0.1.1", features = ["test-helpers"] }
 parity-updater = { path = "../updater" }
 parity-version = { path = "../util/version" }
 rlp = "0.4.0"
