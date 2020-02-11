@@ -2706,7 +2706,7 @@ dependencies = [
 [[package]]
 name = "kvdb-sled"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/parity-common?branch=ao-kvdb-sled#0d07a21722013cb743e241f8e732c9aa8ad45518"
+source = "git+https://github.com/paritytech/parity-common?branch=ao-kvdb-sled#4290b0155b8f1bdf2ae2d9ec4fe822e374519cb3"
 dependencies = [
  "kvdb",
  "log",
@@ -2735,9 +2735,9 @@ dependencies = [
 
 [[package]]
 name = "libc"
-version = "0.2.65"
+version = "0.2.66"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1a31a0627fdf1f6a39ec0dd577e101440b7db22672c0901fe00a9a6fbb5c24e8"
+checksum = "d515b1f41455adea1313a4a2ac8a8a477634fbae63cc6100e3aebb207ce61558"
 
 [[package]]
 name = "libloading"
