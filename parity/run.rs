@@ -900,9 +900,7 @@ impl RunningClient {
 				trace!(target: "shutdown", "Informant dropped");
 				drop(client);
 				trace!(target: "shutdown", "Client dropped");
-				// This may help when debugging ref cycles. Requires nightly-only  `#![feature(weak_counts)]`
-				// trace!(target: "shutdown", "Waiting for refs to Client to shutdown, strong_count={:?}, weak_count={:?}", weak_client.strong_count(), weak_client.weak_count());
-				trace!(target: "shutdown", "Waiting for refs to Client to shutdown");
+				trace!(target: "shutdown", "Waiting for refs to Client to shutdown, strong_count={:?}, weak_count={:?}", weak_client.strong_count(), weak_client.weak_count());
 				wait_for_drop(weak_client);
 			}
 		}
@@ -960,11 +958,7 @@ fn wait_for_drop<T>(w: Weak<T>) {
 
 		thread::sleep(SLEEP_DURATION);
 
-		// When debugging shutdown issues on a nightly build it can help to enable this with the
-		// `#![feature(weak_counts)]` added to lib.rs (TODO: enable when
-		// https://github.com/rust-lang/rust/issues/57977 is stable)
-		// trace!(target: "shutdown", "Waiting for client to drop, strong_count={:?}, weak_count={:?}", w.strong_count(), w.weak_count());
-		trace!(target: "shutdown", "Waiting for client to drop");
+		trace!(target: "shutdown", "Waiting for client to drop, strong_count={:?}, weak_count={:?}", w.strong_count(), w.weak_count());
 	}
 
 	warn!("Shutdown timeout reached, exiting uncleanly.");
