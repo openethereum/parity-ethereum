@@ -17,7 +17,7 @@ rustc-hex = "1.0"
 fetch = { path = "../../util/fetch" }
 parity-bytes = "0.1"
 ethereum-types = "0.8.0"
-parity-runtime = { path = "../../util/runtime" }
+parity-runtime = "0.1.1"
 keccak-hash = "0.4.0"
 registrar = { path = "../../util/registrar" }
 types = { path = "../../ethcore/types", package = "common-types" }
