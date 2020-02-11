@@ -3513,7 +3513,9 @@ dependencies = [
 
 [[package]]
 name = "parity-runtime"
-version = "0.1.0"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "710e8d8e9769827952aa83a44d33bc993658cccd97e15e3b5eb070d1a70d1a3a"
 dependencies = [
  "futures",
  "tokio",

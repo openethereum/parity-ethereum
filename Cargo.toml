@@ -57,7 +57,7 @@ parity-ipfs-api = { path = "ipfs" }
 parity-local-store = { path = "miner/local-store" }
 parity-path = "0.1"
 parity-rpc = { path = "rpc" }
-parity-runtime = { path = "util/runtime" }
+parity-runtime = "0.1.1"
 parity-updater = { path = "updater" }
 parity-util-mem = { version = "0.5.1", features = ["jemalloc-global"] }
 parity-version = { path = "util/version" }
