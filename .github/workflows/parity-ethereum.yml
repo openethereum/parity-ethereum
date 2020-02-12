@@ -168,12 +168,6 @@ jobs:
         with:
           command: test
           args: --locked --all --release --features "json-tests" --verbose
-      # From https://github.com/launchbadge/sqlx/blob/master/.github/workflows/rust.yml
-      - name: Prepare build directory for cache
-        run: |
-          find ./target/release -maxdepth 1 -type f -delete; \
-          rm -fr ./target/release/{deps,.fingerprint}/*{parity,ethcore}*; \
-          rm -f  ./target/.rustc_info.json
   build:
     name: Build Release Suite
     needs: run-tests
