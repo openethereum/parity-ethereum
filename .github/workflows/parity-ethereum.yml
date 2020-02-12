@@ -206,14 +206,18 @@ jobs:
         with:
           path: target
           key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('Cargo.lock') }}
-      - name: Build parity-ethereum for ${{matrix.platforn}}
+      - name: Build parity-ethereum for ${{matrix.platform}}
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --locked --all --release --features "json-tests" --verbose --no-run
-      # From https://github.com/launchbadge/sqlx/blob/master/.github/workflows/rust.yml
-      - name: Prepare build directory for cache
-        run: |
-          find ./target/release -maxdepth 1 -type f -delete; \
-          rm -fr ./target/release/{deps,.fingerprint}/*{parity,ethcore}*; \
-          rm -f  ./target/.rustc_info.json
+          args: --verbose --color=always --release --features final
+      - name: Build parity-ethereum for ${{matrix.platform}}
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --verbose --color=always --release -p evmbin -p ethstore-cli -p ethkey-cli
+      - name: Download artifact
+        uses: actions/download-artifact@v1.0.0
+        with:
+          name: parity
+          path: target/release
