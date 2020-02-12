@@ -37,7 +37,7 @@ use ethcore::miner::{Miner, MinerService};
 use parity_crypto::publickey::Error as EthKeyError;
 use sync::SyncProvider;
 use registrar::RegistrarClient;
-use ethcore_secretstore::{BlockId, BlockNumber, SecretStoreChain, NewBlocksNotify, SigningKeyPair, ContractAddress, Filter};
+use parity_secretstore::{BlockId, BlockNumber, SecretStoreChain, NewBlocksNotify, SigningKeyPair, ContractAddress, Filter};
 
 // TODO: Instead of a constant, make this based on consensus finality.
 /// Number of confirmations required before request can be processed.
