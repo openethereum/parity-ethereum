@@ -71,7 +71,6 @@ jobs:
           && rm -f  ./target/.rustc_info.json
   build-tests:
     name: Build Release Test Suite
-    continue-on-error: true
     needs: check
     strategy:
       matrix:
@@ -111,6 +110,7 @@ jobs:
           path: target
           key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('Cargo.lock') }}
       - name: Build tests
+        continue-on-error: true
         uses: actions-rs/cargo@v1
         with:
           command: test
@@ -123,7 +123,6 @@ jobs:
           && rm -f  ./target/.rustc_info.json
   run-tests:
     name: Run Test Suite
-    continue-on-error: true
     needs: build-tests
     strategy:
       matrix:
@@ -166,6 +165,7 @@ jobs:
           path: target
           key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('Cargo.lock') }}
       - name: Run tests
+        continue-on-error: true
         uses: actions-rs/cargo@v1
         with:
           command: test
