@@ -8,9 +8,6 @@ jobs:
     name: Check
     runs-on: ubuntu-16.04
     steps:
-      - name: Rust audit check
-        uses: actions-rs/audit-check@v1.1.0
-        continue-on-error: true
       - name: Checkout sources
         uses: actions/checkout@v2
         with:
@@ -74,6 +71,7 @@ jobs:
           && rm -f  ./target/.rustc_info.json
   build-tests:
     name: Build Release Test Suite
+    continue-on-error: true
     needs: check
     strategy:
       matrix:
@@ -125,6 +123,7 @@ jobs:
           && rm -f  ./target/.rustc_info.json
   run-tests:
     name: Run Test Suite
+    continue-on-error: true
     needs: build-tests
     strategy:
       matrix:
