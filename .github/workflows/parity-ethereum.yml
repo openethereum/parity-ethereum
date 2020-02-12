@@ -77,7 +77,6 @@ jobs:
         platform:
           - ubuntu-16.04
           - macos-latest
-          - windows-latest
         toolchain:
           - stable
     runs-on: ${{ matrix.platform }}
@@ -110,7 +109,6 @@ jobs:
           path: target
           key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('Cargo.lock') }}
       - name: Build tests
-        continue-on-error: true
         uses: actions-rs/cargo@v1
         with:
           command: test
@@ -173,9 +171,9 @@ jobs:
       # From https://github.com/launchbadge/sqlx/blob/master/.github/workflows/rust.yml
       - name: Prepare build directory for cache
         run: |
-          find ./target/release -maxdepth 1 -type f -delete \
-          && rm -fr ./target/release/{deps,.fingerprint}/*{parity,ethcore}* \
-          && rm -f  ./target/.rustc_info.json
+          find ./target/release -maxdepth 1 -type f -delete; \
+          rm -fr ./target/release/{deps,.fingerprint}/*{parity,ethcore}*; \
+          rm -f  ./target/.rustc_info.json
   build:
     name: Build Release Suite
     needs: run-tests
@@ -222,6 +220,6 @@ jobs:
       # From https://github.com/launchbadge/sqlx/blob/master/.github/workflows/rust.yml
       - name: Prepare build directory for cache
         run: |
-          find ./target/release -maxdepth 1 -type f -delete \
-          && rm -fr ./target/release/{deps,.fingerprint}/*{parity,ethcore}* \
-          && rm -f  ./target/.rustc_info.json
+          find ./target/release -maxdepth 1 -type f -delete; \
+          rm -fr ./target/release/{deps,.fingerprint}/*{parity,ethcore}*; \
+          rm -f  ./target/.rustc_info.json
