@@ -30,7 +30,6 @@ ethcore-logger = { path = "parity/logger" }
 ethcore-miner = { path = "miner" }
 ethcore-network = { path = "util/network" }
 ethcore-private-tx = { path = "ethcore/private-tx" }
-ethcore-secretstore = { path = "secret-store", optional = true }
 ethcore-service = { path = "ethcore/service" }
 ethcore-sync = { path = "ethcore/sync" }
 ethereum-types = "0.8.0"
@@ -58,6 +57,7 @@ parity-local-store = { path = "miner/local-store" }
 parity-path = "0.1"
 parity-rpc = { path = "rpc" }
 parity-runtime = "0.1.1"
+parity-secretstore = { git = "https://github.com/paritytech/secret-store", rev = "ebe751d", optional = true }
 parity-updater = { path = "updater" }
 parity-util-mem = { version = "0.5.1", features = ["jemalloc-global"] }
 parity-version = { path = "util/version" }
@@ -99,7 +99,7 @@ test-heavy = ["ethcore/test-heavy"]
 evm-debug = ["ethcore/evm-debug"]
 evm-debug-tests = ["ethcore/evm-debug-tests"]
 slow-blocks = ["ethcore/slow-blocks"]
-secretstore = ["ethcore-secretstore", "accounts", "ethabi", "ethcore-call-contract"]
+secretstore = ["parity-secretstore", "accounts", "ethabi", "ethcore-call-contract"]
 final = ["parity-version/final"]
 deadlock_detection = ["parking_lot/deadlock_detection"]
 # to create a memory profile (requires nightly rust), use e.g.

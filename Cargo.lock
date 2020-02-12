@@ -1583,43 +1583,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ethcore-secretstore"
-version = "1.0.0"
-dependencies = [
- "byteorder",
- "env_logger 0.5.13",
- "ethabi",
- "ethabi-contract",
- "ethabi-derive",
- "ethereum-types",
- "ethkey",
- "futures",
- "hyper",
- "jsonrpc-server-utils",
- "keccak-hash",
- "kvdb",
- "kvdb-rocksdb",
- "lazy_static",
- "libsecp256k1",
- "log",
- "parity-bytes",
- "parity-crypto",
- "parity-runtime",
- "parking_lot 0.10.0",
- "percent-encoding 2.1.0",
- "rustc-hex 1.0.0",
- "serde",
- "serde_derive",
- "serde_json",
- "tempdir",
- "tiny-keccak 1.5.0",
- "tokio",
- "tokio-io",
- "tokio-service",
- "url 2.1.0",
-]
-
-[[package]]
 name = "ethcore-service"
 version = "0.1.0"
 dependencies = [
@@ -3303,7 +3266,6 @@ dependencies = [
  "ethcore-miner",
  "ethcore-network",
  "ethcore-private-tx",
- "ethcore-secretstore",
  "ethcore-service",
  "ethcore-sync",
  "ethereum-types",
@@ -3333,6 +3295,7 @@ dependencies = [
  "parity-path",
  "parity-rpc",
  "parity-runtime",
+ "parity-secretstore",
  "parity-updater",
  "parity-util-mem",
  "parity-version",
@@ -3531,6 +3494,41 @@ dependencies = [
  "bitvec",
  "byte-slice-cast",
  "serde",
+]
+
+[[package]]
+name = "parity-secretstore"
+version = "1.0.0"
+source = "git+https://github.com/paritytech/secret-store?rev=ebe751d#ebe751db6af07425d2e1823ac05a84d0fafe3dad"
+dependencies = [
+ "byteorder",
+ "ethabi",
+ "ethabi-contract",
+ "ethabi-derive",
+ "ethereum-types",
+ "futures",
+ "hyper",
+ "jsonrpc-server-utils",
+ "keccak-hash",
+ "kvdb",
+ "kvdb-rocksdb",
+ "lazy_static",
+ "libsecp256k1",
+ "log",
+ "parity-bytes",
+ "parity-crypto",
+ "parity-runtime",
+ "parking_lot 0.10.0",
+ "percent-encoding 2.1.0",
+ "rustc-hex 1.0.0",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "tiny-keccak 1.5.0",
+ "tokio",
+ "tokio-io",
+ "tokio-service",
+ "url 2.1.0",
 ]
 
 [[package]]

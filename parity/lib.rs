@@ -84,7 +84,7 @@ extern crate log as rlog;
 extern crate ethcore_accounts as accounts;
 
 #[cfg(feature = "secretstore")]
-extern crate ethcore_secretstore;
+extern crate parity_secretstore;
 
 #[cfg(feature = "secretstore")]
 extern crate ethabi;
