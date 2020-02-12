@@ -1,7 +1,6 @@
 name: Parity-ethereum
 
 on:
-  pull_request:
   push:
 
 jobs:
