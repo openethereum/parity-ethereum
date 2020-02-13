@@ -710,7 +710,7 @@ dependencies = [
  "parity-util-mem",
  "patricia-trie-ethereum",
  "rlp",
- "rlp_derive",
+ "rlp-derive",
  "rustc-hex 2.1.0",
  "unexpected",
  "vm",
@@ -1010,7 +1010,7 @@ dependencies = [
  "hex-literal",
  "maplit",
  "rlp",
- "rlp_derive",
+ "rlp-derive",
 ]
 
 [[package]]
@@ -1307,8 +1307,8 @@ dependencies = [
  "rand 0.7.2",
  "rayon",
  "rlp",
+ "rlp-derive",
  "rlp_compress",
- "rlp_derive",
  "rustc-hex 1.0.0",
  "tempdir",
  "triehash-ethereum",
@@ -1359,7 +1359,7 @@ dependencies = [
  "parity-util-mem",
  "parking_lot 0.10.0",
  "rlp",
- "rlp_derive",
+ "rlp-derive",
 ]
 
 [[package]]
@@ -1415,7 +1415,7 @@ dependencies = [
  "patricia-trie-ethereum",
  "rand 0.7.2",
  "rlp",
- "rlp_derive",
+ "rlp-derive",
  "serde",
  "serde_derive",
  "smallvec 1.2.0",
@@ -1566,7 +1566,7 @@ dependencies = [
  "patricia-trie-ethereum",
  "registrar",
  "rlp",
- "rlp_derive",
+ "rlp-derive",
  "rustc-hex 1.0.0",
  "serde",
  "serde_derive",
@@ -4318,22 +4318,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "rlp-derive"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e33d7b2abe0c340d8797fe2907d3f20d3b5ea5908683618bfe80df7f621f672a"
+dependencies = [
+ "proc-macro2 1.0.8",
+ "quote 1.0.2",
+ "syn 1.0.14",
+]
+
+[[package]]
 name = "rlp_compress"
 version = "0.1.0"
 dependencies = [
  "elastic-array",
  "lazy_static",
  "rlp",
-]
-
-[[package]]
-name = "rlp_derive"
-version = "0.1.0"
-dependencies = [
- "proc-macro2 1.0.8",
- "quote 1.0.2",
- "rlp",
- "syn 1.0.14",
 ]
 
 [[package]]
@@ -4709,7 +4710,7 @@ dependencies = [
  "rand 0.7.2",
  "rand_xorshift 0.2.0",
  "rlp",
- "rlp_derive",
+ "rlp-derive",
  "scopeguard 1.0.0",
  "snapshot-tests",
  "spec",
@@ -5358,7 +5359,7 @@ dependencies = [
  "parity-util-mem",
  "parking_lot 0.10.0",
  "rlp",
- "rlp_derive",
+ "rlp-derive",
  "vm",
 ]
 
