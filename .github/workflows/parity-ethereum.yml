@@ -77,7 +77,6 @@ jobs:
         platform:
           - ubuntu-16.04
           - macos-latest
-          - windows-latest
         toolchain:
           - stable
     runs-on: ${{ matrix.platform }}
@@ -133,7 +132,6 @@ jobs:
         platform:
           - ubuntu-16.04
           - macos-latest
-          - windows-latest
         toolchain:
           - stable
           - beta
@@ -182,7 +180,6 @@ jobs:
         platform:
           - ubuntu-16.04
           - macos-latest
-          - windows-latest
         toolchain:
           - stable
     runs-on: ${{ matrix.platform }}
@@ -218,7 +215,7 @@ jobs:
         with:
           command: build
           args: --verbose --color=always --release --features final
-      - name: Build parity-ethereum for ${{matrix.platform}}
+      - name: Build parity-utils for ${{matrix.platform}}
         uses: actions-rs/cargo@v1
         continue-on-error: true
         with:
@@ -228,5 +225,5 @@ jobs:
         uses: actions/download-artifact@v1.0.0
         continue-on-error: true
         with:
-          name: parity
+          name: parity,ethkey,ethstore,parity-evm
           path: target/release
