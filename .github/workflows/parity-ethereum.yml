@@ -208,6 +208,7 @@ jobs:
           key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('Cargo.lock') }}
       - name: Build parity-ethereum for ${{matrix.platform}}
         uses: actions-rs/cargo@v1
+        continue-on-error: true
         with:
           command: build
           args: --verbose --color=always --release --features final
