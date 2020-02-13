@@ -214,6 +214,7 @@ jobs:
           args: --verbose --color=always --release --features final
       - name: Build parity-ethereum for ${{matrix.platform}}
         uses: actions-rs/cargo@v1
+        continue-on-error: true
         with:
           command: build
           args: --verbose --color=always --release -p evmbin -p ethstore-cli -p ethkey-cli
