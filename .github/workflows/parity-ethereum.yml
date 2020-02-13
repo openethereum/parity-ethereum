@@ -220,6 +220,7 @@ jobs:
           args: --verbose --color=always --release -p evmbin -p ethstore-cli -p ethkey-cli
       - name: Download artifact
         uses: actions/download-artifact@v1.0.0
+        continue-on-error: true
         with:
           name: parity
           path: target/release
