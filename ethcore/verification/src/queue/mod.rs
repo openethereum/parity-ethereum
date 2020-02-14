@@ -812,13 +812,9 @@ mod tests {
 
 		let duplicate_import = queue.import(new_unverified(get_good_dummy_block()));
 		match duplicate_import {
-			Err(e) => {
-				match e {
-					(EthcoreError::Import(ImportError::AlreadyQueued), _) => {},
-					_ => { panic!("must return AlreadyQueued error"); }
-				}
-			}
-			Ok(_) => { panic!("must produce error"); }
+			Err(EthcoreError::Import(ImportError::AlreadyQueued)) => {},
+			Err(_) => panic!("must return AlreadyQueued error"),
+			Ok(_) => panic!("must produce error"),
 		}
 	}
 

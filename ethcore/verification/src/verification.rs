@@ -159,7 +159,6 @@ pub struct FullFamilyParams<'a, C: BlockInfo + CallContract + 'a> {
 
 /// Phase 3 verification. Check block information against parent and uncles.
 pub fn verify_block_family<C: BlockInfo + CallContract>(
-	header: &Header,
 	parent: &Header,
 	engine: &dyn Engine,
 	block: PreverifiedBlock,
@@ -167,10 +166,10 @@ pub fn verify_block_family<C: BlockInfo + CallContract>(
 	client: &C
 ) -> Result<PreverifiedBlock, Error> {
 	// TODO: verify timestamp
-	if let Err(error) = verify_parent(&header, &parent, engine) {
+	if let Err(error) = verify_parent(&block.header, &parent, engine) {
 		return Err(Error::Block(BlockErrorWithData { error, data: Some(block.bytes) }));
 	}
-	engine.verify_block_family(&header, &parent)?;
+	engine.verify_block_family(&block.header, &parent)?;
 	let block = verify_uncles(block, block_provider, engine)?;
 
 	for tx in &block.transactions {
@@ -512,16 +511,14 @@ mod tests {
 	use keccak_hash::keccak;
 	use engine::Engine;
 	use parity_crypto::publickey::{Random, Generator};
-	use spec;
 	use ethcore::test_helpers::{
 		create_test_block_with_data, create_test_block, TestBlockChainClient
 	};
 	use common_types::{
 		engines::params::CommonParams,
-		errors::BlockError::*,
+		errors::{BlockErrorWithData, EthcoreError as Error, BlockError::*},
 		transaction::{SignedTransaction, Transaction, UnverifiedTransaction, Action},
 	};
-	use rlp;
 	use triehash::ordered_trie_root;
 	use machine::Machine;
 	use null_engine::NullEngine;
@@ -534,7 +531,7 @@ mod tests {
 
 	fn check_fail(result: Result<(), Error>, e: BlockError) {
 		match result {
-			Err(Error::Block(ref error)) if *error == e => (),
+			Err(Error::Block(BlockErrorWithData { error, .. })) if error == e => (),
 			Err(other) => panic!("Block verification failed.\nExpected: {:?}\nGot: {:?}", e, other),
 			Ok(_) => panic!("Block verification failed.\nExpected: {:?}\nGot: Ok", e),
 		}
@@ -543,8 +540,8 @@ mod tests {
 	fn check_fail_timestamp(result: Result<(), Error>, temp: bool) {
 		let name = if temp { "TemporarilyInvalid" } else { "InvalidTimestamp" };
 		match result {
-			Err(Error::Block(BlockError::InvalidTimestamp(_))) if !temp => (),
-			Err(Error::Block(BlockError::TemporarilyInvalid(_))) if temp => (),
+			Err(Error::Block(BlockErrorWithData { error: BlockError::InvalidTimestamp(_), .. })) if !temp => (),
+			Err(Error::Block(BlockErrorWithData { error: BlockError::TemporarilyInvalid(_), .. })) if temp => (),
 			Err(other) => panic!("Block verification failed.\nExpected: {}\nGot: {:?}", name, other),
 			Ok(_) => panic!("Block verification failed.\nExpected: {}\nGot: Ok", name),
 		}
@@ -552,7 +549,7 @@ mod tests {
 
 	fn basic_test(bytes: &[u8], engine: &dyn Engine) -> Result<(), Error> {
 		let unverified = Unverified::from_rlp(bytes.to_vec())?;
-		verify_block_basic(&unverified, engine, true)
+		verify_block_basic(unverified, engine, true).map(|_| ())
 	}
 
 	fn family_test<BC>(bytes: &[u8], engine: &dyn Engine, bc: &BC) -> Result<(), Error> where BC: BlockProvider {
@@ -568,9 +565,13 @@ mod tests {
 		// no existing tests need access to test, so having this not function
 		// is fine.
 		let client = TestBlockChainClient::default();
-		let parent = bc.block_header_data(header.parent_hash())
-			.ok_or(BlockError::UnknownParent(*header.parent_hash()))?
-			.decode()?;
+		let parent = match bc.block_header_data(header.parent_hash()) {
+			Some(parent) => parent.decode()?,
+			None => return Err(Error::Block(BlockErrorWithData {
+				error: BlockError::UnknownParent(*header.parent_hash()),
+				data: Some(block.bytes)
+			})),
+		};
 
 		let block = PreverifiedBlock {
 			header,
@@ -579,12 +580,7 @@ mod tests {
 			bytes: bytes.to_vec(),
 		};
 
-		let full_params = FullFamilyParams {
-			block: &block,
-			block_provider: bc as &dyn BlockProvider,
-			client: &client,
-		};
-		verify_block_family(&block.header, &parent, engine, full_params)
+		verify_block_family(&parent, engine, block, bc, &client).map(|_| ())
 	}
 
 	fn unordered_test(bytes: &[u8], engine: &dyn Engine) -> Result<(), Error> {
@@ -814,9 +810,9 @@ mod tests {
 		header.set_gas_limit(0.into());
 		header.set_difficulty("0000000000000000000000000000000000000000000000000000000000020000".parse::<U256>().unwrap());
 		match family_test(&create_test_block(&header), engine, &bc) {
-			Err(Error::Block(InvalidGasLimit(_))) => {},
-			Err(_) => { panic!("should be invalid difficulty fail"); },
-			_ => { panic!("Should be error, got Ok"); },
+			Err(Error::Block(BlockErrorWithData { error: InvalidGasLimit(_), .. })) => {},
+			Err(_) => panic!("should be invalid difficulty fail"),
+			_ => panic!("Should be error, got Ok"),
 		}
 
 		// TODO: some additional uncle checks

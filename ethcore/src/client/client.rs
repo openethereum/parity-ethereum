@@ -390,7 +390,6 @@ impl Importer {
 		let chain = client.chain.read();
 		// Verify Block Family
 		let verified_family_result = verification::verify_block_family(
-			&header,
 			&parent,
 			engine,
 			block,
