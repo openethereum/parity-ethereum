@@ -723,7 +723,7 @@ fn header_signature(header: &Header, empty_steps_transition: u64) -> Result<Sign
 // Extracts the RLP bytes of the empty steps from the header seal. Returns data only when there are
 // 3 fields in the seal. (i.e. header.number() >= self.empty_steps_transition).
 fn header_empty_steps_raw(header: &Header) -> Option<&[u8]> {
-	header.seal().get(2).map(Vec::as_slice )
+	header.seal().get(2).map(Vec::as_slice)
 }
 
 // Extracts the empty steps from the header seal. Returns data only when there are 3 fields in the seal
