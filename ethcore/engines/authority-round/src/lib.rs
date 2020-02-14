@@ -976,7 +976,7 @@ impl AuthorityRound {
 	fn clear_empty_steps(&self, step: u64) {
 		let mut empty_steps = self.empty_steps.lock();
 		if empty_steps.is_empty() {
-			return
+			return;
 		}
 		let next_empty_steps = empty_steps.split_off(&EmptyStep {
 			step: step + 1,
