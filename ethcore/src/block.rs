@@ -222,6 +222,10 @@ impl<'x> OpenBlock<'x> {
 		self.block.header.set_timestamp(header.timestamp());
 		self.block.header.set_uncles_hash(*header.uncles_hash());
 		self.block.header.set_transactions_root(*header.transactions_root());
+		// For Aura-based chains, the seal may contain EmptySteps which are used to bestow rewards;
+		// such rewards affect the state and the state root (see
+		// https://github.com/paritytech/parity-ethereum/pull/11475).
+		self.block.header.set_seal(header.seal().to_vec());
 		// TODO: that's horrible. set only for backwards compatibility
 		if header.extra_data().len() > self.engine.maximum_extra_data_size() {
 			warn!("Couldn't set extradata. Ignoring.");
@@ -554,7 +558,7 @@ mod tests {
 		b.close_and_lock()
 	}
 
-	/// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header. Seal the block aferwards
+	/// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header. Seal the block afterwards
 	fn enact_and_seal(
 		block_bytes: Vec<u8>,
 		engine: &dyn Engine,

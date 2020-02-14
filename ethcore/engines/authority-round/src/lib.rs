@@ -720,17 +720,22 @@ fn header_signature(header: &Header, empty_steps_transition: u64) -> Result<Sign
 	.as_val::<H520>().map(Into::into)
 }
 
-// extracts the raw empty steps vec from the header seal. should only be called when there are 3 fields in the seal
-// (i.e. header.number() >= self.empty_steps_transition)
-fn header_empty_steps_raw(header: &Header) -> &[u8] {
-	header.seal().get(2).expect("was checked with verify_block_basic; has 3 fields; qed")
+// Extracts the RLP bytes of the empty steps from the header seal. Returns data only when there are
+// 3 fields in the seal. (i.e. header.number() >= self.empty_steps_transition).
+fn header_empty_steps_raw(header: &Header) -> Option<&[u8]> {
+	header.seal().get(2).map(Vec::as_slice)
 }
 
-// extracts the empty steps from the header seal. should only be called when there are 3 fields in the seal
+// Extracts the empty steps from the header seal. Returns data only when there are 3 fields in the seal
 // (i.e. header.number() >= self.empty_steps_transition).
 fn header_empty_steps(header: &Header) -> Result<Vec<EmptyStep>, ::rlp::DecoderError> {
-	let empty_steps = Rlp::new(header_empty_steps_raw(header)).as_list::<SealedEmptyStep>()?;
-	Ok(empty_steps.into_iter().map(|s| EmptyStep::from_sealed(s, header.parent_hash())).collect())
+	header_empty_steps_raw(header).map_or(Ok(vec![]), |raw| {
+		let empty_steps = Rlp::new(raw).as_list::<SealedEmptyStep>()?;
+		Ok(empty_steps
+			.into_iter()
+			.map(|s| EmptyStep::from_sealed(s, header.parent_hash()))
+			.collect())
+	})
 }
 
 // gets the signers of empty step messages for the given header, does not include repeated signers
@@ -788,7 +793,7 @@ fn verify_external(header: &Header, validators: &dyn ValidatorSet, empty_steps_t
 	let correct_proposer = validators.get(header.parent_hash(), header_step as usize);
 	let is_invalid_proposer = *header.author() != correct_proposer || {
 		let empty_steps_rlp = if header.number() >= empty_steps_transition {
-			Some(header_empty_steps_raw(header))
+			header_empty_steps_raw(header)
 		} else {
 			None
 		};
@@ -970,11 +975,15 @@ impl AuthorityRound {
 	/// Drops all `EmptySteps` less than or equal to the passed `step`, irregardless of the parent hash.
 	fn clear_empty_steps(&self, step: u64) {
 		let mut empty_steps = self.empty_steps.lock();
-		*empty_steps = empty_steps.split_off(&EmptyStep {
+		if empty_steps.is_empty() {
+			return;
+		}
+		let next_empty_steps = empty_steps.split_off(&EmptyStep {
 			step: step + 1,
 			parent_hash: Default::default(),
 			signature: Default::default(),
 		});
+		*empty_steps = next_empty_steps
 	}
 
 	fn store_empty_step(&self, empty_step: EmptyStep) {
@@ -3013,9 +3022,10 @@ mod tests {
 		let params = AuthorityRoundParams::from(deserialized.params);
 		for ((block_num1, address1), (block_num2, address2)) in
 			params.block_reward_contract_transitions.iter().zip(
-				[(0u64, BlockRewardContract::new_from_address(Address::from_str("2000000000000000000000000000000000000002").unwrap())),
-				 (7u64, BlockRewardContract::new_from_address(Address::from_str("3000000000000000000000000000000000000003").unwrap())),
-				 (42u64, BlockRewardContract::new_from_address(Address::from_str("4000000000000000000000000000000000000004").unwrap())),
+				[
+					(0u64, BlockRewardContract::new_from_address(Address::from_str("2000000000000000000000000000000000000002").unwrap())),
+					(7u64, BlockRewardContract::new_from_address(Address::from_str("3000000000000000000000000000000000000003").unwrap())),
+					(42u64, BlockRewardContract::new_from_address(Address::from_str("4000000000000000000000000000000000000004").unwrap())),
 				].iter())
 		{
 			assert_eq!(block_num1, block_num2);
