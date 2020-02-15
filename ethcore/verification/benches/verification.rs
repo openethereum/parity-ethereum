@@ -19,7 +19,7 @@
 use std::collections::BTreeMap;
 
 use common_types::verification::Unverified;
-use criterion::{Criterion, criterion_group, criterion_main};
+use criterion::{BatchSize, Criterion, criterion_group, criterion_main};
 use ethash::{EthashParams, Ethash};
 use ethereum_types::U256;
 use ethcore::test_helpers::TestBlockChainClient;
@@ -27,10 +27,18 @@ use spec::new_constantinople_test_machine;
 use tempdir::TempDir;
 
 use ::verification::{
-	FullFamilyParams,
 	verification,
 	test_helpers::TestBlockChain,
 };
+
+/// Proof
+const PROOF: &str = "bytes from disk are ok";
+/// A fairly large block (32kb) with one uncle
+const RLP_8481476: &[u8] = include_bytes!("./8481476-one-uncle.rlp");
+/// Parent of #8481476
+const RLP_8481475: &[u8] = include_bytes!("./8481475.rlp");
+/// Parent of the uncle in #8481476
+const RLP_8481474: &[u8] = include_bytes!("./8481474-parent-to-uncle.rlp");
 
 // These are current production values. Needed when using real blocks.
 fn ethash_params() -> EthashParams {
@@ -81,65 +89,64 @@ fn build_ethash() -> Ethash {
 	)
 }
 
+fn build_block(rlp: &[u8]) -> Unverified {
+	Unverified::from_rlp(rlp.to_vec()).expect("bytes from disk are ok; qed")
+}
+
 fn block_verification(c: &mut Criterion) {
-	const PROOF: &str = "bytes from disk are ok";
-
 	let ethash = build_ethash();
-
-	// A fairly large block (32kb) with one uncle
-	let rlp_8481476 = include_bytes!("./8481476-one-uncle.rlp").to_vec();
-	// Parent of #8481476
-	let rlp_8481475 = include_bytes!("./8481475.rlp").to_vec();
-	// Parent of the uncle in #8481476
-	let rlp_8481474 = include_bytes!("./8481474-parent-to-uncle.rlp").to_vec();
 
 	// Phase 1 verification
 	c.bench_function("verify_block_basic", |b| {
-		let block = Unverified::from_rlp(rlp_8481476.clone()).expect(PROOF);
-		b.iter(|| {
-			assert!(verification::verify_block_basic(
-				&block,
-				&ethash,
-				true
-			).is_ok());
-		})
+		b.iter_batched(|| build_block(RLP_8481476), |block| {
+				assert!(verification::verify_block_basic(
+					block,
+					&ethash,
+					true
+				).is_ok())
+			},
+			BatchSize::SmallInput
+		)
 	});
 
 	// Phase 2 verification
 	c.bench_function("verify_block_unordered", |b| {
-		let block = Unverified::from_rlp(rlp_8481476.clone()).expect(PROOF);
-		b.iter( || {
-			assert!(verification::verify_block_unordered(
-				block.clone(),
-				&ethash,
-				true
-			).is_ok());
-		})
+		b.iter_batched(|| build_block(RLP_8481476), |block| {
+				assert!(verification::verify_block_unordered(
+					block,
+					&ethash,
+					true
+				).is_ok())
+			},
+			BatchSize::SmallInput
+		)
 	});
 
 	// Phase 3 verification
-	let block = Unverified::from_rlp(rlp_8481476.clone()).expect(PROOF);
-	let preverified = verification::verify_block_unordered(block, &ethash, true).expect(PROOF);
-	let parent = Unverified::from_rlp(rlp_8481475.clone()).expect(PROOF);
+	let parent = build_block(RLP_8481475);
 
 	let mut block_provider = TestBlockChain::new();
-	block_provider.insert(rlp_8481476.clone()); // block to verify
-	block_provider.insert(rlp_8481475.clone()); // parent
-	block_provider.insert(rlp_8481474.clone()); // uncle's parent
+	block_provider.insert(RLP_8481476.to_vec()); // block to verify
+	block_provider.insert(RLP_8481475.to_vec()); // parent
+	block_provider.insert(RLP_8481474.to_vec()); // uncle's parent
 
 	let client = TestBlockChainClient::default();
-	c.bench_function("verify_block_family", |b| {
-		b.iter(|| {
-			let full = FullFamilyParams { block: &preverified, block_provider: &block_provider, client: &client };
-			if let Err(e) = verification::verify_block_family::<TestBlockChainClient>(
-				&preverified.header,
-				&parent.header,
-				&ethash,
-				full,
-			) {
-				panic!("verify_block_family (full) ERROR: {:?}", e)
-			}
-		});
+	c.bench_function("verify_block_family (full)", |b| {
+		b.iter_batched(
+			|| {
+				verification::verify_block_unordered(build_block(RLP_8481476), &ethash, true).expect(PROOF)
+			},
+			|preverified| {
+				assert!(verification::verify_block_family::<TestBlockChainClient>(
+					&parent.header,
+					&ethash,
+					preverified,
+					&block_provider,
+					&client
+				).is_ok())
+			},
+			BatchSize::SmallInput
+		)
 	});
 }
 
