@@ -851,7 +851,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 			return Err(ExecutionError::NotEnoughBaseGas { required: base_gas_required, got: t.gas });
 		}
 
-		if !t.is_unsigned() && check_nonce && schedule.kill_dust != CleanDustMode::Off && !self.state.exists(&sender)? {
+		if check_nonce && schedule.kill_dust != CleanDustMode::Off && !self.state.exists(&sender)? {
 			return Err(ExecutionError::SenderMustExist);
 		}
 
@@ -884,10 +884,8 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 
 		let mut substate = Substate::new();
 
-		// NOTE: there can be no invalid transactions from this point.
-		if !schedule.keep_unsigned_nonce || !t.is_unsigned() {
-			self.state.inc_nonce(&sender)?;
-		}
+		self.state.inc_nonce(&sender)?;
+
 		self.state.sub_balance(
 			&sender,
 			&U256::try_from(gas_cost).expect("Total cost (value + gas_cost) is lower than max allowed balance (U256); gas_cost has to fit U256; qed"),

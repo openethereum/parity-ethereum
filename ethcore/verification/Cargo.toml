@@ -32,6 +32,7 @@ triehash = { package = "triehash-ethereum", version = "0.2",  path = "../../util
 unexpected = { path = "../../util/unexpected" }
 
 [dev-dependencies]
+common-types = { path = "../types", features = ["test-helpers"] }
 criterion = "0.3"
 ethcore = { path = "../", features = ["test-helpers"] }
 parity-crypto = { version = "0.5.0", features = ["publickey"] }
