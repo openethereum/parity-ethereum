@@ -1766,10 +1766,12 @@ impl BlockChainClient for Client {
 
 	fn process_fork(&self) {
 		let chain = self.chain.read();
-		if self.importer.block_queue.is_processing_fork(&chain.best_block_hash(), &chain) {
-			debug!(target: "client", "Waiting for fork processing");
-			let _import_lock = self.importer.import_lock.lock();
-			debug!(target: "client", "Fork processing completed");
+		while self.importer.block_queue.is_processing() {
+			if self.importer.block_queue.is_processing_fork(&chain.best_block_hash(), &chain) {
+				debug!(target: "client", "Waiting for fork processing");
+				let _import_lock = self.importer.import_lock.lock();
+				debug!(target: "client", "Fork processing completed");
+			}
 		}
 	}
 

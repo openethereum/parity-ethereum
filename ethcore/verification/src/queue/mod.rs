@@ -607,6 +607,11 @@ impl<K: Kind, C> VerificationQueue<K, C> {
 			&& v.verified.load_len() == 0
 	}
 
+	/// Returns true if there are items being processed currently in the queue.
+	pub fn is_processing(&self) -> bool {
+		!self.processing.read().is_empty()
+	}
+
 	/// Returns true, if in processing queue there is no descendant of the current best block
 	/// May return false negative for longer queues
 	pub fn is_processing_fork(&self, best_block_hash: &H256, chain: &BlockChain) -> bool {
