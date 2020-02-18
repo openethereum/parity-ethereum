@@ -16,7 +16,6 @@ ethjson = { path = "../../../json" }
 keccak-hash = "0.4.0"
 log = "0.4.8"
 machine = { path = "../../machine" }
-macros = { path = "../../../util/macros" }
 unexpected = { path = "../../../util/unexpected" }
 
 [dev-dependencies]

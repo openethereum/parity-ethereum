@@ -16,19 +16,12 @@
 
 //! DB Migration module.
 
-#[macro_use]
-extern crate log;
-#[macro_use]
-extern crate macros;
-
-extern crate kvdb;
-extern crate kvdb_rocksdb;
-
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::{fs, io, error};
 
+use log::trace;
 use kvdb::DBTransaction;
 use kvdb_rocksdb::{CompactionProfile, Database, DatabaseConfig};
 
@@ -331,7 +324,8 @@ impl Progress {
 		self.current += 1;
 		if self.current == self.max {
 			self.current = 0;
-			flush!(".");
+			// TODO(niklasad1): check why we wrote `.` to stdout before seems needless
+			let _ = io::Write::flush(&mut io::stdout());
 		}
 	}
 }

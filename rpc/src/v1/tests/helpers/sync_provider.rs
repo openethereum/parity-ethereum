@@ -113,16 +113,16 @@ impl SyncProvider for TestSyncProvider {
 	}
 
 	fn transactions_stats(&self) -> BTreeMap<H256, TransactionStats> {
-		map![
+		btreemap![
 			H256::from_low_u64_be(1) => TransactionStats {
 				first_seen: 10,
-				propagated_to: map![
+				propagated_to: btreemap![
 					H512::from_low_u64_be(128) => 16
 				],
 			},
 			H256::from_low_u64_be(5) => TransactionStats {
 				first_seen: 16,
-				propagated_to: map![
+				propagated_to: btreemap![
 					H512::from_low_u64_be(16) => 1
 				],
 			}

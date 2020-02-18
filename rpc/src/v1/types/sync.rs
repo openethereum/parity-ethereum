@@ -240,9 +240,11 @@ mod tests {
 	fn test_serialize_transaction_stats() {
 		let stats = TransactionStats {
 			first_seen: 100,
-			propagated_to: map![
-				H512::from_low_u64_be(10) => 50
-			],
+			propagated_to: {
+				let mut map = BTreeMap::new();
+				map.insert(H512::from_low_u64_be(10), 50);
+				map
+			}
 		};
 
 		let serialized = serde_json::to_string(&stats).unwrap();
