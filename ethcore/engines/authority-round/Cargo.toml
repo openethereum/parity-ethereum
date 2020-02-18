@@ -31,7 +31,6 @@ parity-bytes = "0.1"
 parking_lot = "0.10.0"
 rand = "0.7"
 rlp = "0.4.0"
-time-utils = { path = "../../../util/time-utils" }
 unexpected = { path = "../../../util/unexpected" }
 validator-set = { path = "../validator-set" }
 

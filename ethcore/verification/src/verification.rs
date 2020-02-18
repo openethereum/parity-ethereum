@@ -42,8 +42,6 @@ use common_types::{
 	verification::Unverified,
 };
 
-use time_utils::CheckedSystemTime;
-
 /// Phase 1 quick block verification. Only does checks that are cheap. Operates on a single block
 pub fn verify_block_basic(block: &Unverified, engine: &dyn Engine, check_seal: bool) -> Result<(), Error> {
 	verify_header_params(&block.header, engine, check_seal)?;
@@ -341,7 +339,7 @@ pub(crate) fn verify_header_time(header: &Header) -> Result<(), Error> {
 	// this will resist overflow until `year 2037`
 	let max_time = SystemTime::now() + ACCEPTABLE_DRIFT;
 	let invalid_threshold = max_time + ACCEPTABLE_DRIFT * 9;
-	let timestamp = CheckedSystemTime::checked_add(UNIX_EPOCH, Duration::from_secs(header.timestamp()))
+	let timestamp = UNIX_EPOCH.checked_add(Duration::from_secs(header.timestamp()))
 		.ok_or(BlockError::TimestampOverflow)?;
 
 	if timestamp > invalid_threshold {
@@ -370,9 +368,9 @@ fn verify_parent(header: &Header, parent: &Header, engine: &dyn Engine) -> Resul
 
 	if !engine.is_timestamp_valid(header.timestamp(), parent.timestamp()) {
 		let now = SystemTime::now();
-		let min = CheckedSystemTime::checked_add(now, Duration::from_secs(parent.timestamp().saturating_add(1)))
+		let min = now.checked_add(Duration::from_secs(parent.timestamp().saturating_add(1)))
 			.ok_or(BlockError::TimestampOverflow)?;
-		let found = CheckedSystemTime::checked_add(now, Duration::from_secs(header.timestamp()))
+		let found = now.checked_add(Duration::from_secs(header.timestamp()))
 			.ok_or(BlockError::TimestampOverflow)?;
 		return Err(From::from(BlockError::InvalidTimestamp(OutOfBounds { max: None, min: Some(min), found }.into())))
 	}

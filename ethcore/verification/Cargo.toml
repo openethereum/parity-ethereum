@@ -27,7 +27,6 @@ parity-bytes = "0.1.0"
 parity-util-mem = "0.5.1"
 parking_lot = "0.10.0"
 rlp = "0.4.2"
-time-utils = { path = "../../util/time-utils" }
 triehash = { package = "triehash-ethereum", version = "0.2",  path = "../../util/triehash-ethereum" }
 unexpected = { path = "../../util/unexpected" }
 

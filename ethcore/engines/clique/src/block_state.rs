@@ -28,7 +28,6 @@ use common_types::{
 use ethereum_types::{Address, H64};
 use log::{debug, trace};
 use rand::Rng;
-use time_utils::CheckedSystemTime;
 use unexpected::Mismatch;
 
 use crate::{
@@ -273,7 +272,7 @@ impl CliqueBlockState {
 	// This is a quite bad API because we must mutate both variables even when already `inturn` fails
 	// That's why we can't return early and must have the `if-else` in the end
 	pub fn calc_next_timestamp(&mut self, timestamp: u64, period: u64) -> Result<(), Error> {
-		let inturn = CheckedSystemTime::checked_add(UNIX_EPOCH, Duration::from_secs(timestamp.saturating_add(period)));
+		let inturn = UNIX_EPOCH.checked_add(Duration::from_secs(timestamp.saturating_add(period)));
 
 		self.next_timestamp_inturn = inturn;
 

@@ -284,10 +284,6 @@ Caching, Importing Blocks, and Block Information
   ```bash
   ethcore-logger
   ```
-* C bindings library for the Parity Ethereum client
-  ```bash
-  parity-clib
-  ```
 * Parity Ethereum JSON-RPC Servers
   ```bash
   parity-rpc
@@ -306,7 +302,7 @@ Caching, Importing Blocks, and Block Information
   journaldb keccak-hasher len-caching-lock macros memory-cache memzero
   migration-rocksdb ethcore-network ethcore-network-devp2p panic_hook
   patricia-trie-ethereum registrar rlp_compress rlp_derive parity-runtime stats
-  time-utils triehash-ethereum unexpected parity-version
+  triehash-ethereum unexpected parity-version
   ```
 
 </p></details>

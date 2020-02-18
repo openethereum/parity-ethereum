@@ -26,9 +26,6 @@ use parking_lot::RwLock;
 use serde::ser::{Serializer, SerializeSeq};
 use error::Error;
 
-#[cfg(not(time_checked_add))]
-use time_utils::CheckedSystemTime;
-
 /// Maximum amount of stored private transaction logs.
 const MAX_JOURNAL_LEN: usize = 1000;
 
@@ -330,9 +327,6 @@ mod tests {
 	use types::transaction::Transaction;
 	use parking_lot::RwLock;
 	use super::{TransactionLog, Logging, PrivateTxStatus, LogsSerializer, ValidatorLog};
-
-	#[cfg(not(time_checked_add))]
-	use time_utils::CheckedSystemTime;
 
 	struct StringLogSerializer {
 		string_log: RwLock<String>,

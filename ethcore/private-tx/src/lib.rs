@@ -71,9 +71,6 @@ extern crate derive_more;
 extern crate rlp_derive;
 extern crate vm;
 
-#[cfg(not(time_checked_add))]
-extern crate time_utils;
-
 #[cfg(test)]
 extern crate env_logger;
 
