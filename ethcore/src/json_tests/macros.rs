@@ -80,5 +80,5 @@ macro_rules! flushed_writeln {
 #[doc(hidden)]
 pub fn write_and_flush(s: String) {
 	let _ = std::io::Write::write_all(&mut std::io::stdout(), s.as_bytes());
-	let _ = std::io::Write::flish(&mut std::io::stdout());
+	let _ = std::io::Write::flush(&mut std::io::stdout());
 }
