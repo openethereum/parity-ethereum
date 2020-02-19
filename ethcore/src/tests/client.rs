@@ -38,8 +38,6 @@ use client_traits::{
 	BlockInfo, BlockChainClient, BlockChainReset, ChainInfo,
 	ImportExportBlocks, Tick, ImportBlock
 };
-use spec;
-use stats;
 use machine::executive::{Executive, TransactOptions};
 use miner::{Miner, PendingOrdering, MinerService};
 use account_state::{State, CleanupMode, backend};
@@ -50,6 +48,14 @@ use test_helpers::{
 };
 use rustc_hex::ToHex;
 use registrar::RegistrarClient;
+
+fn into_u256_vec<'a, T, I>(iter: I) -> Vec<U256>
+where
+	I: IntoIterator<Item = &'a T>,
+	T: Into<U256> + Clone + 'a,
+{
+	iter.into_iter().cloned().map(Into::into).collect()
+}
 
 #[test]
 fn imports_from_empty() {
@@ -204,32 +210,32 @@ fn can_collect_garbage() {
 
 #[test]
 fn can_generate_gas_price_median() {
-	let client = generate_dummy_client_with_data(3, 1, slice_into![1, 2, 3]);
+	let client = generate_dummy_client_with_data(3, 1, &into_u256_vec(&[1, 2, 3]));
 	assert_eq!(Some(&U256::from(2)), client.gas_price_corpus(3).median());
 
-	let client = generate_dummy_client_with_data(4, 1, slice_into![1, 4, 3, 2]);
+	let client = generate_dummy_client_with_data(4, 1, &into_u256_vec(&[1, 4, 3, 2]));
 	assert_eq!(Some(&U256::from(3)), client.gas_price_corpus(3).median());
 }
 
 #[test]
 fn can_generate_gas_price_histogram() {
-	let client = generate_dummy_client_with_data(20, 1, slice_into![6354,8593,6065,4842,7845,7002,689,4958,4250,6098,5804,4320,643,8895,2296,8589,7145,2000,2512,1408]);
+	let client = generate_dummy_client_with_data(20, 1, &into_u256_vec(&[6354,8593,6065,4842,7845,7002,689,4958,4250,6098,5804,4320,643,8895,2296,8589,7145,2000,2512,1408]));
 
 	let hist = client.gas_price_corpus(20).histogram(5).unwrap();
-	let correct_hist = stats::Histogram { bucket_bounds: vec_into![643, 2294, 3945, 5596, 7247, 8898], counts: vec![4,2,4,6,4] };
+	let correct_hist = stats::Histogram { bucket_bounds: into_u256_vec(&[643, 2294, 3945, 5596, 7247, 8898]), counts: vec![4,2,4,6,4] };
 	assert_eq!(hist, correct_hist);
 }
 
 #[test]
 fn empty_gas_price_histogram() {
-	let client = generate_dummy_client_with_data(20, 0, slice_into![]);
+	let client = generate_dummy_client_with_data(20, 0, &[]);
 
 	assert!(client.gas_price_corpus(20).histogram(5).is_none());
 }
 
 #[test]
 fn corpus_is_sorted() {
-	let client = generate_dummy_client_with_data(2, 1, slice_into![U256::from_str("11426908979").unwrap(), U256::from_str("50426908979").unwrap()]);
+	let client = generate_dummy_client_with_data(2, 1, &[U256::from_str("11426908979").unwrap(), U256::from_str("50426908979").unwrap()]);
 	let corpus = client.gas_price_corpus(20);
 	assert!(corpus[0] < corpus[1]);
 }

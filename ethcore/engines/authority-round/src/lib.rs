@@ -44,12 +44,10 @@ use client_traits::{EngineClient, ForceUpdateSealing, TransactionRequest};
 use engine::{Engine, ConstructedVerifier};
 use block_gas_limit::block_gas_limit;
 use block_reward::{self, BlockRewardContract, RewardKind};
-use ethjson;
 use machine::{
 	ExecutedBlock,
 	Machine,
 };
-use macros::map;
 use keccak_hash::keccak;
 use log::{info, debug, error, trace, warn};
 use lru_cache::LruCache;
@@ -1277,22 +1275,20 @@ impl Engine for AuthorityRound {
 			.map(ToString::to_string)
 			.unwrap_or_default();
 
-		let mut info = map![
-			"step".into() => step,
-			"signature".into() => signature
-		];
+		let mut info = BTreeMap::new();
+		info.insert("step".into(), step);
+		info.insert("signature".into(), signature);
 
 		if header.number() >= self.empty_steps_transition {
-			let empty_steps =
-				if let Ok(empty_steps) = header_empty_steps(header).as_ref() {
-					format!("[{}]",
-						empty_steps.iter().fold(
-							"".to_string(),
-							|acc, e| if acc.len() > 0 { acc + ","} else { acc } + &e.to_string()))
-
-				} else {
-					"".into()
-				};
+			let empty_steps = header_empty_steps(header).as_ref().map_or(String::new(), |empty_steps| {
+				format!("[{}]", empty_steps.iter().fold(String::new(), |mut acc, e| {
+					if !acc.is_empty() {
+						acc.push(',');
+					}
+					acc.push_str(&e.to_string());
+					acc
+				}))
+			});
 
 			info.insert("emptySteps".into(), empty_steps);
 		}

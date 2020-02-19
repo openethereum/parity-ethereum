@@ -33,11 +33,9 @@ use common_types::{
 };
 use engine::Engine;
 use ethereum_types::{H256, U256};
-use ethjson;
 use ethash::{self, quick_get_difficulty, slow_hash_block_number, EthashManager};
-use keccak_hash::{KECCAK_EMPTY_LIST_RLP};
+use keccak_hash::KECCAK_EMPTY_LIST_RLP;
 use log::trace;
-use macros::map;
 use machine::{
 	ExecutedBlock,
 	Machine,
@@ -232,18 +230,17 @@ impl Engine for Ethash {
 
 	/// Additional engine-specific information for the user/developer concerning `header`.
 	fn extra_info(&self, header: &Header) -> BTreeMap<String, String> {
-		match EthashSeal::parse_seal(header.seal()) {
-			Ok(seal) => map![
-				"nonce".to_owned() => format!("0x{:x}", seal.nonce),
-				"mixHash".to_owned() => format!("0x{:x}", seal.mix_hash)
-			],
-			_ => BTreeMap::default()
+		let mut engine_info = BTreeMap::new();
+		if let Ok(seal) = EthashSeal::parse_seal(header.seal()) {
+			engine_info.insert("nonce".to_string(), format!("{:#x}", seal.nonce));
+			engine_info.insert("mixHash".to_string(), format!("{:#x}", seal.mix_hash));
 		}
+		engine_info
 	}
 
 	fn maximum_uncle_count(&self, _block: BlockNumber) -> usize { 2 }
 
-	fn maximum_gas_limit(&self) -> Option<U256> { Some(0x7fff_ffff_ffff_ffffu64.into()) }
+	fn maximum_gas_limit(&self) -> Option<U256> { Some(0x7fff_ffff_ffff_ffff_u64.into()) }
 
 	/// Apply the block reward on finalisation of the block.
 	/// This assumes that all uncles are valid uncles (i.e. of at least one generation before the current).

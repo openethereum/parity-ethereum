@@ -20,7 +20,6 @@ use std::collections::BTreeMap;
 use ethereum_types::{H256, Address};
 use triehash::sec_trie_root;
 use common_types::state_diff::StateDiff;
-use ethjson;
 use serde::Serialize;
 
 use crate::account::PodAccount;
@@ -74,7 +73,6 @@ pub fn diff_pod(pre: &PodState, post: &PodState) -> StateDiff {
 
 #[cfg(test)]
 mod test {
-	use std::collections::BTreeMap;
 	use common_types::{
 		account_diff::{AccountDiff, Diff},
 		state_diff::StateDiff,
@@ -82,122 +80,122 @@ mod test {
 	use ethereum_types::Address;
 	use crate::account::PodAccount;
 	use super::PodState;
-	use macros::map;
+	use maplit::btreemap;
 
 	#[test]
 	fn create_delete() {
-		let a = PodState::from(map![
+		let a = PodState::from(btreemap![
 			Address::from_low_u64_be(1) => PodAccount {
 				balance: 69.into(),
 				nonce: 0.into(),
 				code: Some(Vec::new()),
-				storage: map![],
+				storage: btreemap![],
 				version: 0.into(),
 			}
 		]);
-		assert_eq!(super::diff_pod(&a, &PodState::default()), StateDiff { raw: map![
+		assert_eq!(super::diff_pod(&a, &PodState::default()), StateDiff { raw: btreemap![
 			Address::from_low_u64_be(1) => AccountDiff{
 				balance: Diff::Died(69.into()),
 				nonce: Diff::Died(0.into()),
 				code: Diff::Died(vec![]),
-				storage: map![],
+				storage: btreemap![],
 			}
 		]});
-		assert_eq!(super::diff_pod(&PodState::default(), &a), StateDiff { raw: map![
+		assert_eq!(super::diff_pod(&PodState::default(), &a), StateDiff { raw: btreemap![
 			Address::from_low_u64_be(1) => AccountDiff{
 				balance: Diff::Born(69.into()),
 				nonce: Diff::Born(0.into()),
 				code: Diff::Born(vec![]),
-				storage: map![],
+				storage: btreemap![],
 			}
 		]});
 	}
 
 	#[test]
 	fn create_delete_with_unchanged() {
-		let a = PodState::from(map![
+		let a = PodState::from(btreemap![
 			Address::from_low_u64_be(1) => PodAccount {
 				balance: 69.into(),
 				nonce: 0.into(),
 				code: Some(Vec::new()),
-				storage: map![],
+				storage: btreemap![],
 				version: 0.into(),
 			}
 		]);
-		let b = PodState::from(map![
+		let b = PodState::from(btreemap![
 			Address::from_low_u64_be(1) => PodAccount {
 				balance: 69.into(),
 				nonce: 0.into(),
 				code: Some(Vec::new()),
-				storage: map![],
+				storage: btreemap![],
 				version: 0.into(),
 			},
 			Address::from_low_u64_be(2) => PodAccount {
 				balance: 69.into(),
 				nonce: 0.into(),
 				code: Some(Vec::new()),
-				storage: map![],
+				storage: btreemap![],
 				version: 0.into(),
 			}
 		]);
-		assert_eq!(super::diff_pod(&a, &b), StateDiff { raw: map![
+		assert_eq!(super::diff_pod(&a, &b), StateDiff { raw: btreemap![
 			Address::from_low_u64_be(2) => AccountDiff {
 				balance: Diff::Born(69.into()),
 				nonce: Diff::Born(0.into()),
 				code: Diff::Born(vec![]),
-				storage: map![],
+				storage: btreemap![],
 			}
 		]});
-		assert_eq!(super::diff_pod(&b, &a), StateDiff { raw: map![
+		assert_eq!(super::diff_pod(&b, &a), StateDiff { raw: btreemap![
 			Address::from_low_u64_be(2) => AccountDiff {
 				balance: Diff::Died(69.into()),
 				nonce: Diff::Died(0.into()),
 				code: Diff::Died(vec![]),
-				storage: map![],
+				storage: btreemap![],
 			}
 		]});
 	}
 
 	#[test]
 	fn change_with_unchanged() {
-		let a = PodState::from(map![
+		let a = PodState::from(btreemap![
 			Address::from_low_u64_be(1) => PodAccount {
 				balance: 69.into(),
 				nonce: 0.into(),
 				code: Some(Vec::new()),
-				storage: map![],
+				storage: btreemap![],
 				version: 0.into(),
 			},
 			Address::from_low_u64_be(2) => PodAccount {
 				balance: 69.into(),
 				nonce: 0.into(),
 				code: Some(Vec::new()),
-				storage: map![],
+				storage: btreemap![],
 				version: 0.into(),
 			}
 		]);
-		let b = PodState::from(map![
+		let b = PodState::from(btreemap![
 			Address::from_low_u64_be(1) => PodAccount {
 				balance: 69.into(),
 				nonce: 1.into(),
 				code: Some(Vec::new()),
-				storage: map![],
+				storage: btreemap![],
 				version: 0.into(),
 			},
 			Address::from_low_u64_be(2) => PodAccount {
 				balance: 69.into(),
 				nonce: 0.into(),
 				code: Some(Vec::new()),
-				storage: map![],
+				storage: btreemap![],
 				version: 0.into(),
 			}
 		]);
-		assert_eq!(super::diff_pod(&a, &b), StateDiff { raw: map![
+		assert_eq!(super::diff_pod(&a, &b), StateDiff { raw: btreemap![
 			Address::from_low_u64_be(1) => AccountDiff {
 				balance: Diff::Same,
 				nonce: Diff::Changed(0.into(), 1.into()),
 				code: Diff::Same,
-				storage: map![],
+				storage: btreemap![],
 			}
 		]});
 	}

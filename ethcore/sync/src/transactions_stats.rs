@@ -93,7 +93,6 @@ impl TransactionsStats {
 mod tests {
 	use std::collections::{HashMap, HashSet};
 	use super::{Stats, TransactionsStats, NodeId, H256};
-	use macros::hash_map;
 
 	#[test]
 	fn should_keep_track_of_propagations() {
@@ -112,10 +111,12 @@ mod tests {
 		let stats = stats.get(&hash);
 		assert_eq!(stats, Some(&Stats {
 			first_seen: 5,
-			propagated_to: hash_map![
-				enodeid1 => 2,
-				enodeid2 => 1
-			],
+			propagated_to: {
+				let mut map = HashMap::new();
+				map.insert(enodeid1, 2);
+				map.insert(enodeid2, 1);
+				map
+			},
 		}));
 	}
 

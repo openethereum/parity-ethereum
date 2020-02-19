@@ -212,7 +212,6 @@ dependencies = [
  "log",
  "lru-cache",
  "machine",
- "macros",
  "parity-bytes",
  "parity-crypto",
  "parking_lot 0.10.0",
@@ -665,7 +664,6 @@ dependencies = [
  "log",
  "lru-cache",
  "machine",
- "macros",
  "parity-crypto",
  "parking_lot 0.10.0",
  "rand 0.7.2",
@@ -1175,7 +1173,6 @@ dependencies = [
  "keccak-hash",
  "log",
  "machine",
- "macros",
  "rlp",
  "spec",
  "tempdir",
@@ -1234,7 +1231,6 @@ dependencies = [
  "lazy_static",
  "log",
  "machine",
- "macros",
  "memory-cache",
  "parity-bytes",
  "parity-crypto",
@@ -1334,7 +1330,7 @@ dependencies = [
  "hex-literal",
  "keccak-hash",
  "log",
- "macros",
+ "maplit",
  "num",
  "parity-bytes",
  "parity-crypto",
@@ -1643,7 +1639,6 @@ dependencies = [
  "kvdb-memorydb",
  "log",
  "machine",
- "macros",
  "parity-bytes",
  "parity-crypto",
  "parity-runtime",
@@ -1678,7 +1673,7 @@ name = "ethjson"
 version = "0.1.0"
 dependencies = [
  "ethereum-types",
- "macros",
+ "maplit",
  "rustc-hex 1.0.0",
  "serde",
  "serde_json",
@@ -2775,7 +2770,6 @@ dependencies = [
  "keccak-hash",
  "log",
  "lru-cache",
- "macros",
  "parity-bytes",
  "parity-crypto",
  "parking_lot 0.10.0",
@@ -2788,10 +2782,6 @@ dependencies = [
  "trie-vm-factories",
  "vm",
 ]
-
-[[package]]
-name = "macros"
-version = "0.1.0"
 
 [[package]]
 name = "maplit"
@@ -2866,7 +2856,7 @@ dependencies = [
  "kvdb",
  "kvdb-rocksdb",
  "log",
- "macros",
+ "maplit",
  "tempdir",
 ]
 
@@ -3425,7 +3415,7 @@ dependencies = [
  "keccak-hash",
  "log",
  "machine",
- "macros",
+ "maplit",
  "multihash",
  "order-stat",
  "parity-bytes",
@@ -3790,7 +3780,7 @@ dependencies = [
  "keccak-hasher 0.1.1",
  "kvdb",
  "log",
- "macros",
+ "maplit",
  "parity-bytes",
  "patricia-trie-ethereum",
  "rlp",

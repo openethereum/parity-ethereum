@@ -49,7 +49,6 @@ use light::net::{
 	Capabilities, Handler as LightHandler, EventContext, SampleStore,
 };
 use log::{trace, warn};
-use macros::hash_map;
 use network::{
 	client_version::ClientVersion,
 	NetworkProtocolHandler, NetworkContext, PeerId, ProtocolId,
@@ -795,7 +794,11 @@ impl NetworkConfiguration {
 			max_peers: self.max_peers,
 			min_peers: self.min_peers,
 			max_handshakes: self.max_pending_peers,
-			reserved_protocols: hash_map![WARP_SYNC_PROTOCOL_ID => self.snapshot_peers],
+			reserved_protocols: {
+				let mut reserved = HashMap::new();
+				reserved.insert(WARP_SYNC_PROTOCOL_ID, self.snapshot_peers);
+				reserved
+			},
 			reserved_nodes: self.reserved_nodes,
 			ip_filter: self.ip_filter,
 			non_reserved_mode: if self.allow_non_reserved { NonReservedPeerMode::Accept } else { NonReservedPeerMode::Deny },
