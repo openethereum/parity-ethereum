@@ -1000,18 +1000,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "eip-2124"
-version = "0.1.0"
-dependencies = [
- "crc",
- "ethereum-types",
- "hex-literal",
- "maplit",
- "rlp",
- "rlp-derive",
-]
-
-[[package]]
 name = "eip-712"
 version = "0.1.1"
 dependencies = [
@@ -1631,6 +1619,7 @@ dependencies = [
  "ethcore-network",
  "ethcore-network-devp2p",
  "ethcore-private-tx",
+ "ethereum-forkid",
  "ethereum-types",
  "fastmap",
  "futures",
@@ -1652,6 +1641,20 @@ dependencies = [
  "spec",
  "trace-time",
  "triehash-ethereum",
+]
+
+[[package]]
+name = "ethereum-forkid"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e2f547713a9a1e69a55529f3981dbded2c59c69629c7df795bdc7deef3375f59"
+dependencies = [
+ "crc",
+ "ethereum-types",
+ "maplit",
+ "parity-util-mem",
+ "rlp",
+ "rlp-derive",
 ]
 
 [[package]]
@@ -4798,6 +4801,7 @@ dependencies = [
  "kvdb-memorydb",
  "log",
  "machine",
+ "maplit",
  "null-engine",
  "parity-bytes",
  "pod",

@@ -576,6 +576,7 @@ fn execute_impl<Cr, Rr>(
 		cmd.private_encryptor_conf,
 	).map_err(|e| format!("Client service error: {:?}", e))?;
 
+	let forks = spec.hard_forks.clone();
 	let connection_filter_address = spec.params().node_permission_contract;
 	// drop the spec to free up genesis state.
 	drop(spec);
@@ -651,6 +652,7 @@ fn execute_impl<Cr, Rr>(
 		runtime.executor(),
 		net_conf.clone().into(),
 		client.clone(),
+		forks,
 		snapshot_service.clone(),
 		private_tx_sync,
 		private_state,
