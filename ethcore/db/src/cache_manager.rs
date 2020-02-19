@@ -33,9 +33,9 @@ impl<T> CacheManager<T> where T: Eq + Hash {
 	/// Create new cache manager with preferred (heap) sizes.
 	pub fn new(pref_cache_size: usize, max_cache_size: usize, bytes_per_cache_entry: usize) -> Self {
 		CacheManager {
-			pref_cache_size: pref_cache_size,
-			max_cache_size: max_cache_size,
-			bytes_per_cache_entry: bytes_per_cache_entry,
+			pref_cache_size,
+			max_cache_size,
+			bytes_per_cache_entry,
 			cache_usage: (0..COLLECTION_QUEUE_SIZE).into_iter().map(|_| Default::default()).collect(),
 		}
 	}

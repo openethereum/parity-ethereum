@@ -239,13 +239,15 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 			let enacted_blooms: Vec<_> = request.enacted
 				.iter()
 				// all traces are expected to be found here. That's why `expect` has been used
-				// instead of `filter_map`. If some traces haven't been found, it meens that
+				// instead of `filter_map`. If some traces haven't been found, it means that
 				// traces database is corrupted or incomplete.
-				.map(|block_hash| if block_hash == &request.block_hash {
-					request.traces.bloom()
-				} else {
-					self.traces(block_hash).expect("Traces database is incomplete.").bloom()
-				})
+				.map(|block_hash|
+					if block_hash == &request.block_hash {
+						request.traces.bloom()
+					} else {
+						self.traces(block_hash).expect("Traces database is incomplete.").bloom()
+					}
+				)
 				.collect();
 
 			self.db.trace_blooms()
@@ -298,18 +300,19 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 					let tx_hash = self.extras.transaction_hash(block_number, tx_position)
 						.expect("Expected to find transaction hash. Database is probably corrupted");
 
-					traces.into_iter()
-					.map(|trace| LocalizedTrace {
-						action: trace.action,
-						result: trace.result,
-						subtraces: trace.subtraces,
-						trace_address: trace.trace_address.into_iter().collect(),
-						transaction_number: Some(tx_position),
-						transaction_hash: Some(tx_hash.clone()),
-						block_number,
-						block_hash,
-					})
-					.collect()
+					traces
+						.into_iter()
+						.map(|trace| LocalizedTrace {
+							action: trace.action,
+							result: trace.result,
+							subtraces: trace.subtraces,
+							trace_address: trace.trace_address.into_iter().collect(),
+							transaction_number: Some(tx_position),
+							transaction_hash: Some(tx_hash.clone()),
+							block_number,
+							block_hash,
+						})
+						.collect()
 				})
 			)
 	}

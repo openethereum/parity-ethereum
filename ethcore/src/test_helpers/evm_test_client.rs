@@ -271,7 +271,8 @@ impl<'a> EvmTestClient<'a> {
 		}
 
 		// Apply transaction
-		let result = self.state.apply_with_tracing(&env_info, self.spec.engine.machine(), &transaction, tracer, vm_tracer);
+		let trace_opts = executive::TransactOptions::new(tracer, vm_tracer);
+		let result = self.state.apply_with_tracing(&env_info, self.spec.engine.machine(), &transaction, trace_opts);
 		let scheme = CreateContractAddress::FromSenderAndNonce;
 
 		// Touch the coinbase at the end of the test to simulate
