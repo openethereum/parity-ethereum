@@ -195,8 +195,6 @@ pub struct ChainStatus {
 
 #[cfg(test)]
 mod tests {
-	use serde_json;
-	use std::collections::BTreeMap;
 	use super::{SyncInfo, SyncStatus, Peers, TransactionStats, ChainStatus, H512};
 
 	#[test]
@@ -240,11 +238,7 @@ mod tests {
 	fn test_serialize_transaction_stats() {
 		let stats = TransactionStats {
 			first_seen: 100,
-			propagated_to: {
-				let mut map = BTreeMap::new();
-				map.insert(H512::from_low_u64_be(10), 50);
-				map
-			}
+			propagated_to: btreemap![H512::from_low_u64_be(10) => 50],
 		};
 
 		let serialized = serde_json::to_string(&stats).unwrap();
