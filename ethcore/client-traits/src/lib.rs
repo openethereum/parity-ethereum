@@ -402,8 +402,8 @@ pub trait BlockChainClient:
 	/// block with the given gas and nonce parameters.
 	fn transact(&self, tx_request: TransactionRequest) -> Result<(), transaction::Error>;
 	
-	/// Process possible blocks with fork, this method will wait for its processing on block import mutex
-	fn process_fork(&self);
+	/// Returns true, if underlying import queue is processing possible fork at the moment
+	fn is_processing_fork(&self) -> bool;
 }
 
 /// The data required for a `Client` to create a transaction.

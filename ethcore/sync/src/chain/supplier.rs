@@ -53,7 +53,7 @@ use super::{
 	ChainSync,
 	SyncHandler,
 	RlpResponseResult,
-	PacketDecodeError,
+	PacketProcessError,
 	MAX_BODIES_TO_SEND,
 	MAX_HEADERS_TO_SEND,
 	MAX_NODE_DATA_TO_SEND,
@@ -145,17 +145,21 @@ impl SyncSupplier {
 				}
 			};
 
-			result.unwrap_or_else(|e| {
-				debug!(target:"sync", "{} -> Malformed packet {} : {}", peer, packet_id, e);
-			})
+			match result {
+				Err(PacketProcessError::Decoder(e)) => debug!(target:"sync", "{} -> Malformed packet {} : {}", peer, packet_id, e),
+				Err(PacketProcessError::ClientBusy) => sync.write().add_delayed_request(peer, packet_id, data),
+				Ok(()) => {}
+			}
 		}
 	}
 
 	/// Respond to GetBlockHeaders request
 	fn return_block_headers(io: &dyn SyncIo, r: &Rlp, peer_id: PeerId) -> RlpResponseResult {
-		// Wait if blocks with forks are being processed
-		// This call will be waiting on client's import mutex, if there are blocks with possible fork in queue
-		io.chain().process_fork();
+		// Cannot return blocks, if forks processing is in progress,
+		// The request should be postponed for later processing
+		if io.chain().is_processing_fork() {
+			return Err(PacketProcessError::ClientBusy);
+		}
 		let payload_soft_limit = io.payload_soft_limit();
 		// Packet layout:
 		// [ block: { P , B_32 }, maxHeaders: P, skip: P, reverse: P in { 0 , 1 } ]
@@ -396,7 +400,7 @@ impl SyncSupplier {
 		})
 	}
 
-	fn return_rlp<FRlp, FError>(io: &mut dyn SyncIo, rlp: &Rlp, peer: PeerId, rlp_func: FRlp, error_func: FError) -> Result<(), PacketDecodeError>
+	fn return_rlp<FRlp, FError>(io: &mut dyn SyncIo, rlp: &Rlp, peer: PeerId, rlp_func: FRlp, error_func: FError) -> Result<(), PacketProcessError>
 		where FRlp : Fn(&dyn SyncIo, &Rlp, PeerId) -> RlpResponseResult,
 			FError : FnOnce(network::Error) -> String
 	{

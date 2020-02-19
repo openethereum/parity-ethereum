@@ -810,7 +810,7 @@ impl BlockChainClient for TestBlockChainClient {
 		}
 	}
 
-	fn process_fork(&self) {}
+	fn is_processing_fork(&self) -> bool { false }
 
 	// works only if blocks are one after another 1 -> 2 -> 3
 	fn tree_route(&self, from: &H256, to: &H256) -> Option<TreeRoute> {
