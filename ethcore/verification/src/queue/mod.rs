@@ -43,7 +43,6 @@ pub mod kind;
 
 const MIN_MEM_LIMIT: usize = 16384;
 const MIN_QUEUE_LIMIT: usize = 512;
-const MAX_QUEUE_WITH_FORK: usize = 8;
 
 /// Type alias for block queue convenience.
 pub type BlockQueue<C> = VerificationQueue<self::kind::Blocks, C>;
@@ -144,6 +143,7 @@ pub struct VerificationQueue<K: Kind, C: 'static> {
 	ready_signal: Arc<QueueSignal<C>>,
 	empty: Arc<Condvar>,
 	processing: RwLock<HashMap<H256, (U256, H256)>>, // hash to difficulty and parent hash
+	processing_parents: RwLock<HashMap<H256, usize>>, // parent hashes of all items in processing with amount of children in queue
 	ticks_since_adjustment: AtomicUsize,
 	max_queue_size: usize,
 	max_mem_use: usize,
@@ -279,6 +279,7 @@ impl<K: Kind, C> VerificationQueue<K, C> {
 			verification,
 			deleting,
 			processing: RwLock::new(HashMap::new()),
+			processing_parents: RwLock::new(HashMap::new()),
 			empty,
 			ticks_since_adjustment: AtomicUsize::new(0),
 			max_queue_size: cmp::max(config.max_queue_size, MIN_QUEUE_LIMIT),
@@ -447,6 +448,7 @@ impl<K: Kind, C> VerificationQueue<K, C> {
 		*self.total_difficulty.write() = 0.into();
 
 		self.processing.write().clear();
+		self.processing_parents.write().clear();
 	}
 
 	/// Wait for unverified queue to be empty
@@ -496,11 +498,18 @@ impl<K: Kind, C> VerificationQueue<K, C> {
 					return Err((Error::Import(ImportError::AlreadyQueued), None));
 				}
 				self.verification.sizes.unverified.fetch_add(item.malloc_size_of(), AtomicOrdering::SeqCst);
-				self.processing.write().insert(hash, (item.difficulty(), item.parent_hash()));
+				let parent_hash = item.parent_hash();
+				self.processing.write().insert(hash, (item.difficulty(), parent_hash));
 				{
 					let mut td = self.total_difficulty.write();
 					*td = *td + item.difficulty();
 				}
+				let mut parent_hashes = self.processing_parents.write();
+				let mut children_count = 0;
+				if let Some(count) = parent_hashes.get(&parent_hash) {
+					children_count = *count;
+				}
+				parent_hashes.insert(parent_hash, children_count + 1);
 				self.verification.unverified.lock().push_back(item);
 				self.more_to_verify.notify_all();
 				Ok(hash)
@@ -528,6 +537,17 @@ impl<K: Kind, C> VerificationQueue<K, C> {
 		}
 	}
 
+	fn decrease_processing_children_count(&self, parent_hash: &H256) {
+		if let Some(children_count) = self.processing_parents.read().get(parent_hash) {
+			let mut parent_hashes = self.processing_parents.write();
+			if *children_count == 1 {
+				parent_hashes.remove(parent_hash);
+			} else {
+				parent_hashes.insert(*parent_hash, *children_count - 1);
+			}
+		}
+	}
+
 	/// Mark given item and all its children as bad. pauses verification
 	/// until complete.
 	pub fn mark_as_bad(&self, hashes: &[H256]) {
@@ -544,6 +564,7 @@ impl<K: Kind, C> VerificationQueue<K, C> {
 			if let Some(item) = processing.remove(hash) {
 				let mut td = self.total_difficulty.write();
 				*td = *td - item.0;
+				self.decrease_processing_children_count(&item.1);
 			}
 		}
 
@@ -556,6 +577,7 @@ impl<K: Kind, C> VerificationQueue<K, C> {
 				if let Some(item) = processing.remove(&output.hash()) {
 					let mut td = self.total_difficulty.write();
 					*td = *td - item.0;
+					self.decrease_processing_children_count(&item.1);
 				}
 			} else {
 				new_verified.push_back(output);
@@ -577,6 +599,7 @@ impl<K: Kind, C> VerificationQueue<K, C> {
 			if let Some(item) = processing.remove(hash) {
 				let mut td = self.total_difficulty.write();
 				*td = *td - item.0;
+				self.decrease_processing_children_count(&item.1);
 			}
 		}
 		processing.is_empty()
@@ -610,13 +633,9 @@ impl<K: Kind, C> VerificationQueue<K, C> {
 	/// Returns true, if in processing queue there is no descendant of the current best block
 	/// May return false negative for longer queues
 	pub fn is_processing_fork(&self, best_block_hash: &H256, chain: &BlockChain) -> bool {
-		let processing = self.processing.read();
-		if processing.is_empty() || processing.len() > MAX_QUEUE_WITH_FORK {
-			// Assume, that long enough processing queue doesn't have fork blocks
-			return false;
-		}
-		for item in processing.values() {
-			if chain.tree_route(item.1, *best_block_hash).is_some() {
+		let processing_parents = self.processing_parents.read();
+		for parent_hash in processing_parents.keys() {
+			if chain.tree_route(*parent_hash, *best_block_hash).is_some() {
 				return false;
 			}
 		}
