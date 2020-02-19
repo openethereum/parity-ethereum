@@ -212,7 +212,6 @@ dependencies = [
  "log",
  "lru-cache",
  "machine",
- "macros",
  "parity-bytes",
  "parity-crypto",
  "parking_lot 0.10.0",
@@ -665,7 +664,6 @@ dependencies = [
  "log",
  "lru-cache",
  "machine",
- "macros",
  "parity-crypto",
  "parking_lot 0.10.0",
  "rand 0.7.2",
@@ -1002,18 +1000,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "eip-2124"
-version = "0.1.0"
-dependencies = [
- "crc",
- "ethereum-types",
- "hex-literal",
- "maplit",
- "rlp",
- "rlp-derive",
-]
-
-[[package]]
 name = "eip-712"
 version = "0.1.1"
 dependencies = [
@@ -1175,7 +1161,6 @@ dependencies = [
  "keccak-hash",
  "log",
  "machine",
- "macros",
  "rlp",
  "spec",
  "tempdir",
@@ -1234,7 +1219,6 @@ dependencies = [
  "lazy_static",
  "log",
  "machine",
- "macros",
  "memory-cache",
  "parity-bytes",
  "parity-crypto",
@@ -1334,7 +1318,7 @@ dependencies = [
  "hex-literal",
  "keccak-hash",
  "log",
- "macros",
+ "maplit",
  "num",
  "parity-bytes",
  "parity-crypto",
@@ -1635,6 +1619,7 @@ dependencies = [
  "ethcore-network",
  "ethcore-network-devp2p",
  "ethcore-private-tx",
+ "ethereum-forkid",
  "ethereum-types",
  "fastmap",
  "futures",
@@ -1643,7 +1628,6 @@ dependencies = [
  "kvdb-memorydb",
  "log",
  "machine",
- "macros",
  "parity-bytes",
  "parity-crypto",
  "parity-runtime",
@@ -1657,6 +1641,20 @@ dependencies = [
  "spec",
  "trace-time",
  "triehash-ethereum",
+]
+
+[[package]]
+name = "ethereum-forkid"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e2f547713a9a1e69a55529f3981dbded2c59c69629c7df795bdc7deef3375f59"
+dependencies = [
+ "crc",
+ "ethereum-types",
+ "maplit",
+ "parity-util-mem",
+ "rlp",
+ "rlp-derive",
 ]
 
 [[package]]
@@ -1678,7 +1676,7 @@ name = "ethjson"
 version = "0.1.0"
 dependencies = [
  "ethereum-types",
- "macros",
+ "maplit",
  "rustc-hex 1.0.0",
  "serde",
  "serde_json",
@@ -2775,7 +2773,6 @@ dependencies = [
  "keccak-hash",
  "log",
  "lru-cache",
- "macros",
  "parity-bytes",
  "parity-crypto",
  "parking_lot 0.10.0",
@@ -2788,10 +2785,6 @@ dependencies = [
  "trie-vm-factories",
  "vm",
 ]
-
-[[package]]
-name = "macros"
-version = "0.1.0"
 
 [[package]]
 name = "maplit"
@@ -2866,7 +2859,7 @@ dependencies = [
  "kvdb",
  "kvdb-rocksdb",
  "log",
- "macros",
+ "maplit",
  "tempdir",
 ]
 
@@ -3425,7 +3418,7 @@ dependencies = [
  "keccak-hash",
  "log",
  "machine",
- "macros",
+ "maplit",
  "multihash",
  "order-stat",
  "parity-bytes",
@@ -3790,7 +3783,7 @@ dependencies = [
  "keccak-hasher 0.1.1",
  "kvdb",
  "log",
- "macros",
+ "maplit",
  "parity-bytes",
  "patricia-trie-ethereum",
  "rlp",
@@ -4808,6 +4801,7 @@ dependencies = [
  "kvdb-memorydb",
  "log",
  "machine",
+ "maplit",
  "null-engine",
  "parity-bytes",
  "pod",

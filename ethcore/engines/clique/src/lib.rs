@@ -80,7 +80,6 @@ use machine::{
 	ExecutedBlock,
 	Machine,
 };
-use macros::map;
 use parking_lot::RwLock;
 use rand::Rng;
 use unexpected::{Mismatch, OutOfBounds};
@@ -383,13 +382,12 @@ impl Engine for Clique {
 
 	fn extra_info(&self, header: &Header) -> BTreeMap<String, String> {
 		// clique engine seal fields are the same as ethash seal fields
-		match EthashSeal::parse_seal(header.seal()) {
-			Ok(seal) => map![
-				"nonce".to_owned() => format!("{:#x}", seal.nonce),
-				"mixHash".to_owned() => format!("{:#x}", seal.mix_hash)
-			],
-			_ => BTreeMap::default()
+		let mut engine_info = BTreeMap::new();
+		if let Ok(seal) = EthashSeal::parse_seal(header.seal()) {
+			engine_info.insert("nonce".to_string(), format!("{:#x}", seal.nonce));
+			engine_info.insert("mixHash".to_string(), format!("{:#x}", seal.mix_hash));
 		}
+		engine_info
 	}
 
 	fn maximum_uncle_count(&self, _block: BlockNumber) -> usize { 0 }

@@ -25,4 +25,4 @@ trie-db = "0.20.0"
 triehash = { package = "triehash-ethereum", version = "0.2",  path = "../../util/triehash-ethereum" }
 
 [dev-dependencies]
-macros = { path = "../../util/macros" }
+maplit = "1.0.2"

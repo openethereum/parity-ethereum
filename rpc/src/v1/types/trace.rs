@@ -674,8 +674,6 @@ impl From<(H256, Executed)> for TraceResultsWithTransactionHash {
 
 #[cfg(test)]
 mod tests {
-	use serde_json;
-	use std::collections::BTreeMap;
 	use v1::types::Bytes;
 	use trace::TraceError;
 	use ethereum_types::Address;
@@ -875,12 +873,12 @@ mod tests {
 
 	#[test]
 	fn test_statediff_serialize() {
-		let t = StateDiff(map![
+		let t = StateDiff(btreemap![
 			Address::from_low_u64_be(42) => AccountDiff {
 				balance: Diff::Same,
 				nonce: Diff::Born(1.into()),
 				code: Diff::Same,
-				storage: map![
+				storage: btreemap![
 					H256::from_low_u64_be(42) => Diff::Same
 				]
 			},
@@ -888,7 +886,7 @@ mod tests {
 				balance: Diff::Same,
 				nonce: Diff::Changed(ChangedType { from: 1.into(), to: 0.into() }),
 				code: Diff::Died(vec![96].into()),
-				storage: map![],
+				storage: btreemap![],
 			}
 		]);
 		let serialized = serde_json::to_string(&t).unwrap();

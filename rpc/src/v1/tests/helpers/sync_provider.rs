@@ -46,7 +46,7 @@ impl TestSyncProvider {
 			status: RwLock::new(SyncStatus {
 				state: SyncState::Idle,
 				network_id: config.network_id,
-				protocol_version: 63,
+				protocol_version: 64,
 				start_block_number: 0,
 				last_imported_block_number: None,
 				highest_block_number: None,
@@ -82,11 +82,11 @@ impl SyncProvider for TestSyncProvider {
 			PeerInfo {
 				id: Some("node1".to_owned()),
 				client_version: ClientVersion::from("Parity-Ethereum/1/v2.4.0/linux/rustc"),
-				capabilities: vec!["eth/62".to_owned(), "eth/63".to_owned()],
+				capabilities: vec!["eth/63".to_owned(), "eth/64".to_owned()],
 				remote_address: "127.0.0.1:7777".to_owned(),
 				local_address: "127.0.0.1:8888".to_owned(),
 				eth_info: Some(EthProtocolInfo {
-					version: 62,
+					version: 63,
 					difficulty: Some(40.into()),
 					head: H256::from_low_u64_be(50),
 				}),
@@ -95,11 +95,11 @@ impl SyncProvider for TestSyncProvider {
 			PeerInfo {
 				id: None,
 				client_version: ClientVersion::from("Parity-Ethereum/2/v2.4.0/linux/rustc"),
-				capabilities: vec!["eth/63".to_owned(), "eth/64".to_owned()],
+				capabilities: vec!["eth/64".to_owned(), "eth/65".to_owned()],
 				remote_address: "Handshake".to_owned(),
 				local_address: "127.0.0.1:3333".to_owned(),
 				eth_info: Some(EthProtocolInfo {
-					version: 64,
+					version: 65,
 					difficulty: None,
 					head: H256::from_low_u64_be(60),
 				}),
@@ -113,16 +113,16 @@ impl SyncProvider for TestSyncProvider {
 	}
 
 	fn transactions_stats(&self) -> BTreeMap<H256, TransactionStats> {
-		map![
+		btreemap![
 			H256::from_low_u64_be(1) => TransactionStats {
 				first_seen: 10,
-				propagated_to: map![
+				propagated_to: btreemap![
 					H512::from_low_u64_be(128) => 16
 				],
 			},
 			H256::from_low_u64_be(5) => TransactionStats {
 				first_seen: 16,
-				propagated_to: map![
+				propagated_to: btreemap![
 					H512::from_low_u64_be(16) => 1
 				],
 			}

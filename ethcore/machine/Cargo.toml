@@ -44,7 +44,6 @@ ethcore = { path = "../", features = ["test-helpers"] }
 ethcore-io = { path = "../../util/io" }
 ethjson = { path = "../../json" }
 parity-crypto = { version = "0.5.0", features = ["publickey"] }
-macros = { path = "../../util/macros" }
 rustc-hex = "1.0"
 spec = { path = "../spec" }
 tempdir = "0.3"

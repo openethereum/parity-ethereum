@@ -125,7 +125,7 @@ impl EthTester {
 #[test]
 fn rpc_eth_protocol_version() {
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_protocolVersion", "params": [], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":"63","id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"64","id":1}"#;
 
 	assert_eq!(EthTester::default().io.handle_request_sync(request), Some(response.to_owned()));
 }

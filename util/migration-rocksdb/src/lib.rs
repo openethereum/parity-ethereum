@@ -16,19 +16,12 @@
 
 //! DB Migration module.
 
-#[macro_use]
-extern crate log;
-#[macro_use]
-extern crate macros;
-
-extern crate kvdb;
-extern crate kvdb_rocksdb;
-
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::{fs, io, error};
 
+use log::trace;
 use kvdb::DBTransaction;
 use kvdb_rocksdb::{CompactionProfile, Database, DatabaseConfig};
 
@@ -307,31 +300,5 @@ impl Manager {
 	/// Find all needed migrations.
 	fn migrations_from(&mut self, version: u32) -> Vec<&mut Box<dyn Migration>> {
 		self.migrations.iter_mut().filter(|m| m.version() > version).collect()
-	}
-}
-
-/// Prints a dot every `max` ticks
-pub struct Progress {
-	current: usize,
-	max: usize,
-}
-
-impl Default for Progress {
-	fn default() -> Self {
-		Progress {
-			current: 0,
-			max: 100_000,
-		}
-	}
-}
-
-impl Progress {
-	/// Tick progress meter.
-	pub fn tick(&mut self) {
-		self.current += 1;
-		if self.current == self.max {
-			self.current = 0;
-			flush!(".");
-		}
 	}
 }
