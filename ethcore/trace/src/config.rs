@@ -22,9 +22,9 @@ pub struct Config {
 	/// Indicates if tracing should be enabled or not.
 	/// If it's None, it will be automatically configured.
 	pub enabled: bool,
-	/// Preferred cache-size.
+	/// Preferred cache-size (default: 15Mb).
 	pub pref_cache_size: usize,
-	/// Max cache-size.
+	/// Max cache-size (default: 20Mb).
 	pub max_cache_size: usize,
 }
 

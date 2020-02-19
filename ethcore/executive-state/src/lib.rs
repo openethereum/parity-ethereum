@@ -154,13 +154,12 @@ pub trait ExecutiveState {
 
 	/// Execute a given transaction with given tracer and VM tracer producing a receipt and an optional trace.
 	/// This will change the state accordingly.
-	fn apply_with_tracing<V, T>(
+	fn apply_with_tracing<T, V>(
 		&mut self,
 		env_info: &EnvInfo,
 		machine: &Machine,
 		t: &SignedTransaction,
-		tracer: T,
-		vm_tracer: V,
+		options: TransactOptions<T, V>,
 	) -> ApplyResult<T::Output, V::Output>
 		where
 			T: trace::Tracer,
@@ -179,28 +178,26 @@ impl<B: Backend> ExecutiveState for State<B> {
 	) -> ApplyResult<FlatTrace, VMTrace> {
 		if tracing {
 			let options = TransactOptions::with_tracing();
-			self.apply_with_tracing(env_info, machine, t, options.tracer, options.vm_tracer)
+			self.apply_with_tracing(env_info, machine, t, options)
 		} else {
 			let options = TransactOptions::with_no_tracing();
-			self.apply_with_tracing(env_info, machine, t, options.tracer, options.vm_tracer)
+			self.apply_with_tracing(env_info, machine, t, options)
 		}
 	}
 
 	/// Execute a given transaction with given tracer and VM tracer producing a receipt and an optional trace.
 	/// This will change the state accordingly.
-	fn apply_with_tracing<V, T>(
+	fn apply_with_tracing<T, V>(
 		&mut self,
 		env_info: &EnvInfo,
 		machine: &Machine,
 		t: &SignedTransaction,
-		tracer: T,
-		vm_tracer: V,
+		options: TransactOptions<T, V>
 	) -> ApplyResult<T::Output, V::Output>
 		where
 			T: trace::Tracer,
 			V: trace::VMTracer,
 	{
-		let options = TransactOptions::new(tracer, vm_tracer);
 		let e = execute(self, env_info, machine, t, options, false)?;
 		let params = machine.params();
 
