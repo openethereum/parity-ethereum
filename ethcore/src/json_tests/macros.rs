@@ -75,10 +75,12 @@ macro_rules! flushed_writeln {
 }
 
 /// Write to stdout and flush (ignores errors)
-//
-// TODO(niklasad1): use expect or unwrap only used for tests?!
 #[doc(hidden)]
 pub fn write_and_flush(s: String) {
-	let _ = std::io::Write::write_all(&mut std::io::stdout(), s.as_bytes());
-	let _ = std::io::Write::flush(&mut std::io::stdout());
+	if let Err(err) = std::io::Write::write_all(&mut std::io::stdout(), s.as_bytes()) {
+		error!(target: "json_tests", "io::Write::write_all to stdout failed because of: {:?}", err);
+	}
+	if let Err(err) = std::io::Write::flush(&mut std::io::stdout()) {
+		error!(target: "json_tests", "io::Write::flush stdout failed because of: {:?}", err);
+	}
 }
