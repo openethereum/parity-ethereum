@@ -302,30 +302,3 @@ impl Manager {
 		self.migrations.iter_mut().filter(|m| m.version() > version).collect()
 	}
 }
-
-/// Prints a dot every `max` ticks
-pub struct Progress {
-	current: usize,
-	max: usize,
-}
-
-impl Default for Progress {
-	fn default() -> Self {
-		Progress {
-			current: 0,
-			max: 100_000,
-		}
-	}
-}
-
-impl Progress {
-	/// Tick progress meter.
-	pub fn tick(&mut self) {
-		self.current += 1;
-		if self.current == self.max {
-			self.current = 0;
-			// TODO(niklasad1): check why we wrote `.` to stdout before seems needless
-			let _ = io::Write::flush(&mut io::stdout());
-		}
-	}
-}
