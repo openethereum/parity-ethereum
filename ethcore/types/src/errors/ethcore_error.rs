@@ -38,23 +38,8 @@ pub struct BlockErrorWithData {
 	/// Error.
 	pub error: BlockError,
 	/// Raw rlp bytes of the block.
-	//
-	// NOTE(niklasad1): this is an `Option` because in some scenarios it's not possible
-	// to get the `raw block bytes` when `EthcoreError` is returned. Ideally this would
-	// be just Bytes. Then we could encode everything in the type-system.
-	// Now, we must still ensure this at runtime in several places.
-	pub data: Option<Bytes>,
+	pub data: Bytes,
 }
-
-// This could be useful but not used explictness atm.
-// impl From<BlockError> for BlockErrorWithData {
-//     fn from(error: BlockError) -> Self {
-//         Self {
-//             error,
-//             data: None
-//         }
-//     }
-// }
 
 /// Ethcore Error
 #[derive(Debug, Display, From)]
@@ -80,7 +65,7 @@ pub enum EthcoreError {
 	/// Error concerning block processing.
 	#[display(fmt = "{}", _0)]
 	Block(BlockError),
-	/// ....
+	/// TODO(niklasad1): document
 	#[display(fmt = "{}", _0)]
 	BadBlock(BlockErrorWithData),
 	/// Error concerning transaction processing.
@@ -121,6 +106,7 @@ impl error::Error for EthcoreError {
 			Trie(e) => Some(e),
 			Execution(e) => Some(e),
 			Block(e) => Some(e),
+			BadBlock(e) => Some(&e.error),
 			Transaction(e) => Some(e),
 			Snappy(e) => Some(e),
 			Engine(e) => Some(e),

@@ -451,7 +451,7 @@ impl Importer {
 		if let Err(error) = verification::verify_block_final(&header, &locked_block.header) {
 			warn!(target: "client", "Stage 5 block verification failed for #{} ({})\nError: {:?}",
 				header.number(), header.hash(), error);
-			return Err(EthcoreError::BadBlock(BlockErrorWithData { error, data: Some(bytes) }));
+			return Err(EthcoreError::BadBlock(BlockErrorWithData { error, data: bytes }));
 		}
 
 		let pending = self.check_epoch_end_signal(
@@ -1459,7 +1459,7 @@ impl ImportBlock for Client {
 		if status == BlockStatus::Unknown {
 			return Err(EthcoreError::BadBlock(BlockErrorWithData {
 				error: BlockError::UnknownParent(unverified.parent_hash()),
-				data: Some(unverified.bytes)
+				data: unverified.bytes
 			}));
 		}
 
@@ -1636,7 +1636,7 @@ impl BadBlocks for Client {
 		self.importer.bad_blocks.bad_blocks()
 	}
 
-	fn report_bad_block(&self, block: Option<Bytes>, message: String) {
+	fn report_bad_block(&self, block: Bytes, message: String) {
 		self.importer.bad_blocks.report(block, message)
 	}
 }
@@ -2234,7 +2234,7 @@ impl IoClient for Client {
 			if !is_parent_pending && !self.chain.read().is_known(&parent_hash) {
 				return Err(EthcoreError::BadBlock(BlockErrorWithData {
 					error: BlockError::UnknownParent(parent_hash),
-					data: Some(unverified.bytes)
+					data: unverified.bytes
 				}));
 			}
 		}
@@ -2398,7 +2398,7 @@ impl ImportSealedBlock for Client {
 			// Do a super duper basic verification to detect potential bugs
 			match self.engine.verify_block_basic(&header) {
 				Err(EthcoreError::Block(error)) => {
-					return Err(EthcoreError::BadBlock(BlockErrorWithData { error, data: Some(block_bytes_rlp) }));
+					return Err(EthcoreError::BadBlock(BlockErrorWithData { error, data: block_bytes_rlp }));
 				},
 				Err(err) => return Err(err),
 				Ok(_) => (),

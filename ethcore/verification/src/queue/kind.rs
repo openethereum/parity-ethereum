@@ -162,7 +162,7 @@ pub mod headers {
 	use engine::Engine;
 	use common_types::{
 		header::Header,
-		errors::{BlockErrorWithData, EthcoreError as Error},
+		errors::EthcoreError as Error,
 	};
 	use crate::verification::{verify_header_params, verify_header_time};
 
@@ -185,12 +185,11 @@ pub mod headers {
 
 		fn create(input: Self::Input, engine: &dyn Engine, check_seal: bool) -> Result<Self::Unverified, Error> {
 			let res = verify_header_params(&input, engine, check_seal)
-				.and_then(|_| Ok(verify_header_time(&input)))
-				.map_err(|error| Error::BadBlock(BlockErrorWithData { error, data: None }))?;
+				.and_then(|_| Ok(verify_header_time(&input)))?;
 
 			match res {
 				Ok(_) => Ok(input),
-				Err(error) => Err(Error::BadBlock(BlockErrorWithData { error, data: None })),
+				Err(error) => Err(error.into()),
 			}
 		}
 

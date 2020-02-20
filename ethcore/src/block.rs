@@ -459,7 +459,7 @@ pub(crate) fn enact(
 
 	for u in block.uncles {
 		if let Err(error) = b.push_uncle(u) {
-			return Err(Error::BadBlock(BlockErrorWithData { error, data: Some(block.bytes) }));
+			return Err(Error::BadBlock(BlockErrorWithData { error, data: block.bytes }));
 		}
 	}
 

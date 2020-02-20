@@ -218,7 +218,7 @@ pub trait BadBlocks {
 	fn bad_blocks(&self) -> Vec<(Unverified, String)>;
 
 	/// Report a bad block
-	fn report_bad_block(&self, block: Option<Bytes>, message: String);
+	fn report_bad_block(&self, block: Bytes, message: String);
 }
 
 

@@ -671,8 +671,8 @@ impl BadBlocks for TestBlockChainClient {
 		]
 	}
 
-	fn report_bad_block(&self, _bytes: Option<Bytes>, _message: String) {
-		todo!("not implemented for TestBlockChainClient")
+	fn report_bad_block(&self, _bytes: Bytes, _message: String) {
+		unimplemented!("not implemented for TestBlockChainClient")
 	}
 }
 
