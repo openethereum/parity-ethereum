@@ -28,7 +28,7 @@ use common_types::{
 		params::CommonParams,
 		machine::{AuxiliaryData, Call},
 	},
-	errors::{EngineError, BlockError, BlockErrorWithData, EthcoreError as Error},
+	errors::{EngineError, BlockError, EthcoreError as Error},
 };
 use client_traits::EngineClient;
 use ethereum_types::{H256, H520};
@@ -75,7 +75,7 @@ fn verify_external(header: &Header, validators: &dyn ValidatorSet) -> Result<(),
 	}
 
 	match validators.contains(header.parent_hash(), &signer) {
-		false => Err(Error::Block(BlockErrorWithData { error: BlockError::InvalidSeal, data: None })),
+		false => Err(Error::Block(BlockError::InvalidSeal)),
 		true => Ok(())
 	}
 }

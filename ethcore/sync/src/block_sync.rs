@@ -580,9 +580,31 @@ impl BlockDownloader {
 					imported.insert(h);
 					self.block_imported(&h, number, &parent);
 				},
-				Err(EthcoreError::Block(BlockErrorWithData { error, data })) => {
+				Err(EthcoreError::BadBlock(BlockErrorWithData { error, data })) => {
 					io.chain().report_bad_block(data, error.to_string());
 					match error {
+						BlockError::UnknownParent(_) if allow_out_of_order => {
+							break;
+						},
+						BlockError::UnknownParent(_) => {
+							trace_sync!(self, "Unknown new block parent, restarting sync");
+							break;
+						},
+						BlockError::TemporarilyInvalid(_) => {
+							debug_sync!(self, "Block temporarily invalid: {:?}, restarting sync", h);
+							break;
+						},
+						// NOTE(niklasad1): ugly repeat yourself.
+						e => {
+							debug_sync!(self, "Bad block {:?} : {:?}", h, e);
+							download_action = DownloadAction::Reset;
+							break;
+						}
+					}
+				}
+				// TODO(niklasad1): ugly repeat
+				Err(EthcoreError::Block(err)) => {
+					match err {
 						BlockError::UnknownParent(_) if allow_out_of_order => {
 							break;
 						},

@@ -28,7 +28,7 @@ use common_types::{
 		OptimizeFor,
 		params::CommonParams,
 	},
-	errors::{BlockError, BlockErrorWithData, EthcoreError as Error},
+	errors::{BlockError, EthcoreError as Error},
 	snapshot::Snapshotting,
 };
 use engine::Engine;
@@ -194,23 +194,17 @@ fn verify_block_unordered(pow: &Arc<EthashManager>, header: &Header) -> Result<(
 	       mix = H256(result.mix_hash),
 	       res = H256(result.value));
 	if mix != seal.mix_hash {
-		return Err(Error::Block(BlockErrorWithData {
-			error: BlockError::MismatchedH256SealElement(Mismatch {
-				expected: mix,
-				found: seal.mix_hash
-			}),
-			data: None,
-		}));
+		return Err(Error::Block(BlockError::MismatchedH256SealElement(Mismatch {
+			expected: mix,
+			found: seal.mix_hash
+		})));
 	}
 	if &difficulty < header.difficulty() {
-		return Err(Error::Block(BlockErrorWithData {
-			error: BlockError::InvalidProofOfWork(OutOfBounds {
-				min: Some(*header.difficulty()),
-				max: None,
-				found: difficulty
-			}),
-			data: None
-		}));
+		return Err(Error::Block(BlockError::InvalidProofOfWork(OutOfBounds {
+			min: Some(*header.difficulty()),
+			max: None,
+			found: difficulty
+		})));
 	}
 	Ok(())
 }
@@ -338,15 +332,11 @@ impl Engine for Ethash {
 		// TODO: consider removing these lines.
 		let min_difficulty = self.ethash_params.minimum_difficulty;
 		if header.difficulty() < &min_difficulty {
-			// TODO(niklasad1): we could use `From::from` but use explicitness here for clarify reasons
-			return Err(Error::Block(BlockErrorWithData {
-				error: BlockError::DifficultyOutOfBounds(OutOfBounds {
-					min: Some(min_difficulty),
-					max: None,
-					found: *header.difficulty()
-				}),
-				data: None,
-			}));
+			return Err(Error::Block(BlockError::DifficultyOutOfBounds(OutOfBounds {
+				min: Some(min_difficulty),
+				max: None,
+				found: *header.difficulty()
+			})));
 		}
 
 		let difficulty = ethash::boundary_to_difficulty(&H256(quick_get_difficulty(
@@ -357,14 +347,11 @@ impl Engine for Ethash {
 		)));
 
 		if &difficulty < header.difficulty() {
-			return Err(Error::Block(BlockErrorWithData {
-				error: BlockError::InvalidProofOfWork(OutOfBounds {
-					min: Some(*header.difficulty()),
-					max: None,
-					found: difficulty
-				}),
-				data: None,
-			}));
+			return Err(Error::Block(BlockError::InvalidProofOfWork(OutOfBounds {
+				min: Some(*header.difficulty()),
+				max: None,
+				found: difficulty
+			})));
 		}
 		Ok(())
 	}
@@ -376,26 +363,20 @@ impl Engine for Ethash {
 	fn verify_block_family(&self, header: &Header, parent: &Header) -> Result<(), Error> {
 		// we should not calculate difficulty for genesis blocks
 		if header.number() == 0 {
-			return Err(Error::Block(BlockErrorWithData {
-				error: BlockError::RidiculousNumber(OutOfBounds {
-					min: Some(1),
-					max: None,
-					found: header.number()
-				}),
-				data: None,
-			}));
+			return Err(Error::Block(BlockError::RidiculousNumber(OutOfBounds {
+				min: Some(1),
+				max: None,
+				found: header.number()
+			})));
 		}
 
 		// Check difficulty is correct given the two timestamps.
 		let expected_difficulty = self.calculate_difficulty(header, parent);
 		if header.difficulty() != &expected_difficulty {
-			return Err(Error::Block(BlockErrorWithData {
-				error: BlockError::InvalidDifficulty(Mismatch {
-					expected: expected_difficulty,
-					found: *header.difficulty()
-				}),
-				data: None,
-			}));
+			return Err(Error::Block(BlockError::InvalidDifficulty(Mismatch {
+				expected: expected_difficulty,
+				found: *header.difficulty()
+			})));
 		}
 
 		Ok(())

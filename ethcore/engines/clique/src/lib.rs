@@ -95,7 +95,7 @@ use common_types::{
 		params::CommonParams,
 		machine::Call,
 	},
-	errors::{BlockError, BlockErrorWithData, EthcoreError as Error, EngineError},
+	errors::{BlockError, EthcoreError as Error, EngineError},
 };
 
 use crate::{
@@ -273,8 +273,7 @@ impl Clique {
 		let mut state = CliqueBlockState::new(extract_signers(header)?);
 
 		// TODO(niklasad1): refactor to perform this check in the `CliqueBlockState` constructor instead
-		state.calc_next_timestamp(header.timestamp(), self.period)
-			.map_err(|error| Error::Block(BlockErrorWithData { error, data: None }))?;
+		state.calc_next_timestamp(header.timestamp(), self.period)?;
 
 		Ok(state)
 	}
@@ -328,10 +327,7 @@ impl Clique {
 					}
 					match c.block_header(BlockId::Hash(last_parent_hash)) {
 						None => {
-							return Err(Error::Block(BlockErrorWithData {
-								error: BlockError::UnknownParent(last_parent_hash),
-								data: None
-							}));
+							return Err(Error::Block(BlockError::UnknownParent(last_parent_hash)));
 						}
 						Some(next) => {
 							chain.push_front(next.decode()?);
@@ -361,8 +357,7 @@ impl Clique {
 				for item in &chain {
 					new_state.apply(item, false)?;
 				}
-				new_state.calc_next_timestamp(header.timestamp(), self.period)
-					.map_err(|error| Error::Block(BlockErrorWithData { error, data: None }))?;
+				new_state.calc_next_timestamp(header.timestamp(), self.period)?;
 				block_state_by_hash.insert(header.hash(), new_state.clone());
 
 				trace!(target: "engine", "Back-filling succeed, took {} ms.", backfill_start.elapsed().as_millis());
@@ -414,10 +409,7 @@ impl Engine for Clique {
 
 		let header = &mut block.header;
 		let mut state = self.state_no_backfill(header.parent_hash())
-			.ok_or_else(|| Error::Block(BlockErrorWithData {
-				error: BlockError::UnknownParent(*header.parent_hash()),
-				data: None
-			}))?;
+			.ok_or_else(|| Error::Block(BlockError::UnknownParent(*header.parent_hash())))?;
 
 		let is_checkpoint = header.number() % self.epoch_length == 0;
 
@@ -448,14 +440,11 @@ impl Engine for Clique {
 
 		// At this point, extra_data should only contain miner vanity.
 		if header.extra_data().len() != VANITY_LENGTH {
-			return Err(Error::Block(BlockErrorWithData {
-				error: BlockError::ExtraDataOutOfBounds(OutOfBounds {
-					min: Some(VANITY_LENGTH),
-					max: Some(VANITY_LENGTH),
-					found: header.extra_data().len()
-				}),
-				data: None,
-			}));
+			return Err(Error::Block(BlockError::ExtraDataOutOfBounds(OutOfBounds {
+				min: Some(VANITY_LENGTH),
+				max: Some(VANITY_LENGTH),
+				found: header.extra_data().len()
+			})));
 		}
 		// vanity
 		{
@@ -481,9 +470,7 @@ impl Engine for Clique {
 
 		// locally sealed block don't go through valid_block_family(), so we have to record state here.
 		state.apply(&header, is_checkpoint)?;
-		state
-			.calc_next_timestamp(header.timestamp(), self.period)
-			.map_err(|error| Error::Block(BlockErrorWithData { error, data: None }))?;
+		state.calc_next_timestamp(header.timestamp(), self.period)?;
 		self.block_state_by_hash.write().insert(header.hash(), state);
 
 		trace!(target: "engine", "on_seal_block: finished, final header: {:?}", header);
@@ -579,10 +566,7 @@ impl Engine for Clique {
 		// Don't waste time checking blocks from the future
 		{
 			let limit = CheckedSystemTime::checked_add(SystemTime::now(), Duration::from_secs(self.period))
-				.ok_or_else(|| Error::Block(BlockErrorWithData {
-					error: BlockError::TimestampOverflow,
-					data: None
-				}))?;
+				.ok_or(BlockError::TimestampOverflow)?;
 
 			// This should succeed under the constraints that the system clock works
 			let limit_as_dur = limit.duration_since(UNIX_EPOCH).map_err(|e| {
@@ -591,20 +575,13 @@ impl Engine for Clique {
 
 			let hdr = Duration::from_secs(header.timestamp());
 			if hdr > limit_as_dur {
-				let found = CheckedSystemTime::checked_add(UNIX_EPOCH, hdr)
-					.ok_or_else(|| Error::Block(BlockErrorWithData {
-						error: BlockError::TimestampOverflow,
-						data: None
-					}))?;
+				let found = CheckedSystemTime::checked_add(UNIX_EPOCH, hdr).ok_or(BlockError::TimestampOverflow)?;
 
-				return Err(Error::Block(BlockErrorWithData {
-					error: BlockError::TemporarilyInvalid(From::from(OutOfBounds {
-						min: None,
-						max: Some(limit),
-						found,
-					})),
-					data: None,
-				}));
+				return Err(Error::Block(BlockError::TemporarilyInvalid(From::from(OutOfBounds {
+					min: None,
+					max: Some(limit),
+					found,
+				}))));
 			}
 		}
 
@@ -619,13 +596,10 @@ impl Engine for Clique {
 
 		let seal_fields = header.decode_seal::<Vec<_>>()?;
 		if seal_fields.len() != 2 {
-			return Err(Error::Block(BlockErrorWithData {
-				error: BlockError::InvalidSealArity(Mismatch {
-					expected: 2,
-					found: seal_fields.len(),
-				}),
-				data: None,
-			}));
+			return Err(Error::Block(BlockError::InvalidSealArity(Mismatch {
+				expected: 2,
+				found: seal_fields.len(),
+			})));
 		}
 
 		let mixhash = H256::from_slice(seal_fields[0]);
@@ -642,13 +616,10 @@ impl Engine for Clique {
 
 		// Ensure that the mix digest is zero as Clique don't have fork protection currently
 		if mixhash != NULL_MIXHASH {
-			return Err(Error::Block(BlockErrorWithData {
-				error: BlockError::MismatchedH256SealElement(Mismatch {
-					expected: NULL_MIXHASH,
-					found: mixhash,
-				}),
-				data: None,
-			}));
+			return Err(Error::Block(BlockError::MismatchedH256SealElement(Mismatch {
+				expected: NULL_MIXHASH,
+				found: mixhash,
+			})));
 		}
 
 		let extra_data_len = header.extra_data().len();
@@ -675,25 +646,19 @@ impl Engine for Clique {
 
 		// Ensure that the block doesn't contain any uncles which are meaningless in PoA
 		if *header.uncles_hash() != NULL_UNCLES_HASH {
-			return Err(Error::Block(BlockErrorWithData {
-				error: BlockError::InvalidUnclesHash(Mismatch {
-					expected: NULL_UNCLES_HASH,
-					found: *header.uncles_hash(),
-				}),
-				data: None,
-			}));
+			return Err(Error::Block(BlockError::InvalidUnclesHash(Mismatch {
+				expected: NULL_UNCLES_HASH,
+				found: *header.uncles_hash(),
+			})));
 		}
 
 		// Ensure that the block's difficulty is meaningful (may not be correct at this point)
 		if *header.difficulty() != DIFF_INTURN && *header.difficulty() != DIFF_NOTURN {
-			return Err(Error::Block(BlockErrorWithData {
-				error: BlockError::DifficultyOutOfBounds(OutOfBounds {
-					min: Some(DIFF_NOTURN),
-					max: Some(DIFF_INTURN),
-					found: *header.difficulty(),
-				}),
-				data: None
-			}));
+			return Err(Error::Block(BlockError::DifficultyOutOfBounds(OutOfBounds {
+				min: Some(DIFF_NOTURN),
+				max: Some(DIFF_INTURN),
+				found: *header.difficulty(),
+			})));
 		}
 
 		// All basic checks passed, continue to next phase
@@ -715,10 +680,7 @@ impl Engine for Clique {
 
 		// parent sanity check
 		if parent.hash() != *header.parent_hash() || header.number() != parent.number() + 1 {
-			return Err(Error::Block(BlockErrorWithData {
-				error: BlockError::UnknownParent(parent.hash()),
-				data: None
-			}));
+			return Err(Error::Block(BlockError::UnknownParent(parent.hash())));
 		}
 
 		// Ensure that the block's timestamp isn't too close to it's parent

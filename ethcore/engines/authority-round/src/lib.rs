@@ -73,7 +73,7 @@ use common_types::{
 		SealingState,
 		machine::{Call, AuxiliaryData},
 	},
-	errors::{BlockError, BlockErrorWithData, EthcoreError as Error, EngineError},
+	errors::{BlockError, EthcoreError as Error, EngineError},
 	ids::BlockId,
 	snapshot::Snapshotting,
 	transaction::SignedTransaction,
@@ -628,8 +628,7 @@ struct EpochVerifier {
 impl engine::EpochVerifier for EpochVerifier {
 	fn verify_light(&self, header: &Header) -> Result<(), Error> {
 		// Validate the timestamp
-		verify_timestamp(&self.step.inner, header_step(header, self.empty_steps_transition)?)
-			.map_err(|error| Error::Block(BlockErrorWithData { error, data: None }))?;
+		verify_timestamp(&self.step.inner, header_step(header, self.empty_steps_transition)?)?;
 		// always check the seal since it's fast.
 		// nothing heavier to do.
 		verify_external(header, &self.subchain_validators, self.empty_steps_transition)
@@ -875,11 +874,7 @@ impl AuthorityRound {
 			};
 			durations.push(dur_info);
 			for (time, dur) in our_params.step_durations.iter().skip(1) {
-				let (step, time) = next_step_time_duration(dur_info, *time)
-					.ok_or_else(|| Error::Block(BlockErrorWithData {
-						error: BlockError::TimestampOverflow,
-						data: None
-					}))?;
+				let (step, time) = next_step_time_duration(dur_info, *time).ok_or(BlockError::TimestampOverflow)?;
 				dur_info.transition_step = step;
 				dur_info.transition_timestamp = time;
 				dur_info.step_duration = *dur;
@@ -1599,14 +1594,11 @@ impl Engine for AuthorityRound {
 	/// Check the number of seal fields.
 	fn verify_block_basic(&self, header: &Header) -> Result<(), Error> {
 		if header.number() >= self.validate_score_transition && *header.difficulty() >= U256::from(U128::max_value()) {
-			return Err(Error::Block(BlockErrorWithData {
-				error: BlockError::DifficultyOutOfBounds(OutOfBounds {
-					min: None,
-					max: Some(U256::from(U128::max_value())),
-					found: *header.difficulty()
-				}),
-				data: None
-			}));
+			return Err(Error::Block(BlockError::DifficultyOutOfBounds(OutOfBounds {
+				min: None,
+				max: Some(U256::from(U128::max_value())),
+				found: *header.difficulty()
+			})));
 		}
 
 		match verify_timestamp(&self.step.inner, header_step(header, self.empty_steps_transition)?) {
@@ -1627,9 +1619,9 @@ impl Engine for AuthorityRound {
 					self.validators.report_benign(header.author(), set_number, header.number());
 				}
 
-				Err(Error::Block(BlockErrorWithData { error: BlockError::InvalidSeal, data: None }))
+				Err(Error::Block(BlockError::InvalidSeal))
 			}
-			Err(error) => Err(Error::Block(BlockErrorWithData { error, data: None })),
+			Err(error) => Err(error.into()),
 			Ok(()) => Ok(()),
 		}
 	}
@@ -1733,13 +1725,10 @@ impl Engine for AuthorityRound {
 		if header.number() >= self.validate_score_transition {
 			let expected_difficulty = calculate_score(parent_step.into(), step.into(), empty_steps_len.into());
 			if header.difficulty() != &expected_difficulty {
-				return Err(Error::Block(BlockErrorWithData {
-					error: BlockError::InvalidDifficulty(Mismatch {
-						expected: expected_difficulty,
-						found: *header.difficulty()
-					}),
-					data: None,
-				}));
+				return Err(Error::Block(BlockError::InvalidDifficulty(Mismatch {
+					expected: expected_difficulty,
+					found: *header.difficulty()
+				})));
 			}
 		}
 

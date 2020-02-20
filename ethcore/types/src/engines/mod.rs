@@ -23,7 +23,7 @@ use unexpected::Mismatch;
 
 use crate::{
 	BlockNumber,
-	errors::{BlockError, BlockErrorWithData, EthcoreError}
+	errors::{BlockError, EthcoreError}
 };
 
 pub mod epoch;

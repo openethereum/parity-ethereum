@@ -317,7 +317,7 @@ impl Importer {
 					},
 					Err(err) => {
 						invalid_blocks.insert(hash);
-						if let EthcoreError::Block(BlockErrorWithData { error, data }) = err {
+						if let EthcoreError::BadBlock(BlockErrorWithData { error, data }) = err {
 							self.bad_blocks.report(data, error.to_string());
 						}
 					},
@@ -451,7 +451,7 @@ impl Importer {
 		if let Err(error) = verification::verify_block_final(&header, &locked_block.header) {
 			warn!(target: "client", "Stage 5 block verification failed for #{} ({})\nError: {:?}",
 				header.number(), header.hash(), error);
-			return Err(EthcoreError::Block(BlockErrorWithData { error, data: Some(bytes) }));
+			return Err(EthcoreError::BadBlock(BlockErrorWithData { error, data: Some(bytes) }));
 		}
 
 		let pending = self.check_epoch_end_signal(
@@ -1457,7 +1457,7 @@ impl ImportBlock for Client {
 
 		let status = self.block_status(BlockId::Hash(unverified.parent_hash()));
 		if status == BlockStatus::Unknown {
-			return Err(EthcoreError::Block(BlockErrorWithData {
+			return Err(EthcoreError::BadBlock(BlockErrorWithData {
 				error: BlockError::UnknownParent(unverified.parent_hash()),
 				data: Some(unverified.bytes)
 			}));
@@ -2232,7 +2232,7 @@ impl IoClient for Client {
 			// (and attempt to acquire lock)
 			let is_parent_pending = self.queued_ancient_blocks.read().0.contains(&parent_hash);
 			if !is_parent_pending && !self.chain.read().is_known(&parent_hash) {
-				return Err(EthcoreError::Block(BlockErrorWithData {
+				return Err(EthcoreError::BadBlock(BlockErrorWithData {
 					error: BlockError::UnknownParent(parent_hash),
 					data: Some(unverified.bytes)
 				}));
@@ -2396,12 +2396,13 @@ impl ImportSealedBlock for Client {
 
 		let route = {
 			// Do a super duper basic verification to detect potential bugs
-			if let Err(mut err) = self.engine.verify_block_basic(&header) {
-				if let EthcoreError::Block(BlockErrorWithData { ref mut data, .. }) = &mut err {
-					*data = Some(block_bytes_rlp);
-				}
-				return Err(err);
-			}
+			match self.engine.verify_block_basic(&header) {
+				Err(EthcoreError::Block(error)) => {
+					return Err(EthcoreError::BadBlock(BlockErrorWithData { error, data: Some(block_bytes_rlp) }));
+				},
+				Err(err) => return Err(err),
+				Ok(_) => (),
+			};
 
 			// scope for self.import_lock
 			let _import_lock = self.importer.import_lock.lock();
@@ -2491,7 +2492,7 @@ impl client_traits::EngineClient for Client {
 			})
 			.and_then(|block| self.import_sealed_block(block));
 
-		if let Err(EthcoreError::Block(BlockErrorWithData { data, error })) = import {
+		if let Err(EthcoreError::BadBlock(BlockErrorWithData { data, error })) = import {
 			self.importer.bad_blocks.report(data, error.to_string());
 		}
 	}

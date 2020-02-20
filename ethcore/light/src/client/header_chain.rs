@@ -37,7 +37,7 @@ use common_types::{
 		Transition as EpochTransition,
 		PendingTransition as PendingEpochTransition,
 	},
-	errors::{EthcoreError as Error, BlockError, BlockErrorWithData},
+	errors::{EthcoreError as Error, BlockError},
 	header::Header,
 	ids::BlockId,
 };
@@ -330,7 +330,7 @@ impl HeaderChain {
 					&decoded_header,
 					hardcoded_sync.total_difficulty,
 					None
-				).map_err(|error| Error::Block(BlockErrorWithData { error, data: None }))?;
+				)?;
 
 				// check that we have enough hardcoded CHT roots. avoids panicking later.
 				let cht_num = cht::block_to_cht_number(decoded_header_num - 1)

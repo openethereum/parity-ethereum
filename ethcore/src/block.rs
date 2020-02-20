@@ -349,13 +349,10 @@ impl LockedBlock {
 		let expected_seal_fields = engine.seal_fields(&self.header);
 		let mut s = self;
 		if seal.len() != expected_seal_fields {
-			return Err(Error::Block(BlockErrorWithData {
-				error: BlockError::InvalidSealArity(Mismatch {
-					expected: expected_seal_fields,
-					found: seal.len()
-				}),
-				data: None
-			}));
+			return Err(Error::Block(BlockError::InvalidSealArity(Mismatch {
+				expected: expected_seal_fields,
+				found: seal.len()
+			})));
 		}
 
 		s.block.header.set_seal(seal);
@@ -462,7 +459,7 @@ pub(crate) fn enact(
 
 	for u in block.uncles {
 		if let Err(error) = b.push_uncle(u) {
-			return Err(Error::Block(BlockErrorWithData { error, data: Some(block.bytes) }));
+			return Err(Error::BadBlock(BlockErrorWithData { error, data: Some(block.bytes) }));
 		}
 	}
 

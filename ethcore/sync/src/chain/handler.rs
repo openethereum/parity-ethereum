@@ -186,12 +186,16 @@ impl SyncHandler {
 			Err(EthcoreError::Import(ImportError::AlreadyQueued)) => {
 				trace!(target: "sync", "New block already queued {:?}", hash);
 			},
-			Err(EthcoreError::Block(BlockErrorWithData { error, .. })) => {
+			Err(EthcoreError::Block(BlockError::UnknownParent(p))) => {
+				unknown = true;
+				trace!(target: "sync", "New block with unknown parent ({:?}) {:?}", p, hash);
+			},
+			Err(EthcoreError::BadBlock(BlockErrorWithData { error, .. })) => {
 				if let BlockError::UnknownParent(p) = error {
 					unknown = true;
 					trace!(target: "sync", "New block with unknown parent ({:?}) {:?}", p, hash);
 				}
-			},
+			}
 			Err(e) => {
 				debug!(target: "sync", "Bad new block {:?} : {:?}", hash, e);
 				return Err(DownloaderImportError::Invalid);

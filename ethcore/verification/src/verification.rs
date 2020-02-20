@@ -48,20 +48,19 @@ use time_utils::CheckedSystemTime;
 /// Phase 1 quick block verification. Only does checks that are cheap. Operates on a single block
 pub fn verify_block_basic(block: Unverified, engine: &dyn Engine, check_seal: bool) -> Result<Unverified, Error> {
 	if let Err(error) = verify_header_params(&block.header, engine, check_seal) {
-		return Err(Error::Block(BlockErrorWithData { error, data: Some(block.bytes) }));
+		return Err(Error::BadBlock(BlockErrorWithData { error, data: Some(block.bytes) }));
 	}
 
 	if let Err(error) = verify_header_time(&block.header) {
-		return Err(Error::Block(BlockErrorWithData { error, data: Some(block.bytes) }));
+		return Err(Error::BadBlock(BlockErrorWithData { error, data: Some(block.bytes) }));
 	}
 
 	let block = verify_block_integrity(block)?;
 
 	if check_seal {
 		match engine.verify_block_basic(&block.header) {
-			Err(Error::Block(mut err)) => {
-				err.data = Some(block.bytes);
-				return Err(Error::Block(err));
+			Err(Error::Block(error)) => {
+				return Err(Error::BadBlock(BlockErrorWithData { error, data: Some(block.bytes) }));
 			}
 			Err(err) => return Err(err),
 			_ => {},
@@ -70,13 +69,12 @@ pub fn verify_block_basic(block: Unverified, engine: &dyn Engine, check_seal: bo
 
 	for uncle in &block.uncles {
 		if let Err(error) = verify_header_params(uncle, engine, check_seal) {
-			return Err(Error::Block(BlockErrorWithData { error, data: Some(block.bytes) }));
+			return Err(Error::BadBlock(BlockErrorWithData { error, data: Some(block.bytes) }));
 		}
 		if check_seal {
 			match engine.verify_block_basic(uncle) {
-				Err(Error::Block(mut err)) => {
-					err.data = Some(block.bytes);
-					return Err(Error::Block(err));
+				Err(Error::Block(error)) => {
+					return Err(Error::BadBlock(BlockErrorWithData { error, data: Some(block.bytes) }));
 				}
 				Err(err) => return Err(err),
 				_ => {},
@@ -86,7 +84,7 @@ pub fn verify_block_basic(block: Unverified, engine: &dyn Engine, check_seal: bo
 
 	if let Some(gas_limit) = engine.gas_limit_override(&block.header) {
 		if *block.header.gas_limit() != gas_limit {
-			return Err(Error::Block(BlockErrorWithData {
+			return Err(Error::BadBlock(BlockErrorWithData {
 				error: BlockError::InvalidGasLimit(OutOfBounds {
 					min: Some(gas_limit),
 					max: Some(gas_limit),
@@ -129,7 +127,7 @@ pub fn verify_block_unordered(block: Unverified, engine: &dyn Engine, check_seal
 		let max_nonce = U256::from(engine.params().nonce_cap_increment) * U256::from(header.number());
 		for t in &transactions {
 			if t.nonce >= max_nonce {
-				return Err(Error::Block(BlockErrorWithData {
+				return Err(Error::BadBlock(BlockErrorWithData {
 					error: BlockError::TooManyTransactions(t.sender()).into(),
 					data: Some(block.bytes),
 				}));
@@ -167,7 +165,7 @@ pub fn verify_block_family<C: BlockInfo + CallContract>(
 ) -> Result<PreverifiedBlock, Error> {
 	// TODO: verify timestamp
 	if let Err(error) = verify_parent(&block.header, &parent, engine) {
-		return Err(Error::Block(BlockErrorWithData { error, data: Some(block.bytes) }));
+		return Err(Error::BadBlock(BlockErrorWithData { error, data: Some(block.bytes) }));
 	}
 	engine.verify_block_family(&block.header, &parent)?;
 	let block = verify_uncles(block, block_provider, engine)?;
@@ -191,7 +189,7 @@ fn verify_uncles(
 	let max_uncles = engine.maximum_uncle_count(header.number());
 	if num_uncles != 0 {
 		if num_uncles > max_uncles {
-			return Err(Error::Block(BlockErrorWithData {
+			return Err(Error::BadBlock(BlockErrorWithData {
 				error: BlockError::TooManyUncles(OutOfBounds {
 					min: None,
 					max: Some(max_uncles),
@@ -220,14 +218,14 @@ fn verify_uncles(
 		let mut verified = HashSet::new();
 		for uncle in &block.uncles {
 			if excluded.contains(&uncle.hash()) {
-				return Err(Error::Block(BlockErrorWithData {
+				return Err(Error::BadBlock(BlockErrorWithData {
 					error: BlockError::UncleInChain(uncle.hash()).into(),
 					data: Some(block.bytes),
 				}));
 			}
 
 			if verified.contains(&uncle.hash()) {
-				return Err(Error::Block(BlockErrorWithData {
+				return Err(Error::BadBlock(BlockErrorWithData {
 					error: BlockError::DuplicateUncle(uncle.hash()).into(),
 					data: Some(block.bytes),
 				}));
@@ -243,7 +241,7 @@ fn verify_uncles(
 				uncle.number() + MAX_UNCLE_AGE >= header.number() {
 				header.number() - uncle.number()
 			} else {
-				return Err(Error::Block(BlockErrorWithData {
+				return Err(Error::BadBlock(BlockErrorWithData {
 					error: BlockError::UncleOutOfBounds(OutOfBounds {
 						min: Some(header.number() - MAX_UNCLE_AGE),
 						max: Some(header.number() - 1),
@@ -266,7 +264,7 @@ fn verify_uncles(
 			let uncle_parent = match bc.block_header_data(&uncle.parent_hash()) {
 				Some(uncle_parent) => uncle_parent,
 				None => {
-					return Err(Error::Block(BlockErrorWithData {
+					return Err(Error::BadBlock(BlockErrorWithData {
 						error: BlockError::UnknownUncleParent(*uncle.parent_hash()),
 						data: Some(block.bytes),
 					}));
@@ -282,7 +280,7 @@ fn verify_uncles(
 				}
 			}
 			if expected_uncle_parent != uncle_parent.hash() {
-				return Err(Error::Block(BlockErrorWithData {
+				return Err(Error::BadBlock(BlockErrorWithData {
 					error: BlockError::UncleParentNotInChain(uncle_parent.hash()).into(),
 					data: Some(block.bytes),
 				}));
@@ -290,7 +288,7 @@ fn verify_uncles(
 
 			let uncle_parent = uncle_parent.decode()?;
 			if let Err(error) = verify_parent(&uncle, &uncle_parent, engine) {
-				return Err(Error::Block(BlockErrorWithData { error, data: Some(block.bytes) }));
+				return Err(Error::BadBlock(BlockErrorWithData { error, data: Some(block.bytes) }));
 			}
 			engine.verify_block_family(&uncle, &uncle_parent)?;
 			verified.insert(uncle.hash());
@@ -478,7 +476,7 @@ fn verify_block_integrity(block: Unverified) -> Result<Unverified, Error> {
 	let tx = block_rlp.at(1)?;
 	let expected_root = ordered_trie_root(tx.iter().map(|r| r.as_raw()));
 	if &expected_root != block.header.transactions_root() {
-		return Err(Error::Block(BlockErrorWithData {
+		return Err(Error::BadBlock(BlockErrorWithData {
 			error: BlockError::InvalidTransactionsRoot(Mismatch {
 				expected: expected_root,
 				found: *block.header.transactions_root(),
@@ -488,7 +486,7 @@ fn verify_block_integrity(block: Unverified) -> Result<Unverified, Error> {
 	}
 	let expected_uncles = keccak(block_rlp.at(2)?.as_raw());
 	if &expected_uncles != block.header.uncles_hash() {
-		return Err(Error::Block(BlockErrorWithData {
+		return Err(Error::BadBlock(BlockErrorWithData {
 			error: BlockError::InvalidUnclesHash(Mismatch {
 				expected: expected_uncles,
 				found: *block.header.uncles_hash(),
