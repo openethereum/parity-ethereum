@@ -263,7 +263,7 @@ impl SyncSupplier {
 	fn return_node_data(io: &dyn SyncIo, r: &Rlp, peer_id: PeerId) -> RlpResponseResult {
 		let payload_soft_limit = io.payload_soft_limit(); // 4Mb
 		let mut count = r.item_count().unwrap_or(0);
-		trace!(target: "sync", "{} -> GetNodeData: {} entries requested", peer_id, count);
+		warn!(target: "sync", "{} -> GetNodeData: {} entries requested", peer_id, count);
 		if count == 0 {
 			debug!(target: "sync", "Empty GetNodeData request, ignoring.");
 			return Ok(None);
@@ -293,7 +293,7 @@ impl SyncSupplier {
 				added += 1;
 			}
 		}
-		trace!(target: "sync", "{} -> GetNodeData: returning {}/{} entries ({} bytes total in {:?})",
+		warn!(target: "sync", "{} -> GetNodeData: returning {}/{} entries ({} bytes total in {:?})",
 			peer_id, added, count, total_bytes, total_elpsd);
 		let mut rlp = RlpStream::new_list(added);
 		for d in data {

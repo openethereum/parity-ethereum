@@ -726,28 +726,20 @@ impl Engine for Clique {
 		if limit > header.timestamp() {
 			let max = CheckedSystemTime::checked_add(UNIX_EPOCH, Duration::from_secs(header.timestamp()));
 			let found = CheckedSystemTime::checked_add(UNIX_EPOCH, Duration::from_secs(limit))
-				.ok_or_else(|| Error::Block(BlockErrorWithData {
-					error: BlockError::TimestampOverflow,
-					data: None
-				}))?;
+				.ok_or(BlockError::TimestampOverflow)?;
 
-			return Err(Error::Block(BlockErrorWithData {
-				error: BlockError::InvalidTimestamp(From::from(OutOfBounds {
-					min: None,
-					max,
-					found,
-				})),
-				data: None,
-			}));
+			return Err(Error::Block(BlockError::InvalidTimestamp(From::from(OutOfBounds {
+				min: None,
+				max,
+				found,
+			}))));
 		}
 
 		// Retrieve the parent state
 		// Try to apply current state, apply() will further check signer and recent signer.
 		let mut new_state = self.state(&parent)?;
 		new_state.apply(header, header.number() % self.epoch_length == 0)?;
-		new_state.
-			calc_next_timestamp(header.timestamp(), self.period)
-			.map_err(|error| Error::Block(BlockErrorWithData { error,data: None}))?;
+		new_state.calc_next_timestamp(header.timestamp(), self.period)?;
 		self.block_state_by_hash.write().insert(header.hash(), new_state);
 
 		Ok(())

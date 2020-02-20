@@ -23,7 +23,7 @@ use std::{
 use common_types::{
 	BlockNumber,
 	header::Header,
-	errors::{BlockError, BlockErrorWithData, EthcoreError as Error, EngineError},
+	errors::{BlockError, EthcoreError as Error, EngineError},
 };
 use ethereum_types::{Address, H64};
 use log::{debug, trace};
@@ -152,23 +152,17 @@ impl CliqueBlockState {
 		let inturn = self.is_inturn(header.number(), &creator);
 
 		if inturn && *header.difficulty() != DIFF_INTURN {
-			return Err(Error::Block(BlockErrorWithData {
-				error: BlockError::InvalidDifficulty(Mismatch {
-					expected: DIFF_INTURN,
-					found: *header.difficulty(),
-				}),
-				data: None,
-			}));
+			return Err(Error::Block(BlockError::InvalidDifficulty(Mismatch {
+				expected: DIFF_INTURN,
+				found: *header.difficulty(),
+			})));
 		}
 
 		if !inturn && *header.difficulty() != DIFF_NOTURN {
-			return Err(Error::Block(BlockErrorWithData {
-				error: BlockError::InvalidDifficulty(Mismatch {
-					expected: DIFF_NOTURN,
-					found: *header.difficulty(),
-				}),
-				data: None,
-			}));
+			return Err(Error::Block(BlockError::InvalidDifficulty(Mismatch {
+				expected: DIFF_NOTURN,
+				found: *header.difficulty(),
+			})));
 		}
 
 		Ok(creator)
@@ -207,13 +201,10 @@ impl CliqueBlockState {
 		if *header.author() != NULL_AUTHOR {
 			let decoded_seal = header.decode_seal::<Vec<_>>()?;
 			if decoded_seal.len() != 2 {
-				return Err(Error::Block(BlockErrorWithData {
-					error: BlockError::InvalidSealArity(Mismatch {
-						expected: 2,
-						found: decoded_seal.len()
-					}),
-					data: None,
-				}));
+				return Err(Error::Block(BlockError::InvalidSealArity(Mismatch {
+					expected: 2,
+					found: decoded_seal.len()
+				})));
 			}
 
 			let nonce = H64::from_slice(decoded_seal[1]);

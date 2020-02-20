@@ -33,7 +33,7 @@ pub type EthcoreResult<T> = Result<T, EthcoreError>;
 
 /// Block error type
 #[derive(Clone, Display, Debug)]
-#[display(fmt = "Block error: {} with raw rlp bytes: {:?}", error, data)]
+#[display(fmt = "Bad block failed because of: {}, raw rlp bytes: {:?}", error, data)]
 pub struct BlockErrorWithData {
 	/// Error.
 	pub error: BlockError,
@@ -79,7 +79,10 @@ pub enum EthcoreError {
 	Execution(ExecutionError),
 	/// Error concerning block processing.
 	#[display(fmt = "{}", _0)]
-	Block(BlockErrorWithData),
+	Block(BlockError),
+	/// ....
+	#[display(fmt = "{}", _0)]
+	BadBlock(BlockErrorWithData),
 	/// Error concerning transaction processing.
 	#[display(fmt = "Transaction error: {}", _0)]
 	Transaction(TransactionError),
@@ -117,7 +120,7 @@ impl error::Error for EthcoreError {
 			StdIo(e) => Some(e),
 			Trie(e) => Some(e),
 			Execution(e) => Some(e),
-			Block(e) => Some(&e.error),
+			Block(e) => Some(e),
 			Transaction(e) => Some(e),
 			Snappy(e) => Some(e),
 			Engine(e) => Some(e),

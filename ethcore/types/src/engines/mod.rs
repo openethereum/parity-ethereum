@@ -60,13 +60,10 @@ impl EthashSeal {
 	// NOTE(niklasad1): might return `BlockErrorWithData` without `block bytes`
 	pub fn parse_seal<T: AsRef<[u8]>>(seal: &[T]) -> Result<Self, EthcoreError> {
 		if seal.len() != 2 {
-			Err(EthcoreError::Block(BlockErrorWithData {
-				error: BlockError::InvalidSealArity(Mismatch {
-					expected: 2,
-					found: seal.len()
-				}),
-				data: None,
-			}))
+			Err(EthcoreError::Block(BlockError::InvalidSealArity(Mismatch {
+				expected: 2,
+				found: seal.len()
+			})))
 		} else {
 			let mix_hash = Rlp::new(seal[0].as_ref()).as_val::<H256>()?;
 			let nonce = Rlp::new(seal[1].as_ref()).as_val::<H64>()?;
@@ -100,7 +97,7 @@ pub const MAX_UNCLE_AGE: u64 = 6;
 
 /// Default EIP-210 contract code.
 /// As defined in https://github.com/ethereum/EIPs/pull/210
-pub const DEFAULT_BLOCKHASH_CONTRACT: &'static [u8] = &[
+pub const DEFAULT_BLOCKHASH_CONTRACT: &[u8] = &[
 	0x73, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 	0xff, 0xff, 0xff, 0xff, 0xfe, 0x33, 0x14, 0x15, 0x61, 0x00, 0x6a, 0x57, 0x60, 0x01, 0x43, 0x03,
 	0x60, 0x00, 0x35, 0x61, 0x01, 0x00, 0x82, 0x07, 0x55, 0x61, 0x01, 0x00, 0x81, 0x07, 0x15, 0x15,

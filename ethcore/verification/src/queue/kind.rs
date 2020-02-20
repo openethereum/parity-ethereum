@@ -93,11 +93,11 @@ pub mod blocks {
 			let hash = input.hash();
 			match verify_block_basic(input, engine, check_seal) {
 				Ok(input) => Ok(input),
-				Err(Error::Block(BlockErrorWithData { error, data })) => {
+				Err(Error::BadBlock(BlockErrorWithData { error, data })) => {
 					if let BlockError::TemporarilyInvalid(ref oob) = error {
 						debug!(target: "client", "Block received too early {}: {:?}", hash, oob);
 					}
-					Err(Error::Block(BlockErrorWithData { error, data }))
+					Err(Error::BadBlock(BlockErrorWithData { error, data }))
 				},
 				Err(e) => {
 					warn!(target: "client", "Stage 1 block verification failed for {}: {:?}", hash, e);
@@ -186,11 +186,11 @@ pub mod headers {
 		fn create(input: Self::Input, engine: &dyn Engine, check_seal: bool) -> Result<Self::Unverified, Error> {
 			let res = verify_header_params(&input, engine, check_seal)
 				.and_then(|_| Ok(verify_header_time(&input)))
-				.map_err(|error| Error::Block(BlockErrorWithData { error, data: None }))?;
+				.map_err(|error| Error::BadBlock(BlockErrorWithData { error, data: None }))?;
 
 			match res {
 				Ok(_) => Ok(input),
-				Err(error) => Err(Error::Block(BlockErrorWithData { error, data: None })),
+				Err(error) => Err(Error::BadBlock(BlockErrorWithData { error, data: None })),
 			}
 		}
 
