@@ -163,8 +163,8 @@ fn verify_uncles(block: &PreverifiedBlock, bc: &dyn BlockProvider, engine: &dyn 
 
 		let mut excluded = HashSet::new();
 		excluded.insert(header.hash());
-		let mut hash = header.parent_hash().clone();
-		excluded.insert(hash.clone());
+		let mut hash = *header.parent_hash();
+		excluded.insert(hash);
 		for _ in 0..MAX_UNCLE_AGE {
 			match bc.block_details(&hash) {
 				Some(details) => {
@@ -213,7 +213,7 @@ fn verify_uncles(block: &PreverifiedBlock, bc: &dyn BlockProvider, engine: &dyn 
 			// cB.p^6	-----------/  6
 			// cB.p^7	-------------/
 			// cB.p^8
-			let mut expected_uncle_parent = header.parent_hash().clone();
+			let mut expected_uncle_parent = *header.parent_hash();
 			let uncle_parent = bc.block_header_data(&uncle.parent_hash())
 				.ok_or_else(|| BlockError::UnknownUncleParent(*uncle.parent_hash()))?;
 			for _ in 0..depth {
@@ -440,7 +440,6 @@ mod tests {
 	use keccak_hash::keccak;
 	use engine::Engine;
 	use parity_crypto::publickey::{Random, Generator};
-	use spec;
 	use ethcore::test_helpers::{
 		create_test_block_with_data, create_test_block, TestBlockChainClient
 	};
@@ -449,7 +448,6 @@ mod tests {
 		errors::BlockError::*,
 		transaction::{SignedTransaction, Transaction, UnverifiedTransaction, Action},
 	};
-	use rlp;
 	use triehash::ordered_trie_root;
 	use machine::Machine;
 	use null_engine::NullEngine;

@@ -2388,7 +2388,7 @@ impl ImportSealedBlock for Client {
 			// Do a super duper basic verification to detect potential bugs
 			if let Err(e) = self.engine.verify_block_basic(&header) {
 				self.importer.bad_blocks.report(
-					block.rlp_bytes(),
+					raw,
 					format!("Detected an issue with locally sealed block: {}", e),
 				);
 				return Err(e);
@@ -2475,11 +2475,15 @@ impl client_traits::EngineClient for Client {
 	}
 
 	fn submit_seal(&self, block_hash: H256, seal: Vec<Bytes>) {
-		let import = self.importer.miner.submit_seal(block_hash, seal)
-			.and_then(|block| self.import_sealed_block(block));
-		if let Err(err) = import {
-			warn!(target: "poa", "Wrong internal seal submission! {:?}", err);
-		}
+		let _ = self.importer.miner.submit_seal(block_hash, seal)
+			.map_err(|e| {
+				warn!(target: "poa", "Wrong internal seal submission! {:?}", e);
+				e
+			})
+			.and_then(|block| self.import_sealed_block(block))
+			.map_err(|e| {
+				warn!(target: "client", "Import sealed block failed: {:?}", e);
+			});
 	}
 
 	fn broadcast_consensus_message(&self, message: Bytes) {

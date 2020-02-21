@@ -874,8 +874,7 @@ impl AuthorityRound {
 			};
 			durations.push(dur_info);
 			for (time, dur) in our_params.step_durations.iter().skip(1) {
-				let (step, time) = next_step_time_duration(dur_info, *time)
-					.ok_or(BlockError::TimestampOverflow)?;
+				let (step, time) = next_step_time_duration(dur_info, *time).ok_or(BlockError::TimestampOverflow)?;
 				dur_info.transition_step = step;
 				dur_info.transition_timestamp = time;
 				dur_info.step_duration = *dur;
@@ -1595,9 +1594,11 @@ impl Engine for AuthorityRound {
 	/// Check the number of seal fields.
 	fn verify_block_basic(&self, header: &Header) -> Result<(), Error> {
 		if header.number() >= self.validate_score_transition && *header.difficulty() >= U256::from(U128::max_value()) {
-			return Err(From::from(BlockError::DifficultyOutOfBounds(
-				OutOfBounds { min: None, max: Some(U256::from(U128::max_value())), found: *header.difficulty() }
-			)));
+			return Err(Error::Block(BlockError::DifficultyOutOfBounds(OutOfBounds {
+				min: None,
+				max: Some(U256::from(U128::max_value())),
+				found: *header.difficulty()
+			})));
 		}
 
 		match verify_timestamp(&self.step.inner, header_step(header, self.empty_steps_transition)?) {
@@ -1618,7 +1619,7 @@ impl Engine for AuthorityRound {
 					self.validators.report_benign(header.author(), set_number, header.number());
 				}
 
-				Err(BlockError::InvalidSeal.into())
+				Err(Error::Block(BlockError::InvalidSeal))
 			}
 			Err(e) => Err(e.into()),
 			Ok(()) => Ok(()),
@@ -1724,9 +1725,9 @@ impl Engine for AuthorityRound {
 		if header.number() >= self.validate_score_transition {
 			let expected_difficulty = calculate_score(parent_step.into(), step.into(), empty_steps_len.into());
 			if header.difficulty() != &expected_difficulty {
-				return Err(From::from(BlockError::InvalidDifficulty(Mismatch {
+				return Err(Error::Block(BlockError::InvalidDifficulty(Mismatch {
 					expected: expected_difficulty,
-					found: header.difficulty().clone()
+					found: *header.difficulty()
 				})));
 			}
 		}
