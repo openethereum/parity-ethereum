@@ -43,7 +43,7 @@ impl<'a> Deserialize<'a> for Bytes {
 impl Serialize for Bytes {
 	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
 	where S: Serializer {
-		serializer.serialize_str(&self.0.to_hex())
+		serializer.serialize_str(&self.0.to_hex::<String>())
 	}
 }
 

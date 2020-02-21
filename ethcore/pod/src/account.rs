@@ -53,7 +53,7 @@ pub struct PodAccount {
 fn opt_bytes_to_hex<S>(opt_bytes: &Option<Bytes>, serializer: S) -> Result<S::Ok, S::Error>
 	where S: Serializer
 {
-	let readable = opt_bytes.as_ref().map(|b| b.to_hex()).unwrap_or_default();
+	let readable: String = opt_bytes.as_ref().map(|b| b.to_hex()).unwrap_or_default();
 	serializer.collect_str(&format_args!("0x{}", readable))
 }
 
