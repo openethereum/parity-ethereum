@@ -2475,15 +2475,11 @@ impl client_traits::EngineClient for Client {
 	}
 
 	fn submit_seal(&self, block_hash: H256, seal: Vec<Bytes>) {
-		let _ = self.importer.miner.submit_seal(block_hash, seal)
-			.map_err(|e| {
-				warn!(target: "poa", "Wrong internal seal submission! {:?}", e);
-				e
-			})
-			.and_then(|block| self.import_sealed_block(block))
-			.map_err(|e| {
-				warn!(target: "client", "Import sealed block failed: {:?}", e);
-			});
+		let import = self.importer.miner.submit_seal(block_hash, seal)
+			.and_then(|block| self.import_sealed_block(block));
+		if let Err(err) = import {
+			warn!(target: "poa", "Wrong internal seal submission! {:?}", err);
+		}
 	}
 
 	fn broadcast_consensus_message(&self, message: Bytes) {
