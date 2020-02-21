@@ -73,9 +73,9 @@ impl fmt::Display for Fail {
 				write!(
 					f,
 					"Expected to return result: 0x{} ({} bytes), but got 0x{} ({} bytes)",
-					expected.to_hex(),
+					expected.to_hex::<String>(),
 					expected.len(),
-					actual.to_hex(),
+					actual.to_hex::<String>(),
 					actual.len()
 				),
 
@@ -95,17 +95,17 @@ impl fmt::Display for Fail {
 				write!(
 					f,
 					"Storage key {} value mismatch, expected {}, got: {}",
-					key.as_bytes().to_vec().to_hex(),
-					expected.as_bytes().to_vec().to_hex(),
-					actual.as_bytes().to_vec().to_hex(),
+					key.as_bytes().to_hex::<String>(),
+					expected.as_bytes().to_hex::<String>(),
+					actual.as_bytes().to_hex::<String>(),
 				),
 
 			StorageMismatch { ref key, ref expected, actual: None} =>
 				write!(
 					f,
 					"No expected storage value for key {} found, expected {}",
-					key.as_bytes().to_vec().to_hex(),
-					expected.as_bytes().to_vec().to_hex(),
+					key.as_bytes().to_hex::<String>(),
+					expected.as_bytes().to_hex::<String>(),
 				),
 
 			Nonconformity(SpecNonconformity::Address) =>

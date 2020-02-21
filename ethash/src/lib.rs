@@ -27,6 +27,10 @@ extern crate log;
 extern crate static_assertions;
 
 #[cfg(test)]
+#[macro_use]
+extern crate hex_literal;
+
+#[cfg(test)]
 extern crate rustc_hex;
 
 #[cfg(test)]
@@ -34,6 +38,7 @@ extern crate serde_json;
 
 #[cfg(test)]
 extern crate tempdir;
+
 
 #[cfg(feature = "bench")]
 pub mod compute;

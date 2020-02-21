@@ -43,5 +43,5 @@ ethcore-io = { path = "../../util/io", features = ["mio"] }
 kvdb-memorydb = "0.4.0"
 machine = { path = "../machine" }
 rand_xorshift = "0.2"
-rustc-hex = "1.0"
+rustc-hex = "2.1.0"
 spec = { path = "../spec" }
