@@ -538,12 +538,13 @@ impl<K: Kind, C> VerificationQueue<K, C> {
 	}
 
 	fn decrease_processing_children_count(&self, parent_hash: &H256) {
-		if let Some(children_count) = self.processing_parents.read().get(parent_hash) {
+		let children_count = self.processing_parents.read().get(parent_hash).cloned();
+		if let Some(children_count) = children_count {
 			let mut parent_hashes = self.processing_parents.write();
-			if *children_count == 1 {
+			if children_count == 1 {
 				parent_hashes.remove(parent_hash);
 			} else {
-				parent_hashes.insert(*parent_hash, *children_count - 1);
+				parent_hashes.insert(*parent_hash, children_count - 1);
 			}
 		}
 	}
@@ -631,9 +632,11 @@ impl<K: Kind, C> VerificationQueue<K, C> {
 	}
 
 	/// Returns true, if in processing queue there is no descendant of the current best block
-	/// May return false negative for longer queues
 	pub fn is_processing_fork(&self, best_block_hash: &H256, chain: &BlockChain) -> bool {
 		let processing_parents = self.processing_parents.read();
+		if processing_parents.is_empty() {
+			return false;
+		}
 		for parent_hash in processing_parents.keys() {
 			if chain.tree_route(*parent_hash, *best_block_hash).is_some() {
 				return false;
