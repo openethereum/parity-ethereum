@@ -78,7 +78,7 @@ pub struct ClientConfig {
 	pub spec_name: String,
 	/// Type of block verifier used by client.
 	pub verifier_type: VerifierType,
-	/// State db cache-size.
+	/// State db cache-size. Default: 25Mb.
 	pub state_cache_size: usize,
 	/// EVM jump-tables cache size.
 	pub jump_table_size: usize,

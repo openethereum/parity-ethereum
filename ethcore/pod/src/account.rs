@@ -100,7 +100,7 @@ impl From<ethjson::spec::Account> for PodAccount {
 	}
 }
 
-/// Determine difference between two optionally existant `Account`s. Returns None
+/// Determine difference between two optionally existent `Account`s. Returns None
 /// if they are the same.
 pub fn diff_pod(pre: Option<&PodAccount>, post: Option<&PodAccount>) -> Option<AccountDiff> {
 	match (pre, post) {
