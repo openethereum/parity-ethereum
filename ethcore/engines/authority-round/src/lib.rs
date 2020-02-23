@@ -2558,7 +2558,7 @@ mod tests {
 			gas: U256::from(53_000),
 			value: U256::from(1),
 			data: vec![],
-		}.fake_sign(addr2), None).unwrap();
+		}.fake_sign(addr2)).unwrap();
 		let b2 = b2.close_and_lock().unwrap();
 
 		// we will now seal a block with 1tx and include the accumulated empty step message
