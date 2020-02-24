@@ -120,7 +120,7 @@ use futures::sync::mpsc as futures_mpsc;
 use keccak_hash::keccak;
 use log::{error, trace, debug, warn};
 use network::client_version::ClientVersion;
-use network::{self, PeerId, PacketId};
+use network::{self, PeerId};
 use parity_util_mem::{MallocSizeOfExt, malloc_size_of_is_0};
 use parking_lot::{Mutex, RwLock, RwLockWriteGuard};
 use rand::{Rng, seq::SliceRandom};
@@ -428,7 +428,7 @@ pub mod random {
 	}
 }
 
-pub type RlpResponseResult = Result<Option<(PacketId, RlpStream)>, PacketProcessError>;
+pub type RlpResponseResult = Result<Option<(SyncPacket, RlpStream)>, PacketProcessError>;
 pub type Peers = HashMap<PeerId, PeerInfo>;
 
 /// Thread-safe wrapper for `ChainSync`.
@@ -494,7 +494,7 @@ impl ChainSyncApi {
 		if !requests.is_empty() {
 			debug!(target: "sync", "Processing {} delayed requests", requests.len());
 			for request in requests {
-				SyncSupplier::dispatch_packet(&self.sync, io, request.0, request.1, &request.2)
+				SyncSupplier::postponed_dispatch_packet(&self.sync, io, request.0, request.1, &request.2);
 			}
 		}
 	}
@@ -853,8 +853,6 @@ impl ChainSync {
 		// Reactivate peers only if some progress has been made
 		// since the last sync round of if starting fresh.
 		self.active_peers = self.peers.keys().cloned().collect();
-
-		self.delayed_requests = HashSet::new();
 	}
 
 	/// Add a request for later processing
