@@ -87,13 +87,10 @@ fn eth_signing(signing_queue_enabled: bool) -> SigningTester {
 
 #[test]
 fn rpc_eth_sign() {
-	use rustc_hex::FromHex;
-
 	let tester = eth_signing(true);
 
 	let account = tester.accounts.insert_account(Secret::from([69u8; 32]), &"abcd".into()).unwrap();
 	tester.accounts.unlock_account_permanently(account, "abcd".into()).unwrap();
-	let _message = "0cc175b9c0f1b6a831c399e26977266192eb5ffee6ae2fec3ad71c777531578f".from_hex().unwrap();
 
 	let req = r#"{
 		"jsonrpc": "2.0",

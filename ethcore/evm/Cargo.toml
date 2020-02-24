@@ -17,9 +17,8 @@ parking_lot = "0.10.0"
 memory-cache = { path = "../../util/memory-cache" }
 
 [dev-dependencies]
-rustc-hex = "1.0"
 criterion = "0.3"
-hex-literal = "0.2.0"
+hex-literal = "0.2.1"
 
 [features]
 evm-debug = []

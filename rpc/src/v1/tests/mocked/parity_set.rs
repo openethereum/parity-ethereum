@@ -166,7 +166,7 @@ fn rpc_parity_set_extra_data() {
 	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
 
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
-	assert_eq!(miner.authoring_params().extra_data, "cd1722f3947def4cf144679da39c4c32bdc35681".from_hex().unwrap());
+	assert_eq!(miner.authoring_params().extra_data, "cd1722f3947def4cf144679da39c4c32bdc35681".from_hex::<Vec<u8>>().unwrap());
 }
 
 #[test]

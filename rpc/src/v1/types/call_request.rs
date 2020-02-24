@@ -103,7 +103,7 @@ mod tests {
 			gas_price: Some(U256::from_str("9184e72a000").unwrap()),
 			gas: Some(U256::from_str("76c0").unwrap()),
 			value: Some(U256::from_str("9184e72a").unwrap()),
-			data: Some("d46e8dd67c5d32be8d46e8dd67c5d32be8058bb8eb970870f072445675058bb8eb970870f072445675".from_hex().unwrap().into()),
+			data: Some("d46e8dd67c5d32be8d46e8dd67c5d32be8058bb8eb970870f072445675058bb8eb970870f072445675".from_hex::<Vec<u8>>().unwrap().into()),
 			nonce: None
 		});
 	}

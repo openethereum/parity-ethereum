@@ -35,7 +35,7 @@ use std::{cmp, ops};
 use std::sync::Arc;
 
 use bytes::Bytes;
-use ethereum_types::{H256, U256, Address, Bloom};
+use ethereum_types::{U256, Address, Bloom};
 
 use engine::Engine;
 use trie_vm_factories::Factories;
@@ -168,7 +168,7 @@ impl<'x> OpenBlock<'x> {
 	/// Push a transaction into the block.
 	///
 	/// If valid, it will be executed, and archived together with the receipt.
-	pub fn push_transaction(&mut self, t: SignedTransaction, h: Option<H256>) -> Result<&Receipt, Error> {
+	pub fn push_transaction(&mut self, t: SignedTransaction) -> Result<&Receipt, Error> {
 		if self.block.transactions_set.contains(&t.hash()) {
 			return Err(TransactionError::AlreadyImported.into());
 		}
@@ -176,7 +176,7 @@ impl<'x> OpenBlock<'x> {
 		let env_info = self.block.env_info();
 		let outcome = self.block.state.apply(&env_info, self.engine.machine(), &t, self.block.traces.is_enabled())?;
 
-		self.block.transactions_set.insert(h.unwrap_or_else(|| t.hash()));
+		self.block.transactions_set.insert(t.hash());
 		self.block.transactions.push(t.into());
 		if let Tracing::Enabled(ref mut traces) = self.block.traces {
 			traces.push(outcome.trace.into());
@@ -189,7 +189,7 @@ impl<'x> OpenBlock<'x> {
 	#[cfg(not(feature = "slow-blocks"))]
 	fn push_transactions(&mut self, transactions: Vec<SignedTransaction>) -> Result<(), Error> {
 		for t in transactions {
-			self.push_transaction(t, None)?;
+			self.push_transaction(t)?;
 		}
 		Ok(())
 	}
@@ -203,7 +203,7 @@ impl<'x> OpenBlock<'x> {
 		for t in transactions {
 			let hash = t.hash();
 			let start = time::Instant::now();
-			self.push_transaction(t, None)?;
+			self.push_transaction(t)?;
 			let took = start.elapsed();
 			let took_ms = took.as_millis();
 			if took > time::Duration::from_millis(slow_tx) {

@@ -750,7 +750,7 @@ impl Client {
 		let chain = Arc::new(BlockChain::new(config.blockchain.clone(), &gb, db.clone()));
 		let tracedb = RwLock::new(TraceDB::new(config.tracing.clone(), db.clone(), chain.clone()));
 
-		trace!("Cleanup journal: DB Earliest = {:?}, Latest = {:?}", state_db.journal_db().earliest_era(), state_db.journal_db().latest_era());
+		debug!(target: "client", "Cleanup journal: DB Earliest = {:?}, Latest = {:?}", state_db.journal_db().earliest_era(), state_db.journal_db().latest_era());
 
 		let history = if config.history < MIN_HISTORY_SIZE {
 			info!(target: "client", "Ignoring pruning history parameter of {}\
@@ -950,7 +950,6 @@ impl Client {
 			let (result, items) = self.prove_transaction(tx, id)
 				.ok_or_else(|| "Unable to make call. State unavailable?".to_string())?;
 
-			let items = items.into_iter().map(|x| x.to_vec()).collect();
 			Ok((result, items))
 		};
 
@@ -1078,6 +1077,7 @@ impl Client {
 
 			// early exit for pruned blocks
 			if db.is_prunable() && self.pruning_info().earliest_state > block_number {
+				trace!(target: "client", "State for block #{} is pruned. Earliest state: {:?}", block_number, self.pruning_info().earliest_state);
 				return None;
 			}
 
