@@ -29,11 +29,9 @@ use ethcore::test_helpers::new_temp_db;
 use ethcore_db as db;
 use ethereum_types::U256;
 use executive_state::ExecutiveState;
-use journaldb;
 use spec::{new_constantinople_test_machine, new_istanbul_test_machine};
 use state_db::StateDB;
 use tempdir::TempDir;
-use vm;
 
 fn build_state() -> State<StateDB> {
 	let db_path = TempDir::new("execution-bench").unwrap();
@@ -64,12 +62,12 @@ fn setup_state_for_block(state: &mut State<StateDB>, block: Unverified) -> Vec<S
 fn build_env_info(header: &Header) -> vm::EnvInfo {
 	vm::EnvInfo {
 		number: header.number(),
-		author: header.author().clone(),
+		author: *header.author(),
 		timestamp: header.timestamp(),
-		difficulty: header.difficulty().clone(),
-		gas_limit: header.gas_limit().clone() * 10,
+		difficulty: *header.difficulty(),
+		gas_limit: *header.gas_limit() * 10,
 		last_hashes: std::sync::Arc::new(vec![]),
-		gas_used: header.gas_used().clone(),
+		gas_used: *header.gas_used(),
 	}
 }
 
