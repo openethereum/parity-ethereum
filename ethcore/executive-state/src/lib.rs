@@ -1573,15 +1573,15 @@ mod tests {
 		state.transfer_balance(&b, &x, &1.into(), CleanupMode::TrackTouched(&mut touched)).unwrap(); // touch an account decreasing its balance
 		state.transfer_balance(&c, &x, &1.into(), CleanupMode::TrackTouched(&mut touched)).unwrap(); // touch an account decreasing its balance
 		state.transfer_balance(&e, &x, &1.into(), CleanupMode::TrackTouched(&mut touched)).unwrap(); // touch an account decreasing its balance
-		state.kill_garbage(&touched, true, &None, false).unwrap();
+		state.kill_garbage(&touched, &None, false).unwrap();
 		assert!(!state.exists(&a).unwrap());
 		assert!(state.exists(&b).unwrap());
-		state.kill_garbage(&touched, true, &Some(100.into()), false).unwrap();
+		state.kill_garbage(&touched,&Some(100.into()), false).unwrap();
 		assert!(!state.exists(&b).unwrap());
 		assert!(state.exists(&c).unwrap());
 		assert!(state.exists(&d).unwrap());
 		assert!(state.exists(&e).unwrap());
-		state.kill_garbage(&touched, true, &Some(100.into()), true).unwrap();
+		state.kill_garbage(&touched, &Some(100.into()), true).unwrap();
 		assert!(state.exists(&c).unwrap());
 		assert!(state.exists(&d).unwrap());
 		assert!(!state.exists(&e).unwrap());

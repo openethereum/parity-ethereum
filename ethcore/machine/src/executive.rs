@@ -1175,9 +1175,17 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		}
 
 		// perform garbage-collection
-		let min_balance = if schedule.kill_dust != CleanDustMode::Off { Some(U256::from(schedule.tx_gas).overflowing_mul(t.gas_price).0) } else { None };
-		self.state.kill_garbage(&substate.touched, schedule.kill_empty, &min_balance, schedule.kill_dust == CleanDustMode::WithCodeAndStorage)?;
-
+		if schedule.kill_empty {
+			let (min_balance, kill_contracts) = if schedule.kill_dust != CleanDustMode::Off {
+				(
+					Some(U256::from(schedule.tx_gas).overflowing_mul(t.gas_price).0),
+					schedule.kill_dust == CleanDustMode::WithCodeAndStorage,
+				)
+			} else {
+				(None, false)
+			};
+			self.state.kill_garbage(&substate.touched, &min_balance, kill_contracts)?;
+		}
 		match result {
 			Err(vm::Error::Internal(msg)) => Err(ExecutionError::Internal(msg)),
 			Err(exception) => {

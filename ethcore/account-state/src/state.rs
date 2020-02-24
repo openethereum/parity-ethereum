@@ -352,7 +352,7 @@ impl<B: Backend> State<B> {
 
 	fn insert_cache(&self, address: &Address, account: AccountEntry) {
 		// Dirty account which is not in the cache means this is a new account.
-		// It goes directly into the checkpoint as there's nothing to rever to.
+		// It goes directly into the checkpoint as there's nothing to revert to.
 		//
 		// In all other cases account is read as clean first, and after that made
 		// dirty in and added to the checkpoint with `note_cache`.
@@ -759,21 +759,20 @@ impl<B: Backend> State<B> {
 	}
 
 	/// Remove any touched empty or dust accounts.
-	pub fn kill_garbage(&mut self, touched: &HashSet<Address>, remove_empty_touched: bool, min_balance: &Option<U256>, kill_contracts: bool) -> TrieResult<()> {
-		let to_kill: HashSet<_> = {
-			self.cache.borrow().iter().filter_map(|(address, ref entry)|
-				if touched.contains(address) && // Check all touched accounts
-					((remove_empty_touched && entry.exists_and_is_null()) // Remove all empty touched accounts.
-						|| min_balance.map_or(false, |ref balance| entry.account.as_ref().map_or(false, |account|
+	pub fn kill_garbage(&mut self, touched: &HashSet<Address>, min_balance: &Option<U256>, kill_contracts: bool) -> TrieResult<()> {
+		touched.iter().for_each(|address| { // Check all touched accounts
+			if let Some(entry) = self.cache.borrow().get(address) {
+				if entry.exists_and_is_null() // Remove all empty touched accounts.
+					|| min_balance.map_or(false, |ref balance| entry.account.as_ref().map_or(false, |account|
 						(account.is_basic() || kill_contracts) // Remove all basic and optionally contract accounts where balance has been decreased.
-							&& account.balance() < balance && entry.old_balance.as_ref().map_or(false, |b| account.balance() < b)))) {
-
-					Some(address.clone())
-				} else { None }).collect()
-		};
-		for address in to_kill {
-			self.kill_account(&address);
-		}
+						&& account.balance() < balance && entry.old_balance.as_ref().map_or(false, |b| account.balance() < b))) {
+					// todo[dvdplm] This will call self.cache.borrow_mut() – is that ok here?
+					//  Yes(?), because self.cache is `RefCell<T>` so this is a single threaded call
+					//  and nobody else can call `borrow()` here?
+					self.insert_cache(address, AccountEntry::new_dirty(None));
+				}
+			}
+		});
 		Ok(())
 	}
 
