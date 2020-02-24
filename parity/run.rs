@@ -58,7 +58,6 @@ use helpers::{to_client_config, execute_upgrades, passwords_from_files};
 use dir::{Directories, DatabaseDirectories};
 use cache::CacheConfig;
 use user_defaults::UserDefaults;
-use ipfs;
 use jsonrpc_core;
 use modules;
 use rpc;
@@ -116,7 +115,6 @@ pub struct RunCmd {
 	pub geth_compatibility: bool,
 	pub experimental_rpcs: bool,
 	pub net_settings: NetworkSettings,
-	pub ipfs_conf: ipfs::Configuration,
 	pub secretstore_conf: secretstore::Configuration,
 	pub private_provider_conf: ProviderConfig,
 	pub private_encryptor_conf: EncryptorConfig,
@@ -761,9 +759,6 @@ fn execute_impl<Cr, Rr>(
 	};
 	let secretstore_key_server = secretstore::start(cmd.secretstore_conf.clone(), secretstore_deps, runtime.executor())?;
 
-	// the ipfs server
-	let ipfs_server = ipfs::start_server(cmd.ipfs_conf.clone(), client.clone())?;
-
 	// the informant
 	let informant = Arc::new(Informant::new(
 		FullNodeInformantData {
@@ -821,7 +816,7 @@ fn execute_impl<Cr, Rr>(
 			informant,
 			client,
 			client_service: Arc::new(service),
-			keep_alive: Box::new((watcher, updater, ws_server, http_server, ipc_server, secretstore_key_server, ipfs_server, runtime)),
+			keep_alive: Box::new((watcher, updater, ws_server, http_server, ipc_server, secretstore_key_server, runtime)),
 		}
 	})
 }

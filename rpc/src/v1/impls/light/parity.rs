@@ -33,7 +33,7 @@ use ethcore_logger::RotatingLogger;
 use jsonrpc_core::{Result, BoxFuture};
 use jsonrpc_core::futures::{future, Future};
 use light::on_demand::OnDemandRequester;
-use v1::helpers::{self, errors, ipfs, NetworkSettings, verify_signature};
+use v1::helpers::{self, errors, NetworkSettings, verify_signature};
 use v1::helpers::external_signer::{SignerService, SigningQueue};
 use v1::helpers::dispatch::LightDispatcher;
 use v1::helpers::light_fetch::{LightFetch, light_all_transactions};
@@ -370,10 +370,6 @@ where
 	fn block_receipts(&self, number: Option<BlockNumber>) -> BoxFuture<Vec<Receipt>> {
 		let id = number.unwrap_or_default().to_block_id();
 		Box::new(self.fetcher().receipts(id).and_then(|receipts| Ok(receipts.into_iter().map(Into::into).collect())))
-	}
-
-	fn ipfs_cid(&self, content: Bytes) -> Result<String> {
-		ipfs::cid(content)
 	}
 
 	fn call(&self, _requests: Vec<CallRequest>, _block: Option<BlockNumber>) -> Result<Vec<Bytes>> {
