@@ -1,0 +1,245 @@
+name: OpenEthereum
+
+on:
+  push:
+
+jobs:
+  check:
+    name: Check
+    runs-on: ubuntu-16.04
+    env:
+      CC: "clang"
+      CXX: "clang++"
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 50
+      - name: Checkout submodules
+        shell: bash
+        run: git submodule update --init --recursive
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+      - name: Cache cargo registry
+        uses: actions/cache@v1
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+      - name: Cache cargo index
+        uses: actions/cache@v1
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+      - name: Cache cargo build
+        uses: actions/cache@v1
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+      - name: Run cargo check 1/3
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --locked --no-default-features --verbose
+      - name: Run cargo check 2/3
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --locked --manifest-path util/io/Cargo.toml --no-default-features --verbose
+      - name: Run cargo check 3/3
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --locked --manifest-path util/io/Cargo.toml --features "mio" --verbose
+      - name: Run cargo check evmbin
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --locked -p evmbin --verbose
+      - name: Run cargo check benches
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --locked --all --benches --verbose
+      - name: Run validate chainspecs
+        run: ./scripts/gitlab/validate-chainspecs.sh
+      # From https://github.com/launchbadge/sqlx/blob/master/.github/workflows/rust.yml
+      - name: Prepare build directory for cache
+        run: |
+          find ./target/debug -maxdepth 1 -type f -delete \
+          && rm -fr ./target/debug/{deps,.fingerprint}/*{parity,ethcore,ethkey,ethstore,parity-evm}* \
+          && rm -f  ./target/.rustc_info.json
+  build-tests:
+    name: Build Release Test Suite
+    needs: check
+    strategy:
+      matrix:
+        platform:
+          - ubuntu-16.04
+          - macos-latest
+          - windows-latest
+        toolchain:
+          - stable
+    runs-on: ${{ matrix.platform }}
+    env:
+      CC: "clang"
+      CXX: "clang++"
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 50
+      - name: Checkout submodules
+        shell: bash
+        run: git submodule update --init --recursive
+      - name: Install toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ matrix.toolchain }}
+          override: true
+      - name: Cache cargo registry
+        uses: actions/cache@v1
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('Cargo.lock') }}
+      - name: Cache cargo index
+        uses: actions/cache@v1
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-index-${{ hashFiles('Cargo.lock') }}
+      - name: Cache cargo build
+        uses: actions/cache@v1
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('Cargo.lock') }}
+      - name: Build tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --locked --all --release --features "json-tests" --verbose --no-run
+      - name: Prepare build directory for cache
+        run: |
+          find ./target/release -maxdepth 1 -type f -delete \
+          && rm -fr ./target/release/{deps,.fingerprint}/*{parity,ethcore,ethkey,ethstore,parity-evm}* \
+          && rm -f  ./target/.rustc_info.json
+  run-tests:
+    name: Run Test Suite
+    needs: build-tests
+    strategy:
+      matrix:
+        platform:
+          - ubuntu-16.04
+          - macos-latest
+          - windows-latest
+        toolchain:
+          - stable
+          - beta
+          - nightly
+    runs-on: ${{ matrix.platform }}
+    env:
+      CC: "clang"
+      CXX: "clang++"
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 50
+      - name: Checkout submodules
+        shell: bash
+        run: git submodule update --init --recursive
+      - name: Install toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ matrix.toolchain }}
+          profile: minimal
+          override: true
+      - name: Cache cargo registry
+        uses: actions/cache@v1
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('Cargo.lock') }}
+      - name: Cache cargo index
+        uses: actions/cache@v1
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-index-${{ hashFiles('Cargo.lock') }}
+      - name: Cache cargo build
+        uses: actions/cache@v1
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('Cargo.lock') }}
+      - name: Run tests
+        continue-on-error: true
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --locked --all --release --features "json-tests" --verbose
+      - name: Prepare build directory for cache
+        run: |
+          find ./target/release -maxdepth 1 -type f -delete \
+          && rm -fr ./target/release/{deps,.fingerprint}/*{parity,ethcore,ethkey,ethstore,parity-evm}* \
+          && rm -f  ./target/.rustc_info.json
+
+  build:
+    name: Build Release Suite
+    needs: run-tests
+    strategy:
+      matrix:
+        platform:
+          - ubuntu-16.04
+          - macos-latest
+          - windows-latest
+        toolchain:
+          - stable
+    runs-on: ${{ matrix.platform }}
+    env:
+      CC: "clang"
+      CXX: "clang++"
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 50
+      - name: Install toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ matrix.toolchain }}
+          profile: minimal
+          override: true
+      - name: Cache cargo registry
+        uses: actions/cache@v1
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('Cargo.lock') }}
+      - name: Cache cargo index
+        uses: actions/cache@v1
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-index-${{ hashFiles('Cargo.lock') }}
+      - name: Cache cargo build
+        uses: actions/cache@v1
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('Cargo.lock') }}
+      - name: Build OpenEthereum for ${{matrix.platform}}
+        run: |
+          if [ "${{matrix.platform}}" = "windows-latest" ]
+            then
+              sh scripts/actions/build-windows.sh;
+            else
+              sh scripts/actions/build-linux.sh;
+          fi
+      - name: Download artifact
+        uses: actions/upload-artifact@v1
+        continue-on-error: true
+        with:
+          name: artifacts.zip
+          path: target/release
+      - name: Prepare build directory for cache
+        run: |
+          find ./target/release -maxdepth 1 -type f -delete \
+          && rm -fr ./target/release/{deps,.fingerprint}/*{parity,ethcore,ethkey,ethstore,parity-evm}* \
+          && rm -f  ./target/.rustc_info.json
