@@ -109,6 +109,9 @@ jobs:
         with:
           path: target
           key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('Cargo.lock') }}
+      - name: Install LLVM for Windows
+        if: ${{ matrix.platform }} = "windows-latest"
+        run: choco install llvm
       - name: Build tests
         uses: actions-rs/cargo@v1
         with:
