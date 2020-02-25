@@ -206,9 +206,15 @@ impl<T: Serialize> Serialize for Rich<T> {
 mod tests {
 	use std::collections::BTreeMap;
 	use ethereum_types::{H64, H160, H256, U256, Bloom as H2048};
-	use serde_json;
 	use v1::types::{Transaction, Bytes};
 	use super::{Block, RichBlock, BlockTransactions, Header, RichHeader};
+
+	fn default_extra_info() -> BTreeMap<String, String> {
+		btreemap![
+			"mixHash".into() => format!("{:?}", H256::default()),
+			"nonce".into() => format!("{:?}", H64::default())
+		]
+	}
 
 	#[test]
 	fn test_serialize_block_transactions() {
@@ -248,10 +254,7 @@ mod tests {
 		let serialized_block = serde_json::to_string(&block).unwrap();
 		let rich_block = RichBlock {
 			inner: block,
-			extra_info: map![
-				"mixHash".into() => format!("{:?}", H256::zero()),
-				"nonce".into() => format!("{:?}", H64::default())
-			],
+			extra_info: default_extra_info(),
 		};
 		let serialized_rich_block = serde_json::to_string(&rich_block).unwrap();
 
@@ -286,10 +289,7 @@ mod tests {
 		let serialized_block = serde_json::to_string(&block).unwrap();
 		let rich_block = RichBlock {
 			inner: block,
-			extra_info: map![
-				"mixHash".into() => format!("{:?}", H256::zero()),
-				"nonce".into() => format!("{:?}", H64::default())
-			],
+			extra_info: default_extra_info(),
 		};
 		let serialized_rich_block = serde_json::to_string(&rich_block).unwrap();
 
@@ -321,10 +321,7 @@ mod tests {
 		let serialized_header = serde_json::to_string(&header).unwrap();
 		let rich_header = RichHeader {
 			inner: header,
-			extra_info: map![
-				"mixHash".into() => format!("{:?}", H256::zero()),
-				"nonce".into() => format!("{:?}", H64::default())
-			],
+			extra_info: default_extra_info(),
 		};
 		let serialized_rich_header = serde_json::to_string(&rich_header).unwrap();
 

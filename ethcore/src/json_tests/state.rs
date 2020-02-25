@@ -17,13 +17,10 @@
 use std::path::Path;
 use super::test_common::*;
 use pod::PodState;
-use trace;
-use ethjson;
 use test_helpers::{EvmTestClient, EvmTestError, TransactErr, TransactSuccess};
 use types::transaction::SignedTransaction;
 use vm::EnvInfo;
 use super::SKIP_TESTS;
-use super::HookType;
 
 #[allow(dead_code)]
 fn skip_test(subname: &str, chain: &String, number: usize) -> bool {
@@ -84,25 +81,25 @@ pub fn json_chain_test<H: FnMut(&str, HookType)>(path: &Path, json_data: &[u8], 
 					match result() {
 						Err(err) => {
 							println!("{} !!! Unexpected internal error: {:?}", info, err);
-							flushln!("{} fail", info);
+							flushed_writeln!("{} fail", info);
 							failed.push(name.clone());
 						},
 						Ok(Ok(TransactSuccess { state_root, .. })) if state_root != post_root => {
 							println!("{} !!! State mismatch (got: {}, expect: {}", info, state_root, post_root);
-							flushln!("{} fail", info);
+							flushed_writeln!("{} fail", info);
 							failed.push(name.clone());
 						},
 						Ok(Err(TransactErr { state_root, ref error, .. })) if state_root != post_root => {
 							println!("{} !!! State mismatch (got: {}, expect: {}", info, state_root, post_root);
 							println!("{} !!! Execution error: {:?}", info, error);
-							flushln!("{} fail", info);
+							flushed_writeln!("{} fail", info);
 							failed.push(name.clone());
 						},
 						Ok(Err(TransactErr { error, .. })) => {
-							flushln!("{} ok ({:?})", info, error);
+							flushed_writeln!("{} ok ({:?})", info, error);
 						},
 						Ok(_) => {
-							flushln!("{} ok", info);
+							flushed_writeln!("{} ok", info);
 						},
 					}
 				}

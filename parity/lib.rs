@@ -84,7 +84,13 @@ extern crate log as rlog;
 extern crate ethcore_accounts as accounts;
 
 #[cfg(feature = "secretstore")]
-extern crate ethcore_secretstore;
+extern crate parity_secretstore;
+
+#[cfg(feature = "secretstore")]
+extern crate ethabi;
+
+#[cfg(feature = "secretstore")]
+extern crate ethcore_call_contract as call_contract;
 
 #[cfg(feature = "secretstore")]
 extern crate ethabi;
@@ -133,17 +139,10 @@ use configuration::{Cmd, Execute};
 use deprecated::find_deprecated;
 use hash::keccak_buffer;
 
-#[cfg(feature = "memory_profiling")]
-use std::alloc::System;
-
 pub use self::configuration::Configuration;
 pub use self::run::RunningClient;
 pub use parity_rpc::PubSubSession;
 pub use ethcore_logger::{Config as LoggerConfig, setup_log, RotatingLogger};
-
-#[cfg(feature = "memory_profiling")]
-#[global_allocator]
-static A: System = System;
 
 fn print_hash_of(maybe_file: Option<String>) -> Result<String, String> {
 	if let Some(file) = maybe_file {

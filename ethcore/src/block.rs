@@ -35,7 +35,7 @@ use std::{cmp, ops};
 use std::sync::Arc;
 
 use bytes::Bytes;
-use ethereum_types::{H256, U256, Address, Bloom};
+use ethereum_types::{U256, Address, Bloom};
 
 use engine::Engine;
 use trie_vm_factories::Factories;
@@ -102,7 +102,7 @@ pub trait Drain {
 
 impl<'x> OpenBlock<'x> {
 	/// Create a new `OpenBlock` ready for transaction pushing.
-	pub fn new<'a>(
+	pub fn new(
 		engine: &'x dyn Engine,
 		factories: Factories,
 		tracing: bool,
@@ -168,7 +168,7 @@ impl<'x> OpenBlock<'x> {
 	/// Push a transaction into the block.
 	///
 	/// If valid, it will be executed, and archived together with the receipt.
-	pub fn push_transaction(&mut self, t: SignedTransaction, h: Option<H256>) -> Result<&Receipt, Error> {
+	pub fn push_transaction(&mut self, t: SignedTransaction) -> Result<&Receipt, Error> {
 		if self.block.transactions_set.contains(&t.hash()) {
 			return Err(TransactionError::AlreadyImported.into());
 		}
@@ -176,7 +176,7 @@ impl<'x> OpenBlock<'x> {
 		let env_info = self.block.env_info();
 		let outcome = self.block.state.apply(&env_info, self.engine.machine(), &t, self.block.traces.is_enabled())?;
 
-		self.block.transactions_set.insert(h.unwrap_or_else(||t.hash()));
+		self.block.transactions_set.insert(t.hash());
 		self.block.transactions.push(t.into());
 		if let Tracing::Enabled(ref mut traces) = self.block.traces {
 			traces.push(outcome.trace.into());
@@ -189,7 +189,7 @@ impl<'x> OpenBlock<'x> {
 	#[cfg(not(feature = "slow-blocks"))]
 	fn push_transactions(&mut self, transactions: Vec<SignedTransaction>) -> Result<(), Error> {
 		for t in transactions {
-			self.push_transaction(t, None)?;
+			self.push_transaction(t)?;
 		}
 		Ok(())
 	}
@@ -203,13 +203,12 @@ impl<'x> OpenBlock<'x> {
 		for t in transactions {
 			let hash = t.hash();
 			let start = time::Instant::now();
-			self.push_transaction(t, None)?;
-			let took = start.elapsed();
-			let took_ms = took.as_secs() * 1000 + took.subsec_nanos() as u64 / 1000000;
-			if took > time::Duration::from_millis(slow_tx) {
-				warn!("Heavy ({} ms) transaction in block {:?}: {:?}", took_ms, self.block.header.number(), hash);
+			self.push_transaction(t)?;
+			let elapsed_millis = start.elapsed().as_millis();
+			if elapsed_millis > slow_tx {
+				warn!("Heavy ({} ms) transaction in block {:?}: {:?}", elapsed_millis, self.block.header.number(), hash);
 			}
-			debug!(target: "tx", "Transaction {:?} took: {} ms", hash, took_ms);
+			debug!(target: "tx", "Transaction {:?} took: {} ms", hash, elapsed_millis);
 		}
 
 		Ok(())
@@ -222,6 +221,10 @@ impl<'x> OpenBlock<'x> {
 		self.block.header.set_timestamp(header.timestamp());
 		self.block.header.set_uncles_hash(*header.uncles_hash());
 		self.block.header.set_transactions_root(*header.transactions_root());
+		// For Aura-based chains, the seal may contain EmptySteps which are used to bestow rewards;
+		// such rewards affect the state and the state root (see
+		// https://github.com/paritytech/parity-ethereum/pull/11475).
+		self.block.header.set_seal(header.seal().to_vec());
 		// TODO: that's horrible. set only for backwards compatibility
 		if header.extra_data().len() > self.engine.maximum_extra_data_size() {
 			warn!("Couldn't set extradata. Ignoring.");
@@ -343,10 +346,10 @@ impl LockedBlock {
 		let expected_seal_fields = engine.seal_fields(&self.header);
 		let mut s = self;
 		if seal.len() != expected_seal_fields {
-			Err(BlockError::InvalidSealArity(Mismatch {
+			return Err(Error::Block(BlockError::InvalidSealArity(Mismatch {
 				expected: expected_seal_fields,
 				found: seal.len()
-			}))?;
+			})));
 		}
 
 		s.block.header.set_seal(seal);
@@ -500,7 +503,6 @@ mod tests {
 		verification::Unverified,
 	};
 	use hash_db::EMPTY_PREFIX;
-	use spec;
 
 	/// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header
 	fn enact_bytes(
@@ -554,7 +556,7 @@ mod tests {
 		b.close_and_lock()
 	}
 
-	/// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header. Seal the block aferwards
+	/// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header. Seal the block afterwards
 	fn enact_and_seal(
 		block_bytes: Vec<u8>,
 		engine: &dyn Engine,

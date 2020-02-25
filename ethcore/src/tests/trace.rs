@@ -159,7 +159,7 @@ fn can_trace_block_and_uncle_reward() {
 			action: Action::Create,
 			data: vec![],
 			value: U256::zero(),
-		}.sign(kp.secret(), Some(spec.network_id())), None).unwrap();
+		}.sign(kp.secret(), Some(spec.network_id()))).unwrap();
 		n += 1;
 	}
 

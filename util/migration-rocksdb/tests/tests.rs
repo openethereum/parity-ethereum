@@ -18,19 +18,20 @@
 //! A random temp directory is created. A database is created within it, and migrations
 //! are performed in temp sub-directories.
 
-#[macro_use]
-extern crate macros;
-extern crate tempdir;
-extern crate kvdb_rocksdb;
-extern crate migration_rocksdb as migration;
-
 use std::collections::BTreeMap;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+
+use kvdb_rocksdb::{Database, DatabaseConfig};
+use maplit::btreemap;
+use migration_rocksdb::{Batch, Config, SimpleMigration, Migration, Manager, ChangeColumns};
 use tempdir::TempDir;
+<<<<<<< HEAD
 use kvdb_rocksdb::{Database, DatabaseConfig};
 use migration::{Batch, Config, SimpleMigration, Migration, Manager, ChangeColumns};
+=======
+>>>>>>> upstream/master
 
 #[inline]
 fn db_path(path: &Path) -> PathBuf {
@@ -114,8 +115,8 @@ fn one_simple_migration() {
 	let tempdir = TempDir::new("").unwrap();
 	let db_path = db_path(tempdir.path());
 	let mut manager = Manager::new(Config::default());
-	make_db(&db_path, map![vec![] => vec![], vec![1] => vec![1]]);
-	let expected = map![vec![0x11] => vec![0x22], vec![1, 0x11] => vec![1, 0x22]];
+	make_db(&db_path, btreemap![vec![] => vec![], vec![1] => vec![1]]);
+	let expected = btreemap![vec![0x11] => vec![0x22], vec![1, 0x11] => vec![1, 0x22]];
 
 	manager.add_migration(Migration0).unwrap();
 	let end_path = manager.execute(&db_path, 0).unwrap();
@@ -129,7 +130,7 @@ fn no_migration_needed() {
 	let tempdir = TempDir::new("").unwrap();
 	let db_path = db_path(tempdir.path());
 	let mut manager = Manager::new(Config::default());
-	make_db(&db_path, map![vec![] => vec![], vec![1] => vec![1]]);
+	make_db(&db_path, btreemap![vec![] => vec![], vec![1] => vec![1]]);
 
 	manager.add_migration(Migration0).unwrap();
 	manager.execute(&db_path, 1).unwrap();
@@ -141,7 +142,7 @@ fn wrong_adding_order() {
 	let tempdir = TempDir::new("").unwrap();
 	let db_path = db_path(tempdir.path());
 	let mut manager = Manager::new(Config::default());
-	make_db(&db_path, map![vec![] => vec![], vec![1] => vec![1]]);
+	make_db(&db_path, btreemap![vec![] => vec![], vec![1] => vec![1]]);
 
 	manager.add_migration(Migration1).unwrap();
 	manager.add_migration(Migration0).unwrap();
@@ -152,8 +153,8 @@ fn multiple_migrations() {
 	let tempdir = TempDir::new("").unwrap();
 	let db_path = db_path(tempdir.path());
 	let mut manager = Manager::new(Config::default());
-	make_db(&db_path, map![vec![] => vec![], vec![1] => vec![1]]);
-	let expected = map![vec![0x11] => vec![], vec![1, 0x11] => vec![]];
+	make_db(&db_path, btreemap![vec![] => vec![], vec![1] => vec![1]]);
+	let expected = btreemap![vec![0x11] => vec![], vec![1, 0x11] => vec![]];
 
 	manager.add_migration(Migration0).unwrap();
 	manager.add_migration(Migration1).unwrap();
@@ -167,8 +168,8 @@ fn second_migration() {
 	let tempdir = TempDir::new("").unwrap();
 	let db_path = db_path(tempdir.path());
 	let mut manager = Manager::new(Config::default());
-	make_db(&db_path, map![vec![] => vec![], vec![1] => vec![1]]);
-	let expected = map![vec![] => vec![], vec![1] => vec![]];
+	make_db(&db_path, btreemap![vec![] => vec![], vec![1] => vec![1]]);
+	let expected = btreemap![vec![] => vec![], vec![1] => vec![]];
 
 	manager.add_migration(Migration0).unwrap();
 	manager.add_migration(Migration1).unwrap();
@@ -182,8 +183,8 @@ fn first_and_noop_migration() {
 	let tempdir = TempDir::new("").unwrap();
 	let db_path = db_path(tempdir.path());
 	let mut manager = Manager::new(Config::default());
-	make_db(&db_path, map![vec![] => vec![], vec![1] => vec![1]]);
-	let expected = map![vec![0x11] => vec![0x22], vec![1, 0x11] => vec![1, 0x22]];
+	make_db(&db_path, btreemap![vec![] => vec![], vec![1] => vec![1]]);
+	let expected = btreemap![vec![0x11] => vec![0x22], vec![1, 0x11] => vec![1, 0x22]];
 
 	manager.add_migration(Migration0).expect("Migration0 can be added");
 	let end_path = manager.execute(&db_path, 0).expect("Migration0 runs clean");
@@ -196,8 +197,8 @@ fn noop_and_second_migration() {
 	let tempdir = TempDir::new("").unwrap();
 	let db_path = db_path(tempdir.path());
 	let mut manager = Manager::new(Config::default());
-	make_db(&db_path, map![vec![] => vec![], vec![1] => vec![1]]);
-	let expected = map![vec![] => vec![], vec![1] => vec![]];
+	make_db(&db_path, btreemap![vec![] => vec![], vec![1] => vec![1]]);
+	let expected = btreemap![vec![] => vec![], vec![1] => vec![]];
 
 	manager.add_migration(Migration1).unwrap();
 	let end_path = manager.execute(&db_path, 0).unwrap();

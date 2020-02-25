@@ -14,10 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Types used in the public api
+//! Secret store related components.
 
-mod all;
-mod error;
+mod server;
 
-pub use self::all::*;
-pub use self::error::*;
+#[cfg(feature = "secretstore")]
+mod blockchain;
+
+#[cfg(all(feature = "accounts", feature = "secretstore"))]
+mod nodekeypair;
+
+pub use self::server::{Configuration, NodeSecretKey, ContractAddress, Dependencies, start};
+#[cfg(feature = "secretstore")]
+use self::blockchain::TrustedClient;
+#[cfg(all(feature = "accounts", feature = "secretstore"))]
+use self::nodekeypair::KeyStoreNodeKeyPair;

@@ -535,7 +535,7 @@ impl Miner {
 			let result = client.verify_for_pending_block(&transaction, &open_block.header)
 				.map_err(|e| e.into())
 				.and_then(|_| {
-					open_block.push_transaction(transaction, None)
+					open_block.push_transaction(transaction)
 				});
 
 			let took = start.elapsed();
@@ -716,36 +716,34 @@ impl Miner {
 			},
 		};
 
-		let sealing_result =
-			match self.engine.generate_seal(&block, &parent_header) {
-				// Directly import a regular sealed block.
-				Seal::Regular(seal) => {
-					trace!(target: "miner", "Block #{}: Received a Regular seal.", block_number);
-					{
-						let mut sealing = self.sealing.lock();
-						sealing.next_mandatory_reseal = Instant::now() + self.options.reseal_max_period;
-					}
+		match self.engine.generate_seal(&block, &parent_header) {
+			// Directly import a regular sealed block.
+			Seal::Regular(seal) => {
+				trace!(target: "miner", "Block #{}: Received a Regular seal.", block_number);
+				{
+					let mut sealing = self.sealing.lock();
+					sealing.next_mandatory_reseal = Instant::now() + self.options.reseal_max_period;
+				}
 
-					block
-						.lock()
-						.seal(&*self.engine, seal)
-						.map(|sealed| {
-							match chain.import_sealed_block(sealed) {
-								Ok(_) => true,
-								Err(e) => {
-									error!(target: "miner", "Block #{}: seal_and_import_block_internally: import_sealed_block returned {:?}", block_number, e);
-									false
-								}
+				block
+					.lock()
+					.seal(&*self.engine, seal)
+					.map(|sealed| {
+						match chain.import_sealed_block(sealed) {
+							Ok(_) => true,
+							Err(e) => {
+								error!(target: "miner", "Block #{}: seal_and_import_block_internally: import_sealed_block returned {:?}", block_number, e);
+								false
 							}
-						})
-						.unwrap_or_else(|e| {
-							warn!("ERROR: Block #{}, importing sealed block failed when given internally generated seal: {}", block_number, e);
-							false
-						})
-				},
-				Seal::None => false,
-			};
-		sealing_result
+						}
+					})
+					.unwrap_or_else(|e| {
+						warn!("ERROR: Block #{}, importing sealed block failed when given internally generated seal: {}", block_number, e);
+						false
+					})
+			},
+			Seal::None => false,
+		}
 	}
 
 	/// Prepares work which has to be done to seal.
@@ -1276,7 +1274,6 @@ impl miner::MinerService for Miner {
 				if self.seal_and_import_block_internally(chain, block) {
 					trace!(target: "miner", "update_sealing: imported internally sealed block");
 				}
-				return
 			},
 			SealingState::NotReady => unreachable!("We returned right after sealing_state was computed. qed."),
 			SealingState::External => {

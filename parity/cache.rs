@@ -52,7 +52,9 @@ impl Default for CacheConfig {
 }
 
 impl CacheConfig {
-	/// Creates new cache config with cumulative size equal `total`.
+	/// Creates new cache config with cumulative size equal to `total`, distributed as follows: 70%
+	/// to rocksdb, 10% to the blockchain cache and 20% to the state cache. The transaction queue
+	/// cache size is set to 40Mb and the trace cache to 20Mb.
 	pub fn new_with_total_cache_size(total: u32) -> Self {
 		CacheConfig {
 			db: total * 7 / 10,
@@ -63,14 +65,14 @@ impl CacheConfig {
 		}
 	}
 
-	/// Creates new cache config with gitven details.
+	/// Creates new cache config with given details.
 	pub fn new(db: u32, blockchain: u32, queue: u32, state: u32) -> Self {
 		CacheConfig {
-			db: db,
-			blockchain: blockchain,
-			queue: queue,
+			db,
+			blockchain,
+			queue,
 			traces: DEFAULT_TRACE_CACHE_SIZE,
-			state: state,
+			state,
 		}
 	}
 

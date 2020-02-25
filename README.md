@@ -292,10 +292,6 @@ Caching, Importing Blocks, and Block Information
   ```bash
   parity-rpc
   ```
-* Parity Ethereum (EthCore) Secret Store
-  ```bash
-  ethcore-secretstore
-  ```
 * Parity Updater Service
   ```bash
   parity-updater parity-hash-fetch
@@ -303,9 +299,9 @@ Caching, Importing Blocks, and Block Information
 * Parity Core Libraries (Parity Util)
   ```bash
   ethcore-bloom-journal blooms-db dir eip-712 fake-fetch fastmap fetch ethcore-io
-  journaldb keccak-hasher len-caching-lock macros memory-cache memzero
+  journaldb keccak-hasher len-caching-lock memory-cache memzero
   migration-rocksdb ethcore-network ethcore-network-devp2p panic_hook
-  patricia-trie-ethereum registrar rlp_compress rlp_derive parity-runtime stats
+  patricia-trie-ethereum registrar rlp_compress parity-runtime stats
   time-utils triehash-ethereum unexpected parity-version
   ```
 

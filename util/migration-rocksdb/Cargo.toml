@@ -2,12 +2,18 @@
 name = "migration-rocksdb"
 version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]
+edition = "2018"
+license = "GPL-3.0"
 
 [dependencies]
 log = "0.4"
+<<<<<<< HEAD
 macros = { path = "../macros" }
+=======
+>>>>>>> upstream/master
 kvdb = "0.4.0"
 kvdb-rocksdb = "0.5.0"
 
 [dev-dependencies]
 tempdir = "0.3"
+maplit = "1.0.2"

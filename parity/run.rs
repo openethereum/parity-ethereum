@@ -492,6 +492,7 @@ fn execute_impl<Cr, Rr>(
 	let fetch = fetch::Client::new(FETCH_FULL_NUM_DNS_THREADS).map_err(|e| format!("Error starting fetch client: {:?}", e))?;
 
 	let txpool_size = cmd.miner_options.pool_limits.max_count;
+
 	// create miner
 	let miner = Arc::new(Miner::new(
 		cmd.miner_options,
@@ -502,6 +503,7 @@ fn execute_impl<Cr, Rr>(
 			account_utils::miner_local_accounts(account_provider.clone()),
 		)
 	));
+
 	miner.set_author(miner::Author::External(cmd.miner_extras.author));
 	miner.set_gas_range_target(cmd.miner_extras.gas_range_target);
 	miner.set_extra_data(cmd.miner_extras.extra_data);
@@ -574,6 +576,7 @@ fn execute_impl<Cr, Rr>(
 		cmd.private_encryptor_conf,
 	).map_err(|e| format!("Client service error: {:?}", e))?;
 
+	let forks = spec.hard_forks.clone();
 	let connection_filter_address = spec.params().node_permission_contract;
 	// drop the spec to free up genesis state.
 	drop(spec);
@@ -649,6 +652,7 @@ fn execute_impl<Cr, Rr>(
 		runtime.executor(),
 		net_conf.clone().into(),
 		client.clone(),
+		forks,
 		snapshot_service.clone(),
 		private_tx_sync,
 		private_state,

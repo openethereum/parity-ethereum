@@ -57,7 +57,6 @@ impl BrainPrefix {
 #[cfg(test)]
 mod tests {
 	use BrainPrefix;
-	use parity_crypto::publickey::Generator;
 
 	#[test]
 	fn prefix_generator() {

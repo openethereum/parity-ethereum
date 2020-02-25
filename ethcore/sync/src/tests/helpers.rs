@@ -20,11 +20,12 @@ use std::sync::Arc;
 use crate::{
 	api::{SyncConfig, WARP_SYNC_PROTOCOL_ID},
 	chain::{
+		fork_filter::ForkFilterApi,
 		sync_packet::{
 			PacketInfo,
 			SyncPacket::{self, PrivateTransactionPacket, SignedPrivateTransactionPacket}
 		},
-		ChainSync, SyncSupplier, ETH_PROTOCOL_VERSION_63, PAR_PROTOCOL_VERSION_4
+		ChainSync, SyncSupplier, ETH_PROTOCOL_VERSION_64, PAR_PROTOCOL_VERSION_4
 	},
 	private_tx::SimplePrivateTxHandler,
 	sync_io::SyncIo,
@@ -156,7 +157,11 @@ impl<'p, C> SyncIo for TestIo<'p, C> where C: FlushingBlockChainClient, C: 'p {
 	}
 
 	fn protocol_version(&self, protocol: &ProtocolId, _peer_id: PeerId) -> u8 {
+<<<<<<< HEAD
 		if protocol == &WARP_SYNC_PROTOCOL_ID { PAR_PROTOCOL_VERSION_4.0 } else { ETH_PROTOCOL_VERSION_63.0 }
+=======
+		if protocol == &WARP_SYNC_PROTOCOL_ID { PAR_PROTOCOL_VERSION_4.0 } else { ETH_PROTOCOL_VERSION_64.0 }
+>>>>>>> upstream/master
 	}
 
 	fn is_expired(&self) -> bool {
@@ -380,7 +385,7 @@ impl TestNet<EthPeer<TestBlockChainClient>> {
 			let chain = TestBlockChainClient::new();
 			let ss = Arc::new(TestSnapshotService::new());
 			let private_tx_handler = Arc::new(SimplePrivateTxHandler::default());
-			let sync = ChainSync::new(config.clone(), &chain, Some(private_tx_handler.clone()));
+			let sync = ChainSync::new(config.clone(), &chain, ForkFilterApi::new_dummy(&chain), Some(private_tx_handler.clone()));
 			net.peers.push(Arc::new(EthPeer {
 				sync: RwLock::new(sync),
 				snapshot_service: ss,
@@ -431,10 +436,11 @@ impl TestNet<EthPeer<EthcoreClient>> {
 			miner.clone(),
 			channel.clone()
 		).unwrap();
+		let fork_filter = ForkFilterApi::new(&*client, spec.hard_forks.clone());
 
 		let private_tx_handler = Arc::new(SimplePrivateTxHandler::default());
 		let ss = Arc::new(TestSnapshotService::new());
-		let sync = ChainSync::new(config, &*client, Some(private_tx_handler.clone()));
+		let sync = ChainSync::new(config, &*client, fork_filter, Some(private_tx_handler.clone()));
 		let peer = Arc::new(EthPeer {
 			sync: RwLock::new(sync),
 			snapshot_service: ss,

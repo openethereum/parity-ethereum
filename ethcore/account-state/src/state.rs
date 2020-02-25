@@ -434,7 +434,7 @@ impl<B: Backend> State<B> {
 	/// Get the nonce of account `a`.
 	pub fn nonce(&self, a: &Address) -> TrieResult<U256> {
 		self.ensure_cached(a, RequireCache::None, true,
-		|a| a.as_ref().map_or(self.account_start_nonce, |account| *account.nonce()))
+		|a| a.map_or(self.account_start_nonce, |account| *account.nonce()))
 	}
 
 	/// Whether the base storage root of an account remains unchanged.
@@ -1014,13 +1014,13 @@ impl<B: Backend> State<B> {
 	}
 
 	/// Pull account `a` in our cache from the trie DB. `require_code` requires that the code be cached, too.
-	pub fn require<'a>(&'a self, a: &Address, require_code: bool) -> TrieResult<RefMut<'a, Account>> {
+	pub fn require(&self, a: &Address, require_code: bool) -> TrieResult<RefMut<Account>> {
 		self.require_or_from(a, require_code, || Account::new_basic(0u8.into(), self.account_start_nonce), |_| {})
 	}
 
 	/// Pull account `a` in our cache from the trie DB. `require_code` requires that the code be cached, too.
 	/// If it doesn't exist, make account equal the evaluation of `default`.
-	pub fn require_or_from<'a, F, G>(&'a self, a: &Address, require_code: bool, default: F, not_default: G) -> TrieResult<RefMut<'a, Account>>
+	pub fn require_or_from<F, G>(&self, a: &Address, require_code: bool, default: F, not_default: G) -> TrieResult<RefMut<Account>>
 		where F: FnOnce() -> Account, G: FnOnce(&mut Account),
 	{
 		let contains_key = self.cache.borrow().contains_key(a);
@@ -1137,8 +1137,8 @@ impl<B: Backend> State<B> {
 	}
 }
 
-//// TODO: cloning for `State` shouldn't be possible in general; Remove this and use
-//// checkpoints where possible.
+// TODO: cloning for `State` shouldn't be possible in general; Remove this and use
+// checkpoints where possible.
 impl<B: Backend + Clone> Clone for State<B> {
 	fn clone(&self) -> State<B> {
 		let cache = {

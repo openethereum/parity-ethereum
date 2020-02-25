@@ -16,6 +16,7 @@ devp2p = { package = "ethcore-network-devp2p", path = "../../util/network-devp2p
 enum_primitive = "0.1.1"
 ethcore-io = { path = "../../util/io" }
 ethcore-private-tx = { path = "../private-tx" }
+ethereum-forkid = "0.1"
 ethereum-types = "0.8.0"
 fastmap = { path = "../../util/fastmap" }
 futures = "0.1"
@@ -23,7 +24,6 @@ indexmap = "1.3.0"
 keccak-hash = "0.4.0"
 light = { package = "ethcore-light", path = "../light" }
 log = "0.4"
-macros = { path = "../../util/macros" }
 network = { package = "ethcore-network", path = "../../util/network" }
 parity-runtime = "0.1.1"
 parity-crypto = { version = "0.5.0", features = ["publickey"] }
@@ -43,5 +43,5 @@ ethcore-io = { path = "../../util/io", features = ["mio"] }
 kvdb-memorydb = "0.4.0"
 machine = { path = "../machine" }
 rand_xorshift = "0.2"
-rustc-hex = "1.0"
+rustc-hex = "2.1.0"
 spec = { path = "../spec" }

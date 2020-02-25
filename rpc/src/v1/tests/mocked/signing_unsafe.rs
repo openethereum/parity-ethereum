@@ -165,10 +165,10 @@ fn rpc_eth_sign_transaction() {
 	let signature = tester.accounts_provider.sign(address, None, t.hash(None)).unwrap();
 	let t = t.with_signature(signature, None);
 	let signature = t.signature();
-	let rlp = rlp::encode(&t);
+	let rlp: String = rlp::encode(&t).to_hex();
 
 	let response = r#"{"jsonrpc":"2.0","result":{"#.to_owned() +
-		r#""raw":"0x"# + &rlp.to_hex() + r#"","# +
+		r#""raw":"0x"# + &rlp + r#"","# +
 		r#""tx":{"# +
 		r#""blockHash":null,"blockNumber":null,"# +
 		&format!("\"chainId\":{},", t.chain_id().map_or("null".to_owned(), |n| format!("{}", n))) +
@@ -180,7 +180,7 @@ fn rpc_eth_sign_transaction() {
 		r#""nonce":"0x1","# +
 		&format!("\"publicKey\":\"0x{:x}\",", t.recover_public().unwrap()) +
 		&format!("\"r\":\"0x{:x}\",", U256::from(signature.r())) +
-		&format!("\"raw\":\"0x{}\",", rlp.to_hex()) +
+		&format!("\"raw\":\"0x{}\",", rlp) +
 		&format!("\"s\":\"0x{:x}\",", U256::from(signature.s())) +
 		&format!("\"standardV\":\"0x{:x}\",", U256::from(t.standard_v())) +
 		r#""to":"0xd46e8dd67c5d32be8058bb8eb970870f07244567","transactionIndex":null,"# +

@@ -52,7 +52,7 @@ impl GithubApp {
 	pub fn url(&self) -> String {
 		// Since https fetcher doesn't support redirections we use direct link
 		// format!("https://github.com/{}/{}/archive/{}.zip", self.account, self.repo, self.commit.to_hex())
-		format!("https://codeload.github.com/{}/{}/zip/{}", self.account, self.repo, self.commit.to_hex())
+		format!("https://codeload.github.com/{}/{}/zip/{}", self.account, self.repo, self.commit.to_hex::<String>())
 	}
 
 	fn commit(bytes: &[u8]) -> Option<[u8;COMMIT_LEN]> {
@@ -313,11 +313,13 @@ pub mod tests {
 		// when
 		let res = urlhint.resolve(h256_from_short_str("test")).unwrap();
 
+		let c: Vec<u8> = "ec4c1fe06c808fe3739858c347109b1f5f1ed4b5".from_hex().unwrap();
+
 		// then
 		assert_eq!(res, Some(URLHintResult::Dapp(GithubApp {
 			account: "ethcore".into(),
 			repo: "dao.claim".into(),
-			commit: GithubApp::commit(&"ec4c1fe06c808fe3739858c347109b1f5f1ed4b5".from_hex().unwrap()).unwrap(),
+			commit: GithubApp::commit(&c).unwrap(),
 			owner: Address::from_str("deadcafebeefbeefcafedeaddeedfeedffffffff").unwrap(),
 		})))
 	}

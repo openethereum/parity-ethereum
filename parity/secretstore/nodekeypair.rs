@@ -22,7 +22,11 @@ use ethkey::Password;
 use parity_crypto::publickey::public_to_address;
 use ethereum_types::{H256, Address, Public};
 use parity_crypto::publickey::{Signature, Error as EthKeyError};
+<<<<<<< HEAD
 use ethcore_secretstore::SigningKeyPair;
+=======
+use parity_secretstore::SigningKeyPair;
+>>>>>>> upstream/master
 
 pub struct KeyStoreNodeKeyPair {
 	account_provider: Arc<AccountProvider>,

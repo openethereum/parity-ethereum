@@ -154,13 +154,12 @@ pub trait ExecutiveState {
 
 	/// Execute a given transaction with given tracer and VM tracer producing a receipt and an optional trace.
 	/// This will change the state accordingly.
-	fn apply_with_tracing<V, T>(
+	fn apply_with_tracing<T, V>(
 		&mut self,
 		env_info: &EnvInfo,
 		machine: &Machine,
 		t: &SignedTransaction,
-		tracer: T,
-		vm_tracer: V,
+		options: TransactOptions<T, V>,
 	) -> ApplyResult<T::Output, V::Output>
 		where
 			T: trace::Tracer,
@@ -179,28 +178,26 @@ impl<B: Backend> ExecutiveState for State<B> {
 	) -> ApplyResult<FlatTrace, VMTrace> {
 		if tracing {
 			let options = TransactOptions::with_tracing();
-			self.apply_with_tracing(env_info, machine, t, options.tracer, options.vm_tracer)
+			self.apply_with_tracing(env_info, machine, t, options)
 		} else {
 			let options = TransactOptions::with_no_tracing();
-			self.apply_with_tracing(env_info, machine, t, options.tracer, options.vm_tracer)
+			self.apply_with_tracing(env_info, machine, t, options)
 		}
 	}
 
 	/// Execute a given transaction with given tracer and VM tracer producing a receipt and an optional trace.
 	/// This will change the state accordingly.
-	fn apply_with_tracing<V, T>(
+	fn apply_with_tracing<T, V>(
 		&mut self,
 		env_info: &EnvInfo,
 		machine: &Machine,
 		t: &SignedTransaction,
-		tracer: T,
-		vm_tracer: V,
+		options: TransactOptions<T, V>
 	) -> ApplyResult<T::Output, V::Output>
 		where
 			T: trace::Tracer,
 			V: trace::VMTracer,
 	{
-		let options = TransactOptions::new(tracer, vm_tracer);
 		let e = execute(self, env_info, machine, t, options, false)?;
 		let params = machine.params();
 
@@ -269,17 +266,21 @@ mod tests {
 
 	use account_state::{Account, CleanupMode};
 	use common_types::transaction::*;
+	use ethereum_types::{H256, U256, Address, BigEndianHash};
+	use ethcore::test_helpers::{get_temp_state, get_temp_state_db};
+	use hex_literal::hex;
 	use keccak_hash::{keccak, KECCAK_NULL_RLP};
 	use parity_crypto::publickey::Secret;
+<<<<<<< HEAD
 	use ethereum_types::{H256, U256, Address, BigEndianHash};
 	use ethcore::{
 		test_helpers::{get_temp_state, get_temp_state_db}
 	};
 	use ethtrie;
+=======
+>>>>>>> upstream/master
 	use machine::Machine;
-	use pod::{self, PodAccount, PodState};
-	use rustc_hex::FromHex;
-	use spec;
+	use pod::{PodAccount, PodState};
 	use ::trace::{FlatTrace, TraceError, trace};
 	use trie_db::{TrieFactory, TrieSpec};
 	use vm::EnvInfo;
@@ -310,7 +311,7 @@ mod tests {
 			gas: 100_000.into(),
 			action: Action::Create,
 			value: 100.into(),
-			data: FromHex::from_hex("601080600c6000396000f3006000355415600957005b60203560003555").unwrap(),
+			data: hex!("601080600c6000396000f3006000355415600957005b60203560003555").to_vec(),
 		}.sign(&secret(), None);
 
 		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty).unwrap();
@@ -369,7 +370,7 @@ mod tests {
 			gas: 100_000.into(),
 			action: Action::Create,
 			value: 100.into(),
-			data: FromHex::from_hex("5b600056").unwrap(),
+			data: hex!("5b600056").to_vec(),
 		}.sign(&secret(), None);
 
 		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty).unwrap();
@@ -409,7 +410,7 @@ mod tests {
 			data: vec![],
 		}.sign(&secret(), None);
 
-		state.init_code(&Address::from_low_u64_be(0xa), FromHex::from_hex("6000").unwrap()).unwrap();
+		state.init_code(&Address::from_low_u64_be(0xa), hex!("6000").to_vec()).unwrap();
 		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty).unwrap();
 		let result = state.apply(&info, &machine, &t, true).unwrap();
 		let expected_trace = vec![FlatTrace {
@@ -533,7 +534,7 @@ mod tests {
 			data: vec![],
 		}.sign(&secret(), None);
 
-		state.init_code(&Address::from_low_u64_be(0xa), FromHex::from_hex("600060006000600060006001610be0f1").unwrap()).unwrap();
+		state.init_code(&Address::from_low_u64_be(0xa), hex!("600060006000600060006001610be0f1").to_vec()).unwrap();
 		let result = state.apply(&info, &machine, &t, true).unwrap();
 
 		let expected_trace = vec![FlatTrace {
@@ -575,8 +576,8 @@ mod tests {
 			data: vec![],
 		}.sign(&secret(), None);
 
-		state.init_code(&Address::from_low_u64_be(0xa), FromHex::from_hex("60006000600060006000600b611000f2").unwrap()).unwrap();
-		state.init_code(&Address::from_low_u64_be(0xb), FromHex::from_hex("6000").unwrap()).unwrap();
+		state.init_code(&Address::from_low_u64_be(0xa), hex!("60006000600060006000600b611000f2").to_vec()).unwrap();
+		state.init_code(&Address::from_low_u64_be(0xb), hex!("6000").to_vec()).unwrap();
 		let result = state.apply(&info, &machine, &t, true).unwrap();
 
 		let expected_trace = vec![FlatTrace {
@@ -634,8 +635,8 @@ mod tests {
 			data: vec![],
 		}.sign(&secret(), None);
 
-		state.init_code(&Address::from_low_u64_be(0xa), FromHex::from_hex("6000600060006000600b618000f4").unwrap()).unwrap();
-		state.init_code(&Address::from_low_u64_be(0xb), FromHex::from_hex("60056000526001601ff3").unwrap()).unwrap();
+		state.init_code(&Address::from_low_u64_be(0xa), hex!("6000600060006000600b618000f4").to_vec()).unwrap();
+		state.init_code(&Address::from_low_u64_be(0xb), hex!("60056000526001601ff3").to_vec()).unwrap();
 		let result = state.apply(&info, &machine, &t, true).unwrap();
 
 		let expected_trace = vec![FlatTrace {
@@ -692,7 +693,7 @@ mod tests {
 			data: vec![],
 		}.sign(&secret(), None);
 
-		state.init_code(&Address::from_low_u64_be(0xa), FromHex::from_hex("5b600056").unwrap()).unwrap();
+		state.init_code(&Address::from_low_u64_be(0xa), hex!("5b600056").to_vec()).unwrap();
 		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty).unwrap();
 		let result = state.apply(&info, &machine, &t, true).unwrap();
 		let expected_trace = vec![FlatTrace {
@@ -731,8 +732,8 @@ mod tests {
 			data: vec![],
 		}.sign(&secret(), None);
 
-		state.init_code(&Address::from_low_u64_be(0xa), FromHex::from_hex("60006000600060006000600b602b5a03f1").unwrap()).unwrap();
-		state.init_code(&Address::from_low_u64_be(0xb), FromHex::from_hex("6000").unwrap()).unwrap();
+		state.init_code(&Address::from_low_u64_be(0xa), hex!("60006000600060006000600b602b5a03f1").to_vec()).unwrap();
+		state.init_code(&Address::from_low_u64_be(0xb), hex!("6000").to_vec()).unwrap();
 		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty).unwrap();
 		let result = state.apply(&info, &machine, &t, true).unwrap();
 
@@ -790,7 +791,7 @@ mod tests {
 			data: vec![],
 		}.sign(&secret(), None);
 
-		state.init_code(&Address::from_low_u64_be(0xa), FromHex::from_hex("60006000600060006045600b6000f1").unwrap()).unwrap();
+		state.init_code(&Address::from_low_u64_be(0xa), hex!("60006000600060006045600b6000f1").to_vec()).unwrap();
 		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty).unwrap();
 		let result = state.apply(&info, &machine, &t, true).unwrap();
 		let expected_trace = vec![FlatTrace {
@@ -844,7 +845,7 @@ mod tests {
 			data: vec![],
 		}.sign(&secret(), None);
 
-		state.init_code(&Address::from_low_u64_be(0xa), FromHex::from_hex("600060006000600060ff600b6000f1").unwrap()).unwrap();	// not enough funds.
+		state.init_code(&Address::from_low_u64_be(0xa), hex!("600060006000600060ff600b6000f1").to_vec()).unwrap();	// not enough funds.
 		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty).unwrap();
 		let result = state.apply(&info, &machine, &t, true).unwrap();
 		let expected_trace = vec![FlatTrace {
@@ -886,8 +887,8 @@ mod tests {
 			data: vec![],//600480600b6000396000f35b600056
 		}.sign(&secret(), None);
 
-		state.init_code(&Address::from_low_u64_be(0xa), FromHex::from_hex("60006000600060006000600b602b5a03f1").unwrap()).unwrap();
-		state.init_code(&Address::from_low_u64_be(0xb), FromHex::from_hex("5b600056").unwrap()).unwrap();
+		state.init_code(&Address::from_low_u64_be(0xa), hex!("60006000600060006000600b602b5a03f1").to_vec()).unwrap();
+		state.init_code(&Address::from_low_u64_be(0xb), hex!("5b600056").to_vec()).unwrap();
 		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty).unwrap();
 		let result = state.apply(&info, &machine, &t, true).unwrap();
 		let expected_trace = vec![FlatTrace {
@@ -941,9 +942,9 @@ mod tests {
 			data: vec![],
 		}.sign(&secret(), None);
 
-		state.init_code(&Address::from_low_u64_be(0xa), FromHex::from_hex("60006000600060006000600b602b5a03f1").unwrap()).unwrap();
-		state.init_code(&Address::from_low_u64_be(0xb), FromHex::from_hex("60006000600060006000600c602b5a03f1").unwrap()).unwrap();
-		state.init_code(&Address::from_low_u64_be(0xc), FromHex::from_hex("6000").unwrap()).unwrap();
+		state.init_code(&Address::from_low_u64_be(0xa), hex!("60006000600060006000600b602b5a03f1").to_vec()).unwrap();
+		state.init_code(&Address::from_low_u64_be(0xb), hex!("60006000600060006000600c602b5a03f1").to_vec()).unwrap();
+		state.init_code(&Address::from_low_u64_be(0xc), hex!("6000").to_vec()).unwrap();
 		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty).unwrap();
 		let result = state.apply(&info, &machine, &t, true).unwrap();
 		let expected_trace = vec![FlatTrace {
@@ -1015,9 +1016,9 @@ mod tests {
 			data: vec![],//600480600b6000396000f35b600056
 		}.sign(&secret(), None);
 
-		state.init_code(&Address::from_low_u64_be(0xa), FromHex::from_hex("60006000600060006000600b602b5a03f1").unwrap()).unwrap();
-		state.init_code(&Address::from_low_u64_be(0xb), FromHex::from_hex("60006000600060006000600c602b5a03f1505b601256").unwrap()).unwrap();
-		state.init_code(&Address::from_low_u64_be(0xc), FromHex::from_hex("6000").unwrap()).unwrap();
+		state.init_code(&Address::from_low_u64_be(0xa), hex!("60006000600060006000600b602b5a03f1").to_vec()).unwrap();
+		state.init_code(&Address::from_low_u64_be(0xb), hex!("60006000600060006000600c602b5a03f1505b601256").to_vec()).unwrap();
+		state.init_code(&Address::from_low_u64_be(0xc), hex!("6000").to_vec()).unwrap();
 		state.add_balance(&t.sender(), &(100.into()), CleanupMode::NoEmpty).unwrap();
 		let result = state.apply(&info, &machine, &t, true).unwrap();
 
@@ -1087,7 +1088,7 @@ mod tests {
 			data: vec![],
 		}.sign(&secret(), None);
 
-		state.init_code(&Address::from_low_u64_be(0xa), FromHex::from_hex("73000000000000000000000000000000000000000bff").unwrap()).unwrap();
+		state.init_code(&Address::from_low_u64_be(0xa), hex!("73000000000000000000000000000000000000000bff").to_vec()).unwrap();
 		state.add_balance(&Address::from_low_u64_be(0xa), &50.into(), CleanupMode::NoEmpty).unwrap();
 		state.add_balance(&t.sender(), &100.into(), CleanupMode::NoEmpty).unwrap();
 		let result = state.apply(&info, &machine, &t, true).unwrap();

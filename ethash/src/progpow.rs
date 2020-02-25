@@ -431,7 +431,7 @@ mod test {
 	use super::*;
 
 	fn h256(hex: &str) -> H256 {
-		let bytes = FromHex::from_hex(hex).unwrap();
+		let bytes: Vec<u8> = FromHex::from_hex(hex).unwrap();
 		let mut res = [0; 32];
 		res.copy_from_slice(&bytes);
 		res
@@ -549,8 +549,13 @@ mod test {
 			&c_dag,
 		);
 
+<<<<<<< HEAD
 		let expected_digest = FromHex::from_hex("b3bad9ca6f7c566cf0377d1f8cce29d6516a96562c122d924626281ec948ef02").unwrap();
 		let expected_result = FromHex::from_hex("f4ac202715ded4136e72887c39e63a4738331c57fd9eb79f6ec421c281aa8743").unwrap();
+=======
+		let expected_digest = hex!("b3bad9ca6f7c566cf0377d1f8cce29d6516a96562c122d924626281ec948ef02");
+		let expected_result = hex!("f4ac202715ded4136e72887c39e63a4738331c57fd9eb79f6ec421c281aa8743");
+>>>>>>> upstream/master
 
 		assert_eq!(
 			digest.to_vec(),
