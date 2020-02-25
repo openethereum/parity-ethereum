@@ -368,8 +368,8 @@ fn sign_eip191_with_validator() {
 		data: keccak("hello world").as_bytes().to_vec().into()
 	}).unwrap();
 	let result = eip191::hash_message(EIP191Version::PresignedTransaction, with_validator).unwrap();
-	let result = tester.accounts.sign(address, Some("password123".into()), result).unwrap().into_electrum();
-	let expected = r#"{"jsonrpc":"2.0","result":""#.to_owned() +  &format!("0x{}", result.to_hex()) + r#"","id":1}"#;
+	let result: String = tester.accounts.sign(address, Some("password123".into()), result).unwrap().into_electrum().to_hex();
+	let expected = r#"{"jsonrpc":"2.0","result":""#.to_owned() +  &format!("0x{}", result) + r#"","id":1}"#;
 	let response = tester.io.handle_request_sync(&request).unwrap();
 	assert_eq!(response, expected)
 }

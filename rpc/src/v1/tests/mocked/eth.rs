@@ -564,12 +564,11 @@ fn rpc_eth_transaction_count_by_number_pending() {
 #[test]
 fn rpc_eth_pending_transaction_by_hash() {
 	use ethereum_types::H256;
-	use rlp;
 	use types::transaction::SignedTransaction;
 
 	let tester = EthTester::default();
 	{
-		let bytes = FromHex::from_hex("f85f800182520894095e7baea6a6c7c4c2dfeb977efac326af552d870a801ba048b55bfa915ac795c431978d8a6a992b628d557da5ff759b307d495a36649353a0efffd310ac743f371de3b9f7f9cb56c0b28ad43601b4ab949f53faa07bd2c804").unwrap();
+		let bytes: Vec<u8> = FromHex::from_hex("f85f800182520894095e7baea6a6c7c4c2dfeb977efac326af552d870a801ba048b55bfa915ac795c431978d8a6a992b628d557da5ff759b307d495a36649353a0efffd310ac743f371de3b9f7f9cb56c0b28ad43601b4ab949f53faa07bd2c804").unwrap();
 		let tx = rlp::decode(&bytes).expect("decoding failure");
 		let tx = SignedTransaction::new(tx).unwrap();
 		tester.miner.pending_transactions.lock().insert(H256::zero(), tx);
@@ -913,7 +912,7 @@ fn rpc_eth_send_raw_transaction() {
 	let signature = tester.accounts_provider.sign(address, None, t.hash(None)).unwrap();
 	let t = t.with_signature(signature, None);
 
-	let rlp = rlp::encode(&t).to_hex();
+	let rlp: String = rlp::encode(&t).to_hex();
 
 	let req = r#"{
 		"jsonrpc": "2.0",

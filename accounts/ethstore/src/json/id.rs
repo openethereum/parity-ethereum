@@ -15,6 +15,7 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Universaly unique identifier.
+
 use std::{fmt, str};
 use rustc_hex::{ToHex, FromHex};
 use serde::{Deserialize, Serialize, Deserializer, Serializer};
@@ -62,7 +63,7 @@ impl fmt::Display for Uuid {
 }
 
 fn copy_into(from: &str, into: &mut [u8]) -> Result<(), Error> {
-	let from = from.from_hex().map_err(|_| Error::InvalidUuid)?;
+	let from: Vec<u8> = from.from_hex().map_err(|_| Error::InvalidUuid)?;
 
 	if from.len() != into.len() {
 		return Err(Error::InvalidUuid);

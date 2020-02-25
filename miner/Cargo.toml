@@ -40,7 +40,7 @@ transaction-pool = "2.0.1"
 [dev-dependencies]
 env_logger = "0.5"
 parity-crypto = { version = "0.5.0", features = ["publickey"] }
-rustc-hex = "1.0"
+rustc-hex = "2.1.0"
 
 [features]
 work-notify = ["ethash", "fetch", "hyper", "url"]

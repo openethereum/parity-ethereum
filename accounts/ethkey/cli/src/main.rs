@@ -218,7 +218,7 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 				(Random.generate(), None)
 			}
 		} else if args.cmd_prefix {
-			let prefix = args.arg_prefix.from_hex()?;
+			let prefix: Vec<_> = args.arg_prefix.from_hex()?;
 			let brain = args.flag_brain;
 			in_threads(move || {
 				let iterations = 1024;

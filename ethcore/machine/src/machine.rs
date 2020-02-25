@@ -407,8 +407,8 @@ fn round_block_gas_limit(gas_limit: U256, lower_limit: U256, upper_limit: U256) 
 mod tests {
 	use std::str::FromStr;
 	use common_types::header::Header;
+	use hex_literal::hex;
 	use super::*;
-	use spec;
 
 	fn get_default_ethash_extensions() -> EthashExtensions {
 		EthashExtensions {
@@ -421,8 +421,8 @@ mod tests {
 
 	#[test]
 	fn should_disallow_unsigned_transactions() {
-		let rlp = "ea80843b9aca0083015f90948921ebb5f79e9e3920abe571004d0b1d5119c154865af3107a400080038080";
-		let transaction: UnverifiedTransaction = ::rlp::decode(&::rustc_hex::FromHex::from_hex(rlp).unwrap()).unwrap();
+		let rlp = hex!("ea80843b9aca0083015f90948921ebb5f79e9e3920abe571004d0b1d5119c154865af3107a400080038080").to_vec();
+		let transaction: UnverifiedTransaction = rlp::decode(&rlp).unwrap();
 		assert_eq!(
 			transaction::Error::from(transaction.verify_unordered().unwrap_err()),
 			transaction::Error::InvalidSignature("invalid EC signature".into()),
