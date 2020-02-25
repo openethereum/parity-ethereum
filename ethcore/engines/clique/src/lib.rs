@@ -251,12 +251,12 @@ impl Clique {
 
 	fn sign_header(&self, header: &Header) -> Result<(Signature, H256), EngineError> {
 		match self.signer.read().as_ref() {
-			None => Err(EngineError::RequiresSigner.into()),
+			None => Err(EngineError::RequiresSigner),
 			Some(signer) => {
 				let digest = header.hash();
 				match signer.sign(digest) {
 					Ok(sig) => Ok((sig, digest)),
-					Err(e) => Err(From::from(EngineError::Custom(e.into()))),
+					Err(e) => Err(EngineError::Custom(e.to_string())),
 				}
 			}
 		}
