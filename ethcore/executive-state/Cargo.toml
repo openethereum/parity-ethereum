@@ -6,6 +6,10 @@ authors = ["Parity Technologies <admin@parity.io>"]
 edition = "2018"
 license = "GPL-3.0"
 
+[[bench]]
+name = "execution"
+harness = false
+
 [dependencies]
 account-db = { path = "../account-db" }
 account-state = { path = "../account-state" }
@@ -32,3 +36,9 @@ hex-literal = "0.2.1"
 spec = { path = "../spec" }
 trie-db = "0.20.0"
 ethtrie = { package = "patricia-trie-ethereum", path = "../../util/patricia-trie-ethereum" }
+# Benchmarks
+criterion = "0.3.1"
+ethcore-db = { path = "../db" }
+journaldb = { path = "../../util/journaldb" }
+state-db = { path = "../state-db" }
+tempdir = "0.3.7"
