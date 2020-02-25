@@ -63,6 +63,27 @@ pub struct ClientReport {
 	pub gas_processed: U256,
 	/// Memory used by state DB
 	pub state_db_mem: usize,
+	/// I/O statistics for state DB.
+	pub io_stats: IoStats,
+}
+
+/// I/O statistics.
+#[derive(Default, Debug, Clone, Eq, PartialEq)]
+pub struct IoStats {
+	/// Number of transaction.
+	pub transactions: u64,
+	/// Number of read operations.
+	pub reads: u64,
+	/// Number of reads resulted in a read from cache.
+	pub cache_reads: u64,
+	/// Number of write operations.
+	pub writes: u64,
+	/// Number of bytes read.
+	pub bytes_read: u64,
+	/// Number of bytes read from cache.
+	pub cache_read_bytes: u64,
+	/// Number of bytes write.
+	pub bytes_written: u64,
 }
 
 impl ClientReport {

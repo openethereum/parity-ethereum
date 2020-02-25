@@ -106,6 +106,10 @@ impl JournalDB for ArchiveDB {
 		})
 	}
 
+	fn io_stats(&self) -> kvdb::IoStats {
+		self.backing.io_stats(kvdb::IoStatsKind::SincePrevious)
+	}
+
 	fn mem_used(&self) -> usize {
 		self.overlay.malloc_size_of()
 	}

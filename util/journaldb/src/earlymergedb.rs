@@ -327,6 +327,10 @@ impl JournalDB for EarlyMergeDB {
 		})
 	}
 
+	fn io_stats(&self) -> kvdb::IoStats {
+		self.backing.io_stats(kvdb::IoStatsKind::SincePrevious)
+	}
+
 	fn is_empty(&self) -> bool {
 		self.backing.get(self.column, &LATEST_ERA_KEY).expect("Low level database error").is_none()
 	}
