@@ -28,7 +28,7 @@ use crate::{
 };
 
 use ethereum_types::H256;
-use log::{debug, trace};
+use log::{error, debug, trace};
 use network::{client_version::ClientCapabilities, PeerId};
 use rlp::Rlp;
 use parity_util_mem::MallocSizeOf;
@@ -582,47 +582,14 @@ impl BlockDownloader {
 				},
 				Err(EthcoreError::BadBlock(BlockErrorWithData { error, data })) => {
 					io.chain().report_bad_block(data, error.to_string());
-					match error {
-						BlockError::UnknownParent(_) if allow_out_of_order => {
-							break;
-						},
-						BlockError::UnknownParent(_) => {
-							trace_sync!(self, "Unknown new block parent, restarting sync");
-							break;
-						},
-						BlockError::TemporarilyInvalid(_) => {
-							debug_sync!(self, "Block temporarily invalid: {:?}, restarting sync", h);
-							break;
-						},
-						// NOTE(niklasad1): ugly repeat yourself.
-						e => {
-							debug_sync!(self, "Bad block {:?} : {:?}", h, e);
-							download_action = DownloadAction::Reset;
-							break;
-						}
-					}
+					self.handle_bad_blocks(error, &h, &mut download_action, allow_out_of_order);
+					break;
 				}
-				// TODO(niklasad1): ugly repeat
+				// NOTE(niklasad1): this branch should be unreachable
 				Err(EthcoreError::Block(err)) => {
-					match err {
-						BlockError::UnknownParent(_) if allow_out_of_order => {
-							break;
-						},
-						BlockError::UnknownParent(_) => {
-							trace_sync!(self, "Unknown new block parent, restarting sync");
-							break;
-						},
-						BlockError::TemporarilyInvalid(_) => {
-							debug_sync!(self, "Block temporarily invalid: {:?}, restarting sync", h);
-							break;
-						},
-						// NOTE(niklasad1): ugly repeat yourself.
-						e => {
-							debug_sync!(self, "Bad block {:?} : {:?}", h, e);
-							download_action = DownloadAction::Reset;
-							break;
-						}
-					}
+					error!(target: "sync", "received `EthcoreError::Block`, bug should be `EthcoreError::BadBlock`");
+					self.handle_bad_blocks(err, &h, &mut download_action, allow_out_of_order);
+					break;
 				}
 				Err(EthcoreError::FullQueue(limit)) => {
 					debug_sync!(self, "Block import queue full ({}), restarting sync", limit);
@@ -653,6 +620,28 @@ impl BlockDownloader {
 		self.round_parents.push_back((hash.clone(), parent.clone()));
 		if self.round_parents.len() > MAX_ROUND_PARENTS {
 			self.round_parents.pop_front();
+		}
+	}
+
+	fn handle_bad_blocks(
+		&self,
+		error: BlockError,
+		block_hash: &H256,
+		download_action: &mut DownloadAction,
+		allow_out_of_order: bool
+	) {
+		match error {
+			BlockError::UnknownParent(_) if allow_out_of_order => {},
+			BlockError::UnknownParent(_) => {
+				trace_sync!(self, "Unknown new block parent, restarting sync");
+			},
+			BlockError::TemporarilyInvalid(_) => {
+				debug_sync!(self, "Block temporarily invalid: {:?}, restarting sync", block_hash);
+			},
+			e => {
+				debug_sync!(self, "Bad block {:?} : {:?}", block_hash, e);
+				*download_action = DownloadAction::Reset;
+			}
 		}
 	}
 }

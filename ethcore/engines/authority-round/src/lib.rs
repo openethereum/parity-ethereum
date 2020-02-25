@@ -1621,7 +1621,7 @@ impl Engine for AuthorityRound {
 
 				Err(Error::Block(BlockError::InvalidSeal))
 			}
-			Err(error) => Err(error.into()),
+			Err(e) => Err(e.into()),
 			Ok(()) => Ok(()),
 		}
 	}

@@ -187,6 +187,7 @@ impl SyncHandler {
 				trace!(target: "sync", "New block already queued {:?}", hash);
 			},
 			Err(EthcoreError::Block(BlockError::UnknownParent(p))) => {
+				warn!(target: "sync", "Received EthcoreError::Block; bug should be `EthcoreError::BadBlock`");
 				unknown = true;
 				trace!(target: "sync", "New block with unknown parent ({:?}) {:?}", p, hash);
 			},

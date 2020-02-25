@@ -2486,14 +2486,13 @@ impl client_traits::EngineClient for Client {
 
 	fn submit_seal(&self, block_hash: H256, seal: Vec<Bytes>) {
 		let import = self.importer.miner.submit_seal(block_hash, seal)
-			.map_err(|e| {
-				warn!(target: "poa", "Wrong internal seal submission! {:?}", e);
-				e
-			})
 			.and_then(|block| self.import_sealed_block(block));
 
-		if let Err(EthcoreError::BadBlock(BlockErrorWithData { data, error })) = import {
-			self.importer.bad_blocks.report(data, error.to_string());
+		if let Err(e) = import {
+			warn!(target: "poa", "Wrong internal seal submission! {:?}", e);
+			if let EthcoreError::BadBlock(BlockErrorWithData { data, error }) = e {
+				self.importer.bad_blocks.report(data, error.to_string());
+			}
 		}
 	}
 

@@ -196,8 +196,6 @@ pub struct Clique {
 
 impl Clique {
 	/// Initialize Clique engine from empty state.
-	//
-	// NOTE(niklasad1): why does this return `Result`?
 	pub fn new(params: CliqueParams, machine: Machine) -> Result<Arc<Self>, Error> {
 		/// Step Clique at most every 2 seconds
 		const SEALING_FREQ: Duration = Duration::from_secs(2);

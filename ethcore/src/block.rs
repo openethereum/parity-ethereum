@@ -576,7 +576,6 @@ mod tests {
 		last_hashes: Arc<LastHashes>,
 		factories: Factories,
 	) -> Result<SealedBlock, Error> {
-		// TODO(niklasad1): allocation for `block_bytes` just for the header seem needless here.
 		let header = Unverified::from_rlp(block_bytes.clone())?.header;
 		Ok(enact_bytes(block_bytes, engine, tracing, db, parent, last_hashes, factories)?
 			.seal(engine, header.seal().to_vec())?)
