@@ -14,7 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Benchmark transaction execution
+//! Benchmark transaction execution of two blocks from mainnet, both of average
+//! size (~35kb as RLP), one with 229 transactions (#8481475, Constantinople era)
+//! and the other with 139 transactions (9532543, Istanbul era). Note that the
+//! benchmark here is almost completely CPU-bound and does not involve IO at all,
+//! so be careful not to draw too many conclusions from the results.
 
 use std::time::{Duration, Instant};
 use criterion::{Criterion, criterion_group, criterion_main};
@@ -71,91 +75,76 @@ fn build_env_info(header: &Header) -> vm::EnvInfo {
 	}
 }
 
-fn tx_constantinople_execution(c: &mut Criterion) {
+macro_rules! bench_tx_apply {
+	($b: expr, $state: expr, $env_info: expr, $machine: expr, $signed_txs: expr, tracing => $tracing: expr ) => {
+		$b.iter_custom(|iters| {
+			let mut dur = Duration::new(0, 0);
+			for _ in 0..iters {
+				$state.checkpoint();
+				let start = Instant::now();
+				for tx in &$signed_txs {
+					let outcome = $state.apply(&$env_info, &$machine, tx, $tracing);
+					assert!(outcome.is_ok())
+				}
+				dur += start.elapsed();
+				$state.revert_to_checkpoint();
+			}
+			dur
+		})
+	}
+}
+
+fn execute_8481475(c: &mut Criterion) {
 	// Block from the Constantinople era; 202 transactions, 32k RLP
 	let constantinople_block = Unverified::from_rlp(include_bytes!("./8481475.rlp").to_vec()).unwrap();
 	let mut state = build_state();
 	let env_info = build_env_info(&constantinople_block.header);
 	let signed_txs = setup_state_for_block(&mut state, constantinople_block);
-	let machine = new_constantinople_test_machine();
 
-	c.bench_function("apply transactions with tracing (Constantinople)", |b| {
-		b.iter_custom(|iters| {
-			let mut dur = Duration::new(0, 0);
-			for _ in 0..iters {
-				state.checkpoint();
-				let start = Instant::now();
-				for tx in &signed_txs {
-					let outcome = state.apply(&env_info, &machine, tx, true);
-					assert!(outcome.is_ok())
-				}
-				dur += start.elapsed();
-				state.revert_to_checkpoint();
-			}
-			dur
-		})
+	let machine = new_constantinople_test_machine();
+	c.bench_function("Block 8481475, apply txs (Costantinople, tracing)", |b| {
+		bench_tx_apply!(b, state, env_info, machine, signed_txs, tracing => true);
 	});
 
-	c.bench_function("apply transactions without tracing (Constantinople)", |b| {
-		b.iter_custom(|iters| {
-			let mut dur = Duration::new(0, 0);
-			for _ in 0..iters {
-				state.checkpoint();
-				let start = Instant::now();
-				for tx in &signed_txs {
-					let outcome = state.apply(&env_info, &machine, tx, false);
-					assert!(outcome.is_ok())
-				}
-				dur += start.elapsed();
-				state.revert_to_checkpoint();
-			}
-			dur
-		})
+	c.bench_function("Block 8481475, apply txs (Costantinople, no tracing)", |b| {
+		bench_tx_apply!(b, state, env_info, machine, signed_txs, tracing => false);
+	});
+
+	let machine = new_istanbul_test_machine();
+	c.bench_function("Block 8481475, apply txs (Istanbul, tracing)", |b| {
+		bench_tx_apply!(b, state, env_info, machine, signed_txs, tracing => true);
+	});
+
+	c.bench_function("Block 8481475, apply txs (Istanbul, no tracing)", |b| {
+		bench_tx_apply!(b, state, env_info, machine, signed_txs, tracing => false);
 	});
 }
 
-fn tx_istanbul_execution(c: &mut Criterion) {
+fn execute_9532543(c: &mut Criterion) {
 	// Block from the Istanbul era; 139 transactions, 38k RLP
 	let istanbul_block = Unverified::from_rlp(include_bytes!("./9532543.rlp").to_vec()).unwrap();
 	let mut state = build_state();
 	let env_info = build_env_info(&istanbul_block.header);
 	let signed_txs = setup_state_for_block(&mut state, istanbul_block);
-	let machine = new_istanbul_test_machine();
 
-	c.bench_function("apply transactions with tracing (Istanbul)", |b| {
-		b.iter_custom(|iters| {
-			let mut dur = Duration::new(0, 0);
-			for _ in 0..iters {
-				state.checkpoint();
-				let start = Instant::now();
-				for tx in &signed_txs {
-					let outcome = state.apply(&env_info, &machine, tx, true);
-					assert!(outcome.is_ok())
-				}
-				dur += start.elapsed();
-				state.revert_to_checkpoint();
-			}
-			dur
-		})
+	let machine = new_constantinople_test_machine();
+	c.bench_function("Block 9532543, apply txs (Constantinople, tracing)", |b| {
+		bench_tx_apply!(b, state, env_info, machine, signed_txs, tracing => true);
 	});
 
-	c.bench_function("apply transactions without tracing (Istanbul)", |b| {
-		b.iter_custom(|iters| {
-			let mut dur = Duration::new(0, 0);
-			for _ in 0..iters {
-				state.checkpoint();
-				let start = Instant::now();
-				for tx in &signed_txs {
-					let outcome = state.apply(&env_info, &machine, tx, false);
-					assert!(outcome.is_ok())
-				}
-				dur += start.elapsed();
-				state.revert_to_checkpoint();
-			}
-			dur
-		})
+	c.bench_function("Block 9532543, apply txs (Constantinople, no tracing)", |b| {
+		bench_tx_apply!(b, state, env_info, machine, signed_txs, tracing => false);
+	});
+
+	let machine = new_istanbul_test_machine();
+	c.bench_function("Block 9532543, apply txs (Istanbul, tracing)", |b| {
+		bench_tx_apply!(b, state, env_info, machine, signed_txs, tracing => true);
+	});
+
+	c.bench_function("Block 9532543, apply txs (Istanbul, no tracing)", |b| {
+		bench_tx_apply!(b, state, env_info, machine, signed_txs, tracing => false);
 	});
 }
 
-criterion_group!(benches, tx_constantinople_execution, tx_istanbul_execution);
+criterion_group!(benches, execute_8481475, execute_9532543);
 criterion_main!(benches);
