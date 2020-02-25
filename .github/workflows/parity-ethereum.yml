@@ -67,7 +67,7 @@ jobs:
       - name: Prepare build directory for cache
         run: |
           find ./target/debug -maxdepth 1 -type f -delete \
-          && rm -fr ./target/debug/{deps,.fingerprint}/*{parity,ethcore}* \
+          && rm -fr ./target/debug/{deps,.fingerprint}/*{parity,ethcore,ethkey,ethstore,parity-evm}* \
           && rm -f  ./target/.rustc_info.json
   build-tests:
     name: Build Release Test Suite
@@ -118,11 +118,10 @@ jobs:
         with:
           command: test
           args: --locked --all --release --features "json-tests" --verbose --no-run
-      # From https://github.com/launchbadge/sqlx/blob/master/.github/workflows/rust.yml
       - name: Prepare build directory for cache
         run: |
           find ./target/release -maxdepth 1 -type f -delete \
-          && rm -fr ./target/release/{deps,.fingerprint}/*{parity,ethcore}* \
+          && rm -fr ./target/release/{deps,.fingerprint}/*{parity,ethcore,ethkey,ethstore,parity-evm}* \
           && rm -f  ./target/.rustc_info.json
   run-tests:
     name: Run Test Suite
@@ -172,6 +171,12 @@ jobs:
         with:
           command: test
           args: --locked --all --release --features "json-tests" --verbose
+      - name: Prepare build directory for cache
+        run: |
+          find ./target/release -maxdepth 1 -type f -delete \
+          && rm -fr ./target/release/{deps,.fingerprint}/*{parity,ethcore,ethkey,ethstore,parity-evm}* \
+          && rm -f  ./target/.rustc_info.json
+
   build:
     name: Build Release Suite
     needs: run-tests
@@ -225,5 +230,10 @@ jobs:
         uses: actions/upload-artifact@v1
         continue-on-error: true
         with:
-          name: parity
+          name: {parity,ethkey,ethstore,parity-evm}
           path: target/release
+      - name: Prepare build directory for cache
+        run: |
+          find ./target/release -maxdepth 1 -type f -delete \
+          && rm -fr ./target/release/{deps,.fingerprint}/*{parity,ethcore,ethkey,ethstore,parity-evm}* \
+          && rm -f  ./target/.rustc_info.json
