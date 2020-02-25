@@ -102,7 +102,7 @@ pub trait Drain {
 
 impl<'x> OpenBlock<'x> {
 	/// Create a new `OpenBlock` ready for transaction pushing.
-	pub fn new<'a>(
+	pub fn new(
 		engine: &'x dyn Engine,
 		factories: Factories,
 		tracing: bool,
@@ -204,12 +204,11 @@ impl<'x> OpenBlock<'x> {
 			let hash = t.hash();
 			let start = time::Instant::now();
 			self.push_transaction(t)?;
-			let took = start.elapsed();
-			let took_ms = took.as_secs() * 1000 + took.subsec_nanos() as u64 / 1000000;
-			if took > time::Duration::from_millis(slow_tx) {
-				warn!("Heavy ({} ms) transaction in block {:?}: {:?}", took_ms, self.block.header.number(), hash);
+			let elapsed_millis = start.elapsed().as_millis();
+			if elapsed_millis > slow_tx {
+				warn!("Heavy ({} ms) transaction in block {:?}: {:?}", elapsed_millis, self.block.header.number(), hash);
 			}
-			debug!(target: "tx", "Transaction {:?} took: {} ms", hash, took_ms);
+			debug!(target: "tx", "Transaction {:?} took: {} ms", hash, elapsed_millis);
 		}
 
 		Ok(())
@@ -347,10 +346,10 @@ impl LockedBlock {
 		let expected_seal_fields = engine.seal_fields(&self.header);
 		let mut s = self;
 		if seal.len() != expected_seal_fields {
-			Err(BlockError::InvalidSealArity(Mismatch {
+			return Err(Error::Block(BlockError::InvalidSealArity(Mismatch {
 				expected: expected_seal_fields,
 				found: seal.len()
-			}))?;
+			})));
 		}
 
 		s.block.header.set_seal(seal);
@@ -504,7 +503,6 @@ mod tests {
 		verification::Unverified,
 	};
 	use hash_db::EMPTY_PREFIX;
-	use spec;
 
 	/// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header
 	fn enact_bytes(

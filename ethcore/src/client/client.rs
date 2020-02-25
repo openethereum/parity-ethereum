@@ -2388,7 +2388,7 @@ impl ImportSealedBlock for Client {
 			// Do a super duper basic verification to detect potential bugs
 			if let Err(e) = self.engine.verify_block_basic(&header) {
 				self.importer.bad_blocks.report(
-					block.rlp_bytes(),
+					raw,
 					format!("Detected an issue with locally sealed block: {}", e),
 				);
 				return Err(e);
