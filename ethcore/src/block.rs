@@ -204,12 +204,11 @@ impl<'x> OpenBlock<'x> {
 			let hash = t.hash();
 			let start = time::Instant::now();
 			self.push_transaction(t)?;
-			let took = start.elapsed();
-			let took_ms = took.as_millis();
-			if took > time::Duration::from_millis(slow_tx) {
-				warn!("Heavy ({} ms) transaction in block {:?}: {:?}", took_ms, self.block.header.number(), hash);
+			let elapsed_millis = start.elapsed().as_millis();
+			if elapsed_millis > slow_tx {
+				warn!("Heavy ({} ms) transaction in block {:?}: {:?}", elapsed_millis, self.block.header.number(), hash);
 			}
-			debug!(target: "tx", "Transaction {:?} took: {} ms", hash, took_ms);
+			debug!(target: "tx", "Transaction {:?} took: {} ms", hash, elapsed_millis);
 		}
 
 		Ok(())
@@ -510,7 +509,6 @@ mod tests {
 		verification::Unverified,
 	};
 	use hash_db::EMPTY_PREFIX;
-	use spec;
 
 	/// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header
 	fn enact_bytes(

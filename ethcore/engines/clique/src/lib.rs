@@ -251,12 +251,12 @@ impl Clique {
 
 	fn sign_header(&self, header: &Header) -> Result<(Signature, H256), EngineError> {
 		match self.signer.read().as_ref() {
-			None => Err(EngineError::RequiresSigner.into()),
+			None => Err(EngineError::RequiresSigner),
 			Some(signer) => {
 				let digest = header.hash();
 				match signer.sign(digest) {
 					Ok(sig) => Ok((sig, digest)),
-					Err(e) => Err(From::from(EngineError::Custom(e.into()))),
+					Err(e) => Err(EngineError::Custom(e.to_string())),
 				}
 			}
 		}
@@ -707,9 +707,7 @@ impl Engine for Clique {
 
 	fn genesis_epoch_data(&self, header: &Header, _call: &Call) -> Result<Vec<u8>, String> {
 		let mut state = self.new_checkpoint_state(header).expect("Unable to parse genesis data.");
-		state.
-			calc_next_timestamp(header.timestamp(), self.period)
-			.map_err(|e| e.to_string())?;
+		state.calc_next_timestamp(header.timestamp(), self.period).map_err(|e| e.to_string())?;
 		self.block_state_by_hash.write().insert(header.hash(), state);
 
 		// no proof.

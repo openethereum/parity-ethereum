@@ -1,0 +1,49 @@
+SMART CONTRACT LICENSE v1.0
+
+
+Anyone may run, modify, publicly perform, distribute and redistribute this
+software, and create derivative works based on it in each case in compliance
+with the permissions granted by the document (“Permissions Document”) whose
+**KECCAK256 HASH** equals the value found in the PUBLICLY READABLE VARIABLE
+named permissionsDocumentHash  on the **ETHEREUM MAINNET** **SMART CONTRACT
+ACCOUNT** with the following ADDRESS 0x5a88CA36Fd58Efde3b955758285E8e3347D1eAe3
+which is deemed incorporated into this license by reference. In case of any
+conflicts between this license and the Permissions Document, this license shall
+prevail.
+
+
+Where:
+- KECCAK256 HASH is the cryptographic hash algorithm that may take any document,
+expressed as a series of bytes, and convert it to a single value which may be
+expressed as a number from 0 to `2**256`;
+- ETHEREUM MAINNET is the peer-to-peer blockchain network and shared account
+ledger initiated and recognised by the Ethereum Foundation as "Ethereum";
+- SMART CONTRACT ACCOUNT is a single account to be found on the ETHEREUM MAINNET
+identified by an ADDRESS and which represents the combination of a computer
+programme and some associated values;
+- ADDRESS is a number between 0 and `2**160`, which is the primary means of
+identifying a single account on the ETHEREUM MAINNET;
+- PUBLICLY READABLE VARIABLE is an item in a smart contract storage, publicly
+accessible via the smart contract’s ABI using a getter function matching its
+name.
+
+This license supplements and does not replace any other license pertaining to
+this software.
+
+No permissions are granted if no **KECCAK256 HASH** appears in the *ETHEREUM
+MAINNET** **SMART CONTRACT ACCOUNT**.
+
+This license takes effect as a bare licence, and has the effect of granting
+rights to each licensee (which may be subject to conditions), BUT IMPOSES NO
+OBLIGATIONS OR LIABILITY ON ANY LICENSOR, ANY OWNER OF RIGHTS IN THE SOFTWARE,
+OR ANY PERSON INVOLVED IN THE DESIGN, DEVELOPMENT AND CODING OF THE SOFTWARE
+(“GRANTOR”).
+
+Each Grantor shall, to the maximum extent permitted by law, have no liability
+for direct, indirect, special, incidental, consequential, exemplary, punitive or
+other damages of any character including, without limitation, procurement of
+substitute software or services, loss of use, data or profits, or business
+interruption, however caused and on any theory of contract, warranty, tort
+(including negligence), product liability or otherwise, arising in any way in
+relation to the supply, licensing or operation of the software, even if advised
+of the possibility of such damages.

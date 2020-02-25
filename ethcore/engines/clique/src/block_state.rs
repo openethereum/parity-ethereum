@@ -185,7 +185,7 @@ impl CliqueBlockState {
 					.map(|s| s.to_string())
 					.collect();
 
-				return Err(EngineError::CliqueFaultyRecoveredSigners(invalid_signers).into())
+				return Err(EngineError::CliqueFaultyRecoveredSigners(invalid_signers).into());
 			};
 
 			// TODO(niklasad1): I'm not sure if we should shrink here because it is likely that next epoch
