@@ -1197,9 +1197,9 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 					cumulative_gas_used: self.info.gas_used + t.gas,
 					logs: vec![],
 					contracts_created: vec![],
-					output: output,
-					trace: trace,
-					vm_trace: vm_trace,
+					output,
+					trace,
+					vm_trace,
 					state_diff: None,
 				})
 			},

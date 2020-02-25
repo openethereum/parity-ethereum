@@ -762,14 +762,14 @@ impl<B: Backend> State<B> {
 	pub fn kill_garbage(&mut self, touched: &HashSet<Address>, min_balance: &Option<U256>, kill_contracts: bool) -> TrieResult<()> {
 		let to_kill: HashSet<_> =
 			touched.iter().filter_map(|address| { // Check all touched accounts
-				if let Some(entry) = self.cache.borrow().get(address) {
+				self.cache.borrow().get(address).and_then(|entry| {
 					if entry.exists_and_is_null() // Remove all empty touched accounts.
 						|| min_balance.map_or(false, |ref balance| entry.account.as_ref().map_or(false, |account|
 							(account.is_basic() || kill_contracts) // Remove all basic and optionally contract accounts where balance has been decreased.
 							&& account.balance() < balance && entry.old_balance.as_ref().map_or(false, |b| account.balance() < b))) {
 						Some(address)
 					} else { None }
-				} else { None }
+				})
 			}).collect();
 
 		for address in to_kill {
