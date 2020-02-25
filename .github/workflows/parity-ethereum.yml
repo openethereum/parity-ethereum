@@ -227,26 +227,13 @@ jobs:
           path: target
           key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('Cargo.lock') }}
       - name: Build parity-ethereum for ${{matrix.platform}}
-        uses: actions-rs/cargo@v1
-        continue-on-error: true
-        with:
-          command: build
-          args: --verbose --color=always --release --features final
-      - name: Build parity-utils for ${{matrix.platform}}
-        uses: actions-rs/cargo@v1
-        continue-on-error: true
-        with:
-          command: build
-          args: --verbose --color=always --release -p evmbin -p ethstore-cli -p ethkey-cli
+        run:
+          - sh scripts/actions/build-linux.sh
       - name: Download artifact
         uses: actions/upload-artifact@v1
         continue-on-error: true
         with:
-          name:
-            - parity
-            - ethkey
-            - ethstore
-            - parity-evm
+          name: artifacts.zip
           path: target/release
       - name: Prepare build directory for cache
         run: |
