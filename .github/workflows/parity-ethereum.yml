@@ -227,8 +227,7 @@ jobs:
           path: target
           key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('Cargo.lock') }}
       - name: Build parity-ethereum for ${{matrix.platform}}
-        run:
-          - sh scripts/actions/build-linux.sh
+      - run: sh scripts/actions/build-linux.sh
       - name: Download artifact
         uses: actions/upload-artifact@v1
         continue-on-error: true
