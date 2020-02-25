@@ -7,6 +7,9 @@ jobs:
   check:
     name: Check
     runs-on: ubuntu-16.04
+    env:
+      CC: "clang"
+      CXX: "clang++"
     steps:
       - name: Checkout sources
         uses: actions/checkout@v2
@@ -80,6 +83,9 @@ jobs:
         toolchain:
           - stable
     runs-on: ${{ matrix.platform }}
+    env:
+      CC: "clang"
+      CXX: "clang++"
     steps:
       - name: Checkout sources
         uses: actions/checkout@v2
@@ -136,6 +142,9 @@ jobs:
           - beta
           - nightly
     runs-on: ${{ matrix.platform }}
+    env:
+      CC: "clang"
+      CXX: "clang++"
     steps:
       - name: Checkout sources
         uses: actions/checkout@v2
@@ -188,6 +197,9 @@ jobs:
         toolchain:
           - stable
     runs-on: ${{ matrix.platform }}
+    env:
+      CC: "clang"
+      CXX: "clang++"
     steps:
       - name: Checkout sources
         uses: actions/checkout@v2
