@@ -36,9 +36,6 @@ jobs:
         with:
           path: target
           key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
-      - name: Install LLVM for Windows
-        if:  matrix.platform == 'windows-latest'
-        run:  choco install llvm
       - name: Run cargo check 1/3
         uses: actions-rs/cargo@v1
         with:
@@ -168,6 +165,9 @@ jobs:
         with:
           path: target
           key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('Cargo.lock') }}
+      - name: Install LLVM for Windows
+        if:  matrix.platform == 'windows-latest'
+        run:  choco install llvm
       - name: Run tests
         continue-on-error: true
         uses: actions-rs/cargo@v1
@@ -218,6 +218,9 @@ jobs:
         with:
           path: target
           key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('Cargo.lock') }}
+      - name: Install LLVM for Windows
+        if:  matrix.platform == 'windows-latest'
+        run:  choco install llvm
       - name: Build OpenEthereum for ${{matrix.platform}}
         run: |
           if [ "${{matrix.platform}}" = "windows-latest" ]
