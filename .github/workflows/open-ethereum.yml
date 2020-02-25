@@ -1,4 +1,4 @@
-name: OpenEthereum
+name: Open Ethereum
 
 on:
   push:
@@ -65,7 +65,7 @@ jobs:
           command: check
           args: --locked --all --benches --verbose
       - name: Run validate chainspecs
-        run: ./scripts/gitlab/validate-chainspecs.sh
+        run: ./scripts/actions/validate-chainspecs.sh
       # From https://github.com/launchbadge/sqlx/blob/master/.github/workflows/rust.yml
       - name: Prepare build directory for cache
         run: |
