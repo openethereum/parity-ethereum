@@ -1,4 +1,4 @@
-name: Parity-ethereum
+name: OpenEthereum
 
 on:
   push:
@@ -115,11 +115,6 @@ jobs:
         with:
           path: target
           key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('Cargo.lock') }}
-      - name: Cmake update
-        uses: actions-rs/cargo@v1
-        with:
-          command: update
-          args: -p cmake
       - name: Build tests
         uses: actions-rs/cargo@v1
         with:
@@ -138,6 +133,7 @@ jobs:
         platform:
           - ubuntu-16.04
           - macos-latest
+          - windows-latest
         toolchain:
           - stable
           - beta
@@ -195,6 +191,7 @@ jobs:
         platform:
           - ubuntu-16.04
           - macos-latest
+          - windows-latest
         toolchain:
           - stable
     runs-on: ${{ matrix.platform }}
@@ -227,8 +224,14 @@ jobs:
         with:
           path: target
           key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('Cargo.lock') }}
-      - name: Build parity-ethereum for ${{matrix.platform}}
-        run: sh scripts/actions/build-linux.sh
+      - name: Build OpenEthereum for ${{matrix.platform}}
+        run: |
+          if [ "${{matrix.platform}}" = "windows-latest" ]
+            then
+              sh scripts/actions/build-windows.sh;
+            else
+              sh scripts/actions/build-linux.sh;
+          fi
       - name: Download artifact
         uses: actions/upload-artifact@v1
         continue-on-error: true
