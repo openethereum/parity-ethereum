@@ -41,7 +41,7 @@
 use std::collections::BTreeMap;
 use crate::{bytes::Bytes, hash::Address, uint::Uint};
 use serde::Deserialize;
-use super::{StepDuration, ValidatorSet};
+use super::ValidatorSet;
 
 /// Authority params deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
@@ -49,7 +49,7 @@ use super::{StepDuration, ValidatorSet};
 #[serde(rename_all = "camelCase")]
 pub struct AuthorityRoundParams {
 	/// Block duration, in seconds.
-	pub step_duration: StepDuration,
+	pub step_duration: Uint,
 	/// Valid authorities
 	pub validators: ValidatorSet,
 	/// Starting step. Determined automatically if not specified.
@@ -115,6 +115,9 @@ pub struct AuthorityRound {
 
 #[cfg(test)]
 mod tests {
+	use super::{Address, Uint};
+	use ethereum_types::{U256, H160};
+	use crate::spec::{validator_set::ValidatorSet, authority_round::AuthorityRound};
 	use std::str::FromStr;
 
 	use ethereum_types::{U256, H160};
@@ -148,7 +151,7 @@ mod tests {
 		}"#;
 
 		let deserialized: AuthorityRound = serde_json::from_str(s).unwrap();
-		assert_eq!(deserialized.params.step_duration, StepDuration::Single(Uint(U256::from(2))));
+		assert_eq!(deserialized.params.step_duration, Uint(U256::from(0x02)));
 		assert_eq!(
 			deserialized.params.validators,
 			ValidatorSet::List(vec![Address(H160::from_str("c6d9d2cd449a754c494264e1809c50e34d64562b").unwrap())]),
