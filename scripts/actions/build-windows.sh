@@ -30,4 +30,4 @@ cp --verbose target/release/ethkey.exe artifacts/ethkey.exe
 
 echo "_____ Zip artifacts _____"
 
-zip -r artifacts.zip artifacts/
+zip -r ${{matrix.platform}}.artifacts.zip artifacts/
