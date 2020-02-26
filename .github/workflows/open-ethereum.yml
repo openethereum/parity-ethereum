@@ -227,7 +227,7 @@ jobs:
         if:  matrix.platform == 'windows-latest'
         run: sh scripts/actions/build-windows.sh
       - name: Build OpenEthereum for ${{matrix.platform}}
-        if:  matrix.platform !== 'windows-latest'
+        if:  matrix.platform != 'windows-latest'
         run: sh scripts/actions/build-linux.sh
       - name: Download artifact
         uses: actions/upload-artifact@v1
