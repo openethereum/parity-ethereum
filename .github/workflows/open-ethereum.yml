@@ -111,7 +111,7 @@ jobs:
           key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('Cargo.lock') }}
       - name: Install LLVM for Windows
         if:  matrix.platform == 'windows-latest'
-        run:  choco install llvm
+        run: choco install llvm
       - name: Build tests
         uses: actions-rs/cargo@v1
         with:
@@ -119,9 +119,16 @@ jobs:
           args: --locked --all --release --features "json-tests" --verbose --no-run
       - name: Prepare build directory for cache
         run: |
-          find ./target/release -maxdepth 1 -type f -delete \
-          && rm -fr ./target/release/{deps,.fingerprint}/*{parity,ethcore,ethkey,ethstore,parity-evm}* \
-          && rm -f  ./target/.rustc_info.json
+          if [ "${{matrix.platform}}" = "windows-latest" ]
+            then
+              find ./target/release -maxdepth 1 -type f -delete;
+              rm -fr ./target/release/{deps,.fingerprint}/*{parity.exe,ethkey.exe,ethstore.exe,parity-evm.exe}*;
+              && rm -f  ./target/.rustc_info.json
+            else
+              find ./target/release -maxdepth 1 -type f -delete;
+              rm -fr ./target/release/{deps,.fingerprint}/*{parity,ethcore,ethkey,ethstore,parity-evm}*;
+              rm -f  ./target/.rustc_info.json;
+          fi
   run-tests:
     name: Run Test Suite
     needs: build-tests
@@ -176,9 +183,16 @@ jobs:
           args: --locked --all --release --features "json-tests" --verbose
       - name: Prepare build directory for cache
         run: |
-          find ./target/release -maxdepth 1 -type f -delete \
-          && rm -fr ./target/release/{deps,.fingerprint}/*{parity,ethcore,ethkey,ethstore,parity-evm}* \
-          && rm -f  ./target/.rustc_info.json
+          if [ "${{matrix.platform}}" = "windows-latest" ]
+            then
+              find ./target/release -maxdepth 1 -type f -delete;
+              rm -fr ./target/release/{deps,.fingerprint}/*{parity.exe,ethkey.exe,ethstore.exe,parity-evm.exe}*;
+              && rm -f  ./target/.rustc_info.json
+            else
+              find ./target/release -maxdepth 1 -type f -delete;
+              rm -fr ./target/release/{deps,.fingerprint}/*{parity,ethcore,ethkey,ethstore,parity-evm}*;
+              rm -f  ./target/.rustc_info.json;
+          fi
 
   build:
     name: Build Release Suite
@@ -237,9 +251,16 @@ jobs:
           path: target/release
       - name: Prepare build directory for cache
         run: |
-          find ./target/release -maxdepth 1 -type f -delete \
-          && rm -fr ./target/release/{deps,.fingerprint}/*{parity,ethcore,ethkey,ethstore,parity-evm}* \
-          && rm -f  ./target/.rustc_info.json
+          if [ "${{matrix.platform}}" = "windows-latest" ]
+            then
+              find ./target/release -maxdepth 1 -type f -delete;
+              rm -fr ./target/release/{deps,.fingerprint}/*{parity.exe,ethkey.exe,ethstore.exe,parity-evm.exe}*;
+              && rm -f  ./target/.rustc_info.json
+            else
+              find ./target/release -maxdepth 1 -type f -delete;
+              rm -fr ./target/release/{deps,.fingerprint}/*{parity,ethcore,ethkey,ethstore,parity-evm}*;
+              rm -f  ./target/.rustc_info.json;
+          fi
 
   build-arm:
     name: Build Release Suite for ARM
