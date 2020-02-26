@@ -287,8 +287,8 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           use-cross: true
-          command: build --verbose --color=always --release --features final
-          args: --${{ matrix.toolchain }}
+          command: build
+          args: -- target ${{ matrix.toolchain }} --verbose --color=always --release --features final
       - name: Build OpenEthereum for ${{matrix.platform}}
         uses: actions-rs/cargo@v1
         with:
