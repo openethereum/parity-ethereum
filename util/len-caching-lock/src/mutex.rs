@@ -20,7 +20,7 @@ use std::sync::atomic::Ordering;
 
 use parking_lot::{Mutex, MutexGuard};
 
-use Len;
+use crate::Len;
 
 /// Can be used in place of a [`Mutex`](../../lock_api/struct.Mutex.html) where reading `T`'s `len()` without 
 /// needing to lock, is advantageous. 

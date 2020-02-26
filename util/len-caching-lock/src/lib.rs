@@ -25,19 +25,15 @@
 //! ## Example
 //!
 //! ```rust
-//! extern crate len_caching_lock;
 //! use len_caching_lock::LenCachingMutex;
 //!
-//! fn main() {
-//!		let vec: Vec<i32> = Vec::new();
-//!		let len_caching_mutex = LenCachingMutex::new(vec);
-//!		assert_eq!(len_caching_mutex.lock().len(), len_caching_mutex.load_len());
-//!		len_caching_mutex.lock().push(0);
-//!		assert_eq!(1, len_caching_mutex.load_len());
-//!	}
-//!	```
+//! let vec: Vec<i32> = Vec::new();
+//! let len_caching_mutex = LenCachingMutex::new(vec);
+//! assert_eq!(len_caching_mutex.lock().len(), len_caching_mutex.load_len());
+//! len_caching_mutex.lock().push(0);
+//! assert_eq!(1, len_caching_mutex.load_len());
+//! ```
 
-extern crate parking_lot;
 use std::collections::{VecDeque, LinkedList, HashMap, BTreeMap, HashSet, BTreeSet, BinaryHeap};
 use std::hash::Hash;
 
@@ -66,7 +62,7 @@ impl<T> Len for LinkedList<T> {
 	fn len(&self) -> usize { LinkedList::len(self) }
 }
 
-impl<K: Eq + Hash, V> Len for HashMap<K, V> {
+impl<K: Eq + Hash, V, S: std::hash::BuildHasher> Len for HashMap<K, V, S> {
 	fn len(&self) -> usize { HashMap::len(self) }
 }
 
@@ -74,7 +70,7 @@ impl<K, V> Len for BTreeMap<K, V> {
 	fn len(&self) -> usize { BTreeMap::len(self) }
 }
 
-impl<T: Eq + Hash> Len for HashSet<T> {
+impl<T: Eq + Hash, S: std::hash::BuildHasher> Len for HashSet<T, S> {
 	fn len(&self) -> usize { HashSet::len(self) }
 }
 
