@@ -123,7 +123,7 @@ jobs:
             then
               find ./target/release -maxdepth 1 -type f -delete;
               rm -fr ./target/release/{deps,.fingerprint}/*{parity.exe,ethkey.exe,ethstore.exe,parity-evm.exe}*;
-              && rm -f  ./target/.rustc_info.json
+              rm -f  ./target/.rustc_info.json
             else
               find ./target/release -maxdepth 1 -type f -delete;
               rm -fr ./target/release/{deps,.fingerprint}/*{parity,ethcore,ethkey,ethstore,parity-evm}*;
@@ -187,7 +187,7 @@ jobs:
             then
               find ./target/release -maxdepth 1 -type f -delete;
               rm -fr ./target/release/{deps,.fingerprint}/*{parity.exe,ethkey.exe,ethstore.exe,parity-evm.exe}*;
-              && rm -f  ./target/.rustc_info.json
+              rm -f  ./target/.rustc_info.json
             else
               find ./target/release -maxdepth 1 -type f -delete;
               rm -fr ./target/release/{deps,.fingerprint}/*{parity,ethcore,ethkey,ethstore,parity-evm}*;
@@ -255,7 +255,7 @@ jobs:
             then
               find ./target/release -maxdepth 1 -type f -delete;
               rm -fr ./target/release/{deps,.fingerprint}/*{parity.exe,ethkey.exe,ethstore.exe,parity-evm.exe}*;
-              && rm -f  ./target/.rustc_info.json
+              rm -f  ./target/.rustc_info.json
             else
               find ./target/release -maxdepth 1 -type f -delete;
               rm -fr ./target/release/{deps,.fingerprint}/*{parity,ethcore,ethkey,ethstore,parity-evm}*;
