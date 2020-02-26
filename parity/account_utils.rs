@@ -152,8 +152,9 @@ mod accounts {
 				engine_signer,
 				password.clone(),
 			);
-			if signer.sign(Default::default()).is_ok() {
-				author = Some(::ethcore::miner::Author::Sealer(Box::new(signer)));
+			// NOTE: rust-secp256k1, a Message cannot be all zeroes anymore
+			if signer.sign([1_u8; 32].into()).is_ok() {
+				author = Some(ethcore::miner::Author::Sealer(Box::new(signer)));
 			}
 		}
 		if author.is_none() {
