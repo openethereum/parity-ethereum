@@ -235,7 +235,7 @@ jobs:
         uses: actions/upload-artifact@v1
         continue-on-error: true
         with:
-          name: artifacts.zip
+          name: ${{matrix.platform}}.artifacts.zip
           path: .
       - name: Prepare build directory for cache
         if:  matrix.platform != 'windows-latest'
