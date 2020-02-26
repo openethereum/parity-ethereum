@@ -20,7 +20,7 @@ use std::sync::atomic::Ordering;
 
 use parking_lot::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
-use Len;
+use crate::Len;
 
 /// Can be used in place of a [`RwLock`](../../lock_api/struct.RwLock.html) where 
 /// reading `T`'s `len()` without needing to lock, is advantageous. 
