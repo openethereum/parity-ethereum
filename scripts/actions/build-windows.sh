@@ -2,9 +2,6 @@
 set -e # fail on any error
 set -u # treat unset variables as error
 
-echo "__________Show ENVIROMENT__________"
-echo "CC:               " $CC
-echo "CXX:              " $CXX
   # NOTE: Enables the aes-ni instructions for RustCrypto dependency.
   # If you change this please remember to also update .cargo/config
 export RUSTFLAGS=" -Ctarget-feature=+aes,+sse2,+ssse3 -Ctarget-feature=+crt-static  -Clink-arg=-s"

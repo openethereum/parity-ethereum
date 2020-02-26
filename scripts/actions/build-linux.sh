@@ -3,9 +3,6 @@
 set -e # fail on any error
 set -u # treat unset variables as error
 
-echo "__________Show ENVIROMENT__________"
-echo "CC:               " $CC
-echo "CXX:              " $CXX
 #strip ON
 export RUSTFLAGS+=" -Clink-arg=-s -Ctarget-feature=+aes,+sse2,+ssse3"
 
