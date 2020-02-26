@@ -224,13 +224,11 @@ jobs:
         if:  matrix.platform == 'windows-latest'
         run:  choco install llvm
       - name: Build OpenEthereum for ${{matrix.platform}}
-        run: |
-          if [ "${{matrix.platform}}" = "windows-latest" ]
-            then
-              sh scripts/actions/build-windows.sh;
-            else
-              sh scripts/actions/build-linux.sh;
-          fi
+        if:  matrix.platform == 'windows-latest'
+        run: sh scripts/actions/build-windows.sh
+      - name: Build OpenEthereum for ${{matrix.platform}}
+        if:  matrix.platform !== 'windows-latest'
+        run: sh scripts/actions/build-linux.sh
       - name: Download artifact
         uses: actions/upload-artifact@v1
         continue-on-error: true
@@ -288,13 +286,13 @@ jobs:
         with:
           use-cross: true
           command: build
-          args: -- target ${{ matrix.toolchain }} --verbose --color=always --release --features final
+          args: --target ${{ matrix.toolchain }} --verbose --color=always --release --features final
       - name: Build OpenEthereum for ${{matrix.platform}}
         uses: actions-rs/cargo@v1
         with:
           use-cross: true
-          command: build --verbose --color=always --release -p evmbin -p ethstore-cli -p ethkey-cli
-          args: --${{ matrix.toolchain }}
+          command: build
+          args: --target ${{ matrix.toolchain }} --verbose --color=always --release -p evmbin -p ethstore-cli -p ethkey-cli
       - name: Collect artifacts
         run: |
           echo "_____ Post-processing binaries _____"
