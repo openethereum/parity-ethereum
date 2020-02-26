@@ -15,12 +15,11 @@ time cargo build --verbose --release -p ethkey-cli
 echo "_____ Post-processing binaries _____"
 rm -rf artifacts
 mkdir -p artifacts
-cd artifacts
 
-cp --verbose ../../target/release/parity.exe ./parity.exe
-cp --verbose ../../target/release/parity-evm.exe ./parity-evm.exe
-cp --verbose ../../target/release/ethstore.exe ./ethstore.exe
-cp --verbose ../../target/release/ethkey.exe ./ethkey.exe
+cp --verbose target/release/parity.exe artifacts/parity.exe
+cp --verbose target/release/parity-evm.exe artifacts/parity-evm.exe
+cp --verbose target/release/ethstore.exe artifacts/ethstore.exe
+cp --verbose target/release/ethkey.exe artifacts/ethkey.exe
 
 #echo "_____ Calculating checksums _____"
 #for binary in $(ls)
@@ -30,5 +29,5 @@ cp --verbose ../../target/release/ethkey.exe ./ethkey.exe
 #done
 
 echo "_____ Zip artifacts _____"
-cd ..
+
 zip -r artifacts.zip artifacts/
