@@ -311,13 +311,13 @@ jobs:
           cp -v target/${{ matrix.toolchain }}/release/ethstore artifacts/ethstore
           cp -v target/${{ matrix.toolchain }}/release/ethkey artifacts/ethkey
           echo "_____ Zip artifacts _____"
-          zip -r artifacts.zip artifacts/
+          zip -r ${{ matrix.toolchain }}.artifacts.zip artifacts/
 
       - name: Download artifact
         uses: actions/upload-artifact@v1
         continue-on-error: true
         with:
-          name: artifacts.zip
+          name: ${{ matrix.toolchain }}.artifacts.zip
           path: .
       - name: Prepare build directory for cache
         run: |
