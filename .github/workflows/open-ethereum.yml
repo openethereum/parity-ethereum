@@ -118,17 +118,11 @@ jobs:
           command: test
           args: --locked --all --release --features "json-tests" --verbose --no-run
       - name: Prepare build directory for cache
+        if:  matrix.platform != 'windows-latest'
         run: |
-          if [ "${{matrix.platform}}" = "windows-latest" ]
-            then
-              find ./target/release -maxdepth 1 -type f -delete;
-              rm -fr ./target/release/{deps,.fingerprint}/*{parity.exe,ethkey.exe,ethstore.exe,parity-evm.exe}*;
-              rm -f  ./target/.rustc_info.json
-            else
-              find ./target/release -maxdepth 1 -type f -delete;
-              rm -fr ./target/release/{deps,.fingerprint}/*{parity,ethcore,ethkey,ethstore,parity-evm}*;
-              rm -f  ./target/.rustc_info.json;
-          fi
+          find ./target/release -maxdepth 1 -type f -delete;
+          rm -fr ./target/release/{deps,.fingerprint}/*{parity,ethcore,ethkey,ethstore,parity-evm}*;
+          rm -f  ./target/.rustc_info.json;
   run-tests:
     name: Run Test Suite
     needs: build-tests
@@ -182,17 +176,11 @@ jobs:
           command: test
           args: --locked --all --release --features "json-tests" --verbose
       - name: Prepare build directory for cache
+        if:  matrix.platform != 'windows-latest'
         run: |
-          if [ "${{matrix.platform}}" = "windows-latest" ]
-            then
-              find ./target/release -maxdepth 1 -type f -delete;
-              rm -fr ./target/release/{deps,.fingerprint}/*{parity.exe,ethkey.exe,ethstore.exe,parity-evm.exe}*;
-              rm -f  ./target/.rustc_info.json
-            else
-              find ./target/release -maxdepth 1 -type f -delete;
-              rm -fr ./target/release/{deps,.fingerprint}/*{parity,ethcore,ethkey,ethstore,parity-evm}*;
-              rm -f  ./target/.rustc_info.json;
-          fi
+          find ./target/release -maxdepth 1 -type f -delete;
+          rm -fr ./target/release/{deps,.fingerprint}/*{parity,ethcore,ethkey,ethstore,parity-evm}*;
+          rm -f  ./target/.rustc_info.json;
 
   build:
     name: Build Release Suite
@@ -250,17 +238,11 @@ jobs:
           name: artifacts.zip
           path: target/release
       - name: Prepare build directory for cache
+        if:  matrix.platform != 'windows-latest'
         run: |
-          if [ "${{matrix.platform}}" = "windows-latest" ]
-            then
-              find ./target/release -maxdepth 1 -type f -delete;
-              rm -fr ./target/release/{deps,.fingerprint}/*{parity.exe,ethkey.exe,ethstore.exe,parity-evm.exe}*;
-              rm -f  ./target/.rustc_info.json
-            else
-              find ./target/release -maxdepth 1 -type f -delete;
-              rm -fr ./target/release/{deps,.fingerprint}/*{parity,ethcore,ethkey,ethstore,parity-evm}*;
-              rm -f  ./target/.rustc_info.json;
-          fi
+          find ./target/release -maxdepth 1 -type f -delete;
+          rm -fr ./target/release/{deps,.fingerprint}/*{parity,ethcore,ethkey,ethstore,parity-evm}*;
+          rm -f  ./target/.rustc_info.json;
 
   build-arm:
     name: Build Release Suite for ARM
