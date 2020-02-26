@@ -100,9 +100,9 @@ impl<T: Ord + Copy + ::std::fmt::Display> Histogram<T>
 {
 	// Histogram of a sorted corpus if it at least spans the buckets. Bounds are left closed.
 	fn create(corpus: &[T], bucket_number: usize) -> Option<Histogram<T>> {
-		if corpus.len() < 1 { return None; }
-		let corpus_end = corpus.last().expect("there is at least 1 element; qed").clone();
-		let corpus_start = corpus.first().expect("there is at least 1 element; qed").clone();
+		if corpus.is_empty() { return None; }
+		let corpus_end = *corpus.last().expect("there is at least 1 element; qed");
+		let corpus_start = *corpus.first().expect("there is at least 1 element; qed");
 		trace!(target: "stats", "Computing histogram from {} to {} with {} buckets.", corpus_start, corpus_end, bucket_number);
 		// Bucket needs to be at least 1 wide.
 		let bucket_size = {
@@ -126,7 +126,7 @@ impl<T: Ord + Copy + ::std::fmt::Display> Histogram<T>
 			bucket_bounds[bucket + 1] = bucket_end;
 			bucket_end = bucket_end + bucket_size;
 		}
-		Some(Histogram { bucket_bounds: bucket_bounds, counts: counts })
+		Some(Histogram { bucket_bounds, counts })
 	}
 }
 
