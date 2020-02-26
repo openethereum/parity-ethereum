@@ -23,11 +23,11 @@ cp -v ../../target/release/parity-evm ./parity-evm
 cp -v ../../target/release/ethstore ./ethstore
 cp -v ../../target/release/ethkey ./ethkey
 
-echo "_____ Calculating checksums _____"
-for binary in $(ls)
-do
-  rhash --sha256 $binary -o $binary.sha256 #do we still need this hash (SHA2)?
-done
+#echo "_____ Calculating checksums _____"
+#for binary in $(ls)
+#do
+#  rhash --sha256 $binary -o $binary.sha256 #do we still need this hash (SHA2)?
+#done
 
 echo "_____ Zip artifacts _____"
 cd ..
