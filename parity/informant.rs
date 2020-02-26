@@ -257,6 +257,21 @@ impl<T: InformantData> Informant<T> {
 			(diffed, full_report)
 		};
 
+		let rocksdb_cache_read_hit_ratio = if client_report.io_stats.reads == 0 {
+			0f64
+		} else {
+			client_report.io_stats.cache_reads as f64 / client_report.io_stats.reads as f64
+		};
+
+		debug!(
+			target: "io_stats", 
+			"{} reads, {} writes, {} transactions, {} read hit ratio",
+			client_report.io_stats.reads,
+			client_report.io_stats.writes,
+			client_report.io_stats.transactions,
+			rocksdb_cache_read_hit_ratio, 
+		);
+
 		let Report {
 			importing,
 			chain_info,
