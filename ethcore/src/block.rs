@@ -557,7 +557,7 @@ mod tests {
 
 		for u in block.uncles {
 			if let Err(error) = b.push_uncle(u) {
-				return Err(Error::Block(BlockErrorWithData { error, data: Some(block.bytes) }));
+				return Err(Error::BadBlock(BlockErrorWithData { error, data: block.bytes }));
 			}
 		}
 

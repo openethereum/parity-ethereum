@@ -515,7 +515,7 @@ mod tests {
 
 	use common_types::{
 		header::Header,
-		errors::{BlockError, BlockErrorWithData, EthcoreError as Error}
+		errors::{BlockError, EthcoreError as Error}
 	};
 	use engine::Engine;
 	use ethereum_types::{H64, H256, U256, Address};
@@ -671,7 +671,7 @@ mod tests {
 		let verify_result = engine.verify_block_basic(&header);
 
 		match verify_result {
-			Err(Error::Block(BlockErrorWithData { error: BlockError::InvalidSealArity(_), .. })) => {},
+			Err(Error::Block(BlockError::InvalidSealArity(_))) => {},
 			Err(_) => panic!("should be block seal-arity mismatch error (got {:?})", verify_result),
 			_ => panic!("Should be error, got Ok"),
 		}
@@ -686,7 +686,7 @@ mod tests {
 		let verify_result = engine.verify_block_basic(&header);
 
 		match verify_result {
-			Err(Error::Block(BlockErrorWithData { error: BlockError::DifficultyOutOfBounds(_), .. })) => {},
+			Err(Error::Block(BlockError::DifficultyOutOfBounds(_))) => {},
 			Err(_) => panic!("should be block difficulty error (got {:?})", verify_result),
 			_ => panic!("Should be error, got Ok"),
 		}
@@ -702,7 +702,7 @@ mod tests {
 		let verify_result = engine.verify_block_basic(&header);
 
 		match verify_result {
-			Err(Error::Block(BlockErrorWithData { error: BlockError::InvalidProofOfWork(_), .. })) => {},
+			Err(Error::Block(BlockError::InvalidProofOfWork(_))) => {},
 			Err(_) => panic!("should be invalid proof of work error (got {:?})", verify_result),
 			_ => panic!("Should be error, got Ok"),
 		}
@@ -716,7 +716,7 @@ mod tests {
 		let verify_result = engine.verify_block_unordered(&header);
 
 		match verify_result {
-			Err(Error::Block(BlockErrorWithData { error: BlockError::InvalidSealArity(_), .. })) => {},
+			Err(Error::Block(BlockError::InvalidSealArity(_))) => {},
 			Err(_) => panic!("should be block seal-arity mismatch error (got {:?})", verify_result),
 			_ => panic!("Should be error, got Ok"),
 		}
@@ -741,7 +741,7 @@ mod tests {
 		let verify_result = engine.verify_block_unordered(&header);
 
 		match verify_result {
-			Err(Error::Block(BlockErrorWithData { error: BlockError::MismatchedH256SealElement(_), .. })) => {},
+			Err(Error::Block(BlockError::MismatchedH256SealElement(_))) => {},
 			Err(_) => panic!("should be invalid 256-bit seal fail (got {:?})", verify_result),
 			_ => panic!("Should be error, got Ok"),
 		}
@@ -757,7 +757,7 @@ mod tests {
 		let verify_result = engine.verify_block_unordered(&header);
 
 		match verify_result {
-			Err(Error::Block(BlockErrorWithData { error: BlockError::InvalidProofOfWork(_), .. })) => {},
+			Err(Error::Block(BlockError::InvalidProofOfWork(_))) => {},
 			Err(_) => panic!("should be invalid proof-of-work fail (got {:?})", verify_result),
 			_ => panic!("Should be error, got Ok"),
 		}
@@ -772,7 +772,7 @@ mod tests {
 		let verify_result = engine.verify_block_family(&header, &parent_header);
 
 		match verify_result {
-			Err(Error::Block(BlockErrorWithData { error: BlockError::RidiculousNumber(_), .. })) => {},
+			Err(Error::Block(BlockError::RidiculousNumber(_))) => {},
 			Err(_) => panic!("should be invalid block number fail (got {:?})", verify_result),
 			_ => panic!("Should be error, got Ok"),
 		}
@@ -789,7 +789,7 @@ mod tests {
 		let verify_result = engine.verify_block_family(&header, &parent_header);
 
 		match verify_result {
-			Err(Error::Block(BlockErrorWithData { error: BlockError::InvalidDifficulty(_), .. })) => {},
+			Err(Error::Block(BlockError::InvalidDifficulty(_))) => {},
 			Err(_) => panic!("should be invalid difficulty fail (got {:?})", verify_result),
 			_ => panic!("Should be error, got Ok"),
 		}

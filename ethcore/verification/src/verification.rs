@@ -529,7 +529,7 @@ mod tests {
 
 	fn check_fail(result: Result<(), Error>, e: BlockError) {
 		match result {
-			Err(Error::Block(BlockErrorWithData { error, .. })) if error == e => (),
+			Err(Error::BadBlock(BlockErrorWithData { error, .. })) if error == e => (),
 			Err(other) => panic!("Block verification failed.\nExpected: {:?}\nGot: {:?}", e, other),
 			Ok(_) => panic!("Block verification failed.\nExpected: {:?}\nGot: Ok", e),
 		}
@@ -538,8 +538,8 @@ mod tests {
 	fn check_fail_timestamp(result: Result<(), Error>, temp: bool) {
 		let name = if temp { "TemporarilyInvalid" } else { "InvalidTimestamp" };
 		match result {
-			Err(Error::Block(BlockErrorWithData { error: BlockError::InvalidTimestamp(_), .. })) if !temp => (),
-			Err(Error::Block(BlockErrorWithData { error: BlockError::TemporarilyInvalid(_), .. })) if temp => (),
+			Err(Error::BadBlock(BlockErrorWithData { error: BlockError::InvalidTimestamp(_), .. })) if !temp => (),
+			Err(Error::BadBlock(BlockErrorWithData { error: BlockError::TemporarilyInvalid(_), .. })) if temp => (),
 			Err(other) => panic!("Block verification failed.\nExpected: {}\nGot: {:?}", name, other),
 			Ok(_) => panic!("Block verification failed.\nExpected: {}\nGot: Ok", name),
 		}
@@ -565,7 +565,7 @@ mod tests {
 		let client = TestBlockChainClient::default();
 		let parent = match bc.block_header_data(header.parent_hash()) {
 			Some(parent) => parent.decode()?,
-			None => return Err(Error::Block(BlockErrorWithData {
+			None => return Err(Error::BadBlock(BlockErrorWithData {
 				error: BlockError::UnknownParent(*header.parent_hash()),
 				data: block.bytes
 			})),
@@ -808,7 +808,7 @@ mod tests {
 		header.set_gas_limit(0.into());
 		header.set_difficulty("0000000000000000000000000000000000000000000000000000000000020000".parse::<U256>().unwrap());
 		match family_test(&create_test_block(&header), engine, &bc) {
-			Err(Error::Block(BlockErrorWithData { error: InvalidGasLimit(_), .. })) => {},
+			Err(Error::BadBlock(BlockErrorWithData { error: InvalidGasLimit(_), .. })) => {},
 			Err(_) => panic!("should be invalid difficulty fail"),
 			_ => panic!("Should be error, got Ok"),
 		}
