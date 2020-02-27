@@ -56,6 +56,8 @@ jobs:
         with:
           command: check
           args: --locked --no-default-features --verbose
+        env:
+          RUSTC_WRAPPER: sccache
       - name: Run cargo check 2/3
         uses: actions-rs/cargo@v1
         with:
@@ -86,6 +88,10 @@ jobs:
           RUSTC_WRAPPER: sccache
       - name: Run validate chainspecs
         run: ./scripts/actions/validate-chainspecs.sh
+        env:
+          RUSTC_WRAPPER: sccache
+      - name: Sccache statistics
+        run: sccache --show-stats      
       # From https://github.com/launchbadge/sqlx/blob/master/.github/workflows/rust.yml
       - name: Prepare build directory for cache
         run: |
@@ -155,6 +161,8 @@ jobs:
           args: --locked --all --release --features "json-tests" --verbose --no-run
         env:
           RUSTC_WRAPPER: sccache
+      - name: Sccache statistics
+        run: sccache --show-stats
       - name: Prepare build directory for cache
         if:  matrix.platform != 'windows-latest'
         run: |
@@ -228,6 +236,8 @@ jobs:
           args: --locked --all --release --features "json-tests" --verbose
         env:
           RUSTC_WRAPPER: sccache
+      - name: Sccache statistics
+        run: sccache --show-stats
       - name: Prepare build directory for cache
         if:  matrix.platform != 'windows-latest'
         run: |

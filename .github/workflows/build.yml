@@ -1,10 +1,11 @@
 name: Build
 
 on:
-  pull_request:
   push:
     branches:
-      - master
+      - stable
+    tags:
+      - v2*
 jobs:
   build:
     name: Build Release Suite
@@ -71,6 +72,8 @@ jobs:
         run: sh scripts/actions/build-linux.sh ${{matrix.platform}}
         env:
           RUSTC_WRAPPER: sccache
+      - name: Sccache statistics
+        run: sccache --show-stats
       - name: Download artifact
         uses: actions/upload-artifact@v1
         continue-on-error: true
