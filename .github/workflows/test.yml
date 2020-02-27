@@ -45,7 +45,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: install
-          args: sccache --tag 0.2.13
+          args: sccache
       - name: Cache sccache
         uses: actions/cache@v1.1.2
         with:
@@ -139,7 +139,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: install
-          args: sccache --tag 0.2.13
+          args: sccache
       - name: Cache sccache
         uses: actions/cache@v1.1.2
         with:
@@ -211,7 +211,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: install
-          args: sccache --tag 0.2.13
+          args: sccache
       - name: Cache sccache
         uses: actions/cache@v1.1.2
         with:

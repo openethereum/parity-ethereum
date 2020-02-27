@@ -8,7 +8,6 @@ on:
 jobs:
   build:
     name: Build Release Suite
-    needs: run-tests
     strategy:
       matrix:
         platform:
@@ -51,7 +50,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: install
-          args: sccache --tag 0.2.13
+          args: sccache
       - name: Cache sccache
         uses: actions/cache@v1.1.2
         with:
