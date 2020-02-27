@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - master
+jobs:
   build:
     name: Build Release Suite
     needs: run-tests
@@ -17,6 +18,8 @@ on:
         toolchain:
           - stable
     runs-on: ${{ matrix.platform }}
+    env:
+      SCCACHE_CACHE_SIZE: "1G"
     steps:
       - name: Checkout sources
         uses: actions/checkout@v2
@@ -29,24 +32,27 @@ on:
           profile: minimal
           override: true
       - name: Cache cargo registry
-        uses: actions/cache@v1
+        uses: actions/cache@v1.1.2
         with:
           path: ~/.cargo/registry
-          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
       - name: Cache cargo index
-        uses: actions/cache@v1
+        uses: actions/cache@v1.1.2
         with:
           path: ~/.cargo/git
-          key: ${{ runner.os }}-cargo-index-${{ hashFiles('Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
       - name: Cache cargo build
-        uses: actions/cache@v1
+        uses: actions/cache@v1.1.2
         with:
           path: target
-          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
       - name: Install sccache
         continue-on-error: true
-        run: cargo install sccache
-      - name: Restore /home/runner/.cache/sccache
+        uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: sccache --tag 0.2.13
+      - name: Cache sccache
         uses: actions/cache@v1.1.2
         with:
           path: /home/runner/.cache/sccache
@@ -65,7 +71,7 @@ on:
         if:  matrix.platform != 'windows-latest'
         run: sh scripts/actions/build-linux.sh ${{matrix.platform}}
         env:
-          RUSTC_WRAPPER: sccache        
+          RUSTC_WRAPPER: sccache
       - name: Download artifact
         uses: actions/upload-artifact@v1
         continue-on-error: true

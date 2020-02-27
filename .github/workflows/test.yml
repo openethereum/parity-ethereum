@@ -9,6 +9,8 @@ jobs:
   check:
     name: Check
     runs-on: ubuntu-16.04
+    env:
+      SCCACHE_CACHE_SIZE: "1G"
     steps:
       - name: Checkout sources
         uses: actions/checkout@v2
@@ -24,24 +26,27 @@ jobs:
           profile: minimal
           override: true
       - name: Cache cargo registry
-        uses: actions/cache@v1
+        uses: actions/cache@v1.1.2
         with:
           path: ~/.cargo/registry
           key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
       - name: Cache cargo index
-        uses: actions/cache@v1
+        uses: actions/cache@v1.1.2
         with:
           path: ~/.cargo/git
           key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
       - name: Cache cargo build
-        uses: actions/cache@v1
+        uses: actions/cache@v1.1.2
         with:
           path: target
           key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
       - name: Install sccache
         continue-on-error: true
-        run: cargo install sccache
-      - name: Restore /home/runner/.cache/sccache
+        uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: sccache --tag 0.2.13
+      - name: Cache sccache
         uses: actions/cache@v1.1.2
         with:
           path: /home/runner/.cache/sccache
@@ -99,6 +104,8 @@ jobs:
         toolchain:
           - stable
     runs-on: ${{ matrix.platform }}
+    env:
+      SCCACHE_CACHE_SIZE: "1G"
     steps:
       - name: Checkout sources
         uses: actions/checkout@v2
@@ -113,21 +120,27 @@ jobs:
           toolchain: ${{ matrix.toolchain }}
           override: true
       - name: Cache cargo registry
-        uses: actions/cache@v1
+        uses: actions/cache@v1.1.2
         with:
           path: ~/.cargo/registry
-          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
       - name: Cache cargo index
-        uses: actions/cache@v1
+        uses: actions/cache@v1.1.2
         with:
           path: ~/.cargo/git
-          key: ${{ runner.os }}-cargo-index-${{ hashFiles('Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
       - name: Cache cargo build
-        uses: actions/cache@v1
+        uses: actions/cache@v1.1.2
         with:
           path: target
-          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('Cargo.lock') }}
-      - name: Restore /home/runner/.cache/sccache
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+      - name: Install sccache
+        continue-on-error: true
+        uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: sccache --tag 0.2.13
+      - name: Cache sccache
         uses: actions/cache@v1.1.2
         with:
           path: /home/runner/.cache/sccache
@@ -162,6 +175,8 @@ jobs:
           - beta
           - nightly
     runs-on: ${{ matrix.platform }}
+    env:
+      SCCACHE_CACHE_SIZE: "1G"
     steps:
       - name: Checkout sources
         uses: actions/checkout@v2
@@ -177,21 +192,27 @@ jobs:
           profile: minimal
           override: true
       - name: Cache cargo registry
-        uses: actions/cache@v1
+        uses: actions/cache@v1.1.2
         with:
           path: ~/.cargo/registry
-          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
       - name: Cache cargo index
-        uses: actions/cache@v1
+        uses: actions/cache@v1.1.2
         with:
           path: ~/.cargo/git
-          key: ${{ runner.os }}-cargo-index-${{ hashFiles('Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
       - name: Cache cargo build
-        uses: actions/cache@v1
+        uses: actions/cache@v1.1.2
         with:
           path: target
-          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('Cargo.lock') }}
-      - name: Restore /home/runner/.cache/sccache
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+      - name: Install sccache
+        continue-on-error: true
+        uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: sccache --tag 0.2.13
+      - name: Cache sccache
         uses: actions/cache@v1.1.2
         with:
           path: /home/runner/.cache/sccache
