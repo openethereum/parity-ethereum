@@ -503,43 +503,11 @@ impl<K: Kind, C> VerificationQueue<K, C> {
 			Err(err) => {
 				match err {
 					Error::Block(err) => {
-						match err {
-							// Don't mark future blocks as bad.
-							BlockError::TemporarilyInvalid(_) => {},
-							// If the transaction root or uncles hash is invalid, it doesn't necessarily mean
-							// that the header is invalid. We might have just received a malformed block body,
-							// so we shouldn't put the header hash to `bad`.
-							//
-							// We still put the entire `Item` hash to bad, so that we can early reject
-							// the items that are malformed.
-							BlockError::InvalidTransactionsRoot(_) |
-							BlockError::InvalidUnclesHash(_) => {
-								self.verification.bad.lock().insert(raw_hash);
-							},
-							_ => {
-								self.verification.bad.lock().insert(hash);
-							}
-						};
+						self.handle_block_error(&err, hash, raw_hash);
 						Err(Error::Block(err))
 					}
 					Error::BadBlock(BlockErrorWithData { error, data }) => {
-						match error {
-							// Don't mark future blocks as bad.
-							BlockError::TemporarilyInvalid(_) => {},
-							// If the transaction root or uncles hash is invalid, it doesn't necessarily mean
-							// that the header is invalid. We might have just received a malformed block body,
-							// so we shouldn't put the header hash to `bad`.
-							//
-							// We still put the entire `Item` hash to bad, so that we can early reject
-							// the items that are malformed.
-							BlockError::InvalidTransactionsRoot(_) |
-							BlockError::InvalidUnclesHash(_) => {
-								self.verification.bad.lock().insert(raw_hash);
-							},
-							_ => {
-								self.verification.bad.lock().insert(hash);
-							}
-						}
+						self.handle_block_error(&error, hash, raw_hash);
 						Err(Error::BadBlock(BlockErrorWithData { error, data }))
 					},
 					err => Err(err),
@@ -741,6 +709,26 @@ impl<K: Kind, C> VerificationQueue<K, C> {
 
 		*self.state.0.lock() = State::Work(target);
 		self.state.1.notify_all();
+	}
+
+	fn handle_block_error(&self, err: &BlockError, hash: H256, raw_hash: H256) {
+		match err {
+			// Don't mark future blocks as bad.
+			BlockError::TemporarilyInvalid(_) => {},
+			// If the transaction root or uncles hash is invalid, it doesn't necessarily mean
+			// that the header is invalid. We might have just received a malformed block body,
+			// so we shouldn't put the header hash to `bad`.
+			//
+			// We still put the entire `Item` hash to bad, so that we can early reject
+			// the items that are malformed.
+			BlockError::InvalidTransactionsRoot(_) |
+			BlockError::InvalidUnclesHash(_) => {
+				self.verification.bad.lock().insert(raw_hash);
+			},
+			_ => {
+				self.verification.bad.lock().insert(hash);
+			}
+		};
 	}
 }
 

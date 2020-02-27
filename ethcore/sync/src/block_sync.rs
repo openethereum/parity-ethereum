@@ -582,13 +582,13 @@ impl BlockDownloader {
 				},
 				Err(EthcoreError::BadBlock(BlockErrorWithData { error, data })) => {
 					io.chain().report_bad_block(data, error.to_string());
-					self.handle_bad_blocks(error, &h, &mut download_action, allow_out_of_order);
+					self.handle_block_error(error, &h, &mut download_action, allow_out_of_order);
 					break;
 				}
 				// NOTE(niklasad1): this branch should be unreachable
 				Err(EthcoreError::Block(err)) => {
 					error!(target: "sync", "received `EthcoreError::Block`, bug should be `EthcoreError::BadBlock`");
-					self.handle_bad_blocks(err, &h, &mut download_action, allow_out_of_order);
+					self.handle_block_error(err, &h, &mut download_action, allow_out_of_order);
 					break;
 				}
 				Err(EthcoreError::FullQueue(limit)) => {
@@ -623,7 +623,7 @@ impl BlockDownloader {
 		}
 	}
 
-	fn handle_bad_blocks(
+	fn handle_block_error(
 		&self,
 		error: BlockError,
 		block_hash: &H256,
