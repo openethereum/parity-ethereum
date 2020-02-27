@@ -34,7 +34,7 @@ jobs:
         uses: actions/cache@v1.1.2
         with:
           path: ~/.cargo/git
-          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-git-${{ hashFiles('**/Cargo.lock') }}
       - name: Cache cargo build
         uses: actions/cache@v1.1.2
         with:
@@ -49,8 +49,8 @@ jobs:
       - name: Cache sccache
         uses: actions/cache@v1.1.2
         with:
-          path: /home/runner/.cache/sccache
-          key: ${{ runner.os }}-sccache-${{ hashFiles('**/Cargo.lock') }}
+          path: ~/.cache/sccache
+          key: ${{ runner.os }}-sccache-check-${{ hashFiles('**/Cargo.lock') }}
       - name: Run cargo check 1/3
         uses: actions-rs/cargo@v1
         with:
@@ -129,28 +129,41 @@ jobs:
         uses: actions/cache@v1.1.2
         with:
           path: ~/.cargo/registry
-          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-registry-build-tests-${{ hashFiles('**/Cargo.lock') }}
       - name: Cache cargo index
         uses: actions/cache@v1.1.2
         with:
           path: ~/.cargo/git
-          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-git-build-tests-${{ hashFiles('**/Cargo.lock') }}
       - name: Cache cargo build
         uses: actions/cache@v1.1.2
         with:
           path: target
-          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-build-target-build-tests-${{ hashFiles('**/Cargo.lock') }}
       - name: Install sccache
         continue-on-error: true
         uses: actions-rs/cargo@v1
         with:
           command: install
           args: sccache
-      - name: Cache sccache
+      - name: Cache sccache linux
+        if:  matrix.platform == 'ubuntu-16.04'
         uses: actions/cache@v1.1.2
         with:
-          path: /home/runner/.cache/sccache
-          key: ${{ runner.os }}-sccache-${{ hashFiles('**/Cargo.lock') }}
+          path: ~/.cache/sccache
+          key: ${{ runner.os }}-sccache-build-tests-${{ hashFiles('**/Cargo.lock') }}
+      - name: Cache sccache MacOS
+        if:  matrix.platform == 'macos-latest'
+        uses: actions/cache@v1.1.2
+        with:
+          path: ~/Library/Caches/Mozilla.sccache
+          key: ${{ runner.os }}-sccache-build-tests-${{ hashFiles('**/Cargo.lock') }}
+      - name: Cache sccache Windows
+        if:  matrix.platform == 'windows-latest'
+        uses: actions/cache@v1.1.2
+        with:
+          path: %LOCALAPPDATA%\Mozilla\sccache
+          key: ${{ runner.os }}-sccache-build-tests-${{ hashFiles('**/Cargo.lock') }}
       - name: Install LLVM for Windows
         if:  matrix.platform == 'windows-latest'
         run: choco install llvm
@@ -201,28 +214,41 @@ jobs:
         uses: actions/cache@v1.1.2
         with:
           path: ~/.cargo/registry
-          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-registry-run-tests-${{ hashFiles('**/Cargo.lock') }}
       - name: Cache cargo index
         uses: actions/cache@v1.1.2
         with:
           path: ~/.cargo/git
-          key: ${{ runner.os }}-cargo-index-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-git-run-tests-${{ hashFiles('**/Cargo.lock') }}
       - name: Cache cargo build
         uses: actions/cache@v1.1.2
         with:
           path: target
-          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-build-target-run-tests-${{ hashFiles('**/Cargo.lock') }}
       - name: Install sccache
         continue-on-error: true
         uses: actions-rs/cargo@v1
         with:
           command: install
           args: sccache
-      - name: Cache sccache
+      - name: Cache sccache linux
+        if:  matrix.platform == 'ubuntu-16.04'
         uses: actions/cache@v1.1.2
         with:
-          path: /home/runner/.cache/sccache
-          key: ${{ runner.os }}-sccache-${{ hashFiles('**/Cargo.lock') }}
+          path: ~/.cache/sccache
+          key: ${{ runner.os }}-sccache-run-tests-${{ hashFiles('**/Cargo.lock') }}
+      - name: Cache sccache MacOS
+        if:  matrix.platform == 'macos-latest'
+        uses: actions/cache@v1.1.2
+        with:
+          path: ~/Library/Caches/Mozilla.sccache
+          key: ${{ runner.os }}-sccache-run-tests-${{ hashFiles('**/Cargo.lock') }}
+      - name: Cache sccache Windows
+        if:  matrix.platform == 'windows-latest'
+        uses: actions/cache@v1.1.2
+        with:
+          path: %LOCALAPPDATA%\Mozilla\sccache
+          key: ${{ runner.os }}-sccache-run-tests-${{ hashFiles('**/Cargo.lock') }}
       - name: Install LLVM for Windows
         if:  matrix.platform == 'windows-latest'
         run:  choco install llvm
