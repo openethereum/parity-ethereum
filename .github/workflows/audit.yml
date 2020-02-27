@@ -11,7 +11,7 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v1
         with:
-          fetch-depth: 50
+          fetch-depth: 10
       - name: Run cargo audit
         uses: actions-rs/audit-check@v1
         with:
