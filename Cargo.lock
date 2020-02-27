@@ -319,24 +319,23 @@ dependencies = [
 
 [[package]]
 name = "bindgen"
-version = "0.53.1"
+version = "0.49.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "99de13bb6361e01e493b3db7928085dcc474b7ba4f5481818e53a89d76b8393f"
+checksum = "846a1fba6535362a01487ef6b10f0275faa12e5c5d835c5c1c627aabc46ccbd6"
 dependencies = [
  "bitflags",
  "cexpr",
  "cfg-if",
  "clang-sys",
  "clap",
- "env_logger 0.7.1",
+ "env_logger 0.6.2",
+ "fxhash",
  "lazy_static",
- "lazycell",
  "log",
  "peeking_take_while",
- "proc-macro2 1.0.8",
- "quote 1.0.2",
+ "proc-macro2 0.4.20",
+ "quote 0.6.8",
  "regex",
- "rustc-hash",
  "shlex",
  "which",
 ]
@@ -1124,19 +1123,6 @@ name = "env_logger"
 version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "aafcde04e90a5226a6443b7aabdb016ba2f8307c847d524724bd9b346dd1a2d3"
-dependencies = [
- "atty",
- "humantime",
- "log",
- "regex",
- "termcolor",
-]
-
-[[package]]
-name = "env_logger"
-version = "0.7.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "44533bbbb3bb3c1fa17d9f2e4e38bbbaf8396ba82193c4cb1b6445d711445d36"
 dependencies = [
  "atty",
  "humantime",
@@ -2231,9 +2217,9 @@ checksum = "e8734b0cfd3bc3e101ec59100e101c2eecd19282202e87808b3037b442777a83"
 
 [[package]]
 name = "humantime"
-version = "1.3.0"
+version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "df004cfca50ef23c36850aaaa59ad52cc70d0e90243c3c7737a4dd32dc7a3c4f"
+checksum = "0484fda3e7007f2a4a0d9c3a703ca38c71c54c55602ce4660c419fd32e188c9e"
 dependencies = [
  "quick-error",
 ]
@@ -2707,9 +2693,9 @@ dependencies = [
 
 [[package]]
 name = "librocksdb-sys"
-version = "6.6.4"
+version = "6.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4e3b727e2dd20ec2fb7ed93f23d9fd5328a0871185485ebdaff007b47d3e27e4"
+checksum = "0a0785e816e1e11e7599388a492c61ef80ddc2afc91e313e61662cce537809be"
 dependencies = [
  "bindgen",
  "cc",
@@ -4433,12 +4419,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bcfe5b13211b4d78e5c2cadfebd7769197d95c639c35a50057eb4c05de811395"
 
 [[package]]
-name = "rustc-hash"
-version = "1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "08d43f7aa6b08d49f382cde6a7982047c3426db949b1424bc4b7ec9ae12c6ce2"
-
-[[package]]
 name = "rustc-hex"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5923,10 +5903,11 @@ dependencies = [
 
 [[package]]
 name = "which"
-version = "3.1.0"
+version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5475d47078209a02e60614f7ba5e645ef3ed60f771920ac1906d7c1cc65024c8"
+checksum = "b57acb10231b9493c8472b20cb57317d0679a49e0bdbee44b3b803a6473af164"
 dependencies = [
+ "failure",
  "libc",
 ]
 
