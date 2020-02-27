@@ -58,10 +58,14 @@ on:
         continue-on-error: true
         if:  matrix.platform == 'windows-latest'
         run: sh scripts/actions/build-windows.sh ${{matrix.platform}}
+        env:
+          RUSTC_WRAPPER: sccache
       - name: Build OpenEthereum for ${{matrix.platform}}
         continue-on-error: true
         if:  matrix.platform != 'windows-latest'
         run: sh scripts/actions/build-linux.sh ${{matrix.platform}}
+        env:
+          RUSTC_WRAPPER: sccache        
       - name: Download artifact
         uses: actions/upload-artifact@v1
         continue-on-error: true
