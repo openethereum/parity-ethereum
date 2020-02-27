@@ -20,14 +20,3 @@ cp --verbose target/release/parity.exe artifacts/parity.exe
 cp --verbose target/release/parity-evm.exe artifacts/parity-evm.exe
 cp --verbose target/release/ethstore.exe artifacts/ethstore.exe
 cp --verbose target/release/ethkey.exe artifacts/ethkey.exe
-
-#echo "_____ Calculating checksums _____"
-#for binary in $(ls)
-#do
-#  rhash --sha256 $binary -o $binary.sha256
-#  ./parity.exe tools hash $binary > $binary.sha3
-#done
-
-echo "_____ Zip artifacts _____"
-
-zip -r artifacts.zip artifacts/

@@ -20,13 +20,3 @@ cp -v target/release/parity artifacts/parity
 cp -v target/release/parity-evm artifacts/parity-evm
 cp -v target/release/ethstore artifacts/ethstore
 cp -v target/release/ethkey artifacts/ethkey
-
-#echo "_____ Calculating checksums _____"
-#for binary in $(ls)
-#do
-#  rhash --sha256 $binary -o $binary.sha256 #do we still need this hash (SHA2)?
-#done
-
-echo "_____ Zip artifacts _____"
-
-zip -r artifacts.zip artifacts/
