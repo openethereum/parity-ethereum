@@ -286,12 +286,13 @@ impl<'a> EvmTestClient<'a> {
 		}).ok();
 		// Touching also means that we should remove the account if it's within eip161
 		// conditions.
-		self.state.kill_garbage(
-			&vec![env_info.author].into_iter().collect(),
-			schedule.kill_empty,
-			&None,
-			false
-		).ok();
+		if schedule.kill_empty {
+			self.state.kill_garbage(
+				&vec![env_info.author].into_iter().collect(),
+				&None,
+				false
+			).ok();
+		}
 
 		self.state.commit().ok();
 
