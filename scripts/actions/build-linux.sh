@@ -2,7 +2,6 @@
 
 set -e # fail on any error
 set -u # treat unset variables as error
-PLATFORM="$1"
 #strip ON
 export RUSTFLAGS=" -Clink-arg=-s -Ctarget-feature=+aes,+sse2,+ssse3"
 
@@ -30,4 +29,4 @@ cp -v target/release/ethkey artifacts/ethkey
 
 echo "_____ Zip artifacts _____"
 
-zip -r $PLATFORM.artifacts.zip artifacts/
+zip -r artifacts.zip artifacts/

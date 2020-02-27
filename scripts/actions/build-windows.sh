@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e # fail on any error
 set -u # treat unset variables as error
-PLATFORM="$1"
+
   # NOTE: Enables the aes-ni instructions for RustCrypto dependency.
   # If you change this please remember to also update .cargo/config
 export RUSTFLAGS=" -Ctarget-feature=+aes,+sse2,+ssse3 -Ctarget-feature=+crt-static  -Clink-arg=-s"
@@ -30,4 +30,4 @@ cp --verbose target/release/ethkey.exe artifacts/ethkey.exe
 
 echo "_____ Zip artifacts _____"
 
-zip -r $PLATFORM.artifacts.zip artifacts/
+zip -r artifacts.zip artifacts/
