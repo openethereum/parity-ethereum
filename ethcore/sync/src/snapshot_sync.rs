@@ -147,7 +147,7 @@ impl Snapshot {
 	/// sometimes spills over into more than one chunk and the parts of state that are missing
 	/// pieces are held in memory while waiting for the next chunk(s) to show up. This means that
 	/// when chunks are processed out-of-order, memory usage goes up, sometimes significantly (see
-	/// e.g. https://github.com/paritytech/parity-ethereum/issues/8825).
+	/// e.g. https://github.com/OpenEthereum/open-ethereum/issues/8825).
 	pub fn needed_chunk(&mut self) -> Option<H256> {
 		// Find next needed chunk: first block, then state chunks
 		let chunk = {

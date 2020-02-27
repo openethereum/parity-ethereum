@@ -333,8 +333,8 @@ OK
 ## Parity Ethereum toolchain
 _This project is a part of the Parity Ethereum toolchain._
 
-- [evmbin](https://github.com/paritytech/parity-ethereum/blob/master/evmbin/) - EVM implementation for Parity Ethereum.
+- [evmbin](https://github.com/OpenEthereum/open-ethereum/blob/master/evmbin/) - EVM implementation for Parity Ethereum.
 - [ethabi](https://github.com/paritytech/ethabi) - Parity Ethereum function calls encoding.
-- [ethstore](https://github.com/paritytech/parity-ethereum/blob/master/accounts/ethstore) - Parity Ethereum key management.
-- [ethkey](https://github.com/paritytech/parity-ethereum/blob/master/accounts/ethkey) - Parity Ethereum keys generator.
+- [ethstore](https://github.com/OpenEthereum/open-ethereum/blob/master/accounts/ethstore) - Parity Ethereum key management.
+- [ethkey](https://github.com/OpenEthereum/open-ethereum/blob/master/accounts/ethkey) - Parity Ethereum keys generator.
 - [whisper](https://github.com/paritytech/whisper) - Implementation of Whisper-v2 PoC.

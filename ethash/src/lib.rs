@@ -229,7 +229,7 @@ fn test_difficulty_to_boundary_regression() {
 	use ethereum_types::H256;
 
 	// the last bit was originally being truncated when performing the conversion
-	// https://github.com/paritytech/parity-ethereum/issues/8397
+	// https://github.com/OpenEthereum/open-ethereum/issues/8397
 	for difficulty in 1..9 {
 		assert_eq!(U256::from(difficulty), boundary_to_difficulty(&difficulty_to_boundary(&difficulty.into())));
 		assert_eq!(

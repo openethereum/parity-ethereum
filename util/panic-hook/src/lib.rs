@@ -49,7 +49,7 @@ where F: Fn(&str) + Send + Sync + 'static
 static ABOUT_PANIC: &str = "
 This is a bug. Please report it at:
 
-    https://github.com/paritytech/parity-ethereum/issues/new
+    https://github.com/OpenEthereum/open-ethereum/issues/new
 ";
 
 fn gen_panic_msg(info: &PanicInfo) -> String {

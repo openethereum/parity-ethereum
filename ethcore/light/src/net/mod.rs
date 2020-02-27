@@ -534,7 +534,7 @@ impl LightProtocol {
 			if peer_info.sent_head == announcement.head_hash ||
 				peer_info.status.head_num >= announcement.head_num ||
 				// fix for underflow reported in
-				// https://github.com/paritytech/parity-ethereum/issues/10419
+				// https://github.com/OpenEthereum/open-ethereum/issues/10419
 				now < peer_info.last_update ||
 				now - peer_info.last_update < UPDATE_INTERVAL {
 				continue
