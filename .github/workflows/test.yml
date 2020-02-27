@@ -91,7 +91,7 @@ jobs:
         env:
           RUSTC_WRAPPER: sccache
       - name: Sccache statistics
-        run: sccache --show-stats      
+        run: sccache --show-stats
       # From https://github.com/launchbadge/sqlx/blob/master/.github/workflows/rust.yml
       - name: Prepare build directory for cache
         run: |
@@ -180,8 +180,6 @@ jobs:
           - windows-latest
         toolchain:
           - stable
-          - beta
-          - nightly
     runs-on: ${{ matrix.platform }}
     env:
       SCCACHE_CACHE_SIZE: "1G"
