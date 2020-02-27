@@ -132,7 +132,13 @@ mod accounts {
 		LocalAccounts(account_provider)
 	}
 
-	pub fn miner_author(spec: &SpecType, dirs: &Directories, account_provider: &Arc<AccountProvider>, engine_signer: Address, passwords: &[Password]) -> Result<Option<ethcore::miner::Author>, String> {
+	pub fn miner_author(
+		spec: &SpecType,
+		dirs: &Directories,
+		account_provider: &Arc<AccountProvider>,
+		engine_signer: Address,
+		passwords: &[Password]
+	) -> Result<Option<ethcore::miner::Author>, String> {
 		use engine::signer::EngineSigner;
 
 		const SECP_TEST_MESSAGE: H256 = H256([1_u8; 32]);
@@ -167,7 +173,6 @@ mod accounts {
 				engine_signer, invalid_reasons, VERIFY_PASSWORD_HINT
 		))
 	}
-
 
 	mod private_tx {
 		use super::*;
