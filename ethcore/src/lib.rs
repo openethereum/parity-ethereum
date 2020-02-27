@@ -63,8 +63,6 @@ extern crate vm;
 extern crate account_db;
 #[cfg(test)]
 extern crate ethcore_accounts as accounts;
-#[cfg(test)]
-extern crate stats;
 
 #[cfg(feature = "stratum")]
 extern crate ethcore_stratum;

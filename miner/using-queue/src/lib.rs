@@ -49,7 +49,7 @@ impl<T> UsingQueue<T> {
 	/// Return a reference to the item at the top of the queue (or `None` if the queue is empty);
 	/// it doesn't constitute noting that the item is used.
 	pub fn peek_last_ref(&self) -> Option<&T> {
-		self.pending.as_ref().or(self.in_use.last())
+		self.pending.as_ref().or_else(|| self.in_use.last())
 	}
 
 	/// Return a reference to the item at the top of the queue (or `None` if the queue is empty);
@@ -72,7 +72,7 @@ impl<T> UsingQueue<T> {
 	}
 
 	/// Is there anything in the queue currently?
-	pub fn is_in_use(&self) -> bool { self.in_use.len() > 0 }
+	pub fn is_in_use(&self) -> bool { !self.in_use.is_empty() }
 
 	/// Clears everything; the queue is entirely reset.
 	pub fn reset(&mut self) {
@@ -113,7 +113,7 @@ impl<T> UsingQueue<T> {
 				None
 			}
 		} else {
-			self.in_use.last().into_iter().filter(|x| predicate(x)).next().cloned()
+			self.in_use.last().into_iter().find(|x| predicate(x)).cloned()
 		}
 	}
 }
