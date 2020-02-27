@@ -1,0 +1,76 @@
+name: Build
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+  build:
+    name: Build Release Suite
+    needs: run-tests
+    strategy:
+      matrix:
+        platform:
+          - ubuntu-16.04
+          - macos-latest
+          - windows-latest
+        toolchain:
+          - stable
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 50
+      - name: Install toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ matrix.toolchain }}
+          profile: minimal
+          override: true
+      - name: Cache cargo registry
+        uses: actions/cache@v1
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('Cargo.lock') }}
+      - name: Cache cargo index
+        uses: actions/cache@v1
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-cargo-index-${{ hashFiles('Cargo.lock') }}
+      - name: Cache cargo build
+        uses: actions/cache@v1
+        with:
+          path: target
+          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('Cargo.lock') }}
+      - name: Install sccache
+        continue-on-error: true
+        run: cargo install sccache
+      - name: Restore /home/runner/.cache/sccache
+        uses: actions/cache@v1.1.2
+        with:
+          path: /home/runner/.cache/sccache
+          key: ${{ runner.os }}-sccache-${{ hashFiles('**/Cargo.lock') }}
+      - name: Install LLVM for Windows
+        if:  matrix.platform == 'windows-latest'
+        run:  choco install llvm
+      - name: Build OpenEthereum for windows
+        continue-on-error: true
+        if:  matrix.platform == 'windows-latest'
+        run: sh scripts/actions/build-windows.sh ${{matrix.platform}}
+      - name: Build OpenEthereum for ${{matrix.platform}}
+        continue-on-error: true
+        if:  matrix.platform != 'windows-latest'
+        run: sh scripts/actions/build-linux.sh ${{matrix.platform}}
+      - name: Download artifact
+        uses: actions/upload-artifact@v1
+        continue-on-error: true
+        with:
+          name: ${{matrix.platform}}.artifacts.zip
+          path: artifacts/
+      - name: Prepare build directory for cache
+        if:  matrix.platform != 'windows-latest'
+        run: |
+          find ./target/release -maxdepth 1 -type f -delete;
+          rm -fr ./target/release/{deps,.fingerprint}/*{parity,ethcore,ethkey,ethstore,parity-evm}*;
+          rm -f  ./target/.rustc_info.json;
