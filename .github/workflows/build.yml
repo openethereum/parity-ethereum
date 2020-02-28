@@ -24,7 +24,7 @@ jobs:
     env:
       SCCACHE_CACHE_SIZE: "1G"
       SCCACHE_VERSION: "0.2.12"
-      RUSTC_WRAPPER: sccache      
+      RUSTC_WRAPPER: sccache
     steps:
       - name: Checkout sources
         uses: actions/checkout@v2
@@ -52,6 +52,7 @@ jobs:
           path: target
           key: ${{ runner.os }}-cargo-build-target-build-${{ hashFiles('**/Cargo.lock') }}
       - name: Install sccache for ${{ matrix.platform }}
+        shell: pwsh
         run: |
           $SCCACHE_PLATFORM =
             @{ "macOS"   = "x86_64-apple-darwin"
