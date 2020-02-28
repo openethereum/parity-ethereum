@@ -1,4 +1,4 @@
-name:                           Test
+name:                           Check
 
 on:
   pull_request:
@@ -39,7 +39,7 @@ jobs:
         with:
           path:                 target
           key:                  ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
-      # Install sccache based on https://github.com/denoland/rusty_v8/blob/683aa2b2a981c7991932b793a8203ec245649d7a/.github/workflows/ci.yml#L43
+      # Install sccache based on https://github.com/denoland/rusty_v8/blob/master/.github/workflows/ci.yml#L69
       - name:                   Install sccache for ${{ platform }}
         env:
           SCCACHE_CACHE_SIZE:   "1G"

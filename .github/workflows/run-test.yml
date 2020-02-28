@@ -1,4 +1,4 @@
-name:                             Test
+name:                             Run Test Suite
 
 on:
   pull_request:
@@ -8,7 +8,7 @@ on:
       - stable
 jobs:
     run-tests:
-      name:                       Run Test Suite
+      name:                       Run Tests
       strategy:
         matrix:
           platform:
@@ -88,7 +88,7 @@ jobs:
         - name:                   Install LLVM for Windows
           if:                     matrix.platform == 'windows-latest'
           run:                    choco install llvm
-        - name:                   Run tests
+        - name:                   Run tests for ${{ matrix.platform }}
           continue-on-error:      true
           uses:                   actions-rs/cargo@v1
           with:

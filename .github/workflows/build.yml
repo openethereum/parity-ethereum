@@ -1,8 +1,8 @@
-name:                           Build
+name:                           Build Release Suite
 
 on:
+  pull_request:                 #TODO remove before merge
   push:
-    pull_request:               #TODO remove before merge
     branches:
       - stable
       - actions                 #TODO remove before merge
@@ -11,7 +11,7 @@ on:
 
 jobs:
   build:
-    name:                       Build Release Suite
+    name:                       Build Release
     strategy:
       matrix:
         platform:
@@ -89,17 +89,11 @@ jobs:
         if:                     matrix.platform == 'windows-latest'
         run:                    choco install llvm
       - name:                   Build OpenEthereum for windows
-        continue-on-error:      true
         if:                     matrix.platform == 'windows-latest'
         run:                    sh scripts/actions/build-windows.sh ${{matrix.platform}}
-        env:
-          RUSTC_WRAPPER:        sccache
       - name:                   Build OpenEthereum for ${{matrix.platform}}
-        continue-on-error:      true
         if:                     matrix.platform != 'windows-latest'
         run:                    sh scripts/actions/build-linux.sh ${{matrix.platform}}
-        env:
-          RUSTC_WRAPPER:        sccache
       - name:                   Sccache statistics
         run:                    sccache --show-stats
       - name:                   Download artifact

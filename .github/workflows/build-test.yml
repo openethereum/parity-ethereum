@@ -1,4 +1,4 @@
-name:                             Build Test
+name:                             Build Release Test Suite
 
 on:
   pull_request:
@@ -8,7 +8,7 @@ on:
       - stable
 jobs:
     build-tests:
-      name:                       Build Release Test Suite
+      name:                       Build Release Test
       strategy:
         matrix:
           platform:
