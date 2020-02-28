@@ -5,7 +5,6 @@ on:
   push:
     branches:
       - stable
-      - actions                 #TODO remove before merge
     tags:
       - v2*
 
@@ -98,7 +97,6 @@ jobs:
         run:                    sccache --show-stats
       - name:                   Download artifact
         uses:                   actions/upload-artifact@v1
-        continue-on-error:      true
         with:
           name:                 ${{matrix.platform}}.artifacts.zip
           path:                 artifacts/

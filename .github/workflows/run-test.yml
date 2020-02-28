@@ -89,7 +89,6 @@ jobs:
           if:                     matrix.platform == 'windows-latest'
           run:                    choco install llvm
         - name:                   Run tests for ${{ matrix.platform }}
-          continue-on-error:      true
           uses:                   actions-rs/cargo@v1
           with:
             command:              test
