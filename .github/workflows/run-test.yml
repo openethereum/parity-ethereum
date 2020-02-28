@@ -42,6 +42,11 @@ jobs:
           with:
             path:                 ~/.cargo/git
             key:                  ${{ runner.os }}-cargo-git-run-tests-${{ hashFiles('**/Cargo.lock') }}
+        - name:                   Cache cargo build
+          uses:                   actions/cache@v1.1.2
+          with:
+            path:                 target
+            key:                  ${{ runner.os }}-cargo-build-target-run-tests-${{ hashFiles('**/Cargo.lock') }}
         - name:                   Cache sccache linux
           if:                     matrix.platform == 'ubuntu-16.04'
           uses:                   actions/cache@v1.1.2

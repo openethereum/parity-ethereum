@@ -34,6 +34,11 @@ jobs:
         with:
           path:                 ~/.cargo/git
           key:                  ${{ runner.os }}-cargo-git-${{ hashFiles('**/Cargo.lock') }}
+      - name:                   Cache cargo build
+        uses:                   actions/cache@v1.1.2
+        with:
+          path:                 target
+          key:                  ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
       # Install sccache based on https://github.com/denoland/rusty_v8/blob/master/.github/workflows/ci.yml#L69
       - name:                   Cache sccache
         uses:                   actions/cache@v1.1.2
