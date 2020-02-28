@@ -52,7 +52,7 @@ jobs:
           if:                     matrix.platform == 'macos-latest'
           uses:                   actions/cache@v1.1.2
           with:
-            path:                 "Users/runner/Library/Caches/Mozilla.sccache"
+            path:                 "/Users/runner/Library/Caches/Mozilla.sccache"
             key:                  ${{ runner.os }}-sccache-run-tests-${{ hashFiles('**/Cargo.lock') }}
         - name:                   Cache sccache Windows
           if:                     matrix.platform == 'windows-latest'
