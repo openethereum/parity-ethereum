@@ -1,7 +1,6 @@
 name:                           Build Release Suite
 
 on:
-  pull_request:                 #TODO remove before merge
   push:
     branches:
       - stable
