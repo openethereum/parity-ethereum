@@ -83,8 +83,8 @@ jobs:
         - name:                   Install LLVM for Windows
           if:                     matrix.platform == 'windows-latest'
           run:                    choco install llvm
-      - name:                   Sccache statistics
-        run:                    sccache --show-stats
+        - name:                   Sccache statistics
+          run:                    sccache --show-stats
         - name:                   Run tests for ${{ matrix.platform }}
           uses:                   actions-rs/cargo@v1
           with:
