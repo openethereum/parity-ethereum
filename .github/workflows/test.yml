@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - master
+      - stable
 jobs:
   check:
     name: Check
@@ -45,8 +46,8 @@ jobs:
       - name: Install sccache
         continue-on-error: true
         run: |
-          URL="https://github.com/mozilla/sccache/releases/download/"+
-            "$SCCACHE_VERSION/sccache-$SCCACHE_VERSION-x86_64-unknown-linux-musl.tar.gz"
+          URL="https://github.com/mozilla/sccache/releases/download/"+\
+          "$SCCACHE_VERSION/sccache-$SCCACHE_VERSION-x86_64-unknown-linux-musl.tar.gz"
           curl -LO $URL
           tar -xzvf "sccache-$SCCACHE_VERSION-x86_64-unknown-linux-musl.tar.gz"
           cp -v x86_64-unknown-linux-musl/sccache ~/.cargo/sccache
@@ -154,8 +155,8 @@ jobs:
             macos-latest) export SCCACHE_PLATFORM = "x86_64-apple-darwin";;
             *) exit 0;;
           esac
-          URL="https://github.com/mozilla/sccache/releases/download/"+
-            "$SCCACHE_VERSION/sccache-$SCCACHE_VERSION-x86_64-unknown-linux-musl.tar.gz"
+          URL="https://github.com/mozilla/sccache/releases/download/"+\
+          "$SCCACHE_VERSION/sccache-$SCCACHE_VERSION-x86_64-unknown-linux-musl.tar.gz"
           curl -LO $URL
           tar -xzvf "sccache-$SCCACHE_VERSION-x86_64-unknown-linux-musl.tar.gz"
           cp -v x86_64-unknown-linux-musl/sccache* ~/.cargo/sccache*
@@ -246,8 +247,8 @@ jobs:
             macos-latest) export SCCACHE_PLATFORM = "x86_64-apple-darwin";;
             *) exit 0;;
           esac
-          URL="https://github.com/mozilla/sccache/releases/download/"+
-            "$SCCACHE_VERSION/sccache-$SCCACHE_VERSION-x86_64-unknown-linux-musl.tar.gz"
+          URL="https://github.com/mozilla/sccache/releases/download/"+\
+          "$SCCACHE_VERSION/sccache-$SCCACHE_VERSION-x86_64-unknown-linux-musl.tar.gz"
           curl -LO $URL
           tar -xzvf "sccache-$SCCACHE_VERSION-x86_64-unknown-linux-musl.tar.gz"
           cp -v x86_64-unknown-linux-musl/sccache* ~/.cargo/sccache*
