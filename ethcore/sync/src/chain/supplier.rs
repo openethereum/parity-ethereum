@@ -272,16 +272,19 @@ impl SyncSupplier {
 		let mut added = 0usize;
 		let mut data = Vec::new();
 		let mut total_bytes = 0;
-		let mut total_elpsd = Duration::from_secs(0);
+		let mut total_elapsed = Duration::from_secs(0);
 		for i in 0..count {
 			let hash = &r.val_at(i)?;
-			let elpsd = Instant::now();
+			let now = Instant::now();
 			let state = io.chain().state_data(hash);
 
-			total_elpsd += elpsd.elapsed();
-			if elpsd.elapsed() > MAX_NODE_DATA_SINGLE_DURATION || total_elpsd > MAX_NODE_DATA_TOTAL_DURATION {
-				warn!(target: "sync", "{} -> GetNodeData:   item {}/{} – slow state fetch for hash {:?}; took {:?}",
-					peer_id, i, count, hash, elpsd);
+			let elapsed = now.elapsed();
+			total_elapsed += elapsed;
+			if elapsed > MAX_NODE_DATA_SINGLE_DURATION || total_elapsed > MAX_NODE_DATA_TOTAL_DURATION {
+				warn!(
+					target: "sync", "{} -> GetNodeData:   item {}/{} – slow state fetch for hash {:?}; took {:?}, total {:?}",
+					peer_id, i, count, hash, elapsed, total_elapsed,
+				);
 				break;
 			}
 			if let Some(node) = state {
@@ -294,7 +297,7 @@ impl SyncSupplier {
 			}
 		}
 		trace!(target: "sync", "{} -> GetNodeData: returning {}/{} entries ({} bytes total in {:?})",
-			peer_id, added, count, total_bytes, total_elpsd);
+			peer_id, added, count, total_bytes, total_elapsed);
 		let mut rlp = RlpStream::new_list(added);
 		for d in data {
 			rlp.append(&d);
