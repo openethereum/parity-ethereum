@@ -1,4 +1,4 @@
-name: Test
+name:                           Test
 
 on:
   pull_request:
@@ -8,44 +8,44 @@ on:
       - stable
 jobs:
   check:
-    name: Check
-    runs-on: ubuntu-16.04
+    name:                       Check
+    runs-on:                    ubuntu-16.04
     steps:
-      - name: Checkout sources
-        uses: actions/checkout@v2
+      - name:                   Checkout sources
+        uses:                   actions/checkout@v2
         with:
-          fetch-depth: 50
-      - name: Checkout submodules
-        shell: bash
-        run: git submodule update --init --recursive
-      - name: Install stable toolchain
-        uses: actions-rs/toolchain@v1
+          fetch-depth:          50
+      - name:                   Checkout submodules
+        shell:                  bash
+        run:                    git submodule update --init --recursive
+      - name:                   Install stable toolchain
+        uses:                   actions-rs/toolchain@v1
         with:
-          toolchain: stable
-          profile: minimal
-          override: true
-      - name: Cache cargo registry
-        uses: actions/cache@v1.1.2
+          toolchain:            stable
+          profile:              minimal
+          override:             true
+      - name:                   Cache cargo registry
+        uses:                   actions/cache@v1.1.2
         with:
-          path: ~/.cargo/registry
-          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
-      - name: Cache cargo index
-        uses: actions/cache@v1.1.2
+          path:                 ~/.cargo/registry
+          key:                  ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+      - name:                   Cache cargo index
+        uses:                   actions/cache@v1.1.2
         with:
-          path: ~/.cargo/git
-          key: ${{ runner.os }}-cargo-git-${{ hashFiles('**/Cargo.lock') }}
-      - name: Cache cargo build
-        uses: actions/cache@v1.1.2
+          path:                 ~/.cargo/git
+          key:                  ${{ runner.os }}-cargo-git-${{ hashFiles('**/Cargo.lock') }}
+      - name:                   Cache cargo build
+        uses:                   actions/cache@v1.1.2
         with:
-          path: target
-          key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+          path:                 target
+          key:                  ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
       # Install sccache based on https://github.com/denoland/rusty_v8/blob/683aa2b2a981c7991932b793a8203ec245649d7a/.github/workflows/ci.yml#L43
-      - name: Install sccache for ${{ matrix.platform}}
+      - name:                   Install sccache for ${{ platform }}
         env:
-          SCCACHE_CACHE_SIZE: "1G"
+          SCCACHE_CACHE_SIZE:   "1G"
           SCCACHE_IDLE_TIMEOUT: 0
-        shell: pwsh
-        run: |
+        shell:                  pwsh
+        run:                    |
           $version = "0.2.12"
           $platform =
             @{ "macOS"   = "x86_64-apple-darwin"
@@ -60,233 +60,46 @@ jobs:
           . $basename/sccache --start-server
           echo "::add-path::$(pwd)/$basename"
           echo "::set-env name=RUSTC_WRAPPER::sccache"
-      - name: Cache sccache
-        uses: actions/cache@v1.1.2
+      - name:                   Cache sccache
+        uses:                   actions/cache@v1.1.2
         with:
-          path: ~/.cache/sccache
-          key: ${{ runner.os }}-sccache-check-${{ hashFiles('**/Cargo.lock') }}
-      - name: Run cargo check 1/3
-        uses: actions-rs/cargo@v1
+          path:                 ~/.cache/sccache
+          key:                  ${{ runner.os }}-sccache-check-${{ hashFiles('**/Cargo.lock') }}
+      - name:                   Run cargo check 1/3
+        uses:                   actions-rs/cargo@v1
         with:
-          command: check
-          args: --locked --no-default-features --verbose
-      - name: Run cargo check 2/3
-        uses: actions-rs/cargo@v1
+          command:              check
+          args:                 --locked --no-default-features --verbose
+      - name:                   Run cargo check 2/3
+        uses:                   actions-rs/cargo@v1
         with:
-          command: check
-          args: --locked --manifest-path util/io/Cargo.toml --no-default-features --verbose
-      - name: Run cargo check 3/3
-        uses: actions-rs/cargo@v1
+          command:              check
+          args:                 --locked --manifest-path util/io/Cargo.toml --no-default-features --verbose
+      - name:                   Run cargo check 3/3
+        uses:                   actions-rs/cargo@v1
         with:
-          command: check
-          args: --locked --manifest-path util/io/Cargo.toml --features "mio" --verbose
-      - name: Run cargo check evmbin
-        uses: actions-rs/cargo@v1
+          command:              check
+          args:                 --locked --manifest-path util/io/Cargo.toml --features "mio" --verbose
+      - name:                   Run cargo check evmbin
+        uses:                   actions-rs/cargo@v1
         with:
-          command: check
-          args: --locked -p evmbin --verbose
-      - name: Run cargo check benches
-        uses: actions-rs/cargo@v1
+          command:              check
+          args:                 --locked -p evmbin --verbose
+      - name:                   Run cargo check benches
+        uses:                   actions-rs/cargo@v1
         with:
-          command: check
-          args: --locked --all --benches --verbose
-      - name: Run validate chainspecs
-        run: ./scripts/actions/validate-chainspecs.sh
-      - name: Sccache statistics
-        run: sccache --show-stats
+          command:              check
+          args:                 --locked --all --benches --verbose
+      - name:                   Run validate chainspecs
+        run:                    ./scripts/actions/validate-chainspecs.sh
+      - name:                   Sccache statistics
+        run:                    sccache --show-stats
       # From https://github.com/launchbadge/sqlx/blob/master/.github/workflows/rust.yml
-      - name: Prepare build directory for cache
-        run: |
+      - name:                   Prepare build directory for cache
+        run:                    |
           find ./target/debug -maxdepth 1 -type f -delete \
           && rm -fr ./target/debug/{deps,.fingerprint}/*{parity,ethcore,ethkey,ethstore,parity-evm}* \
           && rm -f  ./target/.rustc_info.json
-  build-tests:
-    name: Build Release Test Suite
-    needs: check
-    strategy:
-      matrix:
-        platform:
-          - ubuntu-16.04
-          - macos-latest
-          - windows-latest
-        toolchain:
-          - stable
-    runs-on: ${{ matrix.platform }}
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: 50
-      - name: Checkout submodules
-        shell: bash
-        run: git submodule update --init --recursive
-      - name: Install toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: ${{ matrix.toolchain }}
-          override: true
-      - name: Cache cargo registry
-        uses: actions/cache@v1.1.2
-        with:
-          path: ~/.cargo/registry
-          key: ${{ runner.os }}-cargo-registry-build-tests-${{ hashFiles('**/Cargo.lock') }}
-      - name: Cache cargo index
-        uses: actions/cache@v1.1.2
-        with:
-          path: ~/.cargo/git
-          key: ${{ runner.os }}-cargo-git-build-tests-${{ hashFiles('**/Cargo.lock') }}
-      - name: Cache cargo build
-        uses: actions/cache@v1.1.2
-        with:
-          path: target
-          key: ${{ runner.os }}-cargo-build-target-build-tests-${{ hashFiles('**/Cargo.lock') }}
-      - name: Install sccache for ${{ matrix.platform}}
-        env:
-          SCCACHE_CACHE_SIZE: "1G"
-          SCCACHE_IDLE_TIMEOUT: 0
-        shell: pwsh
-        run: |
-          $version = "0.2.12"
-          $platform =
-            @{ "macOS"   = "x86_64-apple-darwin"
-               "Linux"   = "x86_64-unknown-linux-musl"
-               "Windows" = "x86_64-pc-windows-msvc"
-             }.${{ runner.os }}
-          $basename = "sccache-$version-$platform"
-          $url = "https://github.com/mozilla/sccache/releases/download/" +
-                 "$version/$basename.tar.gz"
-          curl -LO $url
-          tar -xzvf "$basename.tar.gz"
-          . $basename/sccache --start-server
-          echo "::add-path::$(pwd)/$basename"
-          echo "::set-env name=RUSTC_WRAPPER::sccache"
-      - name: Cache sccache linux
-        if:  matrix.platform == 'ubuntu-16.04'
-        uses: actions/cache@v1.1.2
-        with:
-          path: ~/.cache/sccache
-          key: ${{ runner.os }}-sccache-build-tests-${{ hashFiles('**/Cargo.lock') }}
-      - name: Cache sccache MacOS
-        if:  matrix.platform == 'macos-latest'
-        uses: actions/cache@v1.1.2
-        with:
-          path: ~/Library/Caches/Mozilla.sccache
-          key: ${{ runner.os }}-sccache-build-tests-${{ hashFiles('**/Cargo.lock') }}
-      - name: Cache sccache Windows
-        if:  matrix.platform == 'windows-latest'
-        uses: actions/cache@v1.1.2
-        with:
-          path: '%LOCALAPPDATA%\Mozilla\sccache'
-          key: ${{ runner.os }}-sccache-build-tests-${{ hashFiles('**/Cargo.lock') }}
-      - name: Install LLVM for Windows
-        if:  matrix.platform == 'windows-latest'
-        run: choco install llvm
-      - name: Build tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --locked --all --release --features "json-tests" --verbose --no-run
-      - name: Sccache statistics
-        run: sccache --show-stats
-      - name: Prepare build directory for cache
-        if:  matrix.platform != 'windows-latest'
-        run: |
-          find ./target/release -maxdepth 1 -type f -delete;
-          rm -fr ./target/release/{deps,.fingerprint}/*{parity,ethcore,ethkey,ethstore,parity-evm}*;
-          rm -f  ./target/.rustc_info.json;
-  run-tests:
-    name: Run Test Suite
-    needs: build-tests
-    strategy:
-      matrix:
-        platform:
-          - ubuntu-16.04
-          - macos-latest
-          - windows-latest
-        toolchain:
-          - stable
-    runs-on: ${{ matrix.platform }}
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v2
-        with:
-          fetch-depth: 50
-      - name: Checkout submodules
-        shell: bash
-        run: git submodule update --init --recursive
-      - name: Install toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: ${{ matrix.toolchain }}
-          profile: minimal
-          override: true
-      - name: Cache cargo registry
-        uses: actions/cache@v1.1.2
-        with:
-          path: ~/.cargo/registry
-          key: ${{ runner.os }}-cargo-registry-run-tests-${{ hashFiles('**/Cargo.lock') }}
-      - name: Cache cargo index
-        uses: actions/cache@v1.1.2
-        with:
-          path: ~/.cargo/git
-          key: ${{ runner.os }}-cargo-git-run-tests-${{ hashFiles('**/Cargo.lock') }}
-      - name: Cache cargo build
-        uses: actions/cache@v1.1.2
-        with:
-          path: target
-          key: ${{ runner.os }}-cargo-build-target-run-tests-${{ hashFiles('**/Cargo.lock') }}
-      - name: Install sccache for ${{ matrix.platform}}
-        env:
-          SCCACHE_CACHE_SIZE: "1G"
-          SCCACHE_IDLE_TIMEOUT: 0
-        shell: pwsh
-        run: |
-          $version = "0.2.12"
-          $platform =
-            @{ "macOS"   = "x86_64-apple-darwin"
-               "Linux"   = "x86_64-unknown-linux-musl"
-               "Windows" = "x86_64-pc-windows-msvc"
-             }.${{ runner.os }}
-          $basename = "sccache-$version-$platform"
-          $url = "https://github.com/mozilla/sccache/releases/download/" +
-                 "$version/$basename.tar.gz"
-          curl -LO $url
-          tar -xzvf "$basename.tar.gz"
-          . $basename/sccache --start-server
-          echo "::add-path::$(pwd)/$basename"
-          echo "::set-env name=RUSTC_WRAPPER::sccache"
-      - name: Cache sccache linux
-        if:  matrix.platform == 'ubuntu-16.04'
-        uses: actions/cache@v1.1.2
-        with:
-          path: ~/.cache/sccache
-          key: ${{ runner.os }}-sccache-run-tests-${{ hashFiles('**/Cargo.lock') }}
-      - name: Cache sccache MacOS
-        if:  matrix.platform == 'macos-latest'
-        uses: actions/cache@v1.1.2
-        with:
-          path: ~/Library/Caches/Mozilla.sccache
-          key: ${{ runner.os }}-sccache-run-tests-${{ hashFiles('**/Cargo.lock') }}
-      - name: Cache sccache Windows
-        if:  matrix.platform == 'windows-latest'
-        uses: actions/cache@v1.1.2
-        with:
-          path: '%LOCALAPPDATA%\Mozilla\sccache'
-          key: ${{ runner.os }}-sccache-run-tests-${{ hashFiles('**/Cargo.lock') }}
-      - name: Install LLVM for Windows
-        if:  matrix.platform == 'windows-latest'
-        run:  choco install llvm
-      - name: Run tests
-        continue-on-error: true
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --locked --all --release --features "json-tests" --verbose
-      - name: Sccache statistics
-        run: sccache --show-stats
-      - name: Prepare build directory for cache
-        if:  matrix.platform != 'windows-latest'
-        run: |
-          find ./target/release -maxdepth 1 -type f -delete;
-          rm -fr ./target/release/{deps,.fingerprint}/*{parity,ethcore,ethkey,ethstore,parity-evm}*;
-          rm -f  ./target/.rustc_info.json;
+      - name:                   Stop sccache
+        if:                     always()
+        run:                    sccache --stop-server
