@@ -24,6 +24,8 @@
 		"minGasLimit":"0x1388",
 		"networkID":"0x7",
 		"chainID":"0x3f",
+		"forkBlock": "0xcd16a",
+		"forkCanonHash": "0x7b4145006cddae9e88c13b47d6aeee2ab4c37d561b929cf688f6f35d58d1966b",
 		"eip150Transition":"0x0",
 		"eip160Transition":"0x0",
 		"eip161abcTransition":"0x0",
