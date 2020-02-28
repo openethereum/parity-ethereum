@@ -41,11 +41,6 @@ jobs:
           with:
             path:                 ~/.cargo/git
             key:                  ${{ runner.os }}-cargo-git-build-tests-${{ hashFiles('**/Cargo.lock') }}
-        - name:                   Cache cargo build
-          uses:                   actions/cache@v1.1.2
-          with:
-            path:                 target
-            key:                  ${{ runner.os }}-cargo-build-target-build-tests-${{ hashFiles('**/Cargo.lock') }}
         - name:                   Install sccache for ${{ matrix.platform }}
           env:
             SCCACHE_CACHE_SIZE:   "1G"
@@ -94,12 +89,6 @@ jobs:
             args:                 --locked --all --release --features "json-tests" --verbose --no-run
         - name:                   Sccache statistics
           run:                    sccache --show-stats
-        - name:                   Prepare build directory for cache
-          if:                     matrix.platform != 'windows-latest'
-          run:                    |
-            find ./target/release -maxdepth 1 -type f -delete;
-            rm -fr ./target/release/{deps,.fingerprint}/*{parity,ethcore,ethkey,ethstore,parity-evm}*;
-            rm -f  ./target/.rustc_info.json;
         - name:                   Stop sccache
           if:                     always()
           run:                    sccache --stop-server
