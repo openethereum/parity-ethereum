@@ -60,6 +60,8 @@ jobs:
         with:
           path:                 ~/.cache/sccache
           key:                  ${{ runner.os }}-sccache-check-${{ hashFiles('**/Cargo.lock') }}
+      - name:                   Sccache statistics
+        run:                    sccache --show-stats
       - name:                   Run cargo check 1/3
         uses:                   actions-rs/cargo@v1
         with:
