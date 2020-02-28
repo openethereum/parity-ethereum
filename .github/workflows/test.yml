@@ -35,6 +35,11 @@ jobs:
           path:                 ~/.cargo/git
           key:                  ${{ runner.os }}-cargo-git-${{ hashFiles('**/Cargo.lock') }}
       # Install sccache based on https://github.com/denoland/rusty_v8/blob/master/.github/workflows/ci.yml#L69
+      - name:                   Cache sccache
+        uses:                   actions/cache@v1.1.2
+        with:
+          path:                 "/home/runner/.cache/sccache"
+          key:                  ${{ runner.os }}-sccache-check-${{ hashFiles('**/Cargo.lock') }}
       - name:                   Install sccache for Linux
         env:
           SCCACHE_CACHE_SIZE:   "1G"
@@ -55,11 +60,6 @@ jobs:
           . $basename/sccache --start-server
           echo "::add-path::$(pwd)/$basename"
           echo "::set-env name=RUSTC_WRAPPER::sccache"
-      - name:                   Cache sccache
-        uses:                   actions/cache@v1.1.2
-        with:
-          path:                 ~/.cache/sccache
-          key:                  ${{ runner.os }}-sccache-check-${{ hashFiles('**/Cargo.lock') }}
       - name:                   Sccache statistics
         run:                    sccache --show-stats
       - name:                   Run cargo check 1/3

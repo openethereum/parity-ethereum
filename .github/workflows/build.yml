@@ -41,6 +41,24 @@ jobs:
         with:
           path:                 ~/.cargo/git
           key:                  ${{ runner.os }}-cargo-git-build-${{ hashFiles('**/Cargo.lock') }}
+      - name:                   Cache sccache linux
+        if:                     matrix.platform == 'ubuntu-16.04'
+        uses:                   actions/cache@v1.1.2
+        with:
+          path:                 "/home/runner/.cache/sccache"
+          key:                  ${{ runner.os }}-sccache-build-${{ hashFiles('**/Cargo.lock') }}
+      - name:                   Cache sccache MacOS
+        if:                     matrix.platform == 'macos-latest'
+        uses:                   actions/cache@v1.1.2
+        with:
+          path:                 "Users/runner/Library/Caches/Mozilla.sccache"
+          key:                  ${{ runner.os }}-sccache-build-${{ hashFiles('**/Cargo.lock') }}
+      - name:                   Cache sccache Windows
+        if:                     matrix.platform == 'windows-latest'
+        uses:                   actions/cache@v1.1.2
+        with:
+          path:                 "C:\\Users\\runneradmin\\AppData\\Local\\Mozilla\\sccache\\cache"
+          key:                  ${{ runner.os }}-sccache-build-${{ hashFiles('**/Cargo.lock') }}
       - name:                   Install sccache for ${{ matrix.platform }}
         env:
           SCCACHE_CACHE_SIZE:   "1G"
@@ -61,24 +79,6 @@ jobs:
           . $basename/sccache --start-server
           echo "::add-path::$(pwd)/$basename"
           echo "::set-env name=RUSTC_WRAPPER::sccache"
-      - name:                   Cache sccache linux
-        if:                     matrix.platform == 'ubuntu-16.04'
-        uses:                   actions/cache@v1.1.2
-        with:
-          path:                 ~/.cache/sccache
-          key:                  ${{ runner.os }}-sccache-build-${{ hashFiles('**/Cargo.lock') }}
-      - name:                   Cache sccache MacOS
-        if:                     matrix.platform == 'macos-latest'
-        uses:                   actions/cache@v1.1.2
-        with:
-          path:                 ~/Library/Caches/Mozilla.sccache
-          key:                  ${{ runner.os }}-sccache-build-${{ hashFiles('**/Cargo.lock') }}
-      - name:                   Cache sccache Windows
-        if:                     matrix.platform == 'windows-latest'
-        uses:                   actions/cache@v1.1.2
-        with:
-          path:                 "C:\\Users\\runneradmin\\AppData\\Local\\Mozilla\\sccache\\cache"
-          key:                  ${{ runner.os }}-sccache-build-${{ hashFiles('**/Cargo.lock') }}
       - name:                   Install LLVM for Windows
         if:                     matrix.platform == 'windows-latest'
         run:                    choco install llvm
