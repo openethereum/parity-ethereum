@@ -10,10 +10,6 @@ jobs:
   check:
     name: Check
     runs-on: ubuntu-16.04
-    env:
-      SCCACHE_CACHE_SIZE: "1G"
-      SCCACHE_VERSION: "0.2.12"
-      RUSTC_WRAPPER: sccache
     steps:
       - name: Checkout sources
         uses: actions/checkout@v2
@@ -43,13 +39,27 @@ jobs:
         with:
           path: target
           key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
-      - name: Install sccache
+      # Install sccache based on https://github.com/denoland/rusty_v8/blob/683aa2b2a981c7991932b793a8203ec245649d7a/.github/workflows/ci.yml#L43
+      - name: Install sccache for ${{ matrix.platform}}
+        env:
+          SCCACHE_CACHE_SIZE: "1G"
+          SCCACHE_IDLE_TIMEOUT: 0
         shell: pwsh
         run: |
-          URL="https://github.com/mozilla/sccache/releases/download/"+"$SCCACHE_VERSION/sccache-$SCCACHE_VERSION-x86_64-unknown-linux-musl.tar.gz"
-          curl -LO $URL
-          tar -xzvf "sccache-$SCCACHE_VERSION-x86_64-unknown-linux-musl.tar.gz"
-          cp -v x86_64-unknown-linux-musl/sccache ~/.cargo/sccache
+          $version = "0.2.12"
+          $platform =
+            @{ "macOS"   = "x86_64-apple-darwin"
+               "Linux"   = "x86_64-unknown-linux-musl"
+               "Windows" = "x86_64-pc-windows-msvc"
+             }.${{ runner.os }}
+          $basename = "sccache-$SCCACHE_VERSION-$platform"
+          $url = "https://github.com/mozilla/sccache/releases/download/" +
+                 "$SCCACHE_VERSION/$basename.tar.gz"
+          curl -LO $url
+          tar -xzvf "$basename.tar.gz"
+          . $basename/sccache --start-server
+          echo "::add-path::$(pwd)/$basename"
+          echo "::set-env name=RUSTC_WRAPPER::sccache"
       - name: Cache sccache
         uses: actions/cache@v1.1.2
         with:
@@ -60,40 +70,28 @@ jobs:
         with:
           command: check
           args: --locked --no-default-features --verbose
-        env:
-          RUSTC_WRAPPER: sccache
       - name: Run cargo check 2/3
         uses: actions-rs/cargo@v1
         with:
           command: check
           args: --locked --manifest-path util/io/Cargo.toml --no-default-features --verbose
-        env:
-          RUSTC_WRAPPER: sccache
       - name: Run cargo check 3/3
         uses: actions-rs/cargo@v1
         with:
           command: check
           args: --locked --manifest-path util/io/Cargo.toml --features "mio" --verbose
-        env:
-          RUSTC_WRAPPER: sccache
       - name: Run cargo check evmbin
         uses: actions-rs/cargo@v1
         with:
           command: check
           args: --locked -p evmbin --verbose
-        env:
-          RUSTC_WRAPPER: sccache
       - name: Run cargo check benches
         uses: actions-rs/cargo@v1
         with:
           command: check
           args: --locked --all --benches --verbose
-        env:
-          RUSTC_WRAPPER: sccache
       - name: Run validate chainspecs
         run: ./scripts/actions/validate-chainspecs.sh
-        env:
-          RUSTC_WRAPPER: sccache
       - name: Sccache statistics
         run: sccache --show-stats
       # From https://github.com/launchbadge/sqlx/blob/master/.github/workflows/rust.yml
@@ -114,10 +112,6 @@ jobs:
         toolchain:
           - stable
     runs-on: ${{ matrix.platform }}
-    env:
-      SCCACHE_CACHE_SIZE: "1G"
-      SCCACHE_VERSION: "0.2.12"
-      RUSTC_WRAPPER: sccache
     steps:
       - name: Checkout sources
         uses: actions/checkout@v2
@@ -146,18 +140,26 @@ jobs:
         with:
           path: target
           key: ${{ runner.os }}-cargo-build-target-build-tests-${{ hashFiles('**/Cargo.lock') }}
-      - name: Install sccache for ${{ matrix.platform }}
+      - name: Install sccache for ${{ matrix.platform}}
+        env:
+          SCCACHE_CACHE_SIZE: "1G"
+          SCCACHE_IDLE_TIMEOUT: 0
         shell: pwsh
         run: |
-          $SCCACHE_PLATFORM =
+          $version = "0.2.12"
+          $platform =
             @{ "macOS"   = "x86_64-apple-darwin"
                "Linux"   = "x86_64-unknown-linux-musl"
                "Windows" = "x86_64-pc-windows-msvc"
              }.${{ runner.os }}
-          URL="https://github.com/mozilla/sccache/releases/download/"+"$SCCACHE_VERSION/sccache-$SCCACHE_VERSION-$SCCACHE_PLATFORM.tar.gz"
-          curl -LO $URL
-          tar -xzvf "sccache-$SCCACHE_VERSION-x86_64-$SCCACHE_PLATFORM.tar.gz"
-          cp -v $SCCACHE_PLATFORM/sccache* ~/.cargo/sccache*
+          $basename = "sccache-$SCCACHE_VERSION-$platform"
+          $url = "https://github.com/mozilla/sccache/releases/download/" +
+                 "$SCCACHE_VERSION/$basename.tar.gz"
+          curl -LO $url
+          tar -xzvf "$basename.tar.gz"
+          . $basename/sccache --start-server
+          echo "::add-path::$(pwd)/$basename"
+          echo "::set-env name=RUSTC_WRAPPER::sccache"
       - name: Cache sccache linux
         if:  matrix.platform == 'ubuntu-16.04'
         uses: actions/cache@v1.1.2
@@ -204,10 +206,6 @@ jobs:
         toolchain:
           - stable
     runs-on: ${{ matrix.platform }}
-    env:
-      SCCACHE_CACHE_SIZE: "1G"
-      SCCACHE_VERSION: "0.2.12"
-      RUSTC_WRAPPER: sccache
     steps:
       - name: Checkout sources
         uses: actions/checkout@v2
@@ -237,18 +235,26 @@ jobs:
         with:
           path: target
           key: ${{ runner.os }}-cargo-build-target-run-tests-${{ hashFiles('**/Cargo.lock') }}
-      - name: Install sccache for ${{ matrix.platform }}
+      - name: Install sccache for ${{ matrix.platform}}
+        env:
+          SCCACHE_CACHE_SIZE: "1G"
+          SCCACHE_IDLE_TIMEOUT: 0
         shell: pwsh
         run: |
-          $SCCACHE_PLATFORM =
+          $version = "0.2.12"
+          $platform =
             @{ "macOS"   = "x86_64-apple-darwin"
                "Linux"   = "x86_64-unknown-linux-musl"
                "Windows" = "x86_64-pc-windows-msvc"
              }.${{ runner.os }}
-          URL="https://github.com/mozilla/sccache/releases/download/"+"$SCCACHE_VERSION/sccache-$SCCACHE_VERSION-$SCCACHE_PLATFORM.tar.gz"
-          curl -LO $URL
-          tar -xzvf "sccache-$SCCACHE_VERSION-x86_64-$SCCACHE_PLATFORM.tar.gz"
-          cp -v $SCCACHE_PLATFORM/sccache* ~/.cargo/sccache*
+          $basename = "sccache-$SCCACHE_VERSION-$platform"
+          $url = "https://github.com/mozilla/sccache/releases/download/" +
+                 "$SCCACHE_VERSION/$basename.tar.gz"
+          curl -LO $url
+          tar -xzvf "$basename.tar.gz"
+          . $basename/sccache --start-server
+          echo "::add-path::$(pwd)/$basename"
+          echo "::set-env name=RUSTC_WRAPPER::sccache"
       - name: Cache sccache linux
         if:  matrix.platform == 'ubuntu-16.04'
         uses: actions/cache@v1.1.2
@@ -276,8 +282,6 @@ jobs:
         with:
           command: test
           args: --locked --all --release --features "json-tests" --verbose
-        env:
-          RUSTC_WRAPPER: sccache
       - name: Sccache statistics
         run: sccache --show-stats
       - name: Prepare build directory for cache
