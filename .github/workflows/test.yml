@@ -40,7 +40,7 @@ jobs:
           path:                 target
           key:                  ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
       # Install sccache based on https://github.com/denoland/rusty_v8/blob/master/.github/workflows/ci.yml#L69
-      - name:                   Install sccache for ${{ platform }}
+      - name:                   Install sccache for Linux
         env:
           SCCACHE_CACHE_SIZE:   "1G"
           SCCACHE_IDLE_TIMEOUT: 0
