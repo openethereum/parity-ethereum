@@ -2,9 +2,9 @@ name: Build
 
 on:
   push:
+    pull_request: #TODO remove before merge
     branches:
       - stable
-      - actions #TODO remove before merge
     tags:
       - v2*
 
@@ -48,12 +48,19 @@ jobs:
         with:
           path: target
           key: ${{ runner.os }}-cargo-build-target-build-${{ hashFiles('**/Cargo.lock') }}
-      - name: Install sccache
-        continue-on-error: true
-        uses: actions-rs/cargo@v1
-        with:
-          command: install
-          args: sccache
+      - name: Install sccache for ${{ matrix.platform }}
+        run: |
+          case ${{ matrix.platform }} in
+            ubuntu-16.04) export SCCACHE_PLATFORM = "x86_64-unknown-linux-musl";;
+            windows-latest) export SCCACHE_PLATFORM = "x86_64-pc-windows-msvc";;
+            macos-latest) export SCCACHE_PLATFORM = "x86_64-apple-darwin";;
+            *) exit 0;;
+          esac
+          URL="https://github.com/mozilla/sccache/releases/download/"+
+            "$SCCACHE_VERSION/sccache-$SCCACHE_VERSION-x86_64-unknown-linux-musl.tar.gz"
+          curl -LO $URL
+          tar -xzvf "sccache-$SCCACHE_VERSION-x86_64-unknown-linux-musl.tar.gz"
+          cp -v x86_64-unknown-linux-musl/sccache* ~/.cargo/sccache*
       - name: Cache sccache linux
         if:  matrix.platform == 'ubuntu-16.04'
         uses: actions/cache@v1.1.2
@@ -75,9 +82,6 @@ jobs:
       - name: Install LLVM for Windows
         if:  matrix.platform == 'windows-latest'
         run:  choco install llvm
-      - name: Install sccache for Windows
-        if:  matrix.platform == 'windows-latest'
-        run:  choco install sccache
       - name: Build OpenEthereum for windows
         continue-on-error: true
         if:  matrix.platform == 'windows-latest'

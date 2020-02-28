@@ -195,11 +195,11 @@ jobs:
           rm -f  ./target/.rustc_info.json;
   run-tests:
     name: Run Test Suite
-    needs: build-tes      ts
+    needs: build-tests
     strategy:
       matrix:
         platform:
-          - ubuntu-1      6.04
+          - ubuntu-16.04
           - macos-latest
           - windows-latest
         toolchain:
