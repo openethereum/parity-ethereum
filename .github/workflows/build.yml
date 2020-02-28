@@ -75,6 +75,9 @@ jobs:
       - name: Install LLVM for Windows
         if:  matrix.platform == 'windows-latest'
         run:  choco install llvm
+      - name: Install sccache for Windows
+        if:  matrix.platform == 'windows-latest'
+        run:  choco install sccache
       - name: Build OpenEthereum for windows
         continue-on-error: true
         if:  matrix.platform == 'windows-latest'
