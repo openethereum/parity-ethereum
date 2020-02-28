@@ -44,8 +44,6 @@ pub enum AuxiliaryRequest {
 /// there are two kinds of auxiliary data: bodies and receipts.
 #[derive(Default, Clone)]
 pub struct AuxiliaryData<'a> {
-	/// The full block bytes, including the header.
-	pub bytes: Option<&'a [u8]>,
 	/// The block receipts.
 	pub receipts: Option<&'a [receipt::Receipt]>,
 }

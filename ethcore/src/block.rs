@@ -168,16 +168,17 @@ impl<'x> OpenBlock<'x> {
 	/// Push a transaction into the block.
 	///
 	/// If valid, it will be executed, and archived together with the receipt.
-	pub fn push_transaction(&mut self, t: SignedTransaction) -> Result<&Receipt, Error> {
+	pub fn push_transaction(&mut self, t: &SignedTransaction) -> Result<&Receipt, Error> {
 		if self.block.transactions_set.contains(&t.hash()) {
 			return Err(TransactionError::AlreadyImported.into());
 		}
 
 		let env_info = self.block.env_info();
-		let outcome = self.block.state.apply(&env_info, self.engine.machine(), &t, self.block.traces.is_enabled())?;
+		let outcome = self.block.state.apply(&env_info, self.engine.machine(), t, self.block.traces.is_enabled())?;
 
 		self.block.transactions_set.insert(t.hash());
-		self.block.transactions.push(t.into());
+		// self.block.transactions.push(t.into());
+		self.block.transactions.push(t.clone());
 		if let Tracing::Enabled(ref mut traces) = self.block.traces {
 			traces.push(outcome.trace.into());
 		}
@@ -187,7 +188,7 @@ impl<'x> OpenBlock<'x> {
 
 	/// Push transactions onto the block.
 	#[cfg(not(feature = "slow-blocks"))]
-	fn push_transactions(&mut self, transactions: Vec<SignedTransaction>) -> Result<(), Error> {
+	fn push_transactions(&mut self, transactions: &Vec<SignedTransaction>) -> Result<(), Error> {
 		for t in transactions {
 			self.push_transaction(t)?;
 		}
@@ -196,7 +197,7 @@ impl<'x> OpenBlock<'x> {
 
 	/// Push transactions onto the block.
 	#[cfg(feature = "slow-blocks")]
-	fn push_transactions(&mut self, transactions: Vec<SignedTransaction>) -> Result<(), Error> {
+	fn push_transactions(&mut self, transactions: &Vec<SignedTransaction>) -> Result<(), Error> {
 		use std::time;
 
 		let slow_tx = option_env!("SLOW_TX_DURATION").and_then(|v| v.parse().ok()).unwrap_or(100);
@@ -407,9 +408,9 @@ impl Drain for SealedBlock {
 
 /// Enact the block given by block header, transactions and uncles
 pub(crate) fn enact(
-	header: Header,
-	transactions: Vec<SignedTransaction>,
-	uncles: Vec<Header>,
+	header: &Header,
+	transactions: &Vec<SignedTransaction>,
+	uncles: &Vec<Header>,
 	engine: &dyn Engine,
 	tracing: bool,
 	db: StateDB,
@@ -434,7 +435,7 @@ pub(crate) fn enact(
 		last_hashes,
 		// Engine such as Clique will calculate author from extra_data.
 		// this is only important for executing contracts as the 'executive_author'.
-		engine.executive_author(&header)?,
+		engine.executive_author(header)?,
 		(3141562.into(), 31415620.into()),
 		vec![],
 		is_epoch_begin,
@@ -448,11 +449,11 @@ pub(crate) fn enact(
 				b.block.header.number(), root, env.author, author_balance);
 	}
 
-	b.populate_from(&header);
+	b.populate_from(header);
 	b.push_transactions(transactions)?;
 
 	for u in uncles {
-		b.push_uncle(u)?;
+		b.push_uncle(u.clone())?;
 	}
 
 	b.close_and_lock()
@@ -460,7 +461,7 @@ pub(crate) fn enact(
 
 /// Enact the block given by `block_bytes` using `engine` on the database `db` with the given `parent` block header
 pub fn enact_verified(
-	block: PreverifiedBlock,
+	block: &PreverifiedBlock,
 	engine: &dyn Engine,
 	tracing: bool,
 	db: StateDB,
@@ -471,9 +472,9 @@ pub fn enact_verified(
 ) -> Result<LockedBlock, Error> {
 
 	enact(
-		block.header,
-		block.transactions,
-		block.uncles,
+		&block.header,
+		&block.transactions,
+		&block.uncles,
 		engine,
 		tracing,
 		db,

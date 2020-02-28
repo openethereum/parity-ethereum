@@ -24,7 +24,6 @@ use std::{
 };
 
 use ethereum_types::U256;
-use crate::header::Header;
 
 /// Operating mode for the client.
 #[derive(Debug, Eq, PartialEq, Clone)]
@@ -67,10 +66,10 @@ pub struct ClientReport {
 
 impl ClientReport {
 	/// Alter internal reporting to reflect the additional `block` has been processed.
-	pub fn accrue_block(&mut self, header: &Header, transactions: usize) {
+	pub fn accrue_block(&mut self, gas_used: &U256, transactions: usize) {
 		self.blocks_imported += 1;
 		self.transactions_applied += transactions;
-		self.gas_processed = self.gas_processed + *header.gas_used();
+		self.gas_processed = self.gas_processed + gas_used;
 	}
 }
 

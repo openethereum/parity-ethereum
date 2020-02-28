@@ -1069,8 +1069,8 @@ impl BlockChain {
 	}
 
 	/// Write a pending epoch transition by block hash.
-	pub fn insert_pending_transition(&self, batch: &mut DBTransaction, hash: H256, t: PendingEpochTransition) {
-		batch.write(db::COL_EXTRA, &hash, &t);
+	pub fn insert_pending_transition(&self, batch: &mut DBTransaction, hash: &H256, t: PendingEpochTransition) {
+		batch.write(db::COL_EXTRA, hash, &t);
 	}
 
 	/// Get a pending epoch transition by block hash.

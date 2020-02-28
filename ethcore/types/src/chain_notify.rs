@@ -131,7 +131,7 @@ pub struct NewBlocks {
 	pub route: ChainRoute,
 	/// Sealed
 	pub sealed: Vec<H256>,
-	/// Block bytes.
+	/// Block bytes. Only used in EthSync.
 	pub proposed: Vec<Bytes>,
 	/// Duration
 	pub duration: Duration,

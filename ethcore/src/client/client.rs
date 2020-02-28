@@ -283,10 +283,9 @@ impl Importer {
 		}
 
 		let max_blocks_to_import = client.config.max_round_blocks_to_import;
-		let (imported_blocks, import_results, invalid_blocks, imported, proposed_blocks, duration, has_more_blocks_to_import) = {
+		let (imported_blocks, import_results, invalid_blocks, imported, duration, has_more_blocks_to_import) = {
 			let mut imported_blocks = Vec::with_capacity(max_blocks_to_import);
 			let mut invalid_blocks = HashSet::new();
-			let proposed_blocks = Vec::with_capacity(max_blocks_to_import);
 			let mut import_results = Vec::with_capacity(max_blocks_to_import);
 
 			let _import_lock = self.import_lock.lock();
@@ -298,26 +297,35 @@ impl Importer {
 			let start = Instant::now();
 
 			for block in blocks {
-				let header = block.header.clone();
-				let bytes = block.bytes.clone();
-				let hash = header.hash();
+				// let header = block.header.clone();
+				// let bytes = block.bytes.clone();
+				// let hash = header.hash();
+				let hash = block.header.hash();
 
-				let is_invalid = invalid_blocks.contains(header.parent_hash());
+				// let is_invalid = invalid_blocks.contains(header.parent_hash());
+				let is_invalid = invalid_blocks.contains(block.header.parent_hash());
 				if is_invalid {
 					invalid_blocks.insert(hash);
 					continue;
 				}
 
-				match self.check_and_lock_block(&bytes, block, client) {
-					Ok((closed_block, pending)) => {
+				// match self.check_and_lock_block(&bytes, block, client) {
+				// let block_bytes = block.bytes.clone();
+				match self.check_and_lock_block(block, client) {
+					(Ok((locked_block, pending)), block_bytes) => {
 						imported_blocks.push(hash);
-						let transactions_len = closed_block.transactions.len();
-						let route = self.commit_block(closed_block, &header, encoded::Block::new(bytes), pending, client);
+						let transactions_len = locked_block.transactions.len();
+						let gas_used = locked_block.header.gas_used().clone();
+						// let route = self.commit_block(closed_block, &block.header, encoded::Block::new(block.bytes), pending, client);
+						// let route = self.commit_block(closed_block, &block.header, encoded::Block::new(block_bytes), pending, client);
+						let route = self.commit_block(locked_block, encoded::Block::new(block_bytes), pending, client);
 						import_results.push(route);
-						client.report.write().accrue_block(&header, transactions_len);
-					},
-					Err(err) => {
-						self.bad_blocks.report(bytes, format!("{:?}", err));
+						// client.report.write().accrue_block(&block.header, transactions_len);
+						client.report.write().accrue_block(&gas_used, transactions_len);
+					}
+					(Err(err), block_bytes) => {
+						self.bad_blocks.report(block_bytes, format!("{:?}", err));
+						// self.bad_blocks.report(bytes, format!("{:?}", err));
 						invalid_blocks.insert(hash);
 					},
 				}
@@ -330,9 +338,9 @@ impl Importer {
 				self.block_queue.mark_as_bad(&invalid_blocks);
 			}
 			let has_more_blocks_to_import = !self.block_queue.mark_as_good(&imported_blocks);
-			(imported_blocks, import_results, invalid_blocks, imported, proposed_blocks, start.elapsed(), has_more_blocks_to_import)
+			(imported_blocks, import_results, invalid_blocks, imported, start.elapsed(), has_more_blocks_to_import)
 		};
-
+		trace!(target: "dp", "[import_verified_blocks] {} blocks processed in {:?}", imported, duration);
 		{
 			if !imported_blocks.is_empty() {
 				let route = ChainRoute::from(import_results.as_ref());
@@ -348,7 +356,7 @@ impl Importer {
 							invalid_blocks.clone(),
 							route.clone(),
 							Vec::new(),
-							proposed_blocks.clone(),
+							Vec::new(),
 							duration,
 							has_more_blocks_to_import,
 						)
@@ -356,21 +364,27 @@ impl Importer {
 				});
 			}
 		}
-
+		let start = Instant::now();
 		let db = client.db.read();
 		db.key_value().flush().expect("DB flush failed.");
+		trace!(target: "dp", "[import_verified_blocks] flushed the db in: {:?}",
+			start.elapsed()
+		);
+
 		imported
 	}
 
-	fn check_and_lock_block(&self, bytes: &[u8], block: PreverifiedBlock, client: &Client) -> EthcoreResult<(LockedBlock, Option<PendingTransition>)> {
+	fn check_and_lock_block(&self, block: PreverifiedBlock, client: &Client) -> (EthcoreResult<(LockedBlock, Option<PendingTransition>)>, Bytes) {
+	// fn check_and_lock_block(&self, block: PreverifiedBlock, client: &Client) -> EthcoreResult<(LockedBlock, Option<PendingTransition>)> {
+		// let bytes = block.bytes;
 		let engine = &*self.engine;
-		let header = block.header.clone();
+		let header = block.header.clone(); // todo[dvdplm] can avoid clone?
 
 		// Check the block isn't so old we won't be able to enact it.
 		let best_block_number = client.chain.read().best_block_number();
 		if client.pruning_info().earliest_state > header.number() {
 			warn!(target: "client", "Block import failed for #{} ({})\nBlock is ancient (current best block: #{}).", header.number(), header.hash(), best_block_number);
-			return Err("Block is ancient".into());
+			return (Err("Block is ancient".into()), block.bytes);
 		}
 
 		// Check if parent is in chain
@@ -378,7 +392,7 @@ impl Importer {
 			Some(h) => h,
 			None => {
 				warn!(target: "client", "Block import failed for #{} ({}): Parent not found ({}) ", header.number(), header.hash(), header.parent_hash());
-				return Err("Parent not found".into());
+				return (Err("Parent not found".into()), block.bytes);
 			}
 		};
 
@@ -397,13 +411,13 @@ impl Importer {
 
 		if let Err(e) = verify_family_result {
 			warn!(target: "client", "Stage 3 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
-			return Err(e);
+			return (Err(e), block.bytes);
 		};
 
 		let verify_external_result = engine.verify_block_external(&header);
 		if let Err(e) = verify_external_result {
 			warn!(target: "client", "Stage 4 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
-			return Err(e);
+			return (Err(e), block.bytes);
 		};
 
 		// Enact Verified Block
@@ -413,7 +427,7 @@ impl Importer {
 		let is_epoch_begin = chain.epoch_transition(parent.number(), *header.parent_hash()).is_some();
 
 		let enact_result = enact_verified(
-			block,
+			&block, // todo[dvdplm] can pass by ref?
 			engine,
 			client.tracedb.read().tracing_enabled(),
 			db,
@@ -427,7 +441,7 @@ impl Importer {
 			Ok(b) => b,
 			Err(e) => {
 				warn!(target: "client", "Block import failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
-				return Err(e);
+				return (Err(e), block.bytes);
 			}
 		};
 
@@ -443,18 +457,23 @@ impl Importer {
 		// Final Verification
 		if let Err(e) = verification::verify_block_final(&header, &locked_block.header) {
 			warn!(target: "client", "Stage 5 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
-			return Err(e);
+			return (Err(e), block.bytes);
 		}
 
-		let pending = self.check_epoch_end_signal(
+		// todo[dvdplm] make prettier
+		let pending = match self.check_epoch_end_signal(
 			&header,
-			bytes,
 			&locked_block.receipts,
 			locked_block.state.db(),
 			client
-		)?;
+		) {
+			Ok(pending) => pending,
+			Err(e) => return (Err(e), block.bytes)
+		};
 
-		Ok((locked_block, pending))
+
+		(Ok((locked_block, pending)), block.bytes)
+		// Ok((locked_block, pending))
 	}
 
 	/// Import a block with transaction receipts.
@@ -490,13 +509,15 @@ impl Importer {
 	fn commit_block<B>(
 		&self,
 		block: B,
-		header: &Header,
+		// header: &Header,
 		block_data: encoded::Block,
 		pending: Option<PendingTransition>,
 		client: &Client
 	) -> ImportRoute
 		where B: Drain
 	{
+		let block = block.drain();
+		let header = block.header;
 		let hash = &header.hash();
 		let number = header.number();
 		let parent = header.parent_hash();
@@ -504,8 +525,7 @@ impl Importer {
 		let mut is_finalized = false;
 
 		// Commit results
-		let block = block.drain();
-		debug_assert_eq!(header.hash(), block_data.header_view().hash());
+		debug_assert_eq!(*hash, block_data.header_view().hash());
 
 		let mut batch = DBTransaction::new();
 
@@ -543,7 +563,7 @@ impl Importer {
 		// check epoch end signal, potentially generating a proof on the current
 		// state.
 		if let Some(pending) = pending {
-			chain.insert_pending_transition(&mut batch, header.hash(), pending);
+			chain.insert_pending_transition(&mut batch, hash, pending);
 		}
 
 		state.journal_under(&mut batch, number, hash).expect("DB commit failed");
@@ -551,7 +571,7 @@ impl Importer {
 		let finalized: Vec<_> = ancestry_actions.into_iter().map(|ancestry_action| {
 			let AncestryAction::MarkFinalized(a) = ancestry_action;
 
-			if a != header.hash() {
+			if a != *hash {
 				chain.mark_finalized(&mut batch, a).expect("Engine's ancestry action must be known blocks; qed");
 			} else {
 				// we're finalizing the current block
@@ -596,7 +616,7 @@ impl Importer {
 	fn check_epoch_end_signal(
 		&self,
 		header: &Header,
-		block_bytes: &[u8],
+		// block_bytes: &[u8],
 		receipts: &[Receipt],
 		state_db: &StateDB,
 		client: &Client,
@@ -605,7 +625,7 @@ impl Importer {
 
 		let hash = header.hash();
 		let auxiliary = AuxiliaryData {
-			bytes: Some(block_bytes),
+			// bytes: Some(block_bytes),
 			receipts: Some(&receipts),
 		};
 
@@ -1065,14 +1085,15 @@ impl Client {
 		};
 
 		self.block_header(id).and_then(|header| {
-			let db = self.state_db.read().boxed_clone();
-
+			let state_db = self.state_db.read();
 			// early exit for pruned blocks
-			if db.is_prunable() && self.pruning_info().earliest_state > block_number {
+			// if db.is_prunable() && self.pruning_info().earliest_state > block_number {
+			if state_db.is_prunable() && self.pruning_info().earliest_state > block_number {
 				trace!(target: "client", "State for block #{} is pruned. Earliest state: {:?}", block_number, self.pruning_info().earliest_state);
 				return None;
 			}
 
+			let db = state_db.boxed_clone();
 			let root = header.state_root();
 			State::from_existing(db, root, self.engine.account_start_nonce(block_number), self.factories.clone()).ok()
 		})
@@ -2402,14 +2423,14 @@ impl ImportSealedBlock for Client {
 
 			let pending = self.importer.check_epoch_end_signal(
 				&header,
-				&block_bytes,
+				// &block_bytes,
 				&block.receipts,
 				block.state.db(),
 				self
 			)?;
 			let route = self.importer.commit_block(
 				block,
-				&header,
+				// &header,
 				encoded::Block::new(block_bytes),
 				pending,
 				self
