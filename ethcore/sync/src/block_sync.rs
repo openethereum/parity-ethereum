@@ -577,7 +577,7 @@ impl BlockDownloader {
 				},
 				Ok(_) => {
 					trace_sync!(self, "Block queued {:?}", h);
-					imported.insert(h.clone());
+					imported.insert(h);
 					self.block_imported(&h, number, &parent);
 				},
 				Err(EthcoreError::Block(BlockError::UnknownParent(_))) if allow_out_of_order => {
@@ -671,7 +671,7 @@ mod tests {
 	}
 
 	fn dummy_signed_tx() -> SignedTransaction {
-		let keypair = Random.generate().unwrap();
+		let keypair = Random.generate();
 		Transaction::default().sign(keypair.secret(), None)
 	}
 

@@ -96,7 +96,7 @@ cargo-check-benches:
   stage:                           test
   <<:                              *docker-cache-status
   script:
-    - time cargo check --all --benches --target $CARGO_TARGET --locked --verbose --color=always
+    - time cargo check --workspace --benches --target $CARGO_TARGET --locked --verbose --color=always --all-features
     - sccache --show-stats
 
 cargo-audit:

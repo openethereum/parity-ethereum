@@ -37,8 +37,7 @@ pub fn json_difficulty_test<H: FnMut(&str, HookType)>(
 	for (name, test) in tests.into_iter() {
 		start_stop_hook(&name, HookType::OnStart);
 
-		flush!("   - {}...", name);
-		println!("   - {}...", name);
+		flushed_writeln!("   - {}...", name);
 
 		let mut parent_header = Header::new();
 		let block_number: u64 = test.current_block_number.into();
@@ -53,7 +52,7 @@ pub fn json_difficulty_test<H: FnMut(&str, HookType)>(
 		engine.populate_from_parent(&mut header, &parent_header);
 		let expected_difficulty: U256 = test.current_difficulty.into();
 		assert_eq!(header.difficulty(), &expected_difficulty);
-		flushln!("ok");
+		flushed_writeln!("OK");
 
 		start_stop_hook(&name, HookType::OnStop);
 	}

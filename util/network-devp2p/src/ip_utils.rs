@@ -516,10 +516,10 @@ fn ipv4_special_purpose() {
 
 #[test]
 fn ipv4_benchmarking() {
-	assert!(!Ipv4Addr::new(198, 17, 255, 255).is_benchmarking());
-	assert!(Ipv4Addr::new(198, 18, 0, 0).is_benchmarking());
-	assert!(Ipv4Addr::new(198, 19, 255, 255).is_benchmarking());
-	assert!(!Ipv4Addr::new(198, 20, 0, 0).is_benchmarking());
+	assert!(!SocketAddrExt::is_benchmarking(&Ipv4Addr::new(198, 17, 255, 255)));
+	assert!(SocketAddrExt::is_benchmarking(&Ipv4Addr::new(198, 18, 0, 0)));
+	assert!(SocketAddrExt::is_benchmarking(&Ipv4Addr::new(198, 19, 255, 255)));
+	assert!(!SocketAddrExt::is_benchmarking(&Ipv4Addr::new(198, 20, 0, 0)));
 }
 
 #[test]

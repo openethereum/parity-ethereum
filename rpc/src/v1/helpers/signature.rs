@@ -71,7 +71,7 @@ mod tests {
 	/// mocked signer
 	fn sign(should_prefix: bool, data: Vec<u8>, signing_chain_id: Option<u64>) -> (H160, [u8; 32], [u8; 32], U64) {
 		let hash = if should_prefix { eth_data_hash(data) } else { keccak(data) };
-		let account = Random.generate().unwrap();
+		let account = Random.generate();
 		let address = account.address();
 		let sig = crypto::publickey::sign(account.secret(), &hash).unwrap();
 		let (r, s, v) = (sig.r(), sig.s(), sig.v());

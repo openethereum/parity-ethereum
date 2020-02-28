@@ -306,6 +306,7 @@ fn ec_recover_invalid_signature() {
 fn should_not_unlock_account_temporarily_if_allow_perm_is_disabled() {
 	let tester = setup();
 	let address = tester.accounts.new_account(&"password123".into()).unwrap();
+	let message = [1u8; 32].into();
 
 	let request = r#"{
 		"jsonrpc": "2.0",
@@ -320,13 +321,14 @@ fn should_not_unlock_account_temporarily_if_allow_perm_is_disabled() {
 	let response = r#"{"jsonrpc":"2.0","error":{"code":-32000,"message":"Time-unlocking is not supported when permanent unlock is disabled.","data":"Use personal_sendTransaction or enable permanent unlocking, instead."},"id":1}"#;
 	assert_eq!(tester.io.handle_request_sync(&request), Some(response.into()));
 
-	assert!(tester.accounts.sign(address, None, Default::default()).is_err(), "Should not unlock account.");
+	assert!(tester.accounts.sign(address, None, message).is_err(), "Should not unlock account.");
 }
 
 #[test]
 fn should_unlock_account_permanently() {
 	let tester = setup();
 	let address = tester.accounts.new_account(&"password123".into()).unwrap();
+	let message = [1u8; 32].into();
 
 	let request = r#"{
 		"jsonrpc": "2.0",
@@ -340,7 +342,7 @@ fn should_unlock_account_permanently() {
 	}"#;
 	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
 	assert_eq!(tester.io.handle_request_sync(&request), Some(response.into()));
-	assert!(tester.accounts.sign(address, None, Default::default()).is_ok(), "Should unlock account.");
+	assert!(tester.accounts.sign(address, None, message).is_ok(), "Should unlock account.");
 }
 
 #[test]
@@ -366,8 +368,8 @@ fn sign_eip191_with_validator() {
 		data: keccak("hello world").as_bytes().to_vec().into()
 	}).unwrap();
 	let result = eip191::hash_message(EIP191Version::PresignedTransaction, with_validator).unwrap();
-	let result = tester.accounts.sign(address, Some("password123".into()), result).unwrap().into_electrum();
-	let expected = r#"{"jsonrpc":"2.0","result":""#.to_owned() +  &format!("0x{}", result.to_hex()) + r#"","id":1}"#;
+	let result: String = tester.accounts.sign(address, Some("password123".into()), result).unwrap().into_electrum().to_hex();
+	let expected = r#"{"jsonrpc":"2.0","result":""#.to_owned() +  &format!("0x{}", result) + r#"","id":1}"#;
 	let response = tester.io.handle_request_sync(&request).unwrap();
 	assert_eq!(response, expected)
 }

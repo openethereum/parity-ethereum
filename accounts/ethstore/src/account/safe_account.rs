@@ -200,14 +200,14 @@ impl SafeAccount {
 
 #[cfg(test)]
 mod tests {
-	use crypto::publickey::{Generator, Random, verify_public, Message};
+	use crypto::publickey::{Generator, Random, verify_public};
 	use super::SafeAccount;
 
 	#[test]
 	fn sign_and_verify_public() {
-		let keypair = Random.generate().unwrap();
+		let keypair = Random.generate();
 		let password = "hello world".into();
-		let message = Message::default();
+		let message = [1u8; 32].into();
 		let account = SafeAccount::create(&keypair, [0u8; 16], &password, 10240, "Test".to_owned(), "{}".to_owned());
 		let signature = account.unwrap().sign(&password, &message).unwrap();
 		assert!(verify_public(keypair.public(), &signature, &message).unwrap());
@@ -215,11 +215,11 @@ mod tests {
 
 	#[test]
 	fn change_password() {
-		let keypair = Random.generate().unwrap();
+		let keypair = Random.generate();
 		let first_password = "hello world".into();
 		let sec_password = "this is sparta".into();
 		let i = 10240;
-		let message = Message::default();
+		let message = [1u8; 32].into();
 		let account = SafeAccount::create(&keypair, [0u8; 16], &first_password, i, "Test".to_owned(), "{}".to_owned()).unwrap();
 		let new_account = account.change_password(&first_password, &sec_password, i).unwrap();
 		assert!(account.sign(&first_password, &message).is_ok());

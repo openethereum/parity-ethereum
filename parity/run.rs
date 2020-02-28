@@ -490,6 +490,7 @@ fn execute_impl<Cr, Rr>(
 	let fetch = fetch::Client::new(FETCH_FULL_NUM_DNS_THREADS).map_err(|e| format!("Error starting fetch client: {:?}", e))?;
 
 	let txpool_size = cmd.miner_options.pool_limits.max_count;
+
 	// create miner
 	let miner = Arc::new(Miner::new(
 		cmd.miner_options,
@@ -500,6 +501,7 @@ fn execute_impl<Cr, Rr>(
 			account_utils::miner_local_accounts(account_provider.clone()),
 		)
 	));
+
 	miner.set_author(miner::Author::External(cmd.miner_extras.author));
 	miner.set_gas_range_target(cmd.miner_extras.gas_range_target);
 	miner.set_extra_data(cmd.miner_extras.extra_data);
@@ -571,6 +573,7 @@ fn execute_impl<Cr, Rr>(
 		cmd.private_encryptor_conf,
 	).map_err(|e| format!("Client service error: {:?}", e))?;
 
+	let forks = spec.hard_forks.clone();
 	let connection_filter_address = spec.params().node_permission_contract;
 	// drop the spec to free up genesis state.
 	drop(spec);
@@ -646,6 +649,7 @@ fn execute_impl<Cr, Rr>(
 		runtime.executor(),
 		net_conf.clone().into(),
 		client.clone(),
+		forks,
 		snapshot_service.clone(),
 		private_tx_sync,
 		private_state,
@@ -897,9 +901,7 @@ impl RunningClient {
 				trace!(target: "shutdown", "Informant dropped");
 				drop(client);
 				trace!(target: "shutdown", "Client dropped");
-				// This may help when debugging ref cycles. Requires nightly-only  `#![feature(weak_counts)]`
-				// trace!(target: "shutdown", "Waiting for refs to Client to shutdown, strong_count={:?}, weak_count={:?}", weak_client.strong_count(), weak_client.weak_count());
-				trace!(target: "shutdown", "Waiting for refs to Client to shutdown");
+				trace!(target: "shutdown", "Waiting for refs to Client to shutdown, strong_count={:?}, weak_count={:?}", weak_client.strong_count(), weak_client.weak_count());
 				wait_for_drop(weak_client);
 			}
 		}
@@ -957,11 +959,7 @@ fn wait_for_drop<T>(w: Weak<T>) {
 
 		thread::sleep(SLEEP_DURATION);
 
-		// When debugging shutdown issues on a nightly build it can help to enable this with the
-		// `#![feature(weak_counts)]` added to lib.rs (TODO: enable when
-		// https://github.com/rust-lang/rust/issues/57977 is stable)
-		// trace!(target: "shutdown", "Waiting for client to drop, strong_count={:?}, weak_count={:?}", w.strong_count(), w.weak_count());
-		trace!(target: "shutdown", "Waiting for client to drop");
+		trace!(target: "shutdown", "Waiting for client to drop, strong_count={:?}, weak_count={:?}", w.strong_count(), w.weak_count());
 	}
 
 	warn!("Shutdown timeout reached, exiting uncleanly.");

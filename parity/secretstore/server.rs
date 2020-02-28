@@ -123,7 +123,7 @@ mod server {
 #[cfg(feature = "secretstore")]
 mod server {
 	use std::sync::Arc;
-	use ethcore_secretstore;
+	use parity_secretstore;
 	use parity_crypto::publickey::KeyPair;
 	use ansi_term::Colour::{Red, White};
 	use super::{Configuration, Dependencies, NodeSecretKey, ContractAddress, Executor};
@@ -131,23 +131,23 @@ mod server {
 	#[cfg(feature = "accounts")]
 	use super::super::KeyStoreNodeKeyPair;
 
-	fn into_service_contract_address(address: ContractAddress) -> ethcore_secretstore::ContractAddress {
+	fn into_service_contract_address(address: ContractAddress) -> parity_secretstore::ContractAddress {
 		match address {
-			ContractAddress::Registry => ethcore_secretstore::ContractAddress::Registry,
-			ContractAddress::Address(address) => ethcore_secretstore::ContractAddress::Address(address),
+			ContractAddress::Registry => parity_secretstore::ContractAddress::Registry,
+			ContractAddress::Address(address) => parity_secretstore::ContractAddress::Address(address),
 		}
 	}
 
 	/// Key server
 	pub struct KeyServer {
-		_key_server: Box<dyn ethcore_secretstore::KeyServer>,
+		_key_server: Box<dyn parity_secretstore::KeyServer>,
 	}
 
 	impl KeyServer {
 		/// Create new key server
 		pub fn new(mut conf: Configuration, deps: Dependencies, executor: Executor) -> Result<Self, String> {
-			let self_secret: Arc<dyn ethcore_secretstore::SigningKeyPair> = match conf.self_secret.take() {
-				Some(NodeSecretKey::Plain(secret)) => Arc::new(ethcore_secretstore::PlainNodeKeyPair::new(
+			let self_secret: Arc<dyn parity_secretstore::SigningKeyPair> = match conf.self_secret.take() {
+				Some(NodeSecretKey::Plain(secret)) => Arc::new(parity_secretstore::PlainNodeKeyPair::new(
 					KeyPair::from_secret(secret).map_err(|e| format!("invalid secret: {}", e))?)),
 				#[cfg(feature = "accounts")]
 				Some(NodeSecretKey::KeyStore(account)) => {
@@ -177,8 +177,8 @@ mod server {
 			}
 
 			let key_server_name = format!("{}:{}", conf.interface, conf.port);
-			let mut cconf = ethcore_secretstore::ServiceConfiguration {
-				listener_address: if conf.http_enabled { Some(ethcore_secretstore::NodeAddress {
+			let mut cconf = parity_secretstore::ServiceConfiguration {
+				listener_address: if conf.http_enabled { Some(parity_secretstore::NodeAddress {
 					address: conf.http_interface.clone(),
 					port: conf.http_port,
 				}) } else { None },
@@ -188,12 +188,12 @@ mod server {
 				service_contract_doc_store_address: conf.service_contract_doc_store_address.map(into_service_contract_address),
 				service_contract_doc_sretr_address: conf.service_contract_doc_sretr_address.map(into_service_contract_address),
 				acl_check_contract_address: conf.acl_check_contract_address.map(into_service_contract_address),
-				cluster_config: ethcore_secretstore::ClusterConfiguration {
-					listener_address: ethcore_secretstore::NodeAddress {
+				cluster_config: parity_secretstore::ClusterConfiguration {
+					listener_address: parity_secretstore::NodeAddress {
 						address: conf.interface.clone(),
 						port: conf.port,
 					},
-					nodes: conf.nodes.into_iter().map(|(p, (ip, port))| (p, ethcore_secretstore::NodeAddress {
+					nodes: conf.nodes.into_iter().map(|(p, (ip, port))| (p, parity_secretstore::NodeAddress {
 						address: ip,
 						port: port,
 					})).collect(),
@@ -207,9 +207,9 @@ mod server {
 
 			cconf.cluster_config.nodes.insert(self_secret.public().clone(), cconf.cluster_config.listener_address.clone());
 
-			let db = ethcore_secretstore::open_secretstore_db(&conf.data_path)?;
+			let db = parity_secretstore::open_secretstore_db(&conf.data_path)?;
 			let trusted_client = TrustedClient::new(self_secret.clone(), deps.client, deps.sync, deps.miner);
-			let key_server = ethcore_secretstore::start(trusted_client, self_secret, cconf, db, executor)
+			let key_server = parity_secretstore::start(trusted_client, self_secret, cconf, db, executor)
 				.map_err(|e| format!("Error starting KeyServer {}: {}", key_server_name, e))?;
 
 			Ok(KeyServer {

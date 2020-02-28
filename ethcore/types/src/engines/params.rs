@@ -188,6 +188,7 @@ impl CommonParams {
 			schedule.tx_data_non_zero_gas = 16;
 		}
 		if block_number >= self.eip2200_advance_transition {
+			schedule.sload_gas = 800;
 			schedule.sstore_dirty_gas = Some(800);
 		}
 		if block_number >= self.eip210_transition {

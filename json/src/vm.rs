@@ -121,15 +121,12 @@ pub struct Env {
 
 #[cfg(test)]
 mod tests {
-	use std::{
-		collections::BTreeMap,
-		str::FromStr
-	};
+	use std::str::FromStr;
 	use super::{Address, Bytes, Call, Env, H256, MaybeEmpty, State, Transaction, Uint, Vm};
 
 	use crate::spec::{Account, HashOrMap};
 	use ethereum_types::{U256, H160 as Hash160, H256 as Hash256};
-	use macros::map;
+	use maplit::btreemap;
 	use rustc_hex::FromHex;
 
 	const TEST_CODE: &str = "7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff01600055";
@@ -207,14 +204,14 @@ mod tests {
 		assert_eq!(vm.output, Some(Bytes::new(Vec::new())));
 		assert_eq!(vm.pre_state, State(
 			HashOrMap::Map(
-				map![
+				btreemap![
 					Address(Hash160::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap()) => Account {
 						builtin: None,
 						balance: Some(Uint(0x0de0b6b3a7640000_u64.into())),
 						code: Some(Bytes::new(TEST_CODE.from_hex().unwrap())),
 						constructor: None,
 						nonce: Some(Uint(0.into())),
-						storage: Some(map![]),
+						storage: Some(btreemap![]),
 						version: None,
 					}
 				]))
@@ -222,14 +219,14 @@ mod tests {
 		assert_eq!(vm.post_state, Some(
 				State(
 					HashOrMap::Map(
-						map![
+						btreemap![
 							Address(Hash160::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap()) => Account {
 								builtin: None,
 								balance: Some(Uint(0x0de0b6b3a7640000_u64.into())),
 								code: Some(Bytes::new(TEST_CODE.from_hex().unwrap())),
 								constructor: None,
 								nonce: Some(Uint(0.into())),
-								storage: Some(map![
+								storage: Some(btreemap![
 									Uint(0.into()) => Uint(U256::from_str("fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe").unwrap())
 								]),
 								version: None,

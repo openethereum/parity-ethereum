@@ -122,34 +122,20 @@ fn block_verification(c: &mut Criterion) {
 	let preverified = verification::verify_block_unordered(block, &ethash, true).expect(PROOF);
 	let parent = Unverified::from_rlp(rlp_8481475.clone()).expect(PROOF);
 
-	// "partial" means we skip uncle and tx verification
-	c.bench_function("verify_block_family (partial)", |b| {
-		b.iter(|| {
-			if let Err(e) = verification::verify_block_family::<TestBlockChainClient>(
-				&preverified.header,
-				&parent.header,
-				&ethash,
-				None
-			) {
-				panic!("verify_block_family (partial) ERROR: {:?}", e);
-			}
-		});
-	});
-
 	let mut block_provider = TestBlockChain::new();
 	block_provider.insert(rlp_8481476.clone()); // block to verify
 	block_provider.insert(rlp_8481475.clone()); // parent
 	block_provider.insert(rlp_8481474.clone()); // uncle's parent
 
 	let client = TestBlockChainClient::default();
-	c.bench_function("verify_block_family (full)", |b| {
+	c.bench_function("verify_block_family", |b| {
 		b.iter(|| {
 			let full = FullFamilyParams { block: &preverified, block_provider: &block_provider, client: &client };
 			if let Err(e) = verification::verify_block_family::<TestBlockChainClient>(
 				&preverified.header,
 				&parent.header,
 				&ethash,
-				Some(full),
+				full,
 			) {
 				panic!("verify_block_family (full) ERROR: {:?}", e)
 			}

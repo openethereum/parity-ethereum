@@ -11,14 +11,13 @@ client-traits = { path = "../../client-traits" }
 common-types = { path = "../../types" }
 ethereum-types = "0.8.0"
 ethjson = { path = "../../../json" }
-parity-crypto = { version = "0.4.2", features = ["publickey"] }
+parity-crypto = { version = "0.5.0", features = ["publickey"] }
 engine = { path = "../../engine" }
 keccak-hash = "0.4.0"
 lazy_static = "1.3.0"
 log = "0.4"
 lru-cache = "0.1"
 machine = { path = "../../machine" }
-macros = { path = "../../../util/macros" }
 rand = "0.7"
 parking_lot = "0.10.0"
 rlp = "0.4.0"

@@ -120,7 +120,7 @@ extern crate pretty_assertions;
 
 #[cfg(test)]
 #[macro_use]
-extern crate macros;
+extern crate maplit;
 
 #[cfg(test)]
 extern crate fake_fetch;

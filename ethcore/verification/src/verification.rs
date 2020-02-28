@@ -163,8 +163,8 @@ fn verify_uncles(block: &PreverifiedBlock, bc: &dyn BlockProvider, engine: &dyn 
 
 		let mut excluded = HashSet::new();
 		excluded.insert(header.hash());
-		let mut hash = header.parent_hash().clone();
-		excluded.insert(hash.clone());
+		let mut hash = *header.parent_hash();
+		excluded.insert(hash);
 		for _ in 0..MAX_UNCLE_AGE {
 			match bc.block_details(&hash) {
 				Some(details) => {
@@ -213,7 +213,7 @@ fn verify_uncles(block: &PreverifiedBlock, bc: &dyn BlockProvider, engine: &dyn 
 			// cB.p^6	-----------/  6
 			// cB.p^7	-------------/
 			// cB.p^8
-			let mut expected_uncle_parent = header.parent_hash().clone();
+			let mut expected_uncle_parent = *header.parent_hash();
 			let uncle_parent = bc.block_header_data(&uncle.parent_hash())
 				.ok_or_else(|| BlockError::UnknownUncleParent(*uncle.parent_hash()))?;
 			for _ in 0..depth {
@@ -440,7 +440,6 @@ mod tests {
 	use keccak_hash::keccak;
 	use engine::Engine;
 	use parity_crypto::publickey::{Random, Generator};
-	use spec;
 	use ethcore::test_helpers::{
 		create_test_block_with_data, create_test_block, TestBlockChainClient
 	};
@@ -449,7 +448,6 @@ mod tests {
 		errors::BlockError::*,
 		transaction::{SignedTransaction, Transaction, UnverifiedTransaction, Action},
 	};
-	use rlp;
 	use triehash::ordered_trie_root;
 	use machine::Machine;
 	use null_engine::NullEngine;
@@ -556,7 +554,7 @@ mod tests {
 		good.set_timestamp(40);
 		good.set_number(10);
 
-		let keypair = Random.generate().unwrap();
+		let keypair = Random.generate();
 
 		let tr1 = Transaction {
 			action: Action::Create,
@@ -650,10 +648,6 @@ mod tests {
 		let mut bad_header = good.clone();
 		bad_header.set_transactions_root(eip86_transactions_root.clone());
 		bad_header.set_uncles_hash(good_uncles_hash.clone());
-		match basic_test(&create_test_block_with_data(&bad_header, &eip86_transactions, &good_uncles), engine) {
-			Err(Error::Transaction(ref e)) if e == &parity_crypto::publickey::Error::InvalidSignature.into() => (),
-			e => panic!("Block verification failed.\nExpected: Transaction Error (Invalid Signature)\nGot: {:?}", e),
-		}
 
 		let mut header = good.clone();
 		header.set_transactions_root(good_transactions_root.clone());
@@ -763,7 +757,7 @@ mod tests {
 		let mut header = Header::default();
 		header.set_number(1);
 
-		let keypair = Random.generate().unwrap();
+		let keypair = Random.generate();
 		let bad_transactions: Vec<_> = (0..3).map(|i| Transaction {
 			action: Action::Create,
 			value: U256::zero(),

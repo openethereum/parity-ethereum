@@ -36,16 +36,14 @@ impl EngineSigner {
 
 impl engine::signer::EngineSigner for EngineSigner {
 	fn sign(&self, message: Message) -> Result<Signature, Error> {
-		match self.accounts.sign(self.address, Some(self.password.clone()), message) {
-			Ok(ok) => Ok(ok),
-			Err(_) => Err(Error::InvalidSecretKey),
-		}
+		self.accounts.sign(self.address, Some(self.password.clone()), message).map_err(|e| {
+			Error::Custom(e.to_string())
+		})
 	}
 
 	fn decrypt(&self, auth_data: &[u8], cipher: &[u8]) -> Result<Vec<u8>, Error> {
 		self.accounts.decrypt(self.address, None, auth_data, cipher).map_err(|e| {
-			warn!("Unable to decrypt message: {:?}", e);
-			Error::InvalidMessage
+			Error::Custom(e.to_string())
 		})
 	}
 

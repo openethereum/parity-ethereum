@@ -92,6 +92,7 @@ mod propagator;
 mod requester;
 mod supplier;
 
+pub mod fork_filter;
 pub mod sync_packet;
 
 use std::sync::{Arc, mpsc};
@@ -100,9 +101,10 @@ use std::cmp;
 use std::time::{Duration, Instant};
 
 use crate::{
-	EthProtocolInfo as PeerInfoDigest, PriorityTask, SyncConfig, WarpSync, WARP_SYNC_PROTOCOL_ID,
+	ETH_PROTOCOL, EthProtocolInfo as PeerInfoDigest, PriorityTask, SyncConfig, WarpSync, WARP_SYNC_PROTOCOL_ID,
 	api::{Notification, PRIORITY_TIMER_INTERVAL},
 	block_sync::{BlockDownloader, DownloadAction},
+	chain::fork_filter::ForkFilterApi,
 	sync_io::SyncIo,
 	snapshot_sync::Snapshot,
 	transactions_stats::{TransactionsStats, Stats as TransactionStats},
@@ -147,10 +149,10 @@ malloc_size_of_is_0!(PeerInfo);
 
 pub type PacketDecodeError = DecoderError;
 
-/// 63 version of Ethereum protocol.
+/// Version 64 of the Ethereum protocol and number of packet IDs reserved by the protocol (packet count).
+pub const ETH_PROTOCOL_VERSION_64: (u8, u8) = (64, 0x11);
+/// Version 63 of the Ethereum protocol and number of packet IDs reserved by the protocol (packet count).
 pub const ETH_PROTOCOL_VERSION_63: (u8, u8) = (63, 0x11);
-/// 62 version of Ethereum protocol.
-pub const ETH_PROTOCOL_VERSION_62: (u8, u8) = (62, 0x11);
 /// 1 version of Parity protocol and the packet count.
 pub const PAR_PROTOCOL_VERSION_1: (u8, u8) = (1, 0x15);
 /// 2 version of Parity protocol (consensus messages added).
@@ -427,11 +429,12 @@ impl ChainSyncApi {
 	pub fn new(
 		config: SyncConfig,
 		chain: &dyn BlockChainClient,
+		fork_filter: ForkFilterApi,
 		private_tx_handler: Option<Arc<dyn PrivateTxHandler>>,
 		priority_tasks: mpsc::Receiver<PriorityTask>,
 	) -> Self {
 		ChainSyncApi {
-			sync: RwLock::new(ChainSync::new(config, chain, private_tx_handler)),
+			sync: RwLock::new(ChainSync::new(config, chain, fork_filter, private_tx_handler)),
 			priority_tasks: Mutex::new(priority_tasks),
 		}
 	}
@@ -660,6 +663,8 @@ pub struct ChainSync {
 	last_sent_block_number: BlockNumber,
 	/// Network ID
 	network_id: u64,
+	/// Fork filter
+	fork_filter: ForkFilterApi,
 	/// Optional fork block to check
 	fork_block: Option<(BlockNumber, H256)>,
 	/// Snapshot downloader.
@@ -688,6 +693,7 @@ impl ChainSync {
 	pub fn new(
 		config: SyncConfig,
 		chain: &dyn BlockChainClient,
+		fork_filter: ForkFilterApi,
 		private_tx_handler: Option<Arc<dyn PrivateTxHandler>>,
 	) -> Self {
 		let chain_info = chain.chain_info();
@@ -705,6 +711,7 @@ impl ChainSync {
 			old_blocks: None,
 			last_sent_block_number: 0,
 			network_id: config.network_id,
+			fork_filter,
 			fork_block: config.fork_block,
 			download_old_blocks: config.download_old_blocks,
 			snapshot: Snapshot::new(),
@@ -723,7 +730,7 @@ impl ChainSync {
 		let last_imported_number = self.new_blocks.last_imported_block_number();
 		SyncStatus {
 			state: self.state.clone(),
-			protocol_version: ETH_PROTOCOL_VERSION_63.0,
+			protocol_version: ETH_PROTOCOL_VERSION_64.0,
 			network_id: self.network_id,
 			start_block_number: self.starting_block,
 			last_imported_block_number: Some(last_imported_number),
@@ -1240,10 +1247,11 @@ impl ChainSync {
 
 	/// Send Status message
 	fn send_status(&mut self, io: &mut dyn SyncIo, peer: PeerId) -> Result<(), network::Error> {
+		let eth_protocol_version = io.protocol_version(&ETH_PROTOCOL, peer);
 		let warp_protocol_version = io.protocol_version(&WARP_SYNC_PROTOCOL_ID, peer);
 		let warp_protocol = warp_protocol_version != 0;
 		let private_tx_protocol = warp_protocol_version >= PAR_PROTOCOL_VERSION_3.0;
-		let protocol = if warp_protocol { warp_protocol_version } else { ETH_PROTOCOL_VERSION_63.0 };
+		let protocol = if warp_protocol { warp_protocol_version } else { eth_protocol_version };
 		trace!(target: "sync", "Sending status to {}, protocol version {}", peer, protocol);
 		let mut packet = RlpStream::new();
 		packet.begin_unbounded_list();
@@ -1253,6 +1261,9 @@ impl ChainSync {
 		packet.append(&chain.total_difficulty);
 		packet.append(&chain.best_block_hash);
 		packet.append(&chain.genesis_hash);
+		if eth_protocol_version >= ETH_PROTOCOL_VERSION_64.0 { 
+			packet.append(&self.fork_filter.current(io.chain()));
+		}
 		if warp_protocol {
 			let manifest = io.snapshot_service().manifest();
 			let block_number = manifest.as_ref().map_or(0, |m| m.block_number);
@@ -1499,6 +1510,7 @@ pub mod tests {
 
 	use crate::{
 		api::SyncConfig,
+		chain::ForkFilterApi,
 		tests::{helpers::TestIo, snapshot::TestSnapshotService},
 	};
 
@@ -1594,8 +1606,7 @@ pub mod tests {
 	}
 
 	pub fn dummy_sync_with_peer(peer_latest_hash: H256, client: &dyn BlockChainClient) -> ChainSync {
-
-		let mut sync = ChainSync::new(SyncConfig::default(), client, None,);
+		let mut sync = ChainSync::new(SyncConfig::default(), client, ForkFilterApi::new_dummy(client), None,);
 		insert_dummy_peer(&mut sync, 0, peer_latest_hash);
 		sync
 	}

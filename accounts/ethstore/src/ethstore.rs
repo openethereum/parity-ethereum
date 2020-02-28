@@ -698,7 +698,7 @@ mod tests {
 	use ethereum_types::H256;
 
 	fn keypair() -> KeyPair {
-		Random.generate().unwrap()
+		Random.generate()
 	}
 
 	fn store() -> EthStore {
@@ -820,6 +820,7 @@ mod tests {
 		let passwd2 = "xzy".into();
 		let multi_store = multi_store();
 		let keypair = keypair();
+		let message = [1u8; 32].into();
 		let address = store.insert_account(SecretVaultRef::Root, keypair.secret().clone(), &passwd1).unwrap();
 		assert_eq!(multi_store.accounts().unwrap().len(), 0);
 
@@ -828,7 +829,7 @@ mod tests {
 
 		// then
 		assert!(store.test_password(&address, &passwd1).unwrap(), "First password should work for store.");
-		assert!(multi_store.sign(&address, &passwd2, &Default::default()).is_ok(), "Second password should work for second store.");
+		assert!(multi_store.sign(&address, &passwd2, &message).is_ok(), "Second password should work for second store.");
 		assert_eq!(multi_store.accounts().unwrap().len(), 1);
 	}
 
@@ -1092,8 +1093,9 @@ mod tests {
 		let accounts = store.accounts().unwrap();
 		assert_eq!(accounts.len(), 2);
 
+		let message = [1u8; 32].into();
 		// and we can sign with the derived contract
-		assert!(store.sign(&derived, &"test".into(), &Default::default()).is_ok(), "Second password should work for second store.");
+		assert!(store.sign(&derived, &"test".into(), &message).is_ok(), "Second password should work for second store.");
 	}
 
 	#[test]

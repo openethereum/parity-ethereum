@@ -16,7 +16,7 @@ multihash = "0.8"
 order-stat = "0.1"
 rand = "0.7"
 rand_xorshift = "0.2"
-rustc-hex = "1.0"
+rustc-hex = "2.1.0"
 semver = "0.9"
 serde = "1.0"
 serde_derive = "1.0"
@@ -51,7 +51,7 @@ ethereum-types = "0.8.0"
 fastmap = { path = "../util/fastmap" }
 machine = { path = "../ethcore/machine" }
 parity-bytes = "0.1"
-parity-crypto = { version = "0.4.2", features = ["publickey"] }
+parity-crypto = { version = "0.5.0", features = ["publickey"] }
 
 eip-712 = { path = "../util/EIP-712" }
 ethjson = { path = "../json" }
@@ -59,7 +59,7 @@ ethkey = { path = "../accounts/ethkey" }
 ethstore = { path = "../accounts/ethstore" }
 fetch = { path = "../util/fetch" }
 keccak-hash = "0.4.0"
-parity-runtime = { path = "../util/runtime" }
+parity-runtime = { version = "0.1.1", features = ["test-helpers"] }
 parity-updater = { path = "../updater" }
 parity-version = { path = "../util/version" }
 rlp = "0.4.0"
@@ -77,7 +77,7 @@ ethcore-io = { path = "../util/io" }
 ethcore-network = { path = "../util/network" }
 ethjson = { path = "../json", features = ["test-helpers"] }
 fake-fetch = { path = "../util/fake-fetch" }
-macros = { path = "../util/macros" }
+maplit = "1.0.2"
 spec = { path = "../ethcore/spec" }
 pretty_assertions = "0.1"
 transaction-pool = "2.0.1"

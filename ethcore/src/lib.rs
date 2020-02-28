@@ -63,8 +63,6 @@ extern crate vm;
 extern crate account_db;
 #[cfg(test)]
 extern crate ethcore_accounts as accounts;
-#[cfg(test)]
-extern crate stats;
 
 #[cfg(feature = "stratum")]
 extern crate ethcore_stratum;
@@ -83,9 +81,6 @@ extern crate kvdb_sled;
 #[cfg(feature = "json-tests")]
 #[macro_use]
 extern crate lazy_static;
-#[cfg(any(test, feature = "json-tests"))]
-#[macro_use]
-extern crate macros;
 #[cfg(any(test, feature = "test-helpers"))]
 extern crate pod;
 #[cfg(any(test, feature = "blooms-db"))]

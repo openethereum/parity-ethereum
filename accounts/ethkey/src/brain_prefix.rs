@@ -39,15 +39,11 @@ impl BrainPrefix {
 	pub fn phrase(&self) -> &str {
 		&self.last_phrase
 	}
-}
 
-impl Generator for BrainPrefix {
-	type Error = Error;
-
-	fn generate(&mut self) -> Result<KeyPair, Error> {
+	pub fn generate(&mut self) -> Result<KeyPair, Error> {
 		for _ in 0..self.iterations {
 			let phrase = wordlist::random_phrase(self.no_of_words);
-			let keypair = Brain::new(phrase.clone()).generate().unwrap();
+			let keypair = Brain::new(phrase.clone()).generate();
 			if keypair.address().as_ref().starts_with(&self.prefix) {
 				self.last_phrase = phrase;
 				return Ok(keypair)
@@ -61,7 +57,6 @@ impl Generator for BrainPrefix {
 #[cfg(test)]
 mod tests {
 	use BrainPrefix;
-	use parity_crypto::publickey::Generator;
 
 	#[test]
 	fn prefix_generator() {

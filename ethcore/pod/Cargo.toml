@@ -19,10 +19,10 @@ kvdb = "0.4.0"
 log = "0.4"
 parity-bytes = "0.1.0"
 rlp = "0.4"
-rustc-hex = "1.0"
+rustc-hex = "2.1.0"
 serde = { version = "1.0", features = ["derive"] }
 trie-db = "0.20.0"
 triehash = { package = "triehash-ethereum", version = "0.2",  path = "../../util/triehash-ethereum" }
 
 [dev-dependencies]
-macros = { path = "../../util/macros" }
+maplit = "1.0.2"

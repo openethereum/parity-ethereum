@@ -352,7 +352,7 @@ impl<B: Backend> State<B> {
 
 	fn insert_cache(&self, address: &Address, account: AccountEntry) {
 		// Dirty account which is not in the cache means this is a new account.
-		// It goes directly into the checkpoint as there's nothing to rever to.
+		// It goes directly into the checkpoint as there's nothing to revert to.
 		//
 		// In all other cases account is read as clean first, and after that made
 		// dirty in and added to the checkpoint with `note_cache`.
@@ -434,7 +434,7 @@ impl<B: Backend> State<B> {
 	/// Get the nonce of account `a`.
 	pub fn nonce(&self, a: &Address) -> TrieResult<U256> {
 		self.ensure_cached(a, RequireCache::None, true,
-		|a| a.as_ref().map_or(self.account_start_nonce, |account| *account.nonce()))
+		|a| a.map_or(self.account_start_nonce, |account| *account.nonce()))
 	}
 
 	/// Whether the base storage root of an account remains unchanged.
@@ -759,20 +759,21 @@ impl<B: Backend> State<B> {
 	}
 
 	/// Remove any touched empty or dust accounts.
-	pub fn kill_garbage(&mut self, touched: &HashSet<Address>, remove_empty_touched: bool, min_balance: &Option<U256>, kill_contracts: bool) -> TrieResult<()> {
-		let to_kill: HashSet<_> = {
-			self.cache.borrow().iter().filter_map(|(address, ref entry)|
-				if touched.contains(address) && // Check all touched accounts
-					((remove_empty_touched && entry.exists_and_is_null()) // Remove all empty touched accounts.
+	pub fn kill_garbage(&mut self, touched: &HashSet<Address>, min_balance: &Option<U256>, kill_contracts: bool) -> TrieResult<()> {
+		let to_kill: HashSet<_> =
+			touched.iter().filter_map(|address| { // Check all touched accounts
+				self.cache.borrow().get(address).and_then(|entry| {
+					if entry.exists_and_is_null() // Remove all empty touched accounts.
 						|| min_balance.map_or(false, |ref balance| entry.account.as_ref().map_or(false, |account|
-						(account.is_basic() || kill_contracts) // Remove all basic and optionally contract accounts where balance has been decreased.
-							&& account.balance() < balance && entry.old_balance.as_ref().map_or(false, |b| account.balance() < b)))) {
+							(account.is_basic() || kill_contracts) // Remove all basic and optionally contract accounts where balance has been decreased.
+							&& account.balance() < balance && entry.old_balance.as_ref().map_or(false, |b| account.balance() < b))) {
+						Some(address)
+					} else { None }
+				})
+			}).collect();
 
-					Some(address.clone())
-				} else { None }).collect()
-		};
 		for address in to_kill {
-			self.kill_account(&address);
+			self.kill_account(address)
 		}
 		Ok(())
 	}
@@ -1014,13 +1015,13 @@ impl<B: Backend> State<B> {
 	}
 
 	/// Pull account `a` in our cache from the trie DB. `require_code` requires that the code be cached, too.
-	pub fn require<'a>(&'a self, a: &Address, require_code: bool) -> TrieResult<RefMut<'a, Account>> {
+	pub fn require(&self, a: &Address, require_code: bool) -> TrieResult<RefMut<Account>> {
 		self.require_or_from(a, require_code, || Account::new_basic(0u8.into(), self.account_start_nonce), |_| {})
 	}
 
 	/// Pull account `a` in our cache from the trie DB. `require_code` requires that the code be cached, too.
 	/// If it doesn't exist, make account equal the evaluation of `default`.
-	pub fn require_or_from<'a, F, G>(&'a self, a: &Address, require_code: bool, default: F, not_default: G) -> TrieResult<RefMut<'a, Account>>
+	pub fn require_or_from<F, G>(&self, a: &Address, require_code: bool, default: F, not_default: G) -> TrieResult<RefMut<Account>>
 		where F: FnOnce() -> Account, G: FnOnce(&mut Account),
 	{
 		let contains_key = self.cache.borrow().contains_key(a);
@@ -1137,8 +1138,8 @@ impl<B: Backend> State<B> {
 	}
 }
 
-//// TODO: cloning for `State` shouldn't be possible in general; Remove this and use
-//// checkpoints where possible.
+// TODO: cloning for `State` shouldn't be possible in general; Remove this and use
+// checkpoints where possible.
 impl<B: Backend + Clone> Clone for State<B> {
 	fn clone(&self) -> State<B> {
 		let cache = {
