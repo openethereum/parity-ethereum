@@ -95,13 +95,11 @@ jobs:
       - name:                   Build OpenEthereum for ${{matrix.platform}}
         if:                     matrix.platform != 'windows-latest'
         run:                    sh scripts/actions/build-linux.sh ${{matrix.platform}}
-      - name:                   Sccache statistics
-        run:                    sccache --show-stats
+      - name:                   Stop sccache
+        if:                     always()
+        run:                    sccache --stop-server
       - name:                   Download artifact
         uses:                   actions/upload-artifact@v1
         with:
           name:                 ${{matrix.platform}}.artifacts.zip
           path:                 artifacts/
-      - name:                   Stop sccache
-        if:                     always()
-        run:                    sccache --stop-server
