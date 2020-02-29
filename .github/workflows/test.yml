@@ -97,6 +97,12 @@ jobs:
       - name:                   Sccache statistics
         run:                    sccache --show-stats
       # From https://github.com/launchbadge/sqlx/blob/master/.github/workflows/rust.yml
+      - name:                   Prepare build directory for cache
+        if:                     matrix.platform != 'windows-latest'
+        run:                    |
+          find ./target/release -maxdepth 1 -type f -delete;
+          rm -fr ./target/release/{deps,.fingerprint}/*{parity,ethcore,ethkey,ethstore,parity-evm}*;
+          rm -f  ./target/.rustc_info.json;
       - name:                   Stop sccache
         if:                     always()
         run:                    sccache --stop-server

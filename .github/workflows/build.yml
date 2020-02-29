@@ -1,6 +1,7 @@
 name:                           Build Release Suite
 
 on:
+  pull_request:
   push:
     branches:
       - stable
