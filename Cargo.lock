@@ -4730,8 +4730,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8fb6824dde66ad33bf20c6e8476f5b82b871bc8bc3c129a10ea2f7dae5060fa3"
 dependencies = [
  "crc32fast",
- "crossbeam-epoch 0.8.0",
- "crossbeam-utils 0.7.0",
+ "crossbeam-epoch 0.8.2",
+ "crossbeam-utils 0.7.2",
  "fs2",
  "fxhash",
  "libc",
