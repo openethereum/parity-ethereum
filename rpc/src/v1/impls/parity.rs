@@ -40,7 +40,7 @@ use types::{
 use updater::{Service as UpdateService};
 use version::version_data;
 
-use v1::helpers::{self, errors, fake_sign, ipfs, NetworkSettings, verify_signature};
+use v1::helpers::{self, errors, fake_sign, NetworkSettings, verify_signature};
 use v1::helpers::external_signer::{SigningQueue, SignerService};
 use v1::metadata::Metadata;
 use v1::traits::Parity;
@@ -394,10 +394,6 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 		};
 		let receipts = try_bf!(self.client.localized_block_receipts(id).ok_or_else(errors::unknown_block));
 		Box::new(future::ok(receipts.into_iter().map(Into::into).collect()))
-	}
-
-	fn ipfs_cid(&self, content: Bytes) -> Result<String> {
-		ipfs::cid(content)
 	}
 
 	fn call(&self, requests: Vec<CallRequest>, num: Option<BlockNumber>) -> Result<Vec<Bytes>> {

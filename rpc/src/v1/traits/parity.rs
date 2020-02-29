@@ -207,10 +207,6 @@ pub trait Parity {
 	#[rpc(name = "parity_getBlockReceipts")]
 	fn block_receipts(&self, _: Option<BlockNumber>) -> BoxFuture<Vec<Receipt>>;
 
-	/// Get IPFS CIDv0 given protobuf encoded bytes.
-	#[rpc(name = "parity_cidV0")]
-	fn ipfs_cid(&self, _: Bytes) -> Result<String>;
-
 	/// Call contract, returning the output data.
 	#[rpc(name = "parity_call")]
 	fn call(&self, _: Vec<CallRequest>, _: Option<BlockNumber>) -> Result<Vec<Bytes>>;
