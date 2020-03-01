@@ -147,7 +147,7 @@ mod block_tests {
 		json_chain_test(path, json_data, h)
 	}
 	//todo[dvdplm] do these tests match all folders in `res/` or are there tests we're missing?
-	//Issue: https://github.com/paritytech/parity-ethereum/issues/11085
+	//Issue: https://github.com/OpenEthereum/open-ethereum/issues/11085
 	declare_test!{BlockchainTests_bcBlockGasLimitTest, "BlockchainTests/bcBlockGasLimitTest"}
 	declare_test!{BlockchainTests_bcExploitTest, "BlockchainTests/bcExploitTest"}
 	declare_test!{BlockchainTests_bcForgedTest, "BlockchainTests/bcForgedTest"}
@@ -199,7 +199,7 @@ mod block_tests {
 	//      "RevertPrecompiledTouch_storage" contains 4 tests, only two fails
 	//      "RevertPrecompiledTouchExactOOG" contains a ton of tests, only two fails
 	//      "RevertPrecompiledTouch" has 4 tests, 2 failures
-	//  Ignored in currents.json, issue: https://github.com/paritytech/parity-ethereum/issues/11073
+	//  Ignored in currents.json, issue: https://github.com/OpenEthereum/open-ethereum/issues/11073
 	declare_test!{BlockchainTests_GeneralStateTest_stRevertTest, "BlockchainTests/GeneralStateTests/stRevertTest/"}
 	declare_test!{BlockchainTests_GeneralStateTest_stShift, "BlockchainTests/GeneralStateTests/stShift/"}
 	declare_test!{BlockchainTests_GeneralStateTest_stSolidityTest, "BlockchainTests/GeneralStateTests/stSolidityTest/"}

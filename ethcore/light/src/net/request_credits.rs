@@ -140,7 +140,7 @@ impl Encodable for CostTable {
 		fn append_cost(s: &mut RlpStream, cost: &Option<U256>, kind: request::Kind) {
 			if let Some(ref cost) = *cost {
 				s.begin_list(2);
-				// hack around https://github.com/paritytech/parity-ethereum/issues/4356
+				// hack around https://github.com/OpenEthereum/open-ethereum/issues/4356
 				Encodable::rlp_append(&kind, s);
 				s.append(cost);
 			}

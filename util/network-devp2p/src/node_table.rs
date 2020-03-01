@@ -704,7 +704,7 @@ mod tests {
 		assert_eq!(table.get_index_to_insert(None), 0);
 
 		// sleep 1 mcs is added because nanosecond precision was lost since mac os x high sierra update
-		// https://github.com/paritytech/parity-ethereum/issues/9632
+		// https://github.com/OpenEthereum/open-ethereum/issues/9632
 
 		table.add_node(node1);
 		sleep(Duration::from_micros(1));
