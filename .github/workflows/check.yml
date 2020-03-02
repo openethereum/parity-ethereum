@@ -80,9 +80,6 @@ jobs:
       - name:                   Stop sccache
         if:                     always()
         run:                    sccache --stop-server
-      # From https://github.com/launchbadge/sqlx/blob/master/.github/workflows/rust.yml
       - name:                   Prepare build directory for cache
-        run:                    |
-          find ./target/release -maxdepth 1 -type f -delete;
-          rm -fr ./target/release/{deps,.fingerprint}/*{parity,ethcore,ethkey,ethstore,parity-evm}*;
-          rm -f  ./target/.rustc_info.json;
+        shell: bash
+        run:                    bash scripts/actions/clean-target.sh
