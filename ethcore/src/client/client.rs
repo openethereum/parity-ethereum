@@ -114,7 +114,7 @@ use types::{
 	engines::{
 		epoch::{PendingTransition, Transition as EpochTransition},
 		ForkChoice,
-		machine::{AuxiliaryData, Call as MachineCall},
+		machine::Call as MachineCall,
 		MAX_UNCLE_AGE,
 		SealingState,
 	},
@@ -602,9 +602,7 @@ impl Importer {
 		use engine::EpochChange;
 
 		let hash = header.hash();
-		let auxiliary = AuxiliaryData { receipts: Some(&receipts) };
-
-		match self.engine.signals_epoch_end(header, auxiliary) {
+		match self.engine.signals_epoch_end(header, Some(&receipts)) {
 			EpochChange::Yes(proof) => {
 				use engine::Proof;
 

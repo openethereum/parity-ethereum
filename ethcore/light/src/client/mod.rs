@@ -474,18 +474,12 @@ impl<T: ChainDataFetcher> Client<T> {
 	}
 
 	fn check_epoch_signal(&self, verified_header: &Header) -> Result<Option<Proof>, T::Error> {
-		use common_types::engines::machine::AuxiliaryData;
-
 		let mut receipts: Option<Vec<_>> = None;
 
 		loop {
 
 			let is_signal = {
-				let auxiliary = AuxiliaryData {
-					receipts: receipts.as_ref().map(|x| &x[..]),
-				};
-
-				self.engine.signals_epoch_end(verified_header, auxiliary)
+				self.engine.signals_epoch_end(verified_header, receipts.as_ref().map(|x| &x[..]))
 			};
 
 			// check with any auxiliary data fetched so far

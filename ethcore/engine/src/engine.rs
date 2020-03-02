@@ -28,9 +28,9 @@ use common_types::{
 		Seal, SealingState, Headers, PendingTransitionStore,
 		params::CommonParams,
 		machine as machine_types,
-		machine::AuxiliaryData,
 	},
 	errors::{EthcoreError as Error, EngineError},
+	receipt::Receipt,
 	snapshot::Snapshotting,
 	transaction::{self, SignedTransaction, UnverifiedTransaction},
 };
@@ -254,7 +254,7 @@ pub trait Engine: Sync + Send {
 	/// Return `Yes` or `No` when the answer is definitively known.
 	///
 	/// Should not interact with state.
-	fn signals_epoch_end<'a>(&self, _header: &Header, _aux: AuxiliaryData<'a>) -> EpochChange {
+	fn signals_epoch_end<'a>(&self, _header: &Header, _receipts: Option<&'a [Receipt]>) -> EpochChange {
 		EpochChange::No
 	}
 
