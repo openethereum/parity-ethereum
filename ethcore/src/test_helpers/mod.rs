@@ -183,14 +183,15 @@ pub fn generate_dummy_client_with_spec_and_data<F>(
 
 		// first block we don't have any balance, so can't send any transactions.
 		for _ in 0..txs_per_block {
-			b.push_transaction(Transaction {
+			let signed_tx = Transaction {
 				nonce: n.into(),
 				gas_price: tx_gas_prices[n % tx_gas_prices.len()],
 				gas: 100000.into(),
 				action: Action::Create,
 				data: vec![],
 				value: U256::zero(),
-			}.sign(kp.secret(), Some(test_spec.chain_id()))).unwrap();
+			}.sign(kp.secret(), Some(test_spec.chain_id()));
+			b.push_transaction(&signed_tx).unwrap();
 			n += 1;
 		}
 
@@ -247,7 +248,7 @@ pub fn push_block_with_transactions(client: &Arc<Client>, transactions: &[Signed
 	b.set_timestamp(block_number * 10);
 
 	for t in transactions {
-		b.push_transaction(t.clone()).unwrap();
+		b.push_transaction(t).unwrap();
 	}
 	let b = b.close_and_lock().unwrap().seal(test_engine, vec![]).unwrap();
 

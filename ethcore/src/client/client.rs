@@ -290,7 +290,6 @@ impl Importer {
 
 			let _import_lock = self.import_lock.lock();
 			let blocks = self.block_queue.drain(max_blocks_to_import);
-			// todo[dvdplm] I think we make this check already further up the call chain.
 			if blocks.is_empty() {
 				return 0;
 			}
@@ -306,17 +305,17 @@ impl Importer {
 					continue;
 				}
 
-				match self.check_and_lock_block(block, client) {
-					(Ok((locked_block, pending)), block_bytes) => {
+				match self.check_and_lock_block(&block, client) {
+					Ok((locked_block, pending)) => {
 						imported_blocks.push(hash);
 						let transactions_len = locked_block.transactions.len();
 						let gas_used = locked_block.header.gas_used().clone();
-						let route = self.commit_block(locked_block, encoded::Block::new(block_bytes), pending, client);
+						let route = self.commit_block(locked_block, encoded::Block::new(block.bytes), pending, client);
 						import_results.push(route);
 						client.report.write().accrue_block(&gas_used, transactions_len);
 					}
-					(Err(err), block_bytes) => {
-						self.bad_blocks.report(block_bytes, format!("{:?}", err));
+					Err(err) => {
+						self.bad_blocks.report(block.bytes, format!("{:?}", err));
 						invalid_blocks.insert(hash);
 					},
 				}
@@ -365,17 +364,15 @@ impl Importer {
 		imported
 	}
 
-	fn check_and_lock_block(&self, block: PreverifiedBlock, client: &Client) -> (EthcoreResult<(LockedBlock, Option<PendingTransition>)>, Bytes) {
-	// fn check_and_lock_block(&self, block: PreverifiedBlock, client: &Client) -> EthcoreResult<(LockedBlock, Option<PendingTransition>)> {
-		// let bytes = block.bytes;
+	fn check_and_lock_block(&self, block: &PreverifiedBlock, client: &Client) -> EthcoreResult<(LockedBlock, Option<PendingTransition>)> {
 		let engine = &*self.engine;
-		let header = block.header.clone(); // todo[dvdplm] can avoid clone?
+		let header = &block.header;
 
 		// Check the block isn't so old we won't be able to enact it.
 		let best_block_number = client.chain.read().best_block_number();
 		if client.pruning_info().earliest_state > header.number() {
 			warn!(target: "client", "Block import failed for #{} ({})\nBlock is ancient (current best block: #{}).", header.number(), header.hash(), best_block_number);
-			return (Err("Block is ancient".into()), block.bytes);
+			return Err("Block is ancient".into());
 		}
 
 		// Check if parent is in chain
@@ -383,7 +380,7 @@ impl Importer {
 			Some(h) => h,
 			None => {
 				warn!(target: "client", "Block import failed for #{} ({}): Parent not found ({}) ", header.number(), header.hash(), header.parent_hash());
-				return (Err("Parent not found".into()), block.bytes);
+				return Err("Parent not found".into());
 			}
 		};
 
@@ -394,7 +391,7 @@ impl Importer {
 			&parent,
 			engine,
 			verification::FullFamilyParams {
-				block: &block,
+				block,
 				block_provider: &**chain,
 				client
 			},
@@ -402,13 +399,13 @@ impl Importer {
 
 		if let Err(e) = verify_family_result {
 			warn!(target: "client", "Stage 3 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
-			return (Err(e), block.bytes);
+			return Err(e);
 		};
 
 		let verify_external_result = engine.verify_block_external(&header);
 		if let Err(e) = verify_external_result {
 			warn!(target: "client", "Stage 4 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
-			return (Err(e), block.bytes);
+			return Err(e);
 		};
 
 		// Enact Verified Block
@@ -418,7 +415,7 @@ impl Importer {
 		let is_epoch_begin = chain.epoch_transition(parent.number(), *header.parent_hash()).is_some();
 
 		let enact_result = enact_verified(
-			&block, // todo[dvdplm] can pass by ref?
+			block,
 			engine,
 			client.tracedb.read().tracing_enabled(),
 			db,
@@ -432,7 +429,7 @@ impl Importer {
 			Ok(b) => b,
 			Err(e) => {
 				warn!(target: "client", "Block import failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
-				return (Err(e), block.bytes);
+				return Err(e);
 			}
 		};
 
@@ -448,23 +445,17 @@ impl Importer {
 		// Final Verification
 		if let Err(e) = verification::verify_block_final(&header, &locked_block.header) {
 			warn!(target: "client", "Stage 5 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
-			return (Err(e), block.bytes);
+			return Err(e);
 		}
 
-		// todo[dvdplm] make prettier
-		let pending = match self.check_epoch_end_signal(
+		let pending = self.check_epoch_end_signal(
 			&header,
 			&locked_block.receipts,
 			locked_block.state.db(),
 			client
-		) {
-			Ok(pending) => pending,
-			Err(e) => return (Err(e), block.bytes)
-		};
+		)?;
 
-
-		(Ok((locked_block, pending)), block.bytes)
-		// Ok((locked_block, pending))
+		Ok((locked_block, pending))
 	}
 
 	/// Import a block with transaction receipts.

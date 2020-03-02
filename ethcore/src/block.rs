@@ -548,7 +548,7 @@ mod tests {
 		)?;
 
 		b.populate_from(&header);
-		b.push_transactions(transactions)?;
+		b.push_transactions(&transactions)?;
 
 		for u in block.uncles {
 			b.push_uncle(u)?;

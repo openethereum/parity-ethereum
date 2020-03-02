@@ -152,14 +152,16 @@ fn can_trace_block_and_uncle_reward() {
 
 	let mut n = 0;
 	for _ in 0..1 {
-		block.push_transaction(Transaction {
+		let signed_tx = Transaction {
 			nonce: n.into(),
 			gas_price: 10000.into(),
 			gas: 100000.into(),
 			action: Action::Create,
 			data: vec![],
 			value: U256::zero(),
-		}.sign(kp.secret(), Some(spec.network_id()))).unwrap();
+		}.sign(kp.secret(), Some(spec.network_id()));
+
+		block.push_transaction(&signed_tx).unwrap();
 		n += 1;
 	}
 
