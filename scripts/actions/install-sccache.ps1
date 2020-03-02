@@ -7,7 +7,7 @@ $platform =
   @{ "macOS"   = "x86_64-apple-darwin"
      "Linux"   = "x86_64-unknown-linux-musl"
      "Windows" = "x86_64-pc-windows-msvc"
-   }.${{ runner.os }}
+   }.$os
 $basename = "sccache-$version-$platform"
 $url = "https://github.com/mozilla/sccache/releases/download/" +
        "$version/$basename.tar.gz"
