@@ -1,6 +1,7 @@
 name:                           Build Release Suite
 
 on:
+    pull_request:
   push:
     branches:
       - stable
@@ -85,3 +86,8 @@ jobs:
         with:
           name:                 ${{matrix.platform}}.artifacts.zip
           path:                 artifacts/
+      - name:                   Prepare build directory for cache
+        run:                    |
+          find ./target/release -maxdepth 1 -type f -delete;
+          rm -fr ./target/release/{deps,.fingerprint}/*{parity*,ethcore*,ethkey*,ethstore*,parity-evm*}*;
+          rm -f  ./target/.rustc_info.json;

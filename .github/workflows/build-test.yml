@@ -78,6 +78,7 @@ jobs:
           command:              test
           args:                 --locked --all --release --features "json-tests" --verbose --no-run
       - name:                   Run tests for ${{ matrix.platform }}
+        continue-on-error: true
         uses:                   actions-rs/cargo@v1
         with:
           command:              test
@@ -86,7 +87,6 @@ jobs:
         if:                     always()
         run:                    sccache --stop-server
       - name:                   Prepare build directory for cache
-#        if:                     matrix.platform != 'windows-latest'
         run:                    |
           find ./target/release -maxdepth 1 -type f -delete;
           rm -fr ./target/release/{deps,.fingerprint}/*{parity*,ethcore*,ethkey*,ethstore*,parity-evm*}*;
