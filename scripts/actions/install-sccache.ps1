@@ -11,6 +11,7 @@ $platform =
 $basename = "sccache-$version-$platform"
 $url = "https://github.com/mozilla/sccache/releases/download/" +
        "$version/$basename.tar.gz"
+echo $url
 curl -LO $url
 tar -xzvf "$basename.tar.gz"
 ls $basename/
