@@ -47,7 +47,7 @@ jobs:
           key:                  ${{ runner.os }}-sccache-check-${{ hashFiles('**/Cargo.lock') }}
       - name:                   Install sccache for Linux
         shell:                  pwsh
-        run:                    scripts/actions/install-sccache.sh
+        run:                    scripts/actions/install-sccache.ps1
       - name:                   Sccache statistics
         run:                    sccache --show-stats
       - name:                   Run cargo check 1/3

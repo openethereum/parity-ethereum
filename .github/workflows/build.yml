@@ -65,7 +65,7 @@ jobs:
           key:                  ${{ runner.os }}-sccache-build-${{ hashFiles('**/Cargo.lock') }}
       - name:                   Install sccache for ${{ matrix.platform }}
         shell:                  pwsh
-        run:                    scripts/actions/install-sccache.sh
+        run:                    scripts/actions/install-sccache.ps1
       - name:                   Install LLVM for Windows
         if:                     matrix.platform == 'windows-latest'
         run:                    choco install llvm
