@@ -65,7 +65,6 @@ extern crate node_filter;
 extern crate parity_bytes as bytes;
 extern crate parity_crypto;
 extern crate parity_hash_fetch as hash_fetch;
-extern crate parity_ipfs_api;
 extern crate parity_local_store as local_store;
 extern crate parity_path as path;
 extern crate parity_rpc;
@@ -106,7 +105,6 @@ mod cache;
 mod cli;
 mod configuration;
 mod export_hardcoded_sync;
-mod ipfs;
 mod deprecated;
 mod helpers;
 mod informant;
@@ -232,7 +230,7 @@ fn execute<Cr, Rr>(
 /// binary.
 ///
 /// On error, returns what to print on stderr.
-// FIXME: totally independent logging capability, see https://github.com/paritytech/parity-ethereum/issues/10252
+// FIXME: totally independent logging capability, see https://github.com/OpenEthereum/open-ethereum/issues/10252
 pub fn start<Cr, Rr>(
 	conf: Configuration,
 	logger: Arc<RotatingLogger>,

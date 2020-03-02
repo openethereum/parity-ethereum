@@ -26,7 +26,7 @@ pub struct NetClient<S: ?Sized> {
 	/// Cached `network_id`.
 	///
 	/// We cache it to avoid redundant aquire of sync read lock.
-	/// https://github.com/paritytech/parity-ethereum/issues/8746
+	/// https://github.com/OpenEthereum/open-ethereum/issues/8746
 	network_id: u64,
 }
 

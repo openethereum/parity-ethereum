@@ -1,60 +1,60 @@
 Note: Parity 1.11 reached End-of-Life on 2018-09-19 (EOL).
 
-## Parity-Ethereum [v1.11.11](https://github.com/paritytech/parity-ethereum/releases/tag/v1.11.11) (2018-09-11)
+## Parity-Ethereum [v1.11.11](https://github.com/OpenEthereum/open-ethereum/releases/tag/v1.11.11) (2018-09-11)
 
 Parity-Ethereum 1.11.11-stable is a bug-fix release to improve performance and stability.
 
 The full list of included changes:
 
-- Stable backports 1.11.11 ([#9443](https://github.com/paritytech/parity-ethereum/pull/9443))
+- Stable backports 1.11.11 ([#9443](https://github.com/OpenEthereum/open-ethereum/pull/9443))
   - Parity-version: bump stable to 1.11.11
-  - Update tobalaba.json ([#9419](https://github.com/paritytech/parity-ethereum/pull/9419))
-  - Update hardcoded sync ([#9421](https://github.com/paritytech/parity-ethereum/pull/9421))
+  - Update tobalaba.json ([#9419](https://github.com/OpenEthereum/open-ethereum/pull/9419))
+  - Update hardcoded sync ([#9421](https://github.com/OpenEthereum/open-ethereum/pull/9421))
     - Update foundation hardcoded header to block 6219777
     - Update ropsten hardcoded header to block 3917825
     - Update kovan hardcoded header to block 8511489
-  - Parity: print correct keys path on startup ([#9501](https://github.com/paritytech/parity-ethereum/pull/9501))
-  - Only check warp syncing for eth_getWorks ([#9484](https://github.com/paritytech/parity-ethereum/pull/9484))
+  - Parity: print correct keys path on startup ([#9501](https://github.com/OpenEthereum/open-ethereum/pull/9501))
+  - Only check warp syncing for eth_getWorks ([#9484](https://github.com/OpenEthereum/open-ethereum/pull/9484))
     - Only check warp syncing for eth_getWorks
     - Use SyncStatus::is_snapshot_syncing
 
-## Parity-Ethereum [v1.11.10](https://github.com/paritytech/parity-ethereum/releases/tag/v1.11.10) (2018-08-31)
+## Parity-Ethereum [v1.11.10](https://github.com/OpenEthereum/open-ethereum/releases/tag/v1.11.10) (2018-08-31)
 
 Parity-Ethereum 1.11.10-stable is a bug-fix release to improve performance and stability.
 
 The full list of included changes:
 
-- Stable backports for 1.11.10 ([#9228](https://github.com/paritytech/parity-ethereum/pull/9228))
+- Stable backports for 1.11.10 ([#9228](https://github.com/OpenEthereum/open-ethereum/pull/9228))
   - Parity-version: bump stable to 1.11.9
-  - Fix compilation error on nightly rust ([#8707](https://github.com/paritytech/parity-ethereum/pull/8707))
+  - Fix compilation error on nightly rust ([#8707](https://github.com/OpenEthereum/open-ethereum/pull/8707))
     - On nightly rust passing `public_url` works but that breaks on stable. This works for both.
   - Parity-version: bump stable to 1.11.10
-  - Check if synced when using eth_getWork ([#9193](https://github.com/paritytech/parity-ethereum/issues/9193)) ([#9210](https://github.com/paritytech/parity-ethereum/pull/9210))
-    - Check if synced when using eth_getWork ([#9193](https://github.com/paritytech/parity-ethereum/issues/9193))
+  - Check if synced when using eth_getWork ([#9193](https://github.com/OpenEthereum/open-ethereum/issues/9193)) ([#9210](https://github.com/OpenEthereum/open-ethereum/pull/9210))
+    - Check if synced when using eth_getWork ([#9193](https://github.com/OpenEthereum/open-ethereum/issues/9193))
     - Don't use fn syncing
     - Fix identation
     - Fix typo
     - Don't check for warping
     - Rpc: avoid calling queue_info twice on eth_getWork
-  - Fix potential as_usize overflow when casting from U256 in miner ([#9221](https://github.com/paritytech/parity-ethereum/pull/9221))
-  - Allow old blocks from peers with lower difficulty ([#9226](https://github.com/paritytech/parity-ethereum/pull/9226))
+  - Fix potential as_usize overflow when casting from U256 in miner ([#9221](https://github.com/OpenEthereum/open-ethereum/pull/9221))
+  - Allow old blocks from peers with lower difficulty ([#9226](https://github.com/OpenEthereum/open-ethereum/pull/9226))
     - Previously we only allow downloading of old blocks if the peer difficulty was greater than our syncing difficulty. This change allows downloading of blocks from peers where the difficulty is greater then the last downloaded old block.
-  - Update Dockerfile ([#9242](https://github.com/paritytech/parity-ethereum/pull/9242))
+  - Update Dockerfile ([#9242](https://github.com/OpenEthereum/open-ethereum/pull/9242))
     - Update Dockerfile
     - Fix Docker build
-  - Fix dockerfile paths: parity -> parity-ethereum ([#9248](https://github.com/paritytech/parity-ethereum/pull/9248))
-  - Update tobalaba.json ([#9313](https://github.com/paritytech/parity-ethereum/pull/9313))
-  - Light client `Provide default nonce in transactions when it´s missing` ([#9370](https://github.com/paritytech/parity-ethereum/pull/9370))
+  - Fix dockerfile paths: parity -> parity-ethereum ([#9248](https://github.com/OpenEthereum/open-ethereum/pull/9248))
+  - Update tobalaba.json ([#9313](https://github.com/OpenEthereum/open-ethereum/pull/9313))
+  - Light client `Provide default nonce in transactions when it´s missing` ([#9370](https://github.com/OpenEthereum/open-ethereum/pull/9370))
     - Provide `default_nonce` in tx`s when it´s missing
     - When `nonce` is missing in a `EthTransaction` will cause it to fall in these cases provide `default_nonce` value instead!
-  - Changed http:// to https:// on Yasm link ([#9369](https://github.com/paritytech/parity-ethereum/pull/9369))
+  - Changed http:// to https:// on Yasm link ([#9369](https://github.com/OpenEthereum/open-ethereum/pull/9369))
     - Changed http:// to https:// on Yasm link in README.md
     - Provide `default_nonce` in tx`s when it´s missing
     - When `nonce` is missing in a `EthTransaction` will cause it to fall in these cases provide `default_nonce` value instead!
     - Address grumbles
-  - Ethcore: kovan: delay activation of strict score validation ([#9406](https://github.com/paritytech/parity-ethereum/pull/9406))
-  - Use impl Future in the light client RPC helpers ([#8628](https://github.com/paritytech/parity-ethereum/pull/8628))
-  - Better support for eth_getLogs in light mode ([#9186](https://github.com/paritytech/parity-ethereum/pull/9186))
+  - Ethcore: kovan: delay activation of strict score validation ([#9406](https://github.com/OpenEthereum/open-ethereum/pull/9406))
+  - Use impl Future in the light client RPC helpers ([#8628](https://github.com/OpenEthereum/open-ethereum/pull/8628))
+  - Better support for eth_getLogs in light mode ([#9186](https://github.com/OpenEthereum/open-ethereum/pull/9186))
     - Light client on-demand request for headers range.
     - Cache headers in HeaderWithAncestors response.
       - Also fulfills request locally if all headers are in cache.
@@ -64,11 +64,11 @@ The full list of included changes:
     - Enforce limit on header range length in light client logs request.
     - Fix light request tests after struct change.
     - Respond to review comments.
-  - Propagate transactions for next 4 blocks. ([#9265](https://github.com/paritytech/parity-ethereum/pull/9265))
+  - Propagate transactions for next 4 blocks. ([#9265](https://github.com/OpenEthereum/open-ethereum/pull/9265))
     - This PR also removes the limit of max 64 transactions per packet, currently we only attempt to prevent the packet size to go over 8MB. This will only be the case for super-large transactions or high-block-gas-limit chains.
     - Patching this is important only for chains that have blocks that can fit more than 4k transactions (over 86M block gas limit)
     - For mainnet, we should actually see a tiny bit faster propagation since instead of computing 4k pending set, we only need `4 * 8M / 21k = 1523` transactions.
-  - Ethcore: fix pow difficulty validation ([#9328](https://github.com/paritytech/parity-ethereum/pull/9328))
+  - Ethcore: fix pow difficulty validation ([#9328](https://github.com/OpenEthereum/open-ethereum/pull/9328))
     - Ethcore: fix pow difficulty validation
     - Ethcore: validate difficulty is not zero
     - Ethcore: add issue link to regression test
@@ -76,9 +76,9 @@ The full list of included changes:
     - Ethcore: move difficulty_to_boundary to ethash crate
     - Ethcore: reuse difficulty_to_boundary and boundary_to_difficulty
     - Ethcore: fix grumbles in difficulty_to_boundary_aux
-- Add snapcraft cmake build dependency ([#9243](https://github.com/paritytech/parity-ethereum/pull/9243))
+- Add snapcraft cmake build dependency ([#9243](https://github.com/OpenEthereum/open-ethereum/pull/9243))
 
-## Parity-Ethereum [v1.11.8](https://github.com/paritytech/parity-ethereum/releases/tag/v1.11.8) (2018-07-27)
+## Parity-Ethereum [v1.11.8](https://github.com/OpenEthereum/open-ethereum/releases/tag/v1.11.8) (2018-07-27)
 
 Parity 1.11.8-stable is a bug-fix release to improve performance and stability.
 
@@ -86,35 +86,35 @@ Note, authorities in PoA networks based on the Aura engine, should upgrade their
 
 The full list of included changes:
 
-- Backports to 1.11.8-stable ([#9144](https://github.com/paritytech/parity-ethereum/pull/9144))
+- Backports to 1.11.8-stable ([#9144](https://github.com/OpenEthereum/open-ethereum/pull/9144))
   - Parity-version: bump stable to 1.11.8
-  - Ci: update version strings for snaps ([#9160](https://github.com/paritytech/parity-ethereum/pull/9160))
-  - Be more graceful on Aura difficulty validation ([#9164](https://github.com/paritytech/parity-ethereum/pull/9164))
+  - Ci: update version strings for snaps ([#9160](https://github.com/OpenEthereum/open-ethereum/pull/9160))
+  - Be more graceful on Aura difficulty validation ([#9164](https://github.com/OpenEthereum/open-ethereum/pull/9164))
     - Be more graceful on Aura difficulty validation
     - Test: rejects_step_backwards
     - Test: proposer_switching
     - Test: rejects_future_block
     - Test: reports_skipped
     - Test: verify_empty_seal_steps
-  - Parity: fix UserDefaults json parser ([#9189](https://github.com/paritytech/parity-ethereum/pull/9189))
+  - Parity: fix UserDefaults json parser ([#9189](https://github.com/OpenEthereum/open-ethereum/pull/9189))
     - Parity: fix UserDefaults json parser
     - Parity: use serde_derive for UserDefaults
     - Parity: support deserialization of old UserDefault json format
     - Parity: make UserDefaults serde backwards compatible
     - Parity: tabify indentation in UserDefaults
-  - Fix bugfix hard fork logic ([#9138](https://github.com/paritytech/parity-ethereum/pull/9138))
+  - Fix bugfix hard fork logic ([#9138](https://github.com/OpenEthereum/open-ethereum/pull/9138))
     - Fix bugfix hard fork logic
     - Remove dustProtectionTransition from bugfix category
       - EIP-168 is not enabled by default
     - Remove unnecessary 'static
-  - Disable per-sender limit for local transactions. ([#9148](https://github.com/paritytech/parity-ethereum/pull/9148))
+  - Disable per-sender limit for local transactions. ([#9148](https://github.com/OpenEthereum/open-ethereum/pull/9148))
     - Disable per-sender limit for local transactions.
     - Add a missing new line.
-  - Rpc: fix is_major_importing sync state condition ([#9112](https://github.com/paritytech/parity-ethereum/pull/9112))
+  - Rpc: fix is_major_importing sync state condition ([#9112](https://github.com/OpenEthereum/open-ethereum/pull/9112))
     - Rpc: fix is_major_importing sync state condition
     - Rpc: fix informant printout when waiting for peers
-  - Fix verification in ethcore-sync collect_blocks ([#9135](https://github.com/paritytech/parity-ethereum/pull/9135))
-  - Docker: update hub dockerfile ([#9173](https://github.com/paritytech/parity-ethereum/pull/9173))
+  - Fix verification in ethcore-sync collect_blocks ([#9135](https://github.com/OpenEthereum/open-ethereum/pull/9135))
+  - Docker: update hub dockerfile ([#9173](https://github.com/OpenEthereum/open-ethereum/pull/9173))
     - Update Dockerfile for hub
       - Update to Ubuntu Xenial 16.04
       - Fix cmake version
@@ -122,7 +122,7 @@ The full list of included changes:
   - Ethcore: update to parity-wasm 0.31
   - Rpc: fix broken merge
 
-## Parity-Ethereum [v1.11.7](https://github.com/paritytech/parity-ethereum/releases/tag/v1.11.7) "Prosperity" (2018-07-17)
+## Parity-Ethereum [v1.11.7](https://github.com/OpenEthereum/open-ethereum/releases/tag/v1.11.7) "Prosperity" (2018-07-17)
 
 Parity 1.11.7 "Prosperity" is a bug-fix release to improve performance and stability that marks the 1.11 release track as `stable`. Among other fixes, this release significantly addresses peering and synchronization issues. If you experienced such issues before, upgrading is highly recommended. If you rely on old versions of Parity, check out the `old-stable-1.10` branch, cherry-pick fixes, and compile your binaries independently. There will be no official support for any versions prior to 1.11.7, however (EOL).
 
@@ -153,7 +153,7 @@ The full list of included changes:
     - Fix ethcore-sync tests.
     - Fix RPC tests.
   - Make sure to produce full blocks. ([#9115](https://github.com/paritytech/parity/pull/9115))
-  - Update hidapi, fixes [#7542](https://github.com/paritytech/parity-ethereum/issues/7542) ([#9108](https://github.com/paritytech/parity/pull/9108))
+  - Update hidapi, fixes [#7542](https://github.com/OpenEthereum/open-ethereum/issues/7542) ([#9108](https://github.com/paritytech/parity/pull/9108))
   - Docker: add cmake dependency ([#9111](https://github.com/paritytech/parity/pull/9111))
   - Fix miner tests.
   - Revert "Make sure to produce full blocks."
@@ -373,7 +373,7 @@ The full list of included changes:
 - Update shell32-sys to fix windows build ([#8792](https://github.com/paritytech/parity/pull/8792))
 - Backports ([#8785](https://github.com/paritytech/parity/pull/8785))
   - Fix light sync with initial validator-set contract ([#8528](https://github.com/paritytech/parity/pull/8528))
-    - Fix [#8468](https://github.com/paritytech/parity-ethereum/issues/8468)
+    - Fix [#8468](https://github.com/OpenEthereum/open-ethereum/issues/8468)
     - Use U256::max_value() instead
     - Also change initial transaction gas
   - Resumable warp-sync / Seed downloaded snapshots ([#8544](https://github.com/paritytech/parity/pull/8544))
