@@ -1,4 +1,4 @@
-#!/usr/bin/pwsh
+#!/usr/bin/env pwsh
 $os=$args[0]
 $SCCACHE_CACHE_SIZE="1G"
 $SCCACHE_IDLE_TIMEOUT=0
@@ -13,6 +13,7 @@ $url = "https://github.com/mozilla/sccache/releases/download/" +
        "$version/$basename.tar.gz"
 curl -LO $url
 tar -xzvf "$basename.tar.gz"
+ls $basename/
 . $basename/sccache --start-server
 echo "::add-path::$(pwd)/$basename"
 echo "::set-env name=RUSTC_WRAPPER::sccache"
