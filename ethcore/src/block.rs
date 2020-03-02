@@ -177,7 +177,6 @@ impl<'x> OpenBlock<'x> {
 		let outcome = self.block.state.apply(&env_info, self.engine.machine(), t, self.block.traces.is_enabled())?;
 
 		self.block.transactions_set.insert(t.hash());
-		// self.block.transactions.push(t.into());
 		self.block.transactions.push(t.clone());
 		if let Tracing::Enabled(ref mut traces) = self.block.traces {
 			traces.push(outcome.trace.into());
@@ -459,7 +458,7 @@ pub(crate) fn enact(
 	b.close_and_lock()
 }
 
-/// Enact the block given by `block_bytes` using `engine` on the database `db` with the given `parent` block header
+/// Enact the `PreVerified` block using `engine` on the database `db` with the given `parent` block header
 pub fn enact_verified(
 	block: &PreverifiedBlock,
 	engine: &dyn Engine,
