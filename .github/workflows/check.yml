@@ -68,7 +68,6 @@ jobs:
       - name:                   Run cargo check evmbin
         uses:                   actions-rs/cargo@v1
         with:
-
           command:              check
           args:                 --locked -p evmbin --verbose
       - name:                   Run cargo check benches
