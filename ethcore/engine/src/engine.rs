@@ -28,7 +28,7 @@ use common_types::{
 		Seal, SealingState, Headers, PendingTransitionStore,
 		params::CommonParams,
 		machine as machine_types,
-		machine::{AuxiliaryData, AuxiliaryRequest},
+		machine::AuxiliaryData,
 	},
 	errors::{EthcoreError as Error, EngineError},
 	snapshot::Snapshotting,
@@ -134,7 +134,7 @@ impl<'a> ConstructedVerifier<'a> {
 /// Results of a query of whether an epoch change occurred at the given block.
 pub enum EpochChange {
 	/// Cannot determine until more data is passed.
-	Unsure(AuxiliaryRequest),
+	Unsure,
 	/// No epoch change.
 	No,
 	/// The epoch will change, with proof.
