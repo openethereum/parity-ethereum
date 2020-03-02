@@ -290,6 +290,7 @@ impl Importer {
 
 			let _import_lock = self.import_lock.lock();
 			let blocks = self.block_queue.drain(max_blocks_to_import);
+			// todo[dvdplm] I think we make this check already further up the call chain.
 			if blocks.is_empty() {
 				return 0;
 			}
@@ -297,35 +298,25 @@ impl Importer {
 			let start = Instant::now();
 
 			for block in blocks {
-				// let header = block.header.clone();
-				// let bytes = block.bytes.clone();
-				// let hash = header.hash();
 				let hash = block.header.hash();
 
-				// let is_invalid = invalid_blocks.contains(header.parent_hash());
 				let is_invalid = invalid_blocks.contains(block.header.parent_hash());
 				if is_invalid {
 					invalid_blocks.insert(hash);
 					continue;
 				}
 
-				// match self.check_and_lock_block(&bytes, block, client) {
-				// let block_bytes = block.bytes.clone();
 				match self.check_and_lock_block(block, client) {
 					(Ok((locked_block, pending)), block_bytes) => {
 						imported_blocks.push(hash);
 						let transactions_len = locked_block.transactions.len();
 						let gas_used = locked_block.header.gas_used().clone();
-						// let route = self.commit_block(closed_block, &block.header, encoded::Block::new(block.bytes), pending, client);
-						// let route = self.commit_block(closed_block, &block.header, encoded::Block::new(block_bytes), pending, client);
 						let route = self.commit_block(locked_block, encoded::Block::new(block_bytes), pending, client);
 						import_results.push(route);
-						// client.report.write().accrue_block(&block.header, transactions_len);
 						client.report.write().accrue_block(&gas_used, transactions_len);
 					}
 					(Err(err), block_bytes) => {
 						self.bad_blocks.report(block_bytes, format!("{:?}", err));
-						// self.bad_blocks.report(bytes, format!("{:?}", err));
 						invalid_blocks.insert(hash);
 					},
 				}
@@ -509,7 +500,6 @@ impl Importer {
 	fn commit_block<B>(
 		&self,
 		block: B,
-		// header: &Header,
 		block_data: encoded::Block,
 		pending: Option<PendingTransition>,
 		client: &Client
@@ -616,7 +606,6 @@ impl Importer {
 	fn check_epoch_end_signal(
 		&self,
 		header: &Header,
-		// block_bytes: &[u8],
 		receipts: &[Receipt],
 		state_db: &StateDB,
 		client: &Client,
@@ -625,7 +614,6 @@ impl Importer {
 
 		let hash = header.hash();
 		let auxiliary = AuxiliaryData {
-			// bytes: Some(block_bytes),
 			receipts: Some(&receipts),
 		};
 
