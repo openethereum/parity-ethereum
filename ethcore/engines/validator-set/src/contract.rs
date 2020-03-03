@@ -30,7 +30,8 @@ use common_types::{
 	ids::BlockId,
 	header::Header,
 	errors::EthcoreError,
-	engines::machine::{Call, AuxiliaryData},
+	engines::machine::Call,
+	receipt::Receipt,
 	transaction,
 };
 
@@ -141,9 +142,9 @@ impl ValidatorSet for ValidatorContract {
 		&self,
 		first: bool,
 		header: &Header,
-		aux: AuxiliaryData,
+		receipts: Option<&[Receipt]>,
 	) -> engine::EpochChange {
-		self.validators.signals_epoch_end(first, header, aux)
+		self.validators.signals_epoch_end(first, header, receipts)
 	}
 
 	fn epoch_set(&self, first: bool, machine: &Machine, number: BlockNumber, proof: &[u8]) -> Result<(SimpleList, Option<H256>), EthcoreError> {

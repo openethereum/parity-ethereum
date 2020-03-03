@@ -52,7 +52,6 @@ parity-bytes = "0.1"
 parity-crypto = { version = "0.5.0", features = ["publickey"] }
 parity-daemonize = "0.3"
 parity-hash-fetch = { path = "updater/hash-fetch" }
-parity-ipfs-api = { path = "ipfs" }
 parity-local-store = { path = "miner/local-store" }
 parity-path = "0.1"
 parity-rpc = { path = "rpc" }

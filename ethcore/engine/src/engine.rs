@@ -28,9 +28,9 @@ use common_types::{
 		Seal, SealingState, Headers, PendingTransitionStore,
 		params::CommonParams,
 		machine as machine_types,
-		machine::{AuxiliaryData, AuxiliaryRequest},
 	},
 	errors::{EthcoreError as Error, EngineError},
+	receipt::Receipt,
 	snapshot::Snapshotting,
 	transaction::{self, SignedTransaction, UnverifiedTransaction},
 };
@@ -134,7 +134,7 @@ impl<'a> ConstructedVerifier<'a> {
 /// Results of a query of whether an epoch change occurred at the given block.
 pub enum EpochChange {
 	/// Cannot determine until more data is passed.
-	Unsure(AuxiliaryRequest),
+	Unsure,
 	/// No epoch change.
 	No,
 	/// The epoch will change, with proof.
@@ -254,7 +254,7 @@ pub trait Engine: Sync + Send {
 	/// Return `Yes` or `No` when the answer is definitively known.
 	///
 	/// Should not interact with state.
-	fn signals_epoch_end<'a>(&self, _header: &Header, _aux: AuxiliaryData<'a>) -> EpochChange {
+	fn signals_epoch_end<'a>(&self, _header: &Header, _receipts: Option<&'a [Receipt]>) -> EpochChange {
 		EpochChange::No
 	}
 

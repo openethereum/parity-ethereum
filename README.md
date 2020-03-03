@@ -2,7 +2,7 @@
 
 <h2 align="center">The Fastest and most Advanced Ethereum Client.</h2>
 
-<p align="center"><strong><a href="https://github.com/paritytech/parity-ethereum/releases/latest">» Download the latest release «</a></strong></p>
+<p align="center"><strong><a href="https://github.com/OpenEthereum/open-ethereum/releases/latest">» Download the latest release «</a></strong></p>
 
 <p align="center"><a href="https://gitlab.parity.io/parity/parity-ethereum/commits/master" target="_blank"><img src="https://gitlab.parity.io/parity/parity-ethereum/badges/master/build.svg" /></a>
 <a href="https://www.gnu.org/licenses/gpl-3.0.en.html" target="_blank"><img src="https://img.shields.io/badge/license-GPL%20v3-green.svg" /></a></p>
@@ -40,9 +40,9 @@ Parity Ethereum's goal is to be the fastest, lightest, and most secure Ethereum 
 
 By default, Parity Ethereum runs a JSON-RPC HTTP server on port `:8545` and a Web-Sockets server on port `:8546`. This is fully configurable and supports a number of APIs.
 
-If you run into problems while using Parity Ethereum, check out the [wiki for documentation](https://wiki.parity.io/), feel free to [file an issue in this repository](https://github.com/paritytech/parity-ethereum/issues/new), or hop on our [Gitter](https://gitter.im/paritytech/parity) or [Riot](https://riot.im/app/#/group/+parity:matrix.parity.io) chat room to ask a question. We are glad to help! **For security-critical issues**, please refer to the security policy outlined in [SECURITY.md](SECURITY.md).
+If you run into problems while using Parity Ethereum, check out the [wiki for documentation](https://wiki.parity.io/), feel free to [file an issue in this repository](https://github.com/OpenEthereum/open-ethereum/issues/new), or hop on our [Gitter](https://gitter.im/paritytech/parity) or [Riot](https://riot.im/app/#/group/+parity:matrix.parity.io) chat room to ask a question. We are glad to help! **For security-critical issues**, please refer to the security policy outlined in [SECURITY.md](SECURITY.md).
 
-You can download Parity Ethereum's latest release at [the releases page](https://github.com/paritytech/parity-ethereum/releases) or follow the instructions below to build from source. Please, mind the [CHANGELOG.md](CHANGELOG.md) for a list of all changes between different versions.
+You can download Parity Ethereum's latest release at [the releases page](https://github.com/OpenEthereum/open-ethereum/releases) or follow the instructions below to build from source. Please, mind the [CHANGELOG.md](CHANGELOG.md) for a list of all changes between different versions.
 
 ## 3. Building <a id="chapter-003"></a>
 
@@ -83,7 +83,7 @@ Make sure that these binaries are in your `PATH`. After that, you should be able
 
 ```bash
 # download Parity Ethereum code
-$ git clone https://github.com/paritytech/parity-ethereum
+$ git clone https://github.com/OpenEthereum/open-ethereum
 $ cd parity-ethereum
 
 # build in release mode
@@ -263,10 +263,6 @@ Caching, Importing Blocks, and Block Information
   * Parity EVM Implementation
     ```bash
     evmbin
-    ```
-  * Parity Ethereum IPFS-compatible API
-    ```bash
-    parity-ipfs-api
     ```
   * Parity Ethereum JSON Deserialization
     ```bash

@@ -31,7 +31,8 @@ use common_types::{
 	header::Header,
 	ids::BlockId,
 	errors::EthcoreError,
-	engines::machine::{Call, AuxiliaryData},
+	engines::machine::Call,
+	receipt::Receipt,
 };
 use engine::SystemCall;
 use ethereum_types::{H256, Address};
@@ -144,7 +145,7 @@ pub trait ValidatorSet: Send + Sync + 'static {
 		&self,
 		first: bool,
 		header: &Header,
-		aux: AuxiliaryData,
+		receipts: Option<&[Receipt]>,
 	) -> engine::EpochChange;
 
 	/// Recover the validator set from the given proof, the block number, and

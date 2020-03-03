@@ -26,7 +26,7 @@ use common_types::{
 	errors::{EngineError, EthcoreError, BlockError},
 	ids::BlockId,
 	log_entry::LogEntry,
-	engines::machine::{Call, AuxiliaryData, AuxiliaryRequest},
+	engines::machine::Call,
 	receipt::Receipt,
 	transaction::{self, Action, Transaction},
 };
@@ -438,11 +438,9 @@ impl ValidatorSet for ValidatorSafeContract {
 		None // no immediate transitions to contract.
 	}
 
-	fn signals_epoch_end(&self, first: bool, header: &Header, aux: AuxiliaryData)
+	fn signals_epoch_end(&self, first: bool, header: &Header, receipts: Option<&[Receipt]>)
 		-> engine::EpochChange
 	{
-		let receipts = aux.receipts;
-
 		// transition to the first block of a contract requires finality but has no log event.
 		if first {
 			debug!(target: "engine", "signalling transition to fresh contract.");
@@ -462,7 +460,7 @@ impl ValidatorSet for ValidatorSafeContract {
 		trace!(target: "engine", "detected epoch change event bloom");
 
 		match receipts {
-			None => engine::EpochChange::Unsure(AuxiliaryRequest::Receipts),
+			None => engine::EpochChange::Unsure,
 			Some(receipts) => match self.extract_from_event(bloom, header, receipts) {
 				None => engine::EpochChange::No,
 				Some(list) => {
@@ -642,7 +640,6 @@ mod tests {
 	use accounts::AccountProvider;
 	use common_types::{
 		ids::BlockId,
-		engines::machine::AuxiliaryRequest,
 		header::Header,
 		log_entry::LogEntry,
 		transaction::{Transaction, Action},
@@ -774,7 +771,7 @@ mod tests {
 		new_header.set_log_bloom(event.bloom());
 
 		match engine.signals_epoch_end(&new_header, Default::default()) {
-			EpochChange::Unsure(AuxiliaryRequest::Receipts) => {},
+			EpochChange::Unsure => {},
 			_ => panic!("Expected bloom to be recognized."),
 		};
 	}

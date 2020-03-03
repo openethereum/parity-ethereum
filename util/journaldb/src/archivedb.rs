@@ -42,6 +42,7 @@ use crate::{
 /// write operations out to disk. Unlike `OverlayDB`, `remove()` operations do not take effect
 /// immediately. As this is an "archive" database, nothing is ever removed. This means
 /// that the states of any block the node has ever processed will be accessible.
+#[derive(Clone)]
 pub struct ArchiveDB {
 	overlay: super::MemoryDB,
 	backing: Arc<dyn KeyValueDB>,
@@ -98,12 +99,7 @@ impl HashDB<KeccakHasher, DBValue> for ArchiveDB {
 
 impl JournalDB for ArchiveDB {
 	fn boxed_clone(&self) -> Box<dyn JournalDB> {
-		Box::new(ArchiveDB {
-			overlay: self.overlay.clone(),
-			backing: self.backing.clone(),
-			latest_era: self.latest_era,
-			column: self.column.clone(),
-		})
+		Box::new(self.clone())
 	}
 
 	fn mem_used(&self) -> usize {

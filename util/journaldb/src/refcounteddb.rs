@@ -57,6 +57,7 @@ use crate::{
 /// we remove all of its removes assuming it is canonical and all
 /// of its inserts otherwise.
 // TODO: store last_era, reclaim_period.
+#[derive(Clone)]
 pub struct RefCountedDB {
 	forward: OverlayDB,
 	backing: Arc<dyn KeyValueDB>,
@@ -88,20 +89,13 @@ impl HashDB<KeccakHasher, DBValue> for RefCountedDB {
 	fn get(&self, key: &H256, prefix: Prefix) -> Option<DBValue> { self.forward.get(key, prefix) }
 	fn contains(&self, key: &H256, prefix: Prefix) -> bool { self.forward.contains(key, prefix) }
 	fn insert(&mut self, prefix: Prefix, value: &[u8]) -> H256 { let r = self.forward.insert(prefix, value); self.inserts.push(r.clone()); r }
-	fn emplace(&mut self, key: H256, prefix: Prefix, value: DBValue) { self.inserts.push(key.clone()); self.forward.emplace(key, prefix, value); }
-	fn remove(&mut self, key: &H256, _prefix: Prefix) { self.removes.push(key.clone()); }
+	fn emplace(&mut self, key: H256, prefix: Prefix, value: DBValue) { self.inserts.push(key); self.forward.emplace(key, prefix, value); }
+	fn remove(&mut self, key: &H256, _prefix: Prefix) { self.removes.push(*key); }
 }
 
 impl JournalDB for RefCountedDB {
 	fn boxed_clone(&self) -> Box<dyn JournalDB> {
-		Box::new(RefCountedDB {
-			forward: self.forward.clone(),
-			backing: self.backing.clone(),
-			latest_era: self.latest_era,
-			inserts: self.inserts.clone(),
-			removes: self.removes.clone(),
-			column: self.column.clone(),
-		})
+		Box::new(self.clone())
 	}
 
 	fn mem_used(&self) -> usize {

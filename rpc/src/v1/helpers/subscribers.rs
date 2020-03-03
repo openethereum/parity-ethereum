@@ -36,7 +36,7 @@ impl str::FromStr for Id {
 	}
 }
 impl Id {
-	// TODO: replace `format!` see [#10412](https://github.com/paritytech/parity-ethereum/issues/10412)
+	// TODO: replace `format!` see [#10412](https://github.com/OpenEthereum/open-ethereum/issues/10412)
 	pub fn as_string(&self) -> String {
 		format!("{:?}", self.0)
 	}

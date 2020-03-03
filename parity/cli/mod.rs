@@ -321,7 +321,7 @@ usage! {
 		["Convenience Options"]
 			FLAG flag_unsafe_expose: (bool) = false, or |c: &Config| c.misc.as_ref()?.unsafe_expose,
 			"--unsafe-expose",
-			"All servers will listen on external interfaces and will be remotely accessible. It's equivalent with setting the following: --[ws,jsonrpc,ipfs-api,secretstore,stratum,dapps,secretstore-http]-interface=all --*-hosts=all    This option is UNSAFE and should be used with great care!",
+			"All servers will listen on external interfaces and will be remotely accessible. It's equivalent with setting the following: --[ws,jsonrpc,secretstore,stratum,dapps,secretstore-http]-interface=all --*-hosts=all    This option is UNSAFE and should be used with great care!",
 
 			ARG arg_config: (String) = "$BASE/config.toml", or |_| None,
 			"-c, --config=[CONFIG]",
@@ -329,7 +329,7 @@ usage! {
 
 			ARG arg_ports_shift: (u16) = 0u16, or |c: &Config| c.misc.as_ref()?.ports_shift,
 			"--ports-shift=[SHIFT]",
-			"Add SHIFT to all port numbers Parity is listening on. Includes network port and all servers (HTTP JSON-RPC, WebSockets JSON-RPC, IPFS, SecretStore).",
+			"Add SHIFT to all port numbers Parity is listening on. Includes network port and all servers (HTTP JSON-RPC, WebSockets JSON-RPC, SecretStore).",
 
 		["Account Options"]
 			FLAG flag_fast_unlock: (bool) = false, or |c: &Config| c.account.as_ref()?.fast_unlock.clone(),
@@ -575,27 +575,6 @@ usage! {
 			ARG arg_ipc_apis: (String) = "web3,eth,pubsub,net,parity,parity_pubsub,parity_accounts,private,traces,rpc,parity_transactions_pool", or |c: &Config| c.ipc.as_ref()?.apis.as_ref().map(|vec| vec.join(",")),
 			"--ipc-apis=[APIS]",
 			"Specify custom API set available via JSON-RPC over IPC using a comma-delimited list of API names. Possible names are: all, safe, web3, net, eth, pubsub, personal, signer, parity, parity_pubsub, parity_accounts, parity_set, traces, rpc, secretstore. You can also disable a specific API by putting '-' in the front, example: all,-personal. 'safe' enables the following APIs: web3, net, eth, pubsub, parity, parity_pubsub, traces, rpc",
-
-		["API and Console Options – IPFS"]
-			FLAG flag_ipfs_api: (bool) = false, or |c: &Config| c.ipfs.as_ref()?.enable.clone(),
-			"--ipfs-api",
-			"Enable IPFS-compatible HTTP API.",
-
-			ARG arg_ipfs_api_port: (u16) = 5001u16, or |c: &Config| c.ipfs.as_ref()?.port.clone(),
-			"--ipfs-api-port=[PORT]",
-			"Configure on which port the IPFS HTTP API should listen.",
-
-			ARG arg_ipfs_api_interface: (String) = "local", or |c: &Config| c.ipfs.as_ref()?.interface.clone(),
-			"--ipfs-api-interface=[IP]",
-			"Specify the hostname portion of the IPFS API server, IP should be an interface's IP address or local.",
-
-			ARG arg_ipfs_api_hosts: (String) = "none", or |c: &Config| c.ipfs.as_ref()?.hosts.as_ref().map(|vec| vec.join(",")),
-			"--ipfs-api-hosts=[HOSTS]",
-			"List of allowed Host header values. This option will validate the Host header sent by the browser, it is additional security against some attack vectors. Special options: \"all\", \"none\".",
-
-			ARG arg_ipfs_api_cors: (String) = "none", or |c: &Config| c.ipfs.as_ref()?.cors.as_ref().map(|vec| vec.join(",")),
-			"--ipfs-api-cors=[URL]",
-			"Specify CORS header for IPFS API responses. Special options: \"all\", \"none\".",
 
 		["Light Client Options"]
 			ARG arg_on_demand_response_time_window: (Option<u64>) = None, or |c: &Config| c.light.as_ref()?.on_demand_response_time_window,
@@ -1163,7 +1142,6 @@ struct Config {
 	dapps: Option<Dapps>,
 	secretstore: Option<SecretStore>,
 	private_tx: Option<PrivateTransactions>,
-	ipfs: Option<Ipfs>,
 	mining: Option<Mining>,
 	footprint: Option<Footprint>,
 	snapshots: Option<Snapshots>,
@@ -1346,16 +1324,6 @@ struct SecretStore {
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct Ipfs {
-	enable: Option<bool>,
-	port: Option<u16>,
-	interface: Option<String>,
-	cors: Option<Vec<String>>,
-	hosts: Option<Vec<String>>,
-}
-
-#[derive(Default, Debug, PartialEq, Deserialize)]
-#[serde(deny_unknown_fields)]
 struct Mining {
 	author: Option<String>,
 	engine_signer: Option<String>,
@@ -1458,7 +1426,7 @@ struct Light {
 mod tests {
 	use super::{
 		Args, ArgsError,
-		Config, Operating, Account, Ui, Network, Ws, Rpc, Ipc, Dapps, Ipfs, Mining, Footprint,
+		Config, Operating, Account, Ui, Network, Ws, Rpc, Ipc, Dapps, Mining, Footprint,
 		Snapshots, Misc, Whisper, SecretStore, Light,
 	};
 	use toml;
@@ -1871,13 +1839,6 @@ mod tests {
 			arg_secretstore_path: "$HOME/.parity/secretstore".into(),
 			arg_secretstore_http_cors: "null".into(),
 
-			// IPFS
-			flag_ipfs_api: false,
-			arg_ipfs_api_port: 5001u16,
-			arg_ipfs_api_interface: "local".into(),
-			arg_ipfs_api_cors: "null".into(),
-			arg_ipfs_api_hosts: "none".into(),
-
 			// -- Sealing/Mining Options
 			arg_author: Some("0xdeadbeefcafe0000000000000000000000000001".into()),
 			arg_engine_signer: Some("0xdeadbeefcafe0000000000000000000000000001".into()),
@@ -2151,13 +2112,6 @@ mod tests {
 				cors: None,
 			}),
 			private_tx: None,
-			ipfs: Some(Ipfs {
-				enable: Some(false),
-				port: Some(5001),
-				interface: None,
-				cors: None,
-				hosts: None,
-			}),
 			mining: Some(Mining {
 				author: Some("0xdeadbeefcafe0000000000000000000000000001".into()),
 				engine_signer: Some("0xdeadbeefcafe0000000000000000000000000001".into()),
