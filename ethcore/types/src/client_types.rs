@@ -69,7 +69,7 @@ impl ClientReport {
 	pub fn accrue_block(&mut self, gas_used: &U256, transactions: usize) {
 		self.blocks_imported += 1;
 		self.transactions_applied += transactions;
-		self.gas_processed = self.gas_processed + gas_used;
+		self.gas_processed += gas_used;
 	}
 }
 
@@ -97,4 +97,3 @@ pub enum StateResult<T> {
 	/// State is some
 	Some(T),
 }
-
