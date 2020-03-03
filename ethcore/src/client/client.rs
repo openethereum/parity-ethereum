@@ -312,7 +312,7 @@ impl Importer {
 						let gas_used = locked_block.header.gas_used().clone();
 						let route = self.commit_block(locked_block, encoded::Block::new(block.bytes), pending, client);
 						import_results.push(route);
-						client.report.write().accrue_block(&gas_used, transactions_len);
+						client.report.write().accrue_block(gas_used, transactions_len);
 					}
 					Err(err) => {
 						self.bad_blocks.report(block.bytes, format!("{:?}", err));
