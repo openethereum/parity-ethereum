@@ -150,20 +150,16 @@ fn can_trace_block_and_uncle_reward() {
 	rolling_timestamp += 10;
 	block.set_timestamp(rolling_timestamp);
 
-	let mut n = 0;
-	for _ in 0..1 {
-		let signed_tx = Transaction {
-			nonce: n.into(),
-			gas_price: 10000.into(),
-			gas: 100000.into(),
-			action: Action::Create,
-			data: vec![],
-			value: U256::zero(),
-		}.sign(kp.secret(), Some(spec.network_id()));
+	let signed_tx = Transaction {
+		nonce: 0.into(),
+		gas_price: 10000.into(),
+		gas: 100000.into(),
+		action: Action::Create,
+		data: vec![],
+		value: U256::zero(),
+	}.sign(kp.secret(), Some(spec.network_id()));
 
-		block.push_transaction(&signed_tx).unwrap();
-		n += 1;
-	}
+	block.push_transaction(&signed_tx).unwrap();
 
 	let mut uncle = Header::new();
 	let uncle_author = Address::from_str("ef2d6d194084c2de36e0dabfce45d046b37d1106").unwrap();
