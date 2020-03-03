@@ -70,6 +70,7 @@ use crate::{
 /// the removed key is not present in the history overlay.
 /// 7. Delete ancient record from memory and disk.
 
+#[derive(Clone)]
 pub struct OverlayRecentDB {
 	transaction_overlay: super::MemoryDB,
 	backing: Arc<dyn KeyValueDB>,
@@ -140,17 +141,6 @@ struct JournalEntry {
 	deletions: Vec<H256>,
 }
 
-impl Clone for OverlayRecentDB {
-	fn clone(&self) -> OverlayRecentDB {
-		OverlayRecentDB {
-			transaction_overlay: self.transaction_overlay.clone(),
-			backing: self.backing.clone(),
-			journal_overlay: self.journal_overlay.clone(),
-			column: self.column.clone(),
-		}
-	}
-}
-
 impl OverlayRecentDB {
 	/// Create a new instance.
 	pub fn new(backing: Arc<dyn KeyValueDB>, col: u32) -> OverlayRecentDB {
@@ -197,7 +187,11 @@ impl OverlayRecentDB {
 				};
 				while let Some(rlp_data) = db.get(col, &encode(&db_key)).expect("Low-level database error.") {
 					trace!("read_overlay: era={}, index={}", era, db_key.index);
-					let value = decode::<DatabaseValue>(&rlp_data).expect(&format!("read_overlay: Error decoding DatabaseValue era={}, index{}", era, db_key.index));
+					let value = decode::<DatabaseValue>(&rlp_data).unwrap_or_else(|e| {
+						panic!("read_overlay: Error decoding DatabaseValue era={}, index={}, error={}",
+							era, db_key.index, e
+						)
+					});
 					count += value.inserts.len();
 					let mut inserted_keys = Vec::new();
 					for (k, v) in value.inserts {
@@ -286,7 +280,7 @@ impl JournalDB for OverlayRecentDB {
 			journal_overlay
 				.backing_overlay
 				.get(&key, EMPTY_PREFIX)
-				.or_else(|| journal_overlay.pending_overlay.get(&key).map(|d| d.clone()))
+				.or_else(|| journal_overlay.pending_overlay.get(&key).cloned())
 		};
 
 		maybe_state_data.or_else(|| {
@@ -306,8 +300,8 @@ impl JournalDB for OverlayRecentDB {
 		journal_overlay.pending_overlay.clear();
 
 		let mut tx = self.transaction_overlay.drain();
-		let inserted_keys: Vec<_> = tx.iter().filter_map(|(k, &(_, c))| if c > 0 { Some(k.clone()) } else { None }).collect();
-		let removed_keys: Vec<_> = tx.iter().filter_map(|(k, &(_, c))| if c < 0 { Some(k.clone()) } else { None }).collect();
+		let inserted_keys: Vec<_> = tx.iter().filter_map(|(k, &(_, c))| if c > 0 { Some(*k) } else { None }).collect();
+		let removed_keys: Vec<_> = tx.iter().filter_map(|(k, &(_, c))| if c < 0 { Some(*k) } else { None }).collect();
 		let ops = inserted_keys.len() + removed_keys.len();
 
 		// Increase counter for each inserted key no matter if the block is canonical or not.
@@ -349,7 +343,10 @@ impl JournalDB for OverlayRecentDB {
 			journal_overlay.earliest_era = Some(now);
 		}
 
-		journal_overlay.journal.entry(now).or_insert_with(Vec::new).push(JournalEntry { id: id.clone(), insertions: inserted_keys, deletions: removed_keys });
+		journal_overlay.journal
+			.entry(now)
+			.or_insert_with(Vec::new)
+			.push(JournalEntry { id: *id, insertions: inserted_keys, deletions: removed_keys });
 		Ok(ops as u32)
 	}
 
@@ -365,8 +362,7 @@ impl JournalDB for OverlayRecentDB {
 			let mut canon_insertions: Vec<(H256, DBValue)> = Vec::new();
 			let mut canon_deletions: Vec<H256> = Vec::new();
 			let mut overlay_deletions: Vec<H256> = Vec::new();
-			let mut index = 0usize;
-			for mut journal in records.drain(..) {
+			for (index, mut journal) in records.drain(..).enumerate() {
 				//delete the record from the db
 				let db_key = DatabaseKey {
 					era: end_era,
@@ -379,7 +375,7 @@ impl JournalDB for OverlayRecentDB {
 						for h in &journal.insertions {
 							if let Some((d, rc)) = journal_overlay.backing_overlay.raw(&to_short_key(h), EMPTY_PREFIX) {
 								if rc > 0 {
-									canon_insertions.push((h.clone(), d.clone())); //TODO: optimize this to avoid data copy
+									canon_insertions.push((*h, d.clone())); //TODO: optimize this to avoid data copy
 								}
 							}
 						}
@@ -387,7 +383,6 @@ impl JournalDB for OverlayRecentDB {
 					}
 					overlay_deletions.append(&mut journal.insertions);
 				}
-				index += 1;
 			}
 
 			ops += canon_insertions.len();
