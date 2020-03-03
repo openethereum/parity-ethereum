@@ -150,7 +150,7 @@ impl<'x> OpenBlock<'x> {
 	///
 	/// NOTE Will check chain constraints and the uncle number but will NOT check
 	/// that the header itself is actually valid.
-	pub fn push_uncle(&mut self, valid_uncle_header: Header) -> Result<(), BlockError> {
+	pub fn push_uncle(&mut self, valid_uncle_header: &Header) -> Result<(), BlockError> {
 		let max_uncles = self.engine.maximum_uncle_count(self.block.header.number());
 		if self.block.uncles.len() + 1 > max_uncles {
 			return Err(BlockError::TooManyUncles(OutOfBounds{
@@ -161,7 +161,7 @@ impl<'x> OpenBlock<'x> {
 		}
 		// TODO: check number
 		// TODO: check not a direct ancestor (use last_hashes for that)
-		self.block.uncles.push(valid_uncle_header);
+		self.block.uncles.push(valid_uncle_header.clone());
 		Ok(())
 	}
 
@@ -405,7 +405,9 @@ impl Drain for SealedBlock {
 	}
 }
 
-/// Enact the block given by block header, transactions and uncles
+/// Enact the block. Takes the block header, transactions and uncles from a
+/// `PreVerified` block and Produces a new `LockedBlock` after applying all
+/// transactions and committing the state to disk.
 pub(crate) fn enact(
 	header: &Header,
 	transactions: &Vec<SignedTransaction>,
@@ -452,7 +454,7 @@ pub(crate) fn enact(
 	b.push_transactions(transactions)?;
 
 	for u in uncles {
-		b.push_uncle(u.clone())?;
+		b.push_uncle(u)?;
 	}
 
 	b.close_and_lock()
@@ -550,7 +552,7 @@ mod tests {
 		b.push_transactions(&transactions)?;
 
 		for u in block.uncles {
-			b.push_uncle(u)?;
+			b.push_uncle(&u)?;
 		}
 
 		b.close_and_lock()
@@ -619,8 +621,8 @@ mod tests {
 		uncle1_header.set_extra_data(b"uncle1".to_vec());
 		let mut uncle2_header = Header::new();
 		uncle2_header.set_extra_data(b"uncle2".to_vec());
-		open_block.push_uncle(uncle1_header).unwrap();
-		open_block.push_uncle(uncle2_header).unwrap();
+		open_block.push_uncle(&uncle1_header).unwrap();
+		open_block.push_uncle(&uncle2_header).unwrap();
 		let b = open_block.close_and_lock().unwrap().seal(engine, vec![]).unwrap();
 
 		let orig_bytes = b.rlp_bytes();

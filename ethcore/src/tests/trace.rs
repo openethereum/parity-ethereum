@@ -172,7 +172,7 @@ fn can_trace_block_and_uncle_reward() {
 	uncle.set_gas_limit(genesis_gas);
 	uncle.set_number(root_header.number() + 1);
 	uncle.set_timestamp(rolling_timestamp);
-	block.push_uncle(uncle).unwrap();
+	block.push_uncle(&uncle).unwrap();
 
 	let block = block.close_and_lock().unwrap().seal(engine, vec![]).unwrap();
 

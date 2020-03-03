@@ -85,7 +85,6 @@ use rand::Rng;
 use unexpected::{Mismatch, OutOfBounds};
 use time_utils::CheckedSystemTime;
 use common_types::{
-	BlockNumber,
 	ids::BlockId,
 	header::Header,
 	engines::{
@@ -378,8 +377,6 @@ impl Engine for Clique {
 		}
 		engine_info
 	}
-
-	fn maximum_uncle_count(&self, _block: BlockNumber) -> usize { 0 }
 
 	fn on_new_block(
 		&self,

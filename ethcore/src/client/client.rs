@@ -2314,7 +2314,7 @@ impl ReopenBlock for Client {
 				if !block.uncles.iter().any(|header| header.hash() == h) {
 					let uncle = chain.block_header_data(&h).expect("find_uncle_hashes only returns hashes for existing headers; qed");
 					let uncle = uncle.decode().expect("decoding failure");
-					block.push_uncle(uncle).expect("pushing up to maximum_uncle_count;
+					block.push_uncle(&uncle).expect("pushing up to maximum_uncle_count;
 												push_uncle is not ok only if more than maximum_uncle_count is pushed;
 												so all push_uncle are Ok;
 												qed");
@@ -2352,10 +2352,10 @@ impl PrepareOpenBlock for Client {
 		chain
 			.find_uncle_headers(&h, MAX_UNCLE_AGE)
 			.unwrap_or_else(Vec::new)
-			.into_iter()
+			.iter()
 			.take(engine.maximum_uncle_count(open_block.header.number()))
 			.for_each(|h| {
-				open_block.push_uncle(h.decode().expect("decoding failure")).expect("pushing maximum_uncle_count;
+				open_block.push_uncle(&h.decode().expect("decoding failure")).expect("pushing maximum_uncle_count;
 												open_block was just created;
 												push_uncle is not ok only if more than maximum_uncle_count is pushed;
 												so all push_uncle are Ok;

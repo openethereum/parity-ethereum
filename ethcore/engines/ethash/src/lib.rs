@@ -623,7 +623,7 @@ mod tests {
 		let mut uncle = Header::new();
 		let uncle_author = Address::from_str("ef2d6d194084c2de36e0dabfce45d046b37d1106").unwrap();
 		uncle.set_author(uncle_author);
-		b.push_uncle(uncle).unwrap();
+		b.push_uncle(&uncle).unwrap();
 
 		let b = b.close().unwrap();
 		assert_eq!(b.state.balance(&Address::zero()).unwrap(), "478eae0e571ba001".into());
