@@ -429,7 +429,7 @@ impl JournalDB for OverlayRecentDB {
 			journal_overlay
 				.backing_overlay
 				.get(&key, EMPTY_PREFIX)
-				.or_else(|| journal_overlay.pending_overlay.get(&key).map(|d| d.clone()))
+				.or_else(|| journal_overlay.pending_overlay.get(&key).cloned())
 		};
 
 		maybe_state_data.or_else(|| {
