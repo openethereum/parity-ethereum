@@ -187,7 +187,7 @@ impl<'x> OpenBlock<'x> {
 
 	/// Push transactions onto the block.
 	#[cfg(not(feature = "slow-blocks"))]
-	fn push_transactions(&mut self, transactions: &Vec<SignedTransaction>) -> Result<(), Error> {
+	fn push_transactions(&mut self, transactions: &[SignedTransaction]) -> Result<(), Error> {
 		for t in transactions {
 			self.push_transaction(t)?;
 		}
@@ -196,7 +196,7 @@ impl<'x> OpenBlock<'x> {
 
 	/// Push transactions onto the block.
 	#[cfg(feature = "slow-blocks")]
-	fn push_transactions(&mut self, transactions: &Vec<SignedTransaction>) -> Result<(), Error> {
+	fn push_transactions(&mut self, transactions: &[SignedTransaction]) -> Result<(), Error> {
 		use std::time;
 
 		let slow_tx = option_env!("SLOW_TX_DURATION").and_then(|v| v.parse().ok()).unwrap_or(100);
@@ -410,8 +410,8 @@ impl Drain for SealedBlock {
 /// transactions and committing the state to disk.
 pub(crate) fn enact(
 	header: &Header,
-	transactions: &Vec<SignedTransaction>,
-	uncles: &Vec<Header>,
+	transactions: &[SignedTransaction],
+	uncles: &[Header],
 	engine: &dyn Engine,
 	tracing: bool,
 	db: StateDB,
