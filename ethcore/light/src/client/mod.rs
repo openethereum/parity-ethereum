@@ -478,12 +478,12 @@ impl<T: ChainDataFetcher> Client<T> {
 
 		loop {
 
-			let is_signal = {
+			let is_transition = {
 				self.engine.signals_epoch_end(verified_header, receipts.as_ref().map(|x| &x[..]))
 			};
 
-			// check with any auxiliary data fetched so far
-			match is_signal {
+			// check if we need to fetch receipts
+			match is_transition {
 				EpochChange::No => return Ok(None),
 				EpochChange::Yes(proof) => return Ok(Some(proof)),
 				EpochChange::Unsure => {
