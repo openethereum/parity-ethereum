@@ -106,6 +106,7 @@ enum RemoveFrom {
 /// ```
 ///
 /// TODO: `store_reclaim_period`
+#[derive(Clone)]
 pub struct EarlyMergeDB {
 	overlay: super::MemoryDB,
 	backing: Arc<dyn KeyValueDB>,
@@ -167,7 +168,7 @@ impl EarlyMergeDB {
 					}
 					entry.insert(RefInfo {
 						queue_refs: 1,
-						in_archive: in_archive,
+						in_archive,
 					});
 				},
 			}
@@ -318,13 +319,7 @@ impl HashDB<KeccakHasher, DBValue> for EarlyMergeDB {
 
 impl JournalDB for EarlyMergeDB {
 	fn boxed_clone(&self) -> Box<dyn JournalDB> {
-		Box::new(EarlyMergeDB {
-			overlay: self.overlay.clone(),
-			backing: self.backing.clone(),
-			refs: self.refs.clone(),
-			latest_era: self.latest_era.clone(),
-			column: self.column.clone(),
-		})
+		Box::new(self.clone())
 	}
 
 	fn is_empty(&self) -> bool {
@@ -376,7 +371,7 @@ impl JournalDB for EarlyMergeDB {
 
 			let removes: Vec<H256> = drained
 				.iter()
-				.filter_map(|(k, &(_, c))| if c < 0 {Some(k.clone())} else {None})
+				.filter_map(|(k, &(_, c))| if c < 0 { Some(*k) } else { None })
 				.collect();
 			let inserts: Vec<(H256, _)> = drained
 				.into_iter()
