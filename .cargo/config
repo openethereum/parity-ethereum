@@ -25,3 +25,6 @@ rustflags = ["-Ctarget-feature=+aes,+sse2,+ssse3", "-Ctarget-feature=+crt-static
 # Enables the aes-ni instructions for RustCrypto dependency.
 rustflags = ["-Ctarget-feature=+aes,+sse2,+ssse3"]
 
+[target.x86_64-unknown-linux-musl]
+# Enables the aes-ni instructions for RustCrypto dependency.
+rustflags = ["-Ctarget-feature=+aes,+sse2,+ssse3"]
