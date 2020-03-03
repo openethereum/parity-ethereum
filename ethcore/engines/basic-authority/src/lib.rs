@@ -26,9 +26,10 @@ use common_types::{
 		SealingState,
 		Seal,
 		params::CommonParams,
-		machine::{AuxiliaryData, Call},
+		machine::Call,
 	},
 	errors::{EngineError, BlockError, EthcoreError as Error},
+	receipt::Receipt,
 };
 use client_traits::EngineClient;
 use ethereum_types::{H256, H520};
@@ -142,16 +143,16 @@ impl Engine for BasicAuthority {
 	}
 
 	#[cfg(not(any(test, feature = "test-helpers")))]
-	fn signals_epoch_end(&self, _header: &Header, _auxiliary: AuxiliaryData) -> engine::EpochChange {
+	fn signals_epoch_end(&self, _header: &Header, _receipts: Option<&[Receipt]>) -> engine::EpochChange {
 		// don't bother signalling even though a contract might try.
 		engine::EpochChange::No
 	}
 
 	#[cfg(any(test, feature = "test-helpers"))]
-	fn signals_epoch_end(&self, header: &Header, auxiliary: AuxiliaryData) -> engine::EpochChange {
+	fn signals_epoch_end(&self, header: &Header, receipts: Option<&[Receipt]>) -> engine::EpochChange {
 		// in test mode, always signal even though they don't be finalized.
 		let first = header.number() == 0;
-		self.validators.signals_epoch_end(first, header, auxiliary)
+		self.validators.signals_epoch_end(first, header, receipts)
 	}
 
 	fn is_epoch_end(

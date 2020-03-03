@@ -21,7 +21,8 @@ use common_types::{
 	ids::BlockId,
 	header::Header,
 	errors::EthcoreError,
-	engines::machine::{Call, AuxiliaryData},
+	engines::machine::Call,
+	receipt::Receipt,
 };
 use ethereum_types::{H256, Address};
 use log::warn;
@@ -89,9 +90,7 @@ impl ValidatorSet for SimpleList {
 		}
 	}
 
-	fn signals_epoch_end(&self, _: bool, _: &Header, _: AuxiliaryData)
-		-> engine::EpochChange
-	{
+	fn signals_epoch_end(&self, _: bool, _: &Header, _: Option<&[Receipt]>) -> engine::EpochChange {
 		engine::EpochChange::No
 	}
 

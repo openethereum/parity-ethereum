@@ -114,7 +114,7 @@ use types::{
 	engines::{
 		epoch::{PendingTransition, Transition as EpochTransition},
 		ForkChoice,
-		machine::{AuxiliaryData, Call as MachineCall},
+		machine::Call as MachineCall,
 		MAX_UNCLE_AGE,
 		SealingState,
 	},
@@ -308,7 +308,7 @@ impl Importer {
 					continue;
 				}
 
-				match self.check_and_lock_block(&bytes, block, client) {
+				match self.check_and_lock_block(block, client) {
 					Ok((closed_block, pending)) => {
 						imported_blocks.push(hash);
 						let transactions_len = closed_block.transactions.len();
@@ -362,7 +362,7 @@ impl Importer {
 		imported
 	}
 
-	fn check_and_lock_block(&self, bytes: &[u8], block: PreverifiedBlock, client: &Client) -> EthcoreResult<(LockedBlock, Option<PendingTransition>)> {
+	fn check_and_lock_block(&self, block: PreverifiedBlock, client: &Client) -> EthcoreResult<(LockedBlock, Option<PendingTransition>)> {
 		let engine = &*self.engine;
 		let header = block.header.clone();
 
@@ -448,7 +448,6 @@ impl Importer {
 
 		let pending = self.check_epoch_end_signal(
 			&header,
-			bytes,
 			&locked_block.receipts,
 			locked_block.state.db(),
 			client
@@ -596,7 +595,6 @@ impl Importer {
 	fn check_epoch_end_signal(
 		&self,
 		header: &Header,
-		block_bytes: &[u8],
 		receipts: &[Receipt],
 		state_db: &StateDB,
 		client: &Client,
@@ -604,12 +602,7 @@ impl Importer {
 		use engine::EpochChange;
 
 		let hash = header.hash();
-		let auxiliary = AuxiliaryData {
-			bytes: Some(block_bytes),
-			receipts: Some(&receipts),
-		};
-
-		match self.engine.signals_epoch_end(header, auxiliary) {
+		match self.engine.signals_epoch_end(header, Some(&receipts)) {
 			EpochChange::Yes(proof) => {
 				use engine::Proof;
 
@@ -671,7 +664,7 @@ impl Importer {
 				Ok(Some(PendingTransition { proof }))
 			},
 			EpochChange::No => Ok(None),
-			EpochChange::Unsure(_) => {
+			EpochChange::Unsure => {
 				warn!(target: "client", "Detected invalid engine implementation.");
 				warn!(target: "client", "Engine claims to require more block data, but everything provided.");
 				Err(EngineError::InvalidEngine.into())
@@ -2402,7 +2395,6 @@ impl ImportSealedBlock for Client {
 
 			let pending = self.importer.check_epoch_end_signal(
 				&header,
-				&block_bytes,
 				&block.receipts,
 				block.state.db(),
 				self

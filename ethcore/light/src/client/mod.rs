@@ -474,45 +474,20 @@ impl<T: ChainDataFetcher> Client<T> {
 	}
 
 	fn check_epoch_signal(&self, verified_header: &Header) -> Result<Option<Proof>, T::Error> {
-		use common_types::engines::machine::{AuxiliaryRequest, AuxiliaryData};
-
-		let mut block: Option<Vec<u8>> = None;
 		let mut receipts: Option<Vec<_>> = None;
 
 		loop {
 
-			let is_signal = {
-				let auxiliary = AuxiliaryData {
-					bytes: block.as_ref().map(|x| &x[..]),
-					receipts: receipts.as_ref().map(|x| &x[..]),
-				};
-
-				self.engine.signals_epoch_end(verified_header, auxiliary)
+			let is_transition = {
+				self.engine.signals_epoch_end(verified_header, receipts.as_ref().map(|x| &x[..]))
 			};
 
-			// check with any auxiliary data fetched so far
-			match is_signal {
+			// check if we need to fetch receipts
+			match is_transition {
 				EpochChange::No => return Ok(None),
 				EpochChange::Yes(proof) => return Ok(Some(proof)),
-				EpochChange::Unsure(unsure) => {
-					let (b, r) = match unsure {
-						AuxiliaryRequest::Body =>
-							(Some(self.fetcher.block_body(verified_header)), None),
-						AuxiliaryRequest::Receipts =>
-							(None, Some(self.fetcher.block_receipts(verified_header))),
-						AuxiliaryRequest::Both => (
-							Some(self.fetcher.block_body(verified_header)),
-							Some(self.fetcher.block_receipts(verified_header)),
-						),
-					};
-
-					if let Some(b) = b {
-						block = Some(b.into_future().wait()?.into_inner());
-					}
-
-					if let Some(r) = r {
-						receipts = Some(r.into_future().wait()?);
-					}
+				EpochChange::Unsure => {
+					receipts = Some(self.fetcher.block_receipts(verified_header).into_future().wait()?);
 				}
 			}
 		}

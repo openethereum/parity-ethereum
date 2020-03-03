@@ -71,10 +71,11 @@ use common_types::{
 		PendingTransitionStore,
 		Seal,
 		SealingState,
-		machine::{Call, AuxiliaryData},
+		machine::Call,
 	},
 	errors::{BlockError, EthcoreError as Error, EngineError},
 	ids::BlockId,
+	receipt::Receipt,
 	snapshot::Snapshotting,
 	transaction::SignedTransaction,
 };
@@ -1766,11 +1767,11 @@ impl Engine for AuthorityRound {
 			.map(|set_proof| combine_proofs(0, &set_proof, &[]))
 	}
 
-	fn signals_epoch_end(&self, header: &Header, aux: AuxiliaryData) -> engine::EpochChange {
+	fn signals_epoch_end(&self, header: &Header, receipts: Option<&[Receipt]>) -> engine::EpochChange {
 		if self.immediate_transitions { return engine::EpochChange::No }
 
 		let first = header.number() == 0;
-		self.validators.signals_epoch_end(first, header, aux)
+		self.validators.signals_epoch_end(first, header, receipts)
 	}
 
 	fn is_epoch_end_light(
