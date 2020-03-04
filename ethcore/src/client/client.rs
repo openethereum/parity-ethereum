@@ -305,6 +305,11 @@ impl Importer {
 					continue;
 				}
 
+				// --------------------------------------------------------
+				//  NOTE: this will remove the RLP bytes from  the
+				//  `PreverifiedBlock` so be careful not to use the bytes
+				//  anywhere after this, it will be an empty `Vec`.
+				// --------------------------------------------------------
 				let block_bytes = std::mem::take(&mut block.bytes);
 				match self.check_and_lock_block(block, client) {
 					Ok((locked_block, pending)) => {
