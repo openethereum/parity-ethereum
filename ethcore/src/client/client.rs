@@ -38,7 +38,7 @@ use trie::{Trie, TrieFactory, TrieSpec};
 
 use account_state::State;
 use account_state::state::StateInfo;
-use block::{ClosedBlock, Drain, enact_verified, LockedBlock, OpenBlock, SealedBlock};
+use block::{ClosedBlock, Drain, enact, LockedBlock, OpenBlock, SealedBlock};
 use blockchain::{
 	BlockChain,
 	BlockChainDB,
@@ -363,8 +363,7 @@ impl Importer {
 
 	fn check_and_lock_block(&self, block: PreverifiedBlock, client: &Client) -> EthcoreResult<(LockedBlock, Option<PendingTransition>)> {
 		let engine = &*self.engine;
-		let header = &block.header.clone();
-
+		let header = &block.header;
 		// Check the block isn't so old we won't be able to enact it.
 		let best_block_number = client.chain.read().best_block_number();
 		if client.pruning_info().earliest_state > header.number() {
@@ -384,7 +383,7 @@ impl Importer {
 		let chain = client.chain.read();
 		// Verify Block Family
 		let verify_family_result = verification::verify_block_family(
-			&header,
+			header,
 			&parent,
 			engine,
 			verification::FullFamilyParams {
@@ -411,8 +410,10 @@ impl Importer {
 
 		let is_epoch_begin = chain.epoch_transition(parent.number(), *header.parent_hash()).is_some();
 
-		let enact_result = enact_verified(
-			block,
+		let enact_result = enact(
+			header,
+			block.transactions,
+			block.uncles,
 			engine,
 			client.tracedb.read().tracing_enabled(),
 			db,

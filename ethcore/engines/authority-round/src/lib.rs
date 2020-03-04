@@ -2561,7 +2561,7 @@ mod tests {
 			value: U256::from(1),
 			data: vec![],
 		}.fake_sign(addr2);
-		b2.push_transaction(&signed_tx).unwrap();
+		b2.push_transaction(signed_tx).unwrap();
 		let b2 = b2.close_and_lock().unwrap();
 
 		// we will now seal a block with 1tx and include the accumulated empty step message
