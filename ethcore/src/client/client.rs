@@ -296,7 +296,7 @@ impl Importer {
 			trace_time!("import_verified_blocks");
 			let start = Instant::now();
 
-			for block in blocks {
+			for mut block in blocks {
 				let hash = block.header.hash();
 
 				let is_invalid = invalid_blocks.contains(block.header.parent_hash());
@@ -305,17 +305,18 @@ impl Importer {
 					continue;
 				}
 
-				match self.check_and_lock_block(&block, client) {
+				let block_bytes = std::mem::take(&mut block.bytes);
+				match self.check_and_lock_block(block, client) {
 					Ok((locked_block, pending)) => {
 						imported_blocks.push(hash);
 						let transactions_len = locked_block.transactions.len();
 						let gas_used = locked_block.header.gas_used().clone();
-						let route = self.commit_block(locked_block, encoded::Block::new(block.bytes), pending, client);
+						let route = self.commit_block(locked_block, encoded::Block::new(block_bytes), pending, client);
 						import_results.push(route);
 						client.report.write().accrue_block(gas_used, transactions_len);
 					}
 					Err(err) => {
-						self.bad_blocks.report(block.bytes, format!("{:?}", err));
+						self.bad_blocks.report(block_bytes, format!("{:?}", err));
 						invalid_blocks.insert(hash);
 					},
 				}
@@ -360,9 +361,9 @@ impl Importer {
 		imported
 	}
 
-	fn check_and_lock_block(&self, block: &PreverifiedBlock, client: &Client) -> EthcoreResult<(LockedBlock, Option<PendingTransition>)> {
+	fn check_and_lock_block(&self, block: PreverifiedBlock, client: &Client) -> EthcoreResult<(LockedBlock, Option<PendingTransition>)> {
 		let engine = &*self.engine;
-		let header = &block.header;
+		let header = &block.header.clone();
 
 		// Check the block isn't so old we won't be able to enact it.
 		let best_block_number = client.chain.read().best_block_number();
@@ -387,7 +388,7 @@ impl Importer {
 			&parent,
 			engine,
 			verification::FullFamilyParams {
-				block,
+				block: &block,
 				block_provider: &**chain,
 				client
 			},
@@ -2305,7 +2306,7 @@ impl ReopenBlock for Client {
 				if !block.uncles.iter().any(|header| header.hash() == h) {
 					let uncle = chain.block_header_data(&h).expect("find_uncle_hashes only returns hashes for existing headers; qed");
 					let uncle = uncle.decode().expect("decoding failure");
-					block.push_uncle(&uncle).expect("pushing up to maximum_uncle_count;
+					block.push_uncle(uncle).expect("pushing up to maximum_uncle_count;
 												push_uncle is not ok only if more than maximum_uncle_count is pushed;
 												so all push_uncle are Ok;
 												qed");
@@ -2346,7 +2347,7 @@ impl PrepareOpenBlock for Client {
 			.iter()
 			.take(engine.maximum_uncle_count(open_block.header.number()))
 			.for_each(|h| {
-				open_block.push_uncle(&h.decode().expect("decoding failure")).expect("pushing maximum_uncle_count;
+				open_block.push_uncle(h.decode().expect("decoding failure")).expect("pushing maximum_uncle_count;
 												open_block was just created;
 												push_uncle is not ok only if more than maximum_uncle_count is pushed;
 												so all push_uncle are Ok;

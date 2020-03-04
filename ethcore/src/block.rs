@@ -150,7 +150,7 @@ impl<'x> OpenBlock<'x> {
 	///
 	/// NOTE Will check chain constraints and the uncle number but will NOT check
 	/// that the header itself is actually valid.
-	pub fn push_uncle(&mut self, valid_uncle_header: &Header) -> Result<(), BlockError> {
+	pub fn push_uncle(&mut self, valid_uncle_header: Header) -> Result<(), BlockError> {
 		let max_uncles = self.engine.maximum_uncle_count(self.block.header.number());
 		if self.block.uncles.len() + 1 > max_uncles {
 			return Err(BlockError::TooManyUncles(OutOfBounds{
@@ -161,23 +161,23 @@ impl<'x> OpenBlock<'x> {
 		}
 		// TODO: check number
 		// TODO: check not a direct ancestor (use last_hashes for that)
-		self.block.uncles.push(valid_uncle_header.clone());
+		self.block.uncles.push(valid_uncle_header);
 		Ok(())
 	}
 
 	/// Push a transaction into the block.
 	///
 	/// If valid, it will be executed, and archived together with the receipt.
-	pub fn push_transaction(&mut self, t: &SignedTransaction) -> Result<&Receipt, Error> {
+	pub fn push_transaction(&mut self, t: SignedTransaction) -> Result<&Receipt, Error> {
 		if self.block.transactions_set.contains(&t.hash()) {
 			return Err(TransactionError::AlreadyImported.into());
 		}
 
 		let env_info = self.block.env_info();
-		let outcome = self.block.state.apply(&env_info, self.engine.machine(), t, self.block.traces.is_enabled())?;
+		let outcome = self.block.state.apply(&env_info, self.engine.machine(), &t, self.block.traces.is_enabled())?;
 
 		self.block.transactions_set.insert(t.hash());
-		self.block.transactions.push(t.clone());
+		self.block.transactions.push(t);
 		if let Tracing::Enabled(ref mut traces) = self.block.traces {
 			traces.push(outcome.trace.into());
 		}
@@ -187,7 +187,7 @@ impl<'x> OpenBlock<'x> {
 
 	/// Push transactions onto the block.
 	#[cfg(not(feature = "slow-blocks"))]
-	fn push_transactions(&mut self, transactions: &[SignedTransaction]) -> Result<(), Error> {
+	fn push_transactions(&mut self, transactions: Vec<SignedTransaction>) -> Result<(), Error> {
 		for t in transactions {
 			self.push_transaction(t)?;
 		}
@@ -196,7 +196,7 @@ impl<'x> OpenBlock<'x> {
 
 	/// Push transactions onto the block.
 	#[cfg(feature = "slow-blocks")]
-	fn push_transactions(&mut self, transactions: &[SignedTransaction]) -> Result<(), Error> {
+	fn push_transactions(&mut self, transactions: Vec<SignedTransaction>) -> Result<(), Error> {
 		use std::time;
 
 		let slow_tx = option_env!("SLOW_TX_DURATION").and_then(|v| v.parse().ok()).unwrap_or(100);
@@ -410,8 +410,8 @@ impl Drain for SealedBlock {
 /// transactions and committing the state to disk.
 pub(crate) fn enact(
 	header: &Header,
-	transactions: &[SignedTransaction],
-	uncles: &[Header],
+	transactions: Vec<SignedTransaction>,
+	uncles: Vec<Header>,
 	engine: &dyn Engine,
 	tracing: bool,
 	db: StateDB,
@@ -462,7 +462,7 @@ pub(crate) fn enact(
 
 /// Enact the `PreVerified` block using `engine` on the database `db` with the given `parent` block header
 pub fn enact_verified(
-	block: &PreverifiedBlock,
+	block: PreverifiedBlock,
 	engine: &dyn Engine,
 	tracing: bool,
 	db: StateDB,
@@ -474,8 +474,8 @@ pub fn enact_verified(
 
 	enact(
 		&block.header,
-		&block.transactions,
-		&block.uncles,
+		block.transactions,
+		block.uncles,
 		engine,
 		tracing,
 		db,
@@ -549,10 +549,10 @@ mod tests {
 		)?;
 
 		b.populate_from(&header);
-		b.push_transactions(&transactions)?;
+		b.push_transactions(transactions)?;
 
 		for u in block.uncles {
-			b.push_uncle(&u)?;
+			b.push_uncle(u)?;
 		}
 
 		b.close_and_lock()
@@ -621,8 +621,8 @@ mod tests {
 		uncle1_header.set_extra_data(b"uncle1".to_vec());
 		let mut uncle2_header = Header::new();
 		uncle2_header.set_extra_data(b"uncle2".to_vec());
-		open_block.push_uncle(&uncle1_header).unwrap();
-		open_block.push_uncle(&uncle2_header).unwrap();
+		open_block.push_uncle(uncle1_header).unwrap();
+		open_block.push_uncle(uncle2_header).unwrap();
 		let b = open_block.close_and_lock().unwrap().seal(engine, vec![]).unwrap();
 
 		let orig_bytes = b.rlp_bytes();

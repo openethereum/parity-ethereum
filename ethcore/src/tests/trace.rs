@@ -159,7 +159,7 @@ fn can_trace_block_and_uncle_reward() {
 		value: U256::zero(),
 	}.sign(kp.secret(), Some(spec.network_id()));
 
-	block.push_transaction(&signed_tx).unwrap();
+	block.push_transaction(signed_tx).unwrap();
 
 	let mut uncle = Header::new();
 	let uncle_author = Address::from_str("ef2d6d194084c2de36e0dabfce45d046b37d1106").unwrap();
@@ -168,7 +168,7 @@ fn can_trace_block_and_uncle_reward() {
 	uncle.set_gas_limit(genesis_gas);
 	uncle.set_number(root_header.number() + 1);
 	uncle.set_timestamp(rolling_timestamp);
-	block.push_uncle(&uncle).unwrap();
+	block.push_uncle(uncle).unwrap();
 
 	let block = block.close_and_lock().unwrap().seal(engine, vec![]).unwrap();
 
