@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
+use alloc_counter::count_alloc;
+
 use std::cmp;
 use std::collections::{BTreeMap, HashSet, VecDeque};
 use std::convert::TryFrom;
@@ -289,6 +291,11 @@ impl Importer {
 			let mut import_results = Vec::with_capacity(max_blocks_to_import);
 
 			let _import_lock = self.import_lock.lock();
+			// let ((allocs, reallocs, deallocs), blocks) = count_alloc(|| {
+			// 	self.block_queue.drain(max_blocks_to_import)
+			// });
+			// trace!(target: "dp", "\tDrained the queue of {} blocks. Allocations={}, reallocations={}, deallocations={}",
+			//        blocks.len(), allocs, reallocs, deallocs);
 			let blocks = self.block_queue.drain(max_blocks_to_import);
 			if blocks.is_empty() {
 				return 0;
@@ -306,13 +313,33 @@ impl Importer {
 				}
 
 				let block_bytes = std::mem::take(&mut block.bytes);
-				match self.check_and_lock_block(block, client) {
+				let ((allocs, reallocs, deallocs), res) = count_alloc(|| {
+					self.check_and_lock_block(block, client)
+				});
+				trace!(target: "dp", "\tcheck_and_lock_block(). Allocations={}, reallocations={}, deallocations={}", allocs, reallocs, deallocs);
+
+				// match self.check_and_lock_block(block, client) {
+				match res {
 					Ok((locked_block, pending)) => {
 						imported_blocks.push(hash);
 						let transactions_len = locked_block.transactions.len();
 						let gas_used = locked_block.header.gas_used().clone();
-						let route = self.commit_block(locked_block, encoded::Block::new(block_bytes), pending, client);
+						let ((allocs, reallocs, deallocs), route) = count_alloc(|| {
+							self.commit_block(locked_block, encoded::Block::new(block_bytes), pending, client)
+						});
+						trace!(target: "dp", "\tcommit_block(). Allocations={}, reallocations={}, deallocations={}", allocs, reallocs, deallocs);
+						// let route = self.commit_block(locked_block, encoded::Block::new(block_bytes), pending, client);
+
+						// let ((allocs, reallocs, deallocs), _) = count_alloc(|| {
+						// 	import_results.push(route);
+						// });
+						// trace!(target: "dp", "\timport_results.push(). Allocations={}, reallocations={}, deallocations={}", allocs, reallocs, deallocs);
 						import_results.push(route);
+
+						// let ((allocs, reallocs, deallocs), _) = count_alloc(|| {
+						// 	client.report.write().accrue_block(gas_used, transactions_len);
+						// });
+						// trace!(target: "dp", "\taccrue_block(). Allocations={}, reallocations={}, deallocations={}", allocs, reallocs, deallocs);
 						client.report.write().accrue_block(gas_used, transactions_len);
 					}
 					Err(err) => {
@@ -323,6 +350,7 @@ impl Importer {
 			}
 
 			let imported = imported_blocks.len();
+			// todo[dvdplm] audit this: do we really need to return the invalid blocks or is it enough to mark_as_bad() and move on? chain_new_blocks() does not need them. What is listening to notifications about bad blocks?
 			let invalid_blocks = invalid_blocks.into_iter().collect::<Vec<H256>>();
 
 			if !invalid_blocks.is_empty() {
@@ -357,13 +385,18 @@ impl Importer {
 		}
 
 		let db = client.db.read();
-		db.key_value().flush().expect("DB flush failed.");
+		let ((allocs, reallocs, deallocs), _) = count_alloc(|| {
+			db.key_value().flush().expect("DB flush failed.");
+		});
+		trace!(target: "dp", "\tdb flush(). Allocations={}, reallocations={}, deallocations={}", allocs, reallocs, deallocs);
+
+		// db.key_value().flush().expect("DB flush failed.");
 		imported
 	}
 
 	fn check_and_lock_block(&self, block: PreverifiedBlock, client: &Client) -> EthcoreResult<(LockedBlock, Option<PendingTransition>)> {
 		let engine = &*self.engine;
-		let header = &block.header;
+		let header = &block.header.clone();
 		// Check the block isn't so old we won't be able to enact it.
 		let best_block_number = client.chain.read().best_block_number();
 		if client.pruning_info().earliest_state > header.number() {
@@ -382,46 +415,93 @@ impl Importer {
 
 		let chain = client.chain.read();
 		// Verify Block Family
-		let verify_family_result = verification::verify_block_family(
-			header,
-			&parent,
-			engine,
-			verification::FullFamilyParams {
-				block: &block,
-				block_provider: &**chain,
-				client
-			},
-		);
+		let ((allocs, reallocs, deallocs), verify_family_result) = count_alloc(|| {
+			verification::verify_block_family(
+				header,
+				&parent,
+				engine,
+				verification::FullFamilyParams {
+					block: &block,
+					block_provider: &**chain,
+					client
+				},
+			)
+		});
+		trace!(target: "dp", "\t\tverify_block_family(). Allocations={}, reallocations={}, deallocations={}", allocs, reallocs, deallocs);
+		// let verify_family_result = verification::verify_block_family(
+		// 	header,
+		// 	&parent,
+		// 	engine,
+		// 	verification::FullFamilyParams {
+		// 		block: &block,
+		// 		block_provider: &**chain,
+		// 		client
+		// 	},
+		// );
 
 		if let Err(e) = verify_family_result {
 			warn!(target: "client", "Stage 3 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 			return Err(e);
 		};
 
-		let verify_external_result = engine.verify_block_external(&header);
+		let ((allocs, reallocs, deallocs), verify_external_result) = count_alloc(|| {
+			engine.verify_block_external(&header)
+		});
+		trace!(target: "dp", "\t\tverify_block_external(). Allocations={}, reallocations={}, deallocations={}", allocs, reallocs, deallocs);
+		// let verify_external_result = engine.verify_block_external(&header);
+
 		if let Err(e) = verify_external_result {
 			warn!(target: "client", "Stage 4 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
 			return Err(e);
 		};
 
 		// Enact Verified Block
-		let last_hashes = client.build_last_hashes(*header.parent_hash());
-		let db = client.state_db.read().boxed_clone_canon(header.parent_hash());
+		let ((allocs, reallocs, deallocs), last_hashes) = count_alloc(|| {
+			client.build_last_hashes(*header.parent_hash())
+		});
+		trace!(target: "dp", "\t\tbuild_last_hashes(). Allocations={}, reallocations={}, deallocations={}", allocs, reallocs, deallocs);
+		// let last_hashes = client.build_last_hashes(*header.parent_hash());
 
-		let is_epoch_begin = chain.epoch_transition(parent.number(), *header.parent_hash()).is_some();
+		let ((allocs, reallocs, deallocs), db) = count_alloc(|| {
+			client.state_db.read().boxed_clone_canon(header.parent_hash())
+		});
+		trace!(target: "dp", "\t\tboxed_clone_canon(). Allocations={}, reallocations={}, deallocations={}", allocs, reallocs, deallocs);
+		// let db = client.state_db.read().boxed_clone_canon(header.parent_hash());
 
-		let enact_result = enact(
-			header,
-			block.transactions,
-			block.uncles,
-			engine,
-			client.tracedb.read().tracing_enabled(),
-			db,
-			&parent,
-			last_hashes,
-			client.factories.clone(),
-			is_epoch_begin,
-		);
+		let ((allocs, reallocs, deallocs), is_epoch_begin) = count_alloc(|| {
+			chain.epoch_transition(parent.number(), *header.parent_hash()).is_some()
+		});
+		trace!(target: "dp", "\t\tepoch_transition(). Allocations={}, reallocations={}, deallocations={}", allocs, reallocs, deallocs);
+		// let is_epoch_begin = chain.epoch_transition(parent.number(), *header.parent_hash()).is_some();
+
+		let ((allocs, reallocs, deallocs), enact_result) = count_alloc(|| {
+			enact(
+				header,
+				block.transactions,
+				block.uncles,
+				engine,
+				client.tracedb.read().tracing_enabled(),
+				db,
+				&parent,
+				last_hashes,
+				client.factories.clone(),
+				is_epoch_begin,
+			)
+		});
+		trace!(target: "dp", "\t\tenact(). Allocations={}, reallocations={}, deallocations={}", allocs, reallocs, deallocs);
+
+		// let enact_result = enact(
+		// 	header,
+		// 	block.transactions,
+		// 	block.uncles,
+		// 	engine,
+		// 	client.tracedb.read().tracing_enabled(),
+		// 	db,
+		// 	&parent,
+		// 	last_hashes,
+		// 	client.factories.clone(),
+		// 	is_epoch_begin,
+		// );
 
 		let mut locked_block = match enact_result {
 			Ok(b) => b,
@@ -1299,12 +1379,14 @@ impl BlockChainReset for Client {
 
 		let mut blocks_to_delete = Vec::with_capacity(num as usize);
 		let mut best_block_hash = self.chain.read().best_block_hash();
+		let mut best_block_num = self.chain.read().best_block_number();
 		let mut batch = DBTransaction::with_capacity(blocks_to_delete.len());
 
 		for _ in 0..num {
 			let current_header = self.chain.read().block_header_data(&best_block_hash)
 				.expect("best_block_hash was fetched from db; block_header_data should exist in db; qed");
 			best_block_hash = current_header.parent_hash();
+			best_block_num = current_header.number();
 
 			let (number, hash) = (current_header.number(), current_header.hash());
 			batch.delete(::db::COL_HEADERS, hash.as_bytes());
@@ -1317,10 +1399,11 @@ impl BlockChainReset for Client {
 			blocks_to_delete.push((number, hash));
 		}
 
-		let hashes = blocks_to_delete.iter().map(|(_, hash)| hash).collect::<Vec<_>>();
+		let hashes = blocks_to_delete.iter().map(|(blocknumber, hash)| format!("#{}/{:#?}", blocknumber, hash).into()).collect::<Vec<String>>();
 		info!("Deleting block hashes {}",
 			  Colour::Red
 				  .bold()
+				  // .paint(hashes)
 				  .paint(format!("{:#?}", hashes))
 		);
 
@@ -1348,7 +1431,7 @@ impl BlockChainReset for Client {
 			.write(batch)
 			.map_err(|err| format!("could not delete blocks; io error occurred: {}", err))?;
 
-		info!("New best block hash {}", Colour::Green.bold().paint(format!("{:?}", best_block_hash)));
+		info!("New best block #{}/{}", best_block_num, Colour::Green.bold().paint(format!("{:?}", best_block_hash)));
 
 		Ok(())
 	}
@@ -1473,7 +1556,13 @@ impl ImportBlock for Client {
 
 	/// Triggered by a message from a block queue when the block is ready for insertion
 	fn import_verified_blocks(&self) -> usize {
-		self.importer.import_verified_blocks(self)
+		// A tuple of the counts; respectively allocations, reallocations, and deallocations.
+		let ((allocs, reallocs, deallocs), imported) = count_alloc(|| {
+			self.importer.import_verified_blocks(self)
+		});
+		trace!(target: "dp", "Imported {} blocks.\n\tAllocation stats. Allocations={}/{:.2} per block, reallocations={}/{:.2} per block, deallocations={}/{:.2} per block",
+		       imported, allocs, allocs as f64 / imported as f64, reallocs, reallocs as f64 / imported as f64, deallocs, deallocs as f64 / imported as f64);
+		imported
 	}
 }
 

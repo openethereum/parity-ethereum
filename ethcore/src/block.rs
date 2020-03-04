@@ -31,6 +31,8 @@
 //! `ExecutedBlock` from the `machine` crate is the underlying data structure used by all structs
 //! above to store block related info.
 
+use alloc_counter::count_alloc;
+
 use std::{cmp, ops};
 use std::sync::Arc;
 
@@ -426,20 +428,38 @@ pub(crate) fn enact(
 		None
 	};
 
-	let mut b = OpenBlock::new(
-		engine,
-		factories,
-		tracing,
-		db,
-		parent,
-		last_hashes,
-		// Engine such as Clique will calculate author from extra_data.
-		// this is only important for executing contracts as the 'executive_author'.
-		engine.executive_author(header)?,
-		(3141562.into(), 31415620.into()),
-		vec![],
-		is_epoch_begin,
-	)?;
+	let ((allocs, reallocs, deallocs), mut b) = count_alloc(|| {
+		OpenBlock::new(
+			engine,
+			factories,
+			tracing,
+			db,
+			parent,
+			last_hashes,
+			// Engine such as Clique will calculate author from extra_data.
+			// this is only important for executing contracts as the 'executive_author'.
+			engine.executive_author(header).unwrap(),
+			(3141562.into(), 31415620.into()),
+			vec![],
+			is_epoch_begin,
+		).expect("openblock")
+	});
+	trace!(target: "dp", "\t\t\tOpenBlock::new(). Allocations={}, reallocations={}, deallocations={}", allocs, reallocs, deallocs);
+
+	// let mut b = OpenBlock::new(
+	// 	engine,
+	// 	factories,
+	// 	tracing,
+	// 	db,
+	// 	parent,
+	// 	last_hashes,
+	// 	// Engine such as Clique will calculate author from extra_data.
+	// 	// this is only important for executing contracts as the 'executive_author'.
+	// 	engine.executive_author(header)?,
+	// 	(3141562.into(), 31415620.into()),
+	// 	vec![],
+	// 	is_epoch_begin,
+	// )?;
 
 	if let Some(ref s) = trace_state {
 		let env = b.env_info();
@@ -449,14 +469,34 @@ pub(crate) fn enact(
 				b.block.header.number(), root, env.author, author_balance);
 	}
 
-	b.populate_from(header);
-	b.push_transactions(transactions)?;
+	let ((allocs, reallocs, deallocs), _) = count_alloc(|| {
+		b.populate_from(header)
+	});
+	trace!(target: "dp", "\t\t\tpopulate_from(). Allocations={}, reallocations={}, deallocations={}", allocs, reallocs, deallocs);
+	// b.populate_from(header);
 
-	for u in uncles {
-		b.push_uncle(u)?;
-	}
+	let ((allocs, reallocs, deallocs), _) = count_alloc(|| {
+		b.push_transactions(transactions).expect("push tx")
+	});
+	trace!(target: "dp", "\t\t\tpush_transactions(). Allocations={}, reallocations={}, deallocations={}", allocs, reallocs, deallocs);
+	// b.push_transactions(transactions)?;
 
-	b.close_and_lock()
+	let ((allocs, reallocs, deallocs), _) = count_alloc(|| {
+		for u in uncles {
+			b.push_uncle(u).expect("push uncles")
+		}
+	});
+	trace!(target: "dp", "\t\t\tpush_uncle()s. Allocations={}, reallocations={}, deallocations={}", allocs, reallocs, deallocs);
+	// for u in uncles {
+	// 	b.push_uncle(u)?;
+	// }
+
+	let ((allocs, reallocs, deallocs), res) = count_alloc(|| {
+		b.close_and_lock()
+	});
+	trace!(target: "dp", "\t\t\tclose_and_lock(). Allocations={}, reallocations={}, deallocations={}", allocs, reallocs, deallocs);
+	// b.close_and_lock()
+	res
 }
 
 #[cfg(test)]

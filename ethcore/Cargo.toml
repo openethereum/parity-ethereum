@@ -7,6 +7,7 @@ version = "1.12.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
+alloc_counter = "0.0.4"
 account-state = { path = "account-state" }
 ansi_term = "0.11"
 basic-authority = { path = "./engines/basic-authority", optional = true} # used by test-helpers feature

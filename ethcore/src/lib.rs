@@ -18,6 +18,12 @@
 
 //! Ethcore library
 
+extern crate alloc_counter;
+use alloc_counter::AllocCounterSystem;
+
+#[global_allocator]
+static A: AllocCounterSystem = AllocCounterSystem;
+
 extern crate account_state;
 extern crate ansi_term;
 extern crate client_traits;
