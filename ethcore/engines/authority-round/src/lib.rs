@@ -2553,14 +2553,15 @@ mod tests {
 
 		// step 3
 		let mut b2 = OpenBlock::new(engine, Default::default(), false, db2, &genesis_header, last_hashes.clone(), addr2, (3141562.into(), 31415620.into()), vec![], false).unwrap();
-		b2.push_transaction(Transaction {
+		let signed_tx = Transaction {
 			action: Action::Create,
 			nonce: U256::from(0),
 			gas_price: U256::from(3000),
 			gas: U256::from(53_000),
 			value: U256::from(1),
 			data: vec![],
-		}.fake_sign(addr2)).unwrap();
+		}.fake_sign(addr2);
+		b2.push_transaction(signed_tx).unwrap();
 		let b2 = b2.close_and_lock().unwrap();
 
 		// we will now seal a block with 1tx and include the accumulated empty step message

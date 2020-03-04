@@ -222,7 +222,7 @@ impl StateDB {
 		self.db.mark_canonical(batch, end_era, canon_id)
 	}
 
-	/// Propagate local cache into the global cache and synchonize
+	/// Propagate local cache into the global cache and synchronize
 	/// the global cache with the best block state.
 	/// This function updates the global cache by removing entries
 	/// that are invalidated by chain reorganization. `sync_cache`

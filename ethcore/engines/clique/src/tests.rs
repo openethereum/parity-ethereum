@@ -19,7 +19,10 @@
 use std::sync::Arc;
 use std::collections::HashMap;
 
-use common_types::errors::{EthcoreError as Error, EngineError};
+use common_types::{
+	BlockNumber,
+	errors::{EthcoreError as Error, EngineError}
+};
 use ethcore::{
 	block::*,
 	test_helpers::get_temp_state_db,

@@ -38,7 +38,7 @@ use trie::{Trie, TrieFactory, TrieSpec};
 
 use account_state::State;
 use account_state::state::StateInfo;
-use block::{ClosedBlock, Drain, enact_verified, LockedBlock, OpenBlock, SealedBlock};
+use block::{ClosedBlock, Drain, enact, LockedBlock, OpenBlock, SealedBlock};
 use blockchain::{
 	BlockChain,
 	BlockChainDB,
@@ -283,10 +283,9 @@ impl Importer {
 		}
 
 		let max_blocks_to_import = client.config.max_round_blocks_to_import;
-		let (imported_blocks, import_results, invalid_blocks, imported, proposed_blocks, duration, has_more_blocks_to_import) = {
+		let (imported_blocks, import_results, invalid_blocks, imported, duration, has_more_blocks_to_import) = {
 			let mut imported_blocks = Vec::with_capacity(max_blocks_to_import);
 			let mut invalid_blocks = HashSet::new();
-			let proposed_blocks = Vec::with_capacity(max_blocks_to_import);
 			let mut import_results = Vec::with_capacity(max_blocks_to_import);
 
 			let _import_lock = self.import_lock.lock();
@@ -297,27 +296,32 @@ impl Importer {
 			trace_time!("import_verified_blocks");
 			let start = Instant::now();
 
-			for block in blocks {
-				let header = block.header.clone();
-				let bytes = block.bytes.clone();
-				let hash = header.hash();
+			for mut block in blocks {
+				let hash = block.header.hash();
 
-				let is_invalid = invalid_blocks.contains(header.parent_hash());
+				let is_invalid = invalid_blocks.contains(block.header.parent_hash());
 				if is_invalid {
 					invalid_blocks.insert(hash);
 					continue;
 				}
 
+				// --------------------------------------------------------
+				//  NOTE: this will remove the RLP bytes from  the
+				//  `PreverifiedBlock` so be careful not to use the bytes
+				//  anywhere after this, it will be an empty `Vec`.
+				// --------------------------------------------------------
+				let block_bytes = std::mem::take(&mut block.bytes);
 				match self.check_and_lock_block(block, client) {
-					Ok((closed_block, pending)) => {
+					Ok((locked_block, pending)) => {
 						imported_blocks.push(hash);
-						let transactions_len = closed_block.transactions.len();
-						let route = self.commit_block(closed_block, &header, encoded::Block::new(bytes), pending, client);
+						let transactions_len = locked_block.transactions.len();
+						let gas_used = *locked_block.header.gas_used();
+						let route = self.commit_block(locked_block, encoded::Block::new(block_bytes), pending, client);
 						import_results.push(route);
-						client.report.write().accrue_block(&header, transactions_len);
-					},
+						client.report.write().accrue_block(gas_used, transactions_len);
+					}
 					Err(err) => {
-						self.bad_blocks.report(bytes, format!("{:?}", err));
+						self.bad_blocks.report(block_bytes, err.to_string());
 						invalid_blocks.insert(hash);
 					},
 				}
@@ -330,7 +334,7 @@ impl Importer {
 				self.block_queue.mark_as_bad(&invalid_blocks);
 			}
 			let has_more_blocks_to_import = !self.block_queue.mark_as_good(&imported_blocks);
-			(imported_blocks, import_results, invalid_blocks, imported, proposed_blocks, start.elapsed(), has_more_blocks_to_import)
+			(imported_blocks, import_results, invalid_blocks, imported, start.elapsed(), has_more_blocks_to_import)
 		};
 
 		{
@@ -348,7 +352,7 @@ impl Importer {
 							invalid_blocks.clone(),
 							route.clone(),
 							Vec::new(),
-							proposed_blocks.clone(),
+							Vec::new(),
 							duration,
 							has_more_blocks_to_import,
 						)
@@ -364,8 +368,7 @@ impl Importer {
 
 	fn check_and_lock_block(&self, block: PreverifiedBlock, client: &Client) -> EthcoreResult<(LockedBlock, Option<PendingTransition>)> {
 		let engine = &*self.engine;
-		let header = block.header.clone();
-
+		let header = &block.header;
 		// Check the block isn't so old we won't be able to enact it.
 		let best_block_number = client.chain.read().best_block_number();
 		if client.pruning_info().earliest_state > header.number() {
@@ -385,7 +388,7 @@ impl Importer {
 		let chain = client.chain.read();
 		// Verify Block Family
 		let verify_family_result = verification::verify_block_family(
-			&header,
+			header,
 			&parent,
 			engine,
 			verification::FullFamilyParams {
@@ -412,8 +415,10 @@ impl Importer {
 
 		let is_epoch_begin = chain.epoch_transition(parent.number(), *header.parent_hash()).is_some();
 
-		let enact_result = enact_verified(
-			block,
+		let enact_result = enact(
+			header,
+			block.transactions,
+			block.uncles,
 			engine,
 			client.tracedb.read().tracing_enabled(),
 			db,
@@ -489,13 +494,14 @@ impl Importer {
 	fn commit_block<B>(
 		&self,
 		block: B,
-		header: &Header,
 		block_data: encoded::Block,
 		pending: Option<PendingTransition>,
 		client: &Client
 	) -> ImportRoute
 		where B: Drain
 	{
+		let block = block.drain();
+		let header = block.header;
 		let hash = &header.hash();
 		let number = header.number();
 		let parent = header.parent_hash();
@@ -503,8 +509,7 @@ impl Importer {
 		let mut is_finalized = false;
 
 		// Commit results
-		let block = block.drain();
-		debug_assert_eq!(header.hash(), block_data.header_view().hash());
+		debug_assert_eq!(*hash, block_data.header_view().hash());
 
 		let mut batch = DBTransaction::new();
 
@@ -542,7 +547,7 @@ impl Importer {
 		// check epoch end signal, potentially generating a proof on the current
 		// state.
 		if let Some(pending) = pending {
-			chain.insert_pending_transition(&mut batch, header.hash(), pending);
+			chain.insert_pending_transition(&mut batch, hash, pending);
 		}
 
 		state.journal_under(&mut batch, number, hash).expect("DB commit failed");
@@ -550,7 +555,7 @@ impl Importer {
 		let finalized: Vec<_> = ancestry_actions.into_iter().map(|ancestry_action| {
 			let AncestryAction::MarkFinalized(a) = ancestry_action;
 
-			if a != header.hash() {
+			if a != *hash {
 				chain.mark_finalized(&mut batch, a).expect("Engine's ancestry action must be known blocks; qed");
 			} else {
 				// we're finalizing the current block
@@ -1058,14 +1063,14 @@ impl Client {
 		};
 
 		self.block_header(id).and_then(|header| {
-			let db = self.state_db.read().boxed_clone();
-
+			let state_db = self.state_db.read();
 			// early exit for pruned blocks
-			if db.is_prunable() && self.pruning_info().earliest_state > block_number {
+			if state_db.is_prunable() && self.pruning_info().earliest_state > block_number {
 				trace!(target: "client", "State for block #{} is pruned. Earliest state: {:?}", block_number, self.pruning_info().earliest_state);
 				return None;
 			}
 
+			let db = state_db.boxed_clone();
 			let root = header.state_root();
 			State::from_existing(db, root, self.engine.account_start_nonce(block_number), self.factories.clone()).ok()
 		})
@@ -2345,7 +2350,7 @@ impl PrepareOpenBlock for Client {
 		chain
 			.find_uncle_headers(&h, MAX_UNCLE_AGE)
 			.unwrap_or_else(Vec::new)
-			.into_iter()
+			.iter()
 			.take(engine.maximum_uncle_count(open_block.header.number()))
 			.for_each(|h| {
 				open_block.push_uncle(h.decode().expect("decoding failure")).expect("pushing maximum_uncle_count;
@@ -2401,7 +2406,6 @@ impl ImportSealedBlock for Client {
 			)?;
 			let route = self.importer.commit_block(
 				block,
-				&header,
 				encoded::Block::new(block_bytes),
 				pending,
 				self

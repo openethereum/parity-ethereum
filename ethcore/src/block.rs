@@ -49,7 +49,6 @@ use vm::LastHashes;
 use hash::keccak;
 use rlp::{RlpStream, Encodable, encode_list};
 use types::{
-	block::PreverifiedBlock,
 	errors::{EthcoreError as Error, BlockError},
 	transaction::{SignedTransaction, Error as TransactionError},
 	header::Header,
@@ -177,7 +176,7 @@ impl<'x> OpenBlock<'x> {
 		let outcome = self.block.state.apply(&env_info, self.engine.machine(), &t, self.block.traces.is_enabled())?;
 
 		self.block.transactions_set.insert(t.hash());
-		self.block.transactions.push(t.into());
+		self.block.transactions.push(t);
 		if let Tracing::Enabled(ref mut traces) = self.block.traces {
 			traces.push(outcome.trace.into());
 		}
@@ -405,9 +404,11 @@ impl Drain for SealedBlock {
 	}
 }
 
-/// Enact the block given by block header, transactions and uncles
+/// Enact the block. Takes the block header, transactions and uncles from a
+/// `PreVerified` block and Produces a new `LockedBlock` after applying all
+/// transactions and committing the state to disk.
 pub(crate) fn enact(
-	header: Header,
+	header: &Header,
 	transactions: Vec<SignedTransaction>,
 	uncles: Vec<Header>,
 	engine: &dyn Engine,
@@ -434,7 +435,7 @@ pub(crate) fn enact(
 		last_hashes,
 		// Engine such as Clique will calculate author from extra_data.
 		// this is only important for executing contracts as the 'executive_author'.
-		engine.executive_author(&header)?,
+		engine.executive_author(header)?,
 		(3141562.into(), 31415620.into()),
 		vec![],
 		is_epoch_begin,
@@ -448,7 +449,7 @@ pub(crate) fn enact(
 				b.block.header.number(), root, env.author, author_balance);
 	}
 
-	b.populate_from(&header);
+	b.populate_from(header);
 	b.push_transactions(transactions)?;
 
 	for u in uncles {
@@ -456,32 +457,6 @@ pub(crate) fn enact(
 	}
 
 	b.close_and_lock()
-}
-
-/// Enact the block given by `block_bytes` using `engine` on the database `db` with the given `parent` block header
-pub fn enact_verified(
-	block: PreverifiedBlock,
-	engine: &dyn Engine,
-	tracing: bool,
-	db: StateDB,
-	parent: &Header,
-	last_hashes: Arc<LastHashes>,
-	factories: Factories,
-	is_epoch_begin: bool,
-) -> Result<LockedBlock, Error> {
-
-	enact(
-		block.header,
-		block.transactions,
-		block.uncles,
-		engine,
-		tracing,
-		db,
-		parent,
-		last_hashes,
-		factories,
-		is_epoch_begin,
-	)
 }
 
 #[cfg(test)]

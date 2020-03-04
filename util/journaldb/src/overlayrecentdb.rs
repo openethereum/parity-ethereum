@@ -186,7 +186,7 @@ impl OverlayRecentDB {
 					index: 0usize,
 				};
 				while let Some(rlp_data) = db.get(col, &encode(&db_key)).expect("Low-level database error.") {
-					trace!("read_overlay: era={}, index={}", era, db_key.index);
+					trace!(target: "journaldb", "read_overlay: era={}, index={}", era, db_key.index);
 					let value = decode::<DatabaseValue>(&rlp_data).unwrap_or_else(|e| {
 						panic!("read_overlay: Error decoding DatabaseValue era={}, index={}, error={}",
 							era, db_key.index, e
@@ -264,32 +264,9 @@ impl JournalDB for OverlayRecentDB {
 		self.backing.get(self.column, &LATEST_ERA_KEY).expect("Low level database error").is_none()
 	}
 
-	fn backing(&self) -> &Arc<dyn KeyValueDB> {
-		&self.backing
-	}
-
-	fn latest_era(&self) -> Option<u64> { self.journal_overlay.read().latest_era }
-
 	fn earliest_era(&self) -> Option<u64> { self.journal_overlay.read().earliest_era }
 
-	fn state(&self, key: &H256) -> Option<Bytes> {
-		let key = to_short_key(key);
-		// Hold the read lock for shortest possible amount of time.
-		let maybe_state_data = {
-			let journal_overlay = self.journal_overlay.read();
-			journal_overlay
-				.backing_overlay
-				.get(&key, EMPTY_PREFIX)
-				.or_else(|| journal_overlay.pending_overlay.get(&key).cloned())
-		};
-
-		maybe_state_data.or_else(|| {
-			let pkey = &key[..DB_PREFIX_LEN];
-			self.backing
-				.get_by_prefix(self.column, &pkey)
-				.map(|b| b.into_vec())
-		})
-	}
+	fn latest_era(&self) -> Option<u64> { self.journal_overlay.read().latest_era }
 
 	fn journal_under(&mut self, batch: &mut DBTransaction, now: u64, id: &H256) -> io::Result<u32> {
 		trace!(target: "journaldb", "entry: #{} ({})", now, id);
@@ -416,10 +393,6 @@ impl JournalDB for OverlayRecentDB {
 		Ok(ops as u32)
 	}
 
-	fn flush(&self) {
-		self.journal_overlay.write().pending_overlay.clear();
-	}
-
 	fn inject(&mut self, batch: &mut DBTransaction) -> io::Result<u32> {
 		let mut ops = 0;
 		for (key, (value, rc)) in self.transaction_overlay.drain() {
@@ -441,6 +414,33 @@ impl JournalDB for OverlayRecentDB {
 		}
 
 		Ok(ops)
+	}
+
+	fn state(&self, key: &H256) -> Option<Bytes> {
+		let key = to_short_key(key);
+		// Hold the read lock for shortest possible amount of time.
+		let maybe_state_data = {
+			let journal_overlay = self.journal_overlay.read();
+			journal_overlay
+				.backing_overlay
+				.get(&key, EMPTY_PREFIX)
+				.or_else(|| journal_overlay.pending_overlay.get(&key).cloned())
+		};
+
+		maybe_state_data.or_else(|| {
+			let pkey = &key[..DB_PREFIX_LEN];
+			self.backing
+				.get_by_prefix(self.column, &pkey)
+				.map(|b| b.into_vec())
+		})
+	}
+
+	fn backing(&self) -> &Arc<dyn KeyValueDB> {
+		&self.backing
+	}
+
+	fn flush(&self) {
+		self.journal_overlay.write().pending_overlay.clear();
 	}
 
 	fn consolidate(&mut self, with: super::MemoryDB) {
