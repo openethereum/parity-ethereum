@@ -22,8 +22,8 @@ use semver::Version;
 use std::fmt;
 
 /// Parity client string prefix
-const LEGACY_CLIENT_ID_PREFIX: &str = "Parity";
-const PARITY_CLIENT_ID_PREFIX: &str = "Parity-Ethereum";
+const LEGACY_CLIENT_ID_PREFIX: &str = "Parity-Ethereum";
+const PARITY_CLIENT_ID_PREFIX: &str = "Open-Ethereum";
 
 lazy_static! {
 /// Parity versions starting from this will accept block bodies requests
@@ -489,7 +489,7 @@ pub mod tests {
 	fn client_version_accepts_service_transaction_for_different_versions() {
 		assert!(!ClientVersion::from("Geth").accepts_service_transaction());
 		assert!(ClientVersion::from("Parity-Ethereum/v2.6.0/linux/rustc").accepts_service_transaction());
-		assert!(ClientVersion::from("Parity-Ethereum/ABCDEFGH/v2.7.3/linux/rustc").accepts_service_transaction());
+		assert!(ClientVersion::from("Open-Ethereum/ABCDEFGH/v2.7.3/linux/rustc").accepts_service_transaction());
 	}
 
 	#[test]

@@ -8,7 +8,7 @@ TRACK=$(cat ./tools/TRACK)
 echo "Track is: ${TRACK}"
 VERSION=$(cat ./tools/VERSION)
 SNAP_PACKAGE="parity_"$VERSION"_"$BUILD_ARCH".snap"
-# Choose snap release channel based on parity ethereum version track
+# Choose snap release channel based on Open Ethereum version track
 case ${TRACK} in
   nightly) export GRADE="devel" CHANNEL="edge";;
   stable) export GRADE="stable" CHANNEL="stable";;

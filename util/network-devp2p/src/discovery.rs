@@ -584,7 +584,7 @@ impl<'a> Discovery<'a> {
 						None
 					} else {
 						if request.deprecated_echo_hash == echo_hash {
-							trace!(target: "discovery", "Got Pong from an old parity-ethereum version.");
+							trace!(target: "discovery", "Got Pong from an old open-ethereum version.");
 						}
 						Some((request.node.clone(), request.reason.clone()))
 					}

@@ -45,10 +45,10 @@ Display result state dump in standardized JSON format.
     -h, --help         Display this message and exit.
 ```
 
-## Parity Ethereum toolchain
-_This project is a part of the Parity Ethereum toolchain._
+## Open Ethereumoolchain
+_This project is a part of the Open Ethereumoolchain._
 
-- [evmbin](https://github.com/OpenEthereum/open-ethereum/blob/master/evmbin/) - EVM implementation for Parity Ethereum.
-- [ethabi](https://github.com/paritytech/ethabi) - Parity Ethereum function calls encoding.
-- [ethstore](https://github.com/OpenEthereum/open-ethereum/blob/master/accounts/ethstore) - Parity Ethereum key management.
-- [ethkey](https://github.com/OpenEthereum/open-ethereum/blob/master/accounts/ethkey) - Parity Ethereum keys generator.
+- [evmbin](https://github.com/OpenEthereum/open-ethereum/blob/master/evmbin/) - EVM implementation for Open Ethereum
+- [ethabi](https://github.com/paritytech/ethabi) - Open Ethereumunction calls encoding.
+- [ethstore](https://github.com/OpenEthereum/open-ethereum/blob/master/accounts/ethstore) - Open Ethereumey management.
+- [ethkey](https://github.com/OpenEthereum/open-ethereum/blob/master/accounts/ethkey) - Open Ethereumeys generator.

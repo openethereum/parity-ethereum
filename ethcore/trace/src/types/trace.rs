@@ -147,7 +147,7 @@ pub struct Call {
 
 /// This is essentially an `Option<CallType>`, but with a custom
 /// `rlp` en/de-coding which preserves backwards compatibility with
-/// the older encodings used in parity-ethereum versions < 2.7 and 2.7.0.
+/// the older encodings used in open-ethereum versions < 2.7 and 2.7.0.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct BackwardsCompatibleCallType(pub Option<CallType>);
 
