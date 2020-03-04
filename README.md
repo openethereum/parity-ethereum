@@ -4,7 +4,7 @@
 
 <p align="center"><strong><a href="https://github.com/OpenEthereum/open-ethereum/releases/latest">» Download the latest release «</a></strong></p>
 
-<p align="center"><a href="https://github.com/OpenEthereum/open-ethereum/actions?query=workflow%3A%22Build+and+Test+Suite%22" target="_blank"><img src="https://github.com/OpenEthereum/open-ethereum/workflows/Build%20and%20Test%20Suite/badge.svg" /></a>
+<p align="center"><a href="https://github.com/OpenEthereum/open-ethereum/actions" target="_blank"><img src="https://github.com/OpenEthereum/open-ethereum/workflows/Build%20and%20Test%20Suite/badge.svg" /></a>
 <a href="https://www.gnu.org/licenses/gpl-3.0.en.html" target="_blank"><img src="https://img.shields.io/badge/license-GPL%20v3-green.svg" /></a></p>
 
 ## Table of Contents
