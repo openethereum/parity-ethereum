@@ -94,7 +94,7 @@ impl SyncProvider for TestSyncProvider {
 			},
 			PeerInfo {
 				id: None,
-				client_version: ClientVersion::from("Parity-Ethereum/2/v2.4.0/linux/rustc"),
+				client_version: ClientVersion::from("Open-Ethereum/2/v2.7.0/linux/rustc"),
 				capabilities: vec!["eth/64".to_owned(), "eth/65".to_owned()],
 				remote_address: "Handshake".to_owned(),
 				local_address: "127.0.0.1:3333".to_owned(),
