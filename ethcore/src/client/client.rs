@@ -316,7 +316,7 @@ impl Importer {
 						client.report.write().accrue_block(gas_used, transactions_len);
 					}
 					Err(err) => {
-						self.bad_blocks.report(block_bytes, format!("{:?}", err));
+						self.bad_blocks.report(block_bytes, err.to_string());
 						invalid_blocks.insert(hash);
 					},
 				}
