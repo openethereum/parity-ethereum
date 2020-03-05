@@ -76,9 +76,10 @@ pub struct PreverifiedBlock {
 	pub transactions: Vec<SignedTransaction>,
 	/// Populated block uncles
 	pub uncles: Vec<Header>,
-	/// Block bytes
-	pub bytes: Bytes,
 }
+
+/// The RLP representation of a block.
+pub type BlockRlpRepresentation = Vec<u8>;
 
 /// Brief info about inserted block.
 #[derive(Clone)]

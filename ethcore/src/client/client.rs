@@ -296,7 +296,7 @@ impl Importer {
 			trace_time!("import_verified_blocks");
 			let start = Instant::now();
 
-			for mut block in blocks {
+			for (block, block_bytes) in blocks {
 				let hash = block.header.hash();
 
 				let is_invalid = invalid_blocks.contains(block.header.parent_hash());
@@ -305,12 +305,6 @@ impl Importer {
 					continue;
 				}
 
-				// --------------------------------------------------------
-				//  NOTE: this will remove the RLP bytes from  the
-				//  `PreverifiedBlock` so be careful not to use the bytes
-				//  anywhere after this, it will be an empty `Vec`.
-				// --------------------------------------------------------
-				let block_bytes = std::mem::take(&mut block.bytes);
 				match self.check_and_lock_block(block, client) {
 					Ok((locked_block, pending)) => {
 						imported_blocks.push(hash);
