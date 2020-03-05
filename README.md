@@ -56,7 +56,7 @@ We recommend installing Rust through [rustup](https://www.rustup.rs/). If you do
   $ curl https://sh.rustup.rs -sSf | sh
   ```
 
-  Open Ethereum also requires `clang`, `clang++`, `pkg-config`, `file`, `make`, and `cmake` packages to be installed.
+  Open Ethereum also requires `clang` (>= 9.0), `clang++`, `pkg-config`, `file`, `make`, and `cmake` packages to be installed.
 
 - OSX:
   ```bash
@@ -128,7 +128,7 @@ To start Open Ethereum as a regular user using `systemd` init:
 1. Copy `./scripts/parity.service` to your
 `systemd` user directory (usually `~/.config/systemd/user`).
 2. Copy release to bin folder, write `sudo install ./target/release/parity /usr/bin/parity`
-3. To configure Open Ethereum, write a `/etc/parity/config.toml` config file, see [Configuring Parity Ethereum](https://paritytech.github.io/wiki/Configuring-Parity) for details.
+3. To configure Open Ethereum, write a `/etc/parity/config.toml` config file, see [our old wiki](https://paritytech.github.io/wiki/Configuring-Parity) for details.
 
 ## 4. Testing <a id="chapter-004"></a>
 
