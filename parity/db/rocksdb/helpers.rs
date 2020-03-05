@@ -34,14 +34,18 @@ pub fn compaction_profile(profile: &DatabaseCompactionProfile, db_path: &Path) -
 pub fn memory_per_column(total: Option<usize>) -> HashMap<u32, usize> {
 	let mut memory_per_column = HashMap::new();
 	if let Some(budget) = total {
-		// spend 90% of the memory budget on the state column, but at least 256 MiB
-		memory_per_column.insert(ethcore_db::COL_STATE, std::cmp::max(budget * 9 / 10, 256));
-		// spread the remaining 10% evenly across columns
-		let rest_budget = budget / 10 / (ethcore_db::NUM_COLUMNS as usize - 1);
+		// spend 30% of the memory budget on the state, bodies and extra column each, but at least 256 MiB
+		let thirty_percent = std::cmp::max(budget * 3 / 10, 256);
+		memory_per_column.insert(ethcore_db::COL_STATE, thirty_percent);
+		memory_per_column.insert(ethcore_db::COL_BODIES, thirty_percent);
+		memory_per_column.insert(ethcore_db::COL_EXTRA, thirty_percent);
+		// spread the remaining budget evenly across columns
+		let rest_budget = (budget - thirty_percent) / (ethcore_db::NUM_COLUMNS as usize - 3);
+		// but at least 16 MiB for each column
+		let small_budget = std::cmp::max(rest_budget, 16);
 
 		for i in 1..ethcore_db::NUM_COLUMNS {
-			// but at least 16 MiB for each column
-			memory_per_column.insert(i, std::cmp::max(rest_budget, 16));
+			memory_per_column.entry(i).or_insert(small_budget);
 		}
 	}
 	memory_per_column
