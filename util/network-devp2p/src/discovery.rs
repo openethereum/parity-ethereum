@@ -121,7 +121,7 @@ enum NodeValidity {
 #[derive(Debug)]
 enum BucketError {
 	Ourselves,
-	NotInTheBucket{node_entry: NodeEntry, bucket_distance: usize},
+	NotInTheBucket { node_entry: NodeEntry, bucket_distance: usize },
 }
 
 struct PingRequest {
@@ -137,22 +137,14 @@ struct PingRequest {
 	reason: PingReason
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct NodeBucket {
 	nodes: VecDeque<BucketEntry>, //sorted by last active
 }
 
-impl Default for NodeBucket {
-	fn default() -> Self {
-		NodeBucket::new()
-	}
-}
-
 impl NodeBucket {
 	fn new() -> Self {
-		NodeBucket {
-			nodes: VecDeque::new()
-		}
+		Self::default()
 	}
 }
 
@@ -191,7 +183,7 @@ pub struct TableUpdates {
 }
 
 impl<'a> Discovery<'a> {
-	pub fn new(key: &KeyPair, public: NodeEndpoint, ip_filter: IpFilter) -> Discovery<'static> {
+	pub fn new(key: &KeyPair, public: NodeEndpoint, ip_filter: IpFilter) -> Discovery<'a> {
 		Discovery {
 			id: *key.public(),
 			id_hash: keccak(key.public()),
@@ -243,7 +235,8 @@ impl<'a> Discovery<'a> {
 		};
 		let bucket = &mut self.node_buckets[dist];
 		bucket.nodes.iter_mut().find(|n| n.address.id == e.id)
-			.map_or(Err(BucketError::NotInTheBucket{node_entry: e.clone(), bucket_distance: dist}.into()), |entry| {
+			.ok_or_else(|| BucketError::NotInTheBucket { node_entry: e.clone(), bucket_distance: dist })
+			.and_then(|entry| {
 				entry.address = e;
 				entry.last_seen = Instant::now();
 				entry.backoff_until = Instant::now();
@@ -498,10 +491,10 @@ impl<'a> Discovery<'a> {
 		let packet_id = signed[0];
 		let rlp = Rlp::new(&signed[1..]);
 		match packet_id {
-			PACKET_PING => self.on_ping(&rlp, &node_id, &from, hash_signed.as_bytes()),
-			PACKET_PONG => self.on_pong(&rlp, &node_id, &from),
-			PACKET_FIND_NODE => self.on_find_node(&rlp, &node_id, &from),
-			PACKET_NEIGHBOURS => self.on_neighbours(&rlp, &node_id, &from),
+			PACKET_PING => self.on_ping(&rlp, node_id, from, hash_signed.as_bytes()),
+			PACKET_PONG => self.on_pong(&rlp, node_id, from),
+			PACKET_FIND_NODE => self.on_find_node(&rlp, node_id, from),
+			PACKET_NEIGHBOURS => self.on_neighbours(&rlp, node_id, from),
 			_ => {
 				debug!(target: "discovery", "Unknown UDP packet: {}", packet_id);
 				Ok(None)
@@ -523,12 +516,12 @@ impl<'a> Discovery<'a> {
 		entry.endpoint.is_allowed(&self.ip_filter) && entry.id != self.id
 	}
 
-	fn on_ping(&mut self, rlp: &Rlp, node_id: &NodeId, from: &SocketAddr, echo_hash: &[u8]) -> Result<Option<TableUpdates>, Error> {
+	fn on_ping(&mut self, rlp: &Rlp, node_id: NodeId, from: SocketAddr, echo_hash: &[u8]) -> Result<Option<TableUpdates>, Error> {
 		trace!(target: "discovery", "Got Ping from {:?}", &from);
 		let ping_from = if let Ok(node_endpoint) = NodeEndpoint::from_rlp(&rlp.at(1)?) {
 			node_endpoint
 		} else {
-			let mut address = from.clone();
+			let mut address = from;
 			// address here is the node's tcp port. If we are unable to get the `NodeEndpoint` from the `ping_from`
 			// rlp field then this is most likely a BootNode, set the tcp port to 0 because it can not be used for syncing.
 			address.set_port(0);
@@ -555,9 +548,9 @@ impl<'a> Discovery<'a> {
 
 		response.append(&echo_hash);
 		append_expiration(&mut response);
-		self.send_packet(PACKET_PONG, from, &response.drain())?;
+		self.send_packet(PACKET_PONG, &from, &response.drain())?;
 
-		let entry = NodeEntry { id: *node_id, endpoint: pong_to.clone() };
+		let entry = NodeEntry { id: node_id, endpoint: pong_to.clone() };
 		if !entry.endpoint.is_valid_discovery_node() {
 			debug!(target: "discovery", "Got bad address: {:?}", entry);
 		} else if !self.is_allowed(&entry) {
@@ -568,14 +561,14 @@ impl<'a> Discovery<'a> {
 		Ok(None)
 	}
 
-	fn on_pong(&mut self, rlp: &Rlp, node_id: &NodeId, from: &SocketAddr) -> Result<Option<TableUpdates>, Error> {
+	fn on_pong(&mut self, rlp: &Rlp, node_id: NodeId, from: SocketAddr) -> Result<Option<TableUpdates>, Error> {
 		trace!(target: "discovery", "Got Pong from {:?} ; node_id={:#x}", &from, node_id);
 		let _pong_to = NodeEndpoint::from_rlp(&rlp.at(0)?)?;
 		let echo_hash: H256 = rlp.val_at(1)?;
 		let timestamp: u64 = rlp.val_at(2)?;
 		self.check_timestamp(timestamp)?;
 
-		let expected_node = match self.in_flight_pings.entry(*node_id) {
+		let expected_node = match self.in_flight_pings.entry(node_id) {
 			Entry::Occupied(entry) => {
 				let expected_node = {
 					let request = entry.get();
@@ -629,16 +622,16 @@ impl<'a> Discovery<'a> {
 		}
 	}
 
-	fn on_find_node(&mut self, rlp: &Rlp, node_id: &NodeId, from: &SocketAddr) -> Result<Option<TableUpdates>, Error> {
+	fn on_find_node(&mut self, rlp: &Rlp, node_id: NodeId, from: SocketAddr) -> Result<Option<TableUpdates>, Error> {
 		trace!(target: "discovery", "Got FindNode from {:?}", &from);
 		let target: NodeId = rlp.val_at(0)?;
 		let timestamp: u64 = rlp.val_at(1)?;
 		self.check_timestamp(timestamp)?;
 
 		let node = NodeEntry {
-			id: node_id.clone(),
+			id: node_id,
 			endpoint: NodeEndpoint {
-				address: *from,
+				address: from,
 				udp_port: from.port()
 			}
 		};
@@ -711,10 +704,10 @@ impl<'a> Discovery<'a> {
 		packets.collect()
 	}
 
-	fn on_neighbours(&mut self, rlp: &Rlp, node_id: &NodeId, from: &SocketAddr) -> Result<Option<TableUpdates>, Error> {
+	fn on_neighbours(&mut self, rlp: &Rlp, node_id: NodeId, from: SocketAddr) -> Result<Option<TableUpdates>, Error> {
 		let results_count = rlp.at(0)?.item_count()?;
 
-		let is_expected = match self.in_flight_find_nodes.entry(*node_id) {
+		let is_expected = match self.in_flight_find_nodes.entry(node_id) {
 			Entry::Occupied(mut entry) => {
 				let expected = {
 					let request = entry.get_mut();
