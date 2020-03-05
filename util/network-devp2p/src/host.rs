@@ -267,7 +267,7 @@ pub struct Host {
 	udp_socket: Mutex<Option<UdpSocket>>,
 	tcp_listener: Mutex<TcpListener>,
 	sessions: Arc<RwLock<Slab<SharedSession>>>,
-	discovery: Mutex<Option<Discovery<'static>>>,
+	discovery: Mutex<Option<Discovery>>,
 	nodes: RwLock<NodeTable>,
 	handlers: RwLock<HashMap<ProtocolId, Arc<dyn NetworkProtocolHandler + Sync>>>,
 	timers: RwLock<HashMap<TimerToken, ProtocolTimer>>,

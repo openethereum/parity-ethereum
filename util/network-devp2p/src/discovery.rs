@@ -153,7 +153,7 @@ pub struct Datagram {
 	pub address: SocketAddr,
 }
 
-pub struct Discovery<'a> {
+pub struct Discovery {
 	id: NodeId,
 	id_hash: H256,
 	secret: Secret,
@@ -174,7 +174,7 @@ pub struct Discovery<'a> {
 	check_timestamps: bool,
 	adding_nodes: Vec<NodeEntry>,
 	ip_filter: IpFilter,
-	request_backoff: &'a [Duration],
+	request_backoff: &'static [Duration],
 }
 
 pub struct TableUpdates {
@@ -182,8 +182,8 @@ pub struct TableUpdates {
 	pub removed: HashSet<NodeId>,
 }
 
-impl<'a> Discovery<'a> {
-	pub fn new(key: &KeyPair, public: NodeEndpoint, ip_filter: IpFilter) -> Discovery<'a> {
+impl Discovery {
+	pub fn new(key: &KeyPair, public: NodeEndpoint, ip_filter: IpFilter) -> Discovery {
 		Discovery {
 			id: *key.public(),
 			id_hash: keccak(key.public()),
@@ -1058,8 +1058,8 @@ mod tests {
 		assert_eq!(removed, 0);
 
 		// Test bucket evictions with retries.
-		let request_backoff = [Duration::new(0, 0); 2];
-		let mut discovery = Discovery { request_backoff: &request_backoff, ..discovery };
+		const TEST_REQUEST_BACKOFF: [Duration; 2] = [Duration::from_secs(0); 2];
+		let mut discovery = Discovery { request_backoff: &TEST_REQUEST_BACKOFF, ..discovery };
 
 		for _ in 0..2 {
 			discovery.ping(&node_entries[101], PingReason::Default).unwrap();
