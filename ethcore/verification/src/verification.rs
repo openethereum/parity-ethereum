@@ -38,7 +38,7 @@ use common_types::{
 	header::Header,
 	errors::{EthcoreError as Error, BlockError},
 	engines::MAX_UNCLE_AGE,
-	block::PreverifiedBlock,
+	block::{PreverifiedBlock, PreverifiedBlockWithBytes},
 	verification::Unverified,
 };
 
@@ -78,8 +78,8 @@ pub fn verify_block_basic(block: &Unverified, engine: &dyn Engine, check_seal: b
 
 /// Phase 2 verification. Perform costly checks such as transaction signatures and block nonce for ethash.
 /// Still operates on a individual block
-/// Returns a `PreverifiedBlock` structure populated with transactions
-pub fn verify_block_unordered(block: Unverified, engine: &dyn Engine, check_seal: bool) -> Result<PreverifiedBlock, Error> {
+/// Returns a `PreverifiedBlockWithBytes` structure populated with transactions
+pub fn verify_block_unordered(block: Unverified, engine: &dyn Engine, check_seal: bool) -> Result<PreverifiedBlockWithBytes, Error> {
 	let header = block.header;
 	if check_seal {
 		engine.verify_block_unordered(&header)?;
@@ -107,10 +107,12 @@ pub fn verify_block_unordered(block: Unverified, engine: &dyn Engine, check_seal
 		})
 		.collect::<Result<Vec<_>, Error>>()?;
 
-	Ok(PreverifiedBlock {
-		header,
-		transactions,
-		uncles: block.uncles,
+	Ok(PreverifiedBlockWithBytes {
+		preverified_block: PreverifiedBlock {
+			header,
+			transactions,
+			uncles: block.uncles,
+		},
 		bytes: block.bytes,
 	})
 }
@@ -502,7 +504,6 @@ mod tests {
 			header,
 			transactions,
 			uncles: block.uncles,
-			bytes: bytes.to_vec(),
 		};
 
 		let full_params = FullFamilyParams {

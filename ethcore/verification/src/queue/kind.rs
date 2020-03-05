@@ -81,7 +81,7 @@ pub mod blocks {
 
 	use engine::Engine;
 	use common_types::{
-		block::PreverifiedBlock,
+		block::PreverifiedBlockWithBytes,
 		errors::{EthcoreError as Error, BlockError},
 		verification::Unverified,
 	};
@@ -96,7 +96,7 @@ pub mod blocks {
 	impl Kind for Blocks {
 		type Input = Unverified;
 		type Unverified = Unverified;
-		type Verified = PreverifiedBlock;
+		type Verified = PreverifiedBlockWithBytes;
 
 		fn create(
 			input: Self::Input,
@@ -146,9 +146,9 @@ pub mod blocks {
 		}
 	}
 
-	impl BlockLike for PreverifiedBlock {
+	impl BlockLike for PreverifiedBlockWithBytes {
 		fn hash(&self) -> H256 {
-			self.header.hash()
+			self.preverified_block.header.hash()
 		}
 
 		fn raw_hash(&self) -> H256 {
@@ -156,11 +156,11 @@ pub mod blocks {
 		}
 
 		fn parent_hash(&self) -> H256 {
-			*self.header.parent_hash()
+			*self.preverified_block.header.parent_hash()
 		}
 
 		fn difficulty(&self) -> U256 {
-			*self.header.difficulty()
+			*self.preverified_block.header.difficulty()
 		}
 	}
 }

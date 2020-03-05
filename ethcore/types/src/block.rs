@@ -67,7 +67,7 @@ impl Decodable for Block {
 	}
 }
 
-/// Preprocessed block data gathered in `verify_block_unordered` call
+/// Preprocessed block data without block bytes
 #[derive(MallocSizeOf)]
 pub struct PreverifiedBlock {
 	/// Populated block header
@@ -76,6 +76,13 @@ pub struct PreverifiedBlock {
 	pub transactions: Vec<SignedTransaction>,
 	/// Populated block uncles
 	pub uncles: Vec<Header>,
+}
+
+/// Preprocessed block data gathered in `verify_block_unordered` call
+#[derive(MallocSizeOf)]
+pub struct PreverifiedBlockWithBytes {
+	/// Preprocessed block without block bytes
+	pub preverified_block: PreverifiedBlock,
 	/// Block bytes
 	pub bytes: Bytes,
 }
