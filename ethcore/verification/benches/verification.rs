@@ -119,8 +119,7 @@ fn block_verification(c: &mut Criterion) {
 
 	// Phase 3 verification
 	let block = Unverified::from_rlp(rlp_8481476.clone()).expect(PROOF);
-	let preverified = verification::verify_block_unordered(block, &ethash, true).expect(PROOF);
-	let preverified = preverified.preverified_block;
+	let preverified = verification::verify_block_unordered(block, &ethash, true).expect(PROOF).0;
 	let parent = Unverified::from_rlp(rlp_8481475.clone()).expect(PROOF);
 
 	let mut block_provider = TestBlockChain::new();

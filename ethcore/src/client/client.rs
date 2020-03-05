@@ -296,9 +296,7 @@ impl Importer {
 			trace_time!("import_verified_blocks");
 			let start = Instant::now();
 
-			for block in blocks {
-				let block_bytes = block.bytes;
-				let block = block.preverified_block;
+			for (block, block_bytes) in blocks {
 				let hash = block.header.hash();
 
 				let is_invalid = invalid_blocks.contains(block.header.parent_hash());
