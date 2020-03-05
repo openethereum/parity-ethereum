@@ -382,7 +382,7 @@ impl Discovery {
 		node.endpoint.to_rlp_list(&mut rlp);
 		append_expiration(&mut rlp);
 		let old_parity_hash = keccak(rlp.as_raw());
-		let hash = self.send_packet(PACKET_PING, &node.endpoint.udp_address(), &rlp.drain())?;
+		let hash = self.send_packet(PACKET_PING, node.endpoint.udp_address(), &rlp.drain())?;
 
 		self.in_flight_pings.insert(node.id, PingRequest {
 			sent_at: Instant::now(),
@@ -400,7 +400,7 @@ impl Discovery {
 		let mut rlp = RlpStream::new_list(2);
 		rlp.append(target);
 		append_expiration(&mut rlp);
-		self.send_packet(PACKET_FIND_NODE, &node.endpoint.udp_address(), &rlp.drain())?;
+		self.send_packet(PACKET_FIND_NODE, node.endpoint.udp_address(), &rlp.drain())?;
 
 		self.in_flight_find_nodes.insert(node.id, FindNodeRequest {
 			sent_at: Instant::now(),
@@ -412,10 +412,10 @@ impl Discovery {
 		Ok(())
 	}
 
-	fn send_packet(&mut self, packet_id: u8, address: &SocketAddr, payload: &[u8]) -> Result<H256, Error> {
+	fn send_packet(&mut self, packet_id: u8, address: SocketAddr, payload: &[u8]) -> Result<H256, Error> {
 		let packet = assemble_packet(packet_id, payload, &self.secret)?;
 		let hash = H256::from_slice(&packet[0..32]);
-		self.send_to(packet, address.clone());
+		self.send_to(packet, address);
 		Ok(hash)
 	}
 
@@ -548,7 +548,7 @@ impl Discovery {
 
 		response.append(&echo_hash);
 		append_expiration(&mut response);
-		self.send_packet(PACKET_PONG, &from, &response.drain())?;
+		self.send_packet(PACKET_PONG, from, &response.drain())?;
 
 		let entry = NodeEntry { id: node_id, endpoint: pong_to.clone() };
 		if !entry.endpoint.is_valid_discovery_node() {
@@ -681,7 +681,7 @@ impl Discovery {
 		}
 		let mut packets = Discovery::prepare_neighbours_packets(&nearest);
 		for p in packets.drain(..) {
-			self.send_packet(PACKET_NEIGHBOURS, &node.endpoint.address, &p)?;
+			self.send_packet(PACKET_NEIGHBOURS, node.endpoint.address, &p)?;
 		}
 		trace!(target: "discovery", "Sent {} Neighbours to {:?}", nearest.len(), &node.endpoint);
 		Ok(())
