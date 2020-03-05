@@ -49,7 +49,6 @@ use vm::LastHashes;
 use hash::keccak;
 use rlp::{RlpStream, Encodable, encode_list};
 use types::{
-	block::PreverifiedBlock,
 	errors::{EthcoreError as Error, BlockError},
 	transaction::{SignedTransaction, Error as TransactionError},
 	header::Header,
@@ -458,32 +457,6 @@ pub(crate) fn enact(
 	}
 
 	b.close_and_lock()
-}
-
-/// Enact the block given by `block_bytes` using `engine` on the database `db` with the given `parent` block header
-pub fn enact_verified(
-	block: PreverifiedBlock,
-	engine: &dyn Engine,
-	tracing: bool,
-	db: StateDB,
-	parent: &Header,
-	last_hashes: Arc<LastHashes>,
-	factories: Factories,
-	is_epoch_begin: bool,
-) -> Result<LockedBlock, Error> {
-
-	enact(
-		&block.header,
-		block.transactions,
-		block.uncles,
-		engine,
-		tracing,
-		db,
-		parent,
-		last_hashes,
-		factories,
-		is_epoch_begin,
-	)
 }
 
 #[cfg(test)]
