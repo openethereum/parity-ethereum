@@ -38,7 +38,7 @@ use common_types::{
 	header::Header,
 	errors::{EthcoreError as Error, BlockError},
 	engines::MAX_UNCLE_AGE,
-	block::PreverifiedBlock,
+	block::{BlockRlpRepresentation, PreverifiedBlock},
 	verification::Unverified,
 };
 
@@ -78,8 +78,12 @@ pub fn verify_block_basic(block: &Unverified, engine: &dyn Engine, check_seal: b
 
 /// Phase 2 verification. Perform costly checks such as transaction signatures and block nonce for ethash.
 /// Still operates on a individual block
-/// Returns a `PreverifiedBlock` structure populated with transactions along with the block bytes.
-pub fn verify_block_unordered(block: Unverified, engine: &dyn Engine, check_seal: bool) -> Result<(PreverifiedBlock, Vec<u8>), Error> {
+/// Returns a `PreverifiedBlock` structure populated with transactions along with the RLP representation of the block.
+pub fn verify_block_unordered(
+	block: Unverified,
+	engine: &dyn Engine,
+	check_seal: bool,
+) -> Result<(PreverifiedBlock, BlockRlpRepresentation), Error> {
 	let header = block.header;
 	if check_seal {
 		engine.verify_block_unordered(&header)?;

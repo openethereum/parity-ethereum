@@ -78,6 +78,9 @@ pub struct PreverifiedBlock {
 	pub uncles: Vec<Header>,
 }
 
+/// The RLP representation of a block.
+pub type BlockRlpRepresentation = Vec<u8>;
+
 /// Brief info about inserted block.
 #[derive(Clone)]
 pub struct BlockInfo {
