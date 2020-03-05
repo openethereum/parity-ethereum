@@ -389,7 +389,7 @@ impl Discovery {
 			node: node.clone(),
 			echo_hash: hash,
 			deprecated_echo_hash: old_parity_hash,
-			reason: reason
+			reason,
 		});
 
 		trace!(target: "discovery", "Sent Ping to {:?} ; node_id={:#x}", &node.endpoint, node.id);
@@ -535,7 +535,7 @@ impl Discovery {
 		self.check_timestamp(timestamp)?;
 		let mut response = RlpStream::new_list(3);
 		let pong_to = NodeEndpoint {
-			address: from.clone(),
+			address: from,
 			udp_port: ping_from.udp_port
 		};
 		// Here the PONG's `To` field should be the node we are
@@ -550,13 +550,13 @@ impl Discovery {
 		append_expiration(&mut response);
 		self.send_packet(PACKET_PONG, from, &response.drain())?;
 
-		let entry = NodeEntry { id: node_id, endpoint: pong_to.clone() };
+		let entry = NodeEntry { id: node_id, endpoint: pong_to };
 		if !entry.endpoint.is_valid_discovery_node() {
 			debug!(target: "discovery", "Got bad address: {:?}", entry);
 		} else if !self.is_allowed(&entry) {
 			debug!(target: "discovery", "Address not allowed: {:?}", entry);
 		} else {
-			self.add_node(entry.clone());
+			self.add_node(entry);
 		}
 		Ok(None)
 	}
@@ -579,7 +579,7 @@ impl Discovery {
 						if request.deprecated_echo_hash == echo_hash {
 							trace!(target: "discovery", "Got Pong from an old parity-ethereum version.");
 						}
-						Some((request.node.clone(), request.reason.clone()))
+						Some((request.node.clone(), request.reason))
 					}
 				};
 
