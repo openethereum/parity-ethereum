@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 /// Validator set maintained in a contract, updated using `getValidators` method.
 /// It can also report validators for misbehaviour with two levels: `reportMalicious` and `reportBenign`.
@@ -30,7 +30,8 @@ use common_types::{
 	ids::BlockId,
 	header::Header,
 	errors::EthcoreError,
-	engines::machine::{Call, AuxiliaryData},
+	engines::machine::Call,
+	receipt::Receipt,
 	transaction,
 };
 
@@ -141,9 +142,9 @@ impl ValidatorSet for ValidatorContract {
 		&self,
 		first: bool,
 		header: &Header,
-		aux: AuxiliaryData,
+		receipts: Option<&[Receipt]>,
 	) -> engine::EpochChange {
-		self.validators.signals_epoch_end(first, header, aux)
+		self.validators.signals_epoch_end(first, header, receipts)
 	}
 
 	fn epoch_set(&self, first: bool, machine: &Machine, number: BlockNumber, proof: &[u8]) -> Result<(SimpleList, Option<H256>), EthcoreError> {

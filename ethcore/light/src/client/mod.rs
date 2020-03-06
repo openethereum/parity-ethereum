@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Light client implementation. Stores data from light sync
 
@@ -474,45 +474,20 @@ impl<T: ChainDataFetcher> Client<T> {
 	}
 
 	fn check_epoch_signal(&self, verified_header: &Header) -> Result<Option<Proof>, T::Error> {
-		use common_types::engines::machine::{AuxiliaryRequest, AuxiliaryData};
-
-		let mut block: Option<Vec<u8>> = None;
 		let mut receipts: Option<Vec<_>> = None;
 
 		loop {
 
-			let is_signal = {
-				let auxiliary = AuxiliaryData {
-					bytes: block.as_ref().map(|x| &x[..]),
-					receipts: receipts.as_ref().map(|x| &x[..]),
-				};
-
-				self.engine.signals_epoch_end(verified_header, auxiliary)
+			let is_transition = {
+				self.engine.signals_epoch_end(verified_header, receipts.as_ref().map(|x| &x[..]))
 			};
 
-			// check with any auxiliary data fetched so far
-			match is_signal {
+			// check if we need to fetch receipts
+			match is_transition {
 				EpochChange::No => return Ok(None),
 				EpochChange::Yes(proof) => return Ok(Some(proof)),
-				EpochChange::Unsure(unsure) => {
-					let (b, r) = match unsure {
-						AuxiliaryRequest::Body =>
-							(Some(self.fetcher.block_body(verified_header)), None),
-						AuxiliaryRequest::Receipts =>
-							(None, Some(self.fetcher.block_receipts(verified_header))),
-						AuxiliaryRequest::Both => (
-							Some(self.fetcher.block_body(verified_header)),
-							Some(self.fetcher.block_receipts(verified_header)),
-						),
-					};
-
-					if let Some(b) = b {
-						block = Some(b.into_future().wait()?.into_inner());
-					}
-
-					if let Some(r) = r {
-						receipts = Some(r.into_future().wait()?);
-					}
+				EpochChange::Unsure => {
+					receipts = Some(self.fetcher.block_receipts(verified_header).into_future().wait()?);
 				}
 			}
 		}

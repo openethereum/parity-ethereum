@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Disk-backed `HashDB` implementation.
 
@@ -42,6 +42,7 @@ use crate::{
 /// write operations out to disk. Unlike `OverlayDB`, `remove()` operations do not take effect
 /// immediately. As this is an "archive" database, nothing is ever removed. This means
 /// that the states of any block the node has ever processed will be accessible.
+#[derive(Clone)]
 pub struct ArchiveDB {
 	overlay: super::MemoryDB,
 	backing: Arc<dyn KeyValueDB>,
@@ -98,12 +99,7 @@ impl HashDB<KeccakHasher, DBValue> for ArchiveDB {
 
 impl JournalDB for ArchiveDB {
 	fn boxed_clone(&self) -> Box<dyn JournalDB> {
-		Box::new(ArchiveDB {
-			overlay: self.overlay.clone(),
-			backing: self.backing.clone(),
-			latest_era: self.latest_era,
-			column: self.column.clone(),
-		})
+		Box::new(self.clone())
 	}
 
 	fn mem_used(&self) -> usize {

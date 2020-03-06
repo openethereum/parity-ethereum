@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 /// Validator set maintained in a contract, updated using `getValidators` method.
 
@@ -26,7 +26,7 @@ use common_types::{
 	errors::{EngineError, EthcoreError, BlockError},
 	ids::BlockId,
 	log_entry::LogEntry,
-	engines::machine::{Call, AuxiliaryData, AuxiliaryRequest},
+	engines::machine::Call,
 	receipt::Receipt,
 	transaction::{self, Action, Transaction},
 };
@@ -438,11 +438,9 @@ impl ValidatorSet for ValidatorSafeContract {
 		None // no immediate transitions to contract.
 	}
 
-	fn signals_epoch_end(&self, first: bool, header: &Header, aux: AuxiliaryData)
+	fn signals_epoch_end(&self, first: bool, header: &Header, receipts: Option<&[Receipt]>)
 		-> engine::EpochChange
 	{
-		let receipts = aux.receipts;
-
 		// transition to the first block of a contract requires finality but has no log event.
 		if first {
 			debug!(target: "engine", "signalling transition to fresh contract.");
@@ -462,7 +460,7 @@ impl ValidatorSet for ValidatorSafeContract {
 		trace!(target: "engine", "detected epoch change event bloom");
 
 		match receipts {
-			None => engine::EpochChange::Unsure(AuxiliaryRequest::Receipts),
+			None => engine::EpochChange::Unsure,
 			Some(receipts) => match self.extract_from_event(bloom, header, receipts) {
 				None => engine::EpochChange::No,
 				Some(list) => {
@@ -642,7 +640,6 @@ mod tests {
 	use accounts::AccountProvider;
 	use common_types::{
 		ids::BlockId,
-		engines::machine::AuxiliaryRequest,
 		header::Header,
 		log_entry::LogEntry,
 		transaction::{Transaction, Action},
@@ -774,7 +771,7 @@ mod tests {
 		new_header.set_log_bloom(event.bloom());
 
 		match engine.signals_epoch_end(&new_header, Default::default()) {
-			EpochChange::Unsure(AuxiliaryRequest::Receipts) => {},
+			EpochChange::Unsure => {},
 			_ => panic!("Expected bloom to be recognized."),
 		};
 	}
