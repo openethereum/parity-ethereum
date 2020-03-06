@@ -175,8 +175,22 @@ fn run_constructors<T: Backend>(
 				let schedule = machine.schedule(env_info.number);
 				let mut exec = Executive::new(&mut state, &env_info, &machine, &schedule);
 				// failing create is not a bug
-				if let Err(e) = exec.create(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer) {
-					warn!(target: "spec", "Genesis constructor execution at {} failed: {}.", address, e);
+				match exec.create(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer) {
+					Ok(r) if !r.apply_state =>
+						warn!(
+							target: "spec",
+							"Genesis constructor execution at {} failed: {}.",
+							address,
+							vm::Error::Reverted
+						),
+					Err(e) =>
+						warn!(
+							target: "spec",
+							"Genesis constructor execution at {} failed: {}.",
+							address,
+							e
+						),
+					_ => ()
 				}
 			}
 
