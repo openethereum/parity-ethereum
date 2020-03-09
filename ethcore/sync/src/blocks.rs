@@ -317,7 +317,6 @@ impl BlockCollection {
 			return Vec::new();
 		}
 
-		// todo[dvdplm]: should be possible to know how many these are.
 		let mut hashes = Vec::new();
 		let mut blocks = Vec::new();
 		let mut head = self.head;
