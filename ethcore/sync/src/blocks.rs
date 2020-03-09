@@ -103,7 +103,7 @@ fn unverified_from_sync(header: SyncHeader, body: Option<SyncBody>) -> Unverifie
 		header: header.header,
 		transactions: body.transactions,
 		uncles: body.uncles,
-		bytes: stream.out().to_vec(),
+		bytes: stream.out(),
 	}
 }
 
@@ -196,11 +196,11 @@ impl BlockCollection {
 	}
 
 	/// Insert a collection of block receipts for previously downloaded headers.
-	pub fn insert_receipts(&mut self, receipts: Vec<Bytes>) -> Vec<Vec<H256>> {
+	pub fn insert_receipts(&mut self, receipts: &[&[u8]]) -> Vec<Vec<H256>> {
 		if !self.need_receipts {
 			return Vec::new();
 		}
-		receipts.into_iter()
+		receipts.iter()
 			.filter_map(|r| {
 				self.insert_receipt(r)
 					.map_err(|e| trace!(target: "sync", "Ignored invalid receipt: {:?}", e))
@@ -210,11 +210,11 @@ impl BlockCollection {
 	}
 
 	/// Returns a set of block hashes that require a body download. The returned set is marked as being downloaded.
-	pub fn needed_bodies(&mut self, count: usize, _ignore_downloading: bool) -> Vec<H256> {
+	pub fn needed_bodies(&mut self, count: usize) -> Vec<H256> {
 		if self.head.is_none() {
 			return Vec::new();
 		}
-		let mut needed_bodies: Vec<H256> = Vec::new();
+		let mut needed_bodies: Vec<H256> = Vec::with_capacity(count);
 		let mut head = self.head;
 		while head.is_some() && needed_bodies.len() < count {
 			head = self.parents.get(&head.unwrap()).cloned();
@@ -241,11 +241,11 @@ impl BlockCollection {
 	}
 
 	/// Returns a set of block hashes that require a receipt download. The returned set is marked as being downloaded.
-	pub fn needed_receipts(&mut self, count: usize, _ignore_downloading: bool) -> Vec<H256> {
+	pub fn needed_receipts(&mut self, count: usize) -> Vec<H256> {
 		if self.head.is_none() || !self.need_receipts {
 			return Vec::new();
 		}
-		let mut needed_receipts: Vec<H256> = Vec::new();
+		let mut needed_receipts: Vec<H256> = Vec::with_capacity(count);
 		let mut head = self.head;
 		while head.is_some() && needed_receipts.len() < count {
 			head = self.parents.get(&head.unwrap()).cloned();
@@ -254,7 +254,7 @@ impl BlockCollection {
 					Some(block) => {
 						if block.receipts.is_none() && !self.downloading_receipts.contains(&block.receipts_root) {
 							self.downloading_receipts.insert(block.receipts_root);
-							needed_receipts.push(head.clone());
+							needed_receipts.push(head);
 						}
 					}
 					_ => (),
@@ -275,12 +275,12 @@ impl BlockCollection {
 	}
 
 	/// Returns a set of block hashes that require a header download. The returned set is marked as being downloaded.
-	pub fn needed_headers(&mut self, count: usize, ignore_downloading: bool) -> Option<(H256, usize)> {
+	pub fn needed_headers(&mut self, count: usize) -> Option<(H256, usize)> {
 		// find subchain to download
 		let mut download = None;
 		{
 			for h in &self.heads {
-				if ignore_downloading || !self.downloading_headers.contains(h) {
+				if !self.downloading_headers.contains(h) {
 					self.downloading_headers.insert(h.clone());
 					download = Some(h.clone());
 					break;
@@ -317,42 +317,41 @@ impl BlockCollection {
 			return Vec::new();
 		}
 
-		let mut drained = Vec::new();
+		// todo[dvdplm]: should be possible to know how many these are.
 		let mut hashes = Vec::new();
-		{
-			let mut blocks = Vec::new();
-			let mut head = self.head;
-			while let Some(h) = head {
-				head = self.parents.get(&h).cloned();
-				if let Some(head) = head {
-					match self.blocks.remove(&head) {
-						Some(block) => {
-							if block.body.is_some() && (!self.need_receipts || block.receipts.is_some()) {
-								blocks.push(block);
-								hashes.push(head);
-								self.head = Some(head);
-							} else {
-								self.blocks.insert(head, block);
-								break;
-							}
-						},
-						_ => {
+		let mut blocks = Vec::new();
+		let mut head = self.head;
+		while let Some(h) = head {
+			head = self.parents.get(&h).cloned();
+			if let Some(head) = head {
+				match self.blocks.remove(&head) {
+					Some(block) => {
+						if block.body.is_some() && (!self.need_receipts || block.receipts.is_some()) {
+							blocks.push(block);
+							hashes.push(head);
+							self.head = Some(head);
+						} else {
+							self.blocks.insert(head, block);
 							break;
-						},
-					}
+						}
+					},
+					_ => {
+						break;
+					},
 				}
-			}
-
-			for block in blocks.into_iter() {
-				let unverified = unverified_from_sync(block.header, block.body);
-				drained.push(BlockAndReceipts {
-					block: unverified,
-					receipts: block.receipts.clone(),
-				});
 			}
 		}
 
-		trace!(target: "sync", "Drained {} blocks, new head :{:?}", drained.len(), self.head);
+		let mut drained = Vec::with_capacity(blocks.len());
+		for block in blocks {
+			let unverified = unverified_from_sync(block.header, block.body);
+			drained.push(BlockAndReceipts {
+				block: unverified,
+				receipts: block.receipts,
+			});
+		}
+
+		log::debug!(target: "sync", "Drained {} blocks, new head :{:?}", drained.len(), self.head);
 		drained
 	}
 
@@ -409,7 +408,7 @@ impl BlockCollection {
 		}
 	}
 
-	fn insert_receipt(&mut self, r: Bytes) -> Result<Vec<H256>, network::Error> {
+	fn insert_receipt(&mut self, r: &[u8]) -> Result<Vec<H256>, network::Error> {
 		let receipt_root = {
 			let receipts = Rlp::new(&r);
 			ordered_trie_root(receipts.iter().map(|r| r.as_raw()))
@@ -422,7 +421,7 @@ impl BlockCollection {
 					match self.blocks.get_mut(&h) {
 						Some(ref mut block) => {
 							trace!(target: "sync", "Got receipt {}", h);
-							block.receipts = Some(r.clone());
+							block.receipts = Some(r.to_vec());
 						},
 						None => {
 							warn!("Got receipt with no header {}", h);
@@ -581,11 +580,11 @@ mod test {
 		bc.reset_to(heads);
 		assert!(!bc.is_empty());
 		assert_eq!(hashes[0], bc.heads[0]);
-		assert!(bc.needed_bodies(1, false).is_empty());
+		assert!(bc.needed_bodies(1).is_empty());
 		assert!(!bc.contains(&hashes[0]));
 		assert!(!bc.is_downloading(&hashes[0]));
 
-		let (h, n) = bc.needed_headers(6, false).unwrap();
+		let (h, n) = bc.needed_headers(6).unwrap();
 		assert!(bc.is_downloading(&hashes[0]));
 		assert_eq!(hashes[0], h);
 		assert_eq!(n, 6);
@@ -608,9 +607,9 @@ mod test {
 		assert!(!bc.contains(&hashes[0]));
 		assert_eq!(hashes[5], bc.head.unwrap());
 
-		let (h, _) = bc.needed_headers(6, false).unwrap();
+		let (h, _) = bc.needed_headers(6).unwrap();
 		assert_eq!(hashes[5], h);
-		let (h, _) = bc.needed_headers(6, false).unwrap();
+		let (h, _) = bc.needed_headers(6).unwrap();
 		assert_eq!(hashes[20], h);
 		bc.insert_headers(headers[10..16].into_iter().map(Clone::clone).collect());
 		assert!(bc.drain().is_empty());
