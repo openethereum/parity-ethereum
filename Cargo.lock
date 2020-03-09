@@ -2616,7 +2616,7 @@ dependencies = [
 [[package]]
 name = "kvdb-rocksdb"
 version = "0.6.0"
-source = "git+https://github.com/paritytech/parity-common?branch=ao-rocksdb-new-format#da1e1425167ac40e2a52728895ded388d5b3c6af"
+source = "git+https://github.com/paritytech/parity-common?branch=ao-rocksdb-new-format#769351b2e0b5d5f4b9c0d0f58e76305386092820"
 dependencies = [
  "fs-swap",
  "interleaved-ordered",
