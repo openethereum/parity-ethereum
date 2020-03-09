@@ -178,7 +178,7 @@ struct Importer {
 }
 
 /// Blockchain database client backed by a persistent database. Owns and manages a blockchain and a block queue.
-/// Call `import_block()` to import a block asynchronously; `flush_queue()` flushes the queue.
+/// Call `import_block()` to import a block asynchronously.
 pub struct Client {
 	/// Flag used to disable the client forever. Not to be confused with `liveness`.
 	///
@@ -870,7 +870,7 @@ impl Client {
 		*self.on_user_defaults_change.lock() = Some(Box::new(f));
 	}
 
-	/// Flush the block import queue.
+	/// Flush the block import queue. Used mostly for tests.
 	pub fn flush_queue(&self) {
 		self.importer.block_queue.flush();
 		while !self.importer.block_queue.is_empty() {
@@ -1444,6 +1444,7 @@ impl ImportBlock for Client {
 			return Err(EthcoreError::Block(BlockError::UnknownParent(unverified.parent_hash())));
 		}
 
+		// If the queue is empty we propagate the block in a `PriorityTask`.
 		let raw = if self.importer.block_queue.is_empty() {
 			Some((unverified.bytes.clone(), *unverified.header.difficulty()))
 		} else {
@@ -2729,6 +2730,7 @@ impl ImportExportBlocks for Client {
 			}
 		};
 		self.flush_queue();
+
 		Ok(())
 	}
 }
