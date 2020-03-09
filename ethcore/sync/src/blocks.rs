@@ -216,18 +216,22 @@ impl BlockCollection {
 		}
 		let mut needed_bodies: Vec<H256> = Vec::with_capacity(count);
 		let mut head = self.head;
-		while head.is_some() && needed_bodies.len() < count {
-			head = self.parents.get(&head.unwrap()).cloned();
-			if let Some(head) = head {
-				match self.blocks.get(&head) {
-					Some(block) if block.body.is_none() && !self.downloading_bodies.contains(&head) => {
-						self.downloading_bodies.insert(head.clone());
-						needed_bodies.push(head.clone());
+		while needed_bodies.len() < count {
+			head = match head {
+				Some(head) => {
+					match self.blocks.get(&head) {
+						Some(block) if block.body.is_none() && !self.downloading_bodies.contains(&head) => {
+							self.downloading_bodies.insert(head.clone());
+							needed_bodies.push(head.clone());
+						}
+						_ => (),
 					}
-					_ => (),
-				}
-			}
+					self.parents.get(&head).copied()
+				},
+				None => break
+			};
 		}
+
 		for h in self.header_ids.values() {
 			if needed_bodies.len() >= count {
 				break;
@@ -247,19 +251,22 @@ impl BlockCollection {
 		}
 		let mut needed_receipts: Vec<H256> = Vec::with_capacity(count);
 		let mut head = self.head;
-		while head.is_some() && needed_receipts.len() < count {
-			head = self.parents.get(&head.unwrap()).cloned();
-			if let Some(head) = head {
-				match self.blocks.get(&head) {
-					Some(block) => {
-						if block.receipts.is_none() && !self.downloading_receipts.contains(&block.receipts_root) {
-							self.downloading_receipts.insert(block.receipts_root);
-							needed_receipts.push(head);
+		while needed_receipts.len() < count {
+			head = match head {
+				Some(head) => {
+					match self.blocks.get(&head) {
+						Some(block) => {
+							if block.receipts.is_none() && !self.downloading_receipts.contains(&block.receipts_root) {
+								self.downloading_receipts.insert(block.receipts_root);
+								needed_receipts.push(head);
+							}
 						}
+						_ => (),
 					}
-					_ => (),
-				}
-			}
+					self.parents.get(&head.unwrap()).copied()
+				},
+				None => break
+			};
 		}
 		// If there are multiple blocks per receipt, only request one of them.
 		for (root, h) in self.receipt_ids.iter().map(|(root, hashes)| (root, hashes[0])) {

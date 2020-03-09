@@ -870,8 +870,7 @@ impl Client {
 		*self.on_user_defaults_change.lock() = Some(Box::new(f));
 	}
 
-	/// Flush the block import queue.
-	#[cfg(any(test, feature = "test-helpers"))]
+	/// Flush the block import queue. Used mostly for tests.
 	pub fn flush_queue(&self) {
 		self.importer.block_queue.flush();
 		while !self.importer.block_queue.is_empty() {
@@ -2730,8 +2729,7 @@ impl ImportExportBlocks for Client {
 				}
 			}
 		};
-		self.importer.block_queue.flush();
-		self.import_verified_blocks();
+		self.flush_queue();
 
 		Ok(())
 	}
