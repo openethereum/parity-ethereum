@@ -1,8 +1,9 @@
 [package]
-description = "Parity Ethereum Key Management"
+description = "Open Ethereum Key Management"
 name = "ethstore"
 version = "0.2.1"
 authors = ["Parity Technologies <admin@parity.io>"]
+repository = "https://github.com/OpenEthereum/open-ethereum"
 
 [dependencies]
 log = "0.4"

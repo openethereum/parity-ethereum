@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Stratum protocol implementation for parity ethereum/bitcoin clients
+//! Stratum protocol implementation for Open Ethereum/bitcoin clients
 
 extern crate jsonrpc_tcp_server;
 extern crate jsonrpc_core;

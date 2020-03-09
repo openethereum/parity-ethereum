@@ -7,7 +7,7 @@
 Builds a lightweight non-root Parity docker image:
 ```
 git clone https://github.com/OpenEthereum/open-ethereum.git
-cd parity-ethereum
+cd open-ethereum
 ./scripts/docker/centos/build.sh
 ```
 

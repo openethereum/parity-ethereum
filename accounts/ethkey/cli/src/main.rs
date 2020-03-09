@@ -36,7 +36,7 @@ use parity_crypto::publickey::{KeyPair, Random, Error as EthkeyError, Generator,
 use rustc_hex::{FromHex, FromHexError};
 
 const USAGE: &'static str = r#"
-Parity Ethereum keys generator.
+Open Ethereum keys generator.
   Copyright 2015-2020 Parity Technologies (UK) Ltd.
 
 Usage:

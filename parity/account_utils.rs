@@ -36,7 +36,7 @@ mod accounts {
 	}
 
 	pub fn prepare_account_provider(_spec: &SpecType, _dirs: &Directories, _data_dir: &str, _cfg: AccountsConfig, _passwords: &[Password]) -> Result<AccountProvider, String> {
-		warn!("Note: Your instance of Parity Ethereum is running without account support. Some CLI options are ignored.");
+		warn!("Note: Your instance of Open Ethereum is running without account support. Some CLI options are ignored.");
 		Ok(AccountProvider)
 	}
 

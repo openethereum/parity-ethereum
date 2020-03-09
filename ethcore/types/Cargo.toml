@@ -1,5 +1,5 @@
 [package]
-description = "Parity Ethereum Common Types"
+description = "Open Ethereum Common Types"
 name = "common-types"
 version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]
