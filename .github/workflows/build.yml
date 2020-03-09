@@ -91,8 +91,12 @@ jobs:
       - name:                   Deploy to docker hub
         if:                     matrix.platform == 'ubuntu-16.04'
         uses: elgohr/Publish-Docker-Github-Action@master
+        env:
+          VCS_REF: $GITHUB_SHA
+          BUILD_DATE: $(date -u '+%Y-%m-%dT%H:%M:%SZ')
         with:
           name: openethereum/openethereum
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
           dockerfile: scripts/docker/alpine/Dockerfile
+          buildargs: VCS_REF,BUILD_DATE
