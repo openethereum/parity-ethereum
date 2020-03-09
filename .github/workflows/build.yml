@@ -88,3 +88,11 @@ jobs:
       - name:                   Prepare build directory for cache
         shell: bash
         run:                    bash scripts/actions/clean-target.sh
+      - name:                   Deploy to docker hub
+        if:                     matrix.platform == 'ubuntu-16.04'
+        uses: elgohr/Publish-Docker-Github-Action@master
+        with:
+          name: openethereum/openethereum
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+          dockerfile: scripts/docker/alpine/Dockerfile
