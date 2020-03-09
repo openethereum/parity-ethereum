@@ -197,8 +197,8 @@ pub trait IoClient: Sync + Send {
 	/// Queue transactions for importing.
 	fn queue_transactions(&self, transactions: Vec<Bytes>, peer_id: usize);
 
-	/// Queue block import with transaction receipts. Does no sealing and transaction validation.
-	fn queue_ancient_block(&self, block_bytes: Unverified, receipts_bytes: Bytes) -> EthcoreResult<H256>;
+	/// Queue block import with transaction receipts. Does no sealing or transaction validation.
+	fn queue_ancient_block(&self, unverified: Unverified, receipts_bytes: Bytes) -> EthcoreResult<H256>;
 
 	/// Queue consensus engine message.
 	fn queue_consensus_message(&self, message: Bytes);
