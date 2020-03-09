@@ -100,3 +100,4 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
           dockerfile: scripts/docker/alpine/Dockerfile
           buildargs: VCS_REF,BUILD_DATE
+          tag_names: true
