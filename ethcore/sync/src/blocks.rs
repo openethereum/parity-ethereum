@@ -263,7 +263,7 @@ impl BlockCollection {
 						}
 						_ => (),
 					}
-					self.parents.get(&head.unwrap()).copied()
+					self.parents.get(&head).copied()
 				},
 				None => break
 			};
