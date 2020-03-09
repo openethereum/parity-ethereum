@@ -328,7 +328,7 @@ impl BlockCollection {
 		let mut blocks = Vec::new();
 		let mut head = self.head;
 		while let Some(h) = head {
-			head = self.parents.get(&h).cloned();
+			head = self.parents.get(&h).copied();
 			if let Some(head) = head {
 				match self.blocks.remove(&head) {
 					Some(block) => {
