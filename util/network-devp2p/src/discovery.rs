@@ -382,7 +382,7 @@ impl Discovery {
 		node.endpoint.to_rlp_list(&mut rlp);
 		append_expiration(&mut rlp);
 		let old_parity_hash = keccak(rlp.as_raw());
-		let hash = self.send_packet(PACKET_PING, node.endpoint.udp_address(), &rlp.drain())?;
+		let hash = self.send_packet(PACKET_PING, node.endpoint.udp_address(), rlp.drain())?;
 
 		self.in_flight_pings.insert(node.id, PingRequest {
 			sent_at: Instant::now(),
@@ -400,7 +400,7 @@ impl Discovery {
 		let mut rlp = RlpStream::new_list(2);
 		rlp.append(target);
 		append_expiration(&mut rlp);
-		self.send_packet(PACKET_FIND_NODE, node.endpoint.udp_address(), &rlp.drain())?;
+		self.send_packet(PACKET_FIND_NODE, node.endpoint.udp_address(), rlp.drain())?;
 
 		self.in_flight_find_nodes.insert(node.id, FindNodeRequest {
 			sent_at: Instant::now(),
@@ -412,7 +412,7 @@ impl Discovery {
 		Ok(())
 	}
 
-	fn send_packet(&mut self, packet_id: u8, address: SocketAddr, payload: &[u8]) -> Result<H256, Error> {
+	fn send_packet(&mut self, packet_id: u8, address: SocketAddr, payload: Bytes) -> Result<H256, Error> {
 		let packet = assemble_packet(packet_id, payload, &self.secret)?;
 		let hash = H256::from_slice(&packet[0..32]);
 		self.send_to(packet, address);
@@ -548,7 +548,7 @@ impl Discovery {
 
 		response.append(&echo_hash);
 		append_expiration(&mut response);
-		self.send_packet(PACKET_PONG, from, &response.drain())?;
+		self.send_packet(PACKET_PONG, from, response.drain())?;
 
 		let entry = NodeEntry { id: node_id, endpoint: pong_to };
 		if !entry.endpoint.is_valid_discovery_node() {
@@ -681,7 +681,7 @@ impl Discovery {
 		}
 		let mut packets = Discovery::prepare_neighbours_packets(&nearest);
 		for p in packets.drain(..) {
-			self.send_packet(PACKET_NEIGHBOURS, node.endpoint.address, &p)?;
+			self.send_packet(PACKET_NEIGHBOURS, node.endpoint.address, p)?;
 		}
 		trace!(target: "discovery", "Sent {} Neighbours to {:?}", nearest.len(), &node.endpoint);
 		Ok(())
@@ -855,11 +855,11 @@ fn append_expiration(rlp: &mut RlpStream) {
 	rlp.append(&timestamp);
 }
 
-fn assemble_packet(packet_id: u8, bytes: &[u8], secret: &Secret) -> Result<Bytes, Error> {
-	let mut packet = Bytes::with_capacity(bytes.len() + 32 + 65 + 1);
+fn assemble_packet(packet_id: u8, payload: Bytes, secret: &Secret) -> Result<Bytes, Error> {
+	let mut packet = Bytes::with_capacity(payload.len() + 32 + 65 + 1);
 	packet.resize(32 + 65, 0); // Filled in below
 	packet.push(packet_id);
-	packet.extend_from_slice(bytes);
+	packet.extend(payload);
 
 	let hash = keccak(&packet[(32 + 65)..]);
 	let signature = match sign(secret, &hash) {
@@ -1036,7 +1036,7 @@ mod tests {
 		let key = Random.generate();
 		discovery.send_find_node(&node_entries[100], key.public()).unwrap();
 		for payload in Discovery::prepare_neighbours_packets(&node_entries[101..116]) {
-			let packet = assemble_packet(PACKET_NEIGHBOURS, &payload, &key.secret()).unwrap();
+			let packet = assemble_packet(PACKET_NEIGHBOURS, payload, &key.secret()).unwrap();
 			discovery.on_packet(&packet, from.clone()).unwrap();
 		}
 
@@ -1048,7 +1048,7 @@ mod tests {
 		// FIND_NODE does not time out because it receives k results.
 		discovery.send_find_node(&node_entries[100], key.public()).unwrap();
 		for payload in Discovery::prepare_neighbours_packets(&node_entries[101..117]) {
-			let packet = assemble_packet(PACKET_NEIGHBOURS, &payload, &key.secret()).unwrap();
+			let packet = assemble_packet(PACKET_NEIGHBOURS, payload, &key.secret()).unwrap();
 			discovery.on_packet(&packet, from.clone()).unwrap();
 		}
 
@@ -1282,7 +1282,7 @@ mod tests {
 		incorrect_pong_rlp.append(&H256::zero());
 		append_expiration(&mut incorrect_pong_rlp);
 		let incorrect_pong_data = assemble_packet(
-			PACKET_PONG, &incorrect_pong_rlp.drain(), &discovery2.secret
+			PACKET_PONG, incorrect_pong_rlp.drain(), &discovery2.secret
 		).unwrap();
 		if let Some(_) = discovery1.on_packet(&incorrect_pong_data, ep2.address.clone()).unwrap() {
 			panic!("Expected no changes to discovery1's table because pong hash is incorrect");
@@ -1311,7 +1311,7 @@ mod tests {
 		unexpected_pong_rlp.append(&H256::zero());
 		append_expiration(&mut unexpected_pong_rlp);
 		let unexpected_pong = assemble_packet(
-			PACKET_PONG, &unexpected_pong_rlp.drain(), key3.secret()
+			PACKET_PONG, unexpected_pong_rlp.drain(), key3.secret()
 		).unwrap();
 		if let Some(_) = discovery1.on_packet(&unexpected_pong, ep3.address.clone()).unwrap() {
 			panic!("Expected no changes to discovery1's table for unexpected pong");
