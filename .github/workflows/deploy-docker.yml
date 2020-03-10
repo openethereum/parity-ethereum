@@ -1,0 +1,27 @@
+name:                           Docker Image Release
+
+on:
+  push:
+    branches:
+      - stable
+    tags:
+      - v2*
+
+jobs:
+  deploy-docker:
+    name:                       Build Release
+    runs-on:                    ubuntu-latest
+    steps:
+      - name:                   Deploy to docker hub
+        if:                     matrix.platform == 'ubuntu-16.04'
+        uses: elgohr/Publish-Docker-Github-Action@master
+        env:
+          VCS_REF: $GITHUB_SHA
+          BUILD_DATE: $(date -u '+%Y-%m-%dT%H:%M:%SZ')
+        with:
+          name: openethereum/openethereum
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+          dockerfile: scripts/docker/alpine/Dockerfile
+          buildargs: VCS_REF,BUILD_DATE
+          tag_names: true
