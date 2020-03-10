@@ -2546,6 +2546,7 @@ impl SnapshotClient for Client {
 		let block_number = self.block_number(at).ok_or_else(|| SnapshotError::InvalidStartingBlock(at))?;
 		let earliest_era = db.earliest_era().unwrap_or(0);
 		if db.is_prunable() && earliest_era > block_number {
+			warn!(target: "snapshot", "Tried to take a snapshot at #{} but the earliest available block is #{}", block_number, earliest_era);
 			return Err(SnapshotError::OldBlockPrunedDB.into());
 		}
 
