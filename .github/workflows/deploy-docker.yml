@@ -13,7 +13,6 @@ jobs:
     runs-on:                    ubuntu-latest
     steps:
       - name:                   Deploy to docker hub
-        if:                     matrix.platform == 'ubuntu-16.04'
         uses: elgohr/Publish-Docker-Github-Action@master
         env:
           VCS_REF: $GITHUB_SHA
