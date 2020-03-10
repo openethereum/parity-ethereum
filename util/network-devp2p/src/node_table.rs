@@ -82,11 +82,10 @@ impl NodeEndpoint {
 		let addr_bytes = rlp.at(0)?.data()?;
 		let address = match addr_bytes.len() {
 			4 => Ok(SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(addr_bytes[0], addr_bytes[1], addr_bytes[2], addr_bytes[3]), tcp_port))),
-			16 => unsafe {
-				#[allow(clippy::cast_ptr_alignment)] // TODO: Why is this okay?
-				let o: *const u16 = addr_bytes.as_ptr() as *const u16;
-				let o = slice::from_raw_parts(o, 8);
-				Ok(SocketAddr::V6(SocketAddrV6::new(Ipv6Addr::new(o[0], o[1], o[2], o[3], o[4], o[5], o[6], o[7]), tcp_port, 0, 0)))
+			16 => {
+				let mut addr = [0_u8; 16];
+				addr.copy_from_slice(&addr_bytes[0..16]);
+				Ok(SocketAddr::V6(SocketAddrV6::new(Ipv6Addr::from(addr), tcp_port, 0, 0)))
 			},
 			_ => Err(DecoderError::RlpInconsistentLengthAndData)
 		}?;
