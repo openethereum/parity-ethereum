@@ -37,18 +37,18 @@ pub enum ClientIoMessage<C> {
 	FeedBlockChunk(H256, Bytes),
 	/// Take a snapshot for the block with given number.
 	TakeSnapshot(u64),
-	/// Execute wrapped closure
+	/// Execute wrapped Fn closure
 	Execute(Callback<C>),
 }
 
 impl<C> ClientIoMessage<C> {
-	/// Create new `ClientIoMessage` that executes given procedure.
+	/// Create new `ClientIoMessage` that can execute the wrapped Fn closure.
 	pub fn execute<F: Fn(&C) + Send + Sync + 'static>(fun: F) -> Self {
 		ClientIoMessage::Execute(Callback(Box::new(fun)))
 	}
 }
 
-/// A function to invoke in the client thread.
+/// A wrapper around an Fn closure to invoke in the client thread.
 pub struct Callback<C>(pub Box<dyn Fn(&C) + Send + Sync>);
 
 impl<C> fmt::Debug for Callback<C> {

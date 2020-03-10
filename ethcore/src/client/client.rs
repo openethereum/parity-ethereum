@@ -2186,7 +2186,7 @@ impl IoClient for Client {
 	fn queue_transactions(&self, transactions: Vec<Bytes>, peer_id: usize) {
 		trace_time!("queue_transactions");
 		let len = transactions.len();
-		self.queue_transactions.queue(&self.io_channel.read(), len, move |client| {
+		self.queue_transactions.enqueue(&self.io_channel.read(), len, move |client| {
 			trace_time!("import_queued_transactions");
 
 			let txs: Vec<UnverifiedTransaction> = transactions
@@ -2231,7 +2231,7 @@ impl IoClient for Client {
 
 		let queued = self.queued_ancient_blocks.clone();
 		let lock = self.ancient_blocks_import_lock.clone();
-		self.queue_ancient_blocks.queue(&self.io_channel.read(), 1, move |client| {
+		self.queue_ancient_blocks.enqueue(&self.io_channel.read(), 1, move |client| {
 			trace_time!("import_ancient_block");
 			// Make sure to hold the lock here to prevent importing out of order.
 			// We use separate lock, cause we don't want to block queueing.
@@ -2265,7 +2265,7 @@ impl IoClient for Client {
 	}
 
 	fn queue_consensus_message(&self, message: Bytes) {
-		match self.queue_consensus_message.queue(&self.io_channel.read(), 1, move |client| {
+		match self.queue_consensus_message.enqueue(&self.io_channel.read(), 1, move |client| {
 			if let Err(e) = client.engine().handle_message(&message) {
 				debug!(target: "poa", "Invalid message received: {}", e);
 			}
@@ -2798,7 +2798,11 @@ impl IoChannelQueue {
 		}
 	}
 
-	pub fn queue<F>(&self, channel: &IoChannel<ClientIoMessage<Client>>, count: usize, fun: F) -> EthcoreResult<()> where
+	/// Try to to add an item to the queue for deferred processing by the IO
+	/// client. Messages take the form of `Fn` closures that carry a `Client`
+	/// reference with them. Enqueuing a message can fail if the queue is full
+	/// or if the `send()` on the `IoChannel` fails.
+	pub fn enqueue<F>(&self, channel: &IoChannel<ClientIoMessage<Client>>, count: usize, fun: F) -> EthcoreResult<()> where
 		F: Fn(&Client) + Send + Sync + 'static,
 	{
 		let queue_size = self.currently_queued.load(AtomicOrdering::Relaxed);
