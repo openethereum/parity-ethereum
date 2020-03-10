@@ -2798,6 +2798,10 @@ impl IoChannelQueue {
 		}
 	}
 
+	/// Try to to add an item to the queue for deferred processing by the IO
+	/// client. Messages take the form of `Fn` closures that carry a `Client`
+	/// reference with them. Enqueuing a message can fail if the queue is full
+	/// or if the `send()` on the `IoChanel` fails.
 	pub fn enqueue<F>(&self, channel: &IoChannel<ClientIoMessage<Client>>, count: usize, fun: F) -> EthcoreResult<()> where
 		F: Fn(&Client) + Send + Sync + 'static,
 	{
