@@ -364,7 +364,9 @@ impl Machine {
 		Ok(())
 	}
 
-	/// Performs pre-validation of RLP decoded transaction before other processing
+	/// Performs pre-validation of RLP encoded transaction before other
+	/// processing: check length against `max_transaction_size` and decode the
+	/// RLP.
 	pub fn decode_transaction(&self, transaction: &[u8]) -> Result<UnverifiedTransaction, transaction::Error> {
 		let rlp = Rlp::new(&transaction);
 		if rlp.as_raw().len() > self.params().max_transaction_size {

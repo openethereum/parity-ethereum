@@ -675,7 +675,7 @@ impl SyncHandler {
 	}
 
 	/// Called when peer sends us new transactions
-	pub fn on_peer_transactions(sync: &ChainSync, io: &mut dyn SyncIo, peer_id: PeerId, r: &Rlp) -> Result<(), PacketDecodeError> {
+	pub fn on_peer_transactions(sync: &ChainSync, io: &mut dyn SyncIo, peer_id: PeerId, tx_rlp: Rlp) -> Result<(), PacketDecodeError> {
 		// Accept transactions only when fully synced
 		if !io.is_chain_queue_empty() || (sync.state != SyncState::Idle && sync.state != SyncState::NewBlocks) {
 			trace!(target: "sync", "{} Ignoring transactions while syncing", peer_id);
@@ -686,11 +686,11 @@ impl SyncHandler {
 			return Ok(());
 		}
 
-		let item_count = r.item_count()?;
+		let item_count = tx_rlp.item_count()?;
 		trace!(target: "sync", "{:02} -> Transactions ({} entries)", peer_id, item_count);
 		let mut transactions = Vec::with_capacity(item_count);
 		for i in 0 .. item_count {
-			let rlp = r.at(i)?;
+			let rlp = tx_rlp.at(i)?;
 			let tx = rlp.as_raw().to_vec();
 			transactions.push(tx);
 		}

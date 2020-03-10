@@ -44,7 +44,7 @@ use types::{
 	ids::{BlockId, TransactionId, UncleId, TraceId},
 	basic_account::BasicAccount,
 	errors::{EthcoreError as Error, EthcoreResult},
-	transaction::{self, Transaction, LocalizedTransaction, SignedTransaction, Action, CallError},
+	transaction::{self, Transaction, LocalizedTransaction, SignedTransaction, Action, CallError, UnverifiedTransaction},
 	filter::Filter,
 	trace_filter::Filter as TraceFilter,
 	call_analytics::CallAnalytics,
@@ -937,7 +937,7 @@ impl BlockChainClient for TestBlockChainClient {
 impl IoClient for TestBlockChainClient {
 	fn queue_transactions(&self, transactions: Vec<Bytes>, _peer_id: usize) {
 		// import right here
-		let txs = transactions.into_iter().filter_map(|bytes| Rlp::new(&bytes).as_val().ok()).collect();
+		let txs = transactions.iter().filter_map(|bytes| Rlp::new(bytes).as_val().ok()).collect();
 		self.miner.import_external_transactions(self, txs);
 	}
 

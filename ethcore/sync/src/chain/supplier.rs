@@ -128,7 +128,7 @@ impl SyncSupplier {
 						TransactionsPacket => {
 							let res = {
 								let sync_ro = sync.read();
-								SyncHandler::on_peer_transactions(&*sync_ro, io, peer, &rlp)
+								SyncHandler::on_peer_transactions(&*sync_ro, io, peer, rlp)
 							};
 							if res.is_err() {
 								// peer sent invalid data, disconnect.
