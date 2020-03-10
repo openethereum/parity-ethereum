@@ -1,5 +1,5 @@
 [package]
-description = "Parity Ethereum JSON Deserialization"
+description = "Open Ethereum JSON Deserialization"
 name = "ethjson"
 version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]

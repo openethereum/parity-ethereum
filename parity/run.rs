@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::any::Any;
 use std::sync::{Arc, Weak, atomic};
@@ -58,7 +58,6 @@ use helpers::{to_client_config, execute_upgrades, passwords_from_files};
 use dir::{Directories, DatabaseDirectories};
 use cache::CacheConfig;
 use user_defaults::UserDefaults;
-use ipfs;
 use jsonrpc_core;
 use modules;
 use rpc;
@@ -116,7 +115,6 @@ pub struct RunCmd {
 	pub geth_compatibility: bool,
 	pub experimental_rpcs: bool,
 	pub net_settings: NetworkSettings,
-	pub ipfs_conf: ipfs::Configuration,
 	pub secretstore_conf: secretstore::Configuration,
 	pub private_provider_conf: ProviderConfig,
 	pub private_encryptor_conf: EncryptorConfig,
@@ -761,9 +759,6 @@ fn execute_impl<Cr, Rr>(
 	};
 	let secretstore_key_server = secretstore::start(cmd.secretstore_conf.clone(), secretstore_deps, runtime.executor())?;
 
-	// the ipfs server
-	let ipfs_server = ipfs::start_server(cmd.ipfs_conf.clone(), client.clone())?;
-
 	// the informant
 	let informant = Arc::new(Informant::new(
 		FullNodeInformantData {
@@ -821,7 +816,7 @@ fn execute_impl<Cr, Rr>(
 			informant,
 			client,
 			client_service: Arc::new(service),
-			keep_alive: Box::new((watcher, updater, ws_server, http_server, ipc_server, secretstore_key_server, ipfs_server, runtime)),
+			keep_alive: Box::new((watcher, updater, ws_server, http_server, ipc_server, secretstore_key_server, runtime)),
 		}
 	})
 }
@@ -967,4 +962,3 @@ fn wait_for_drop<T>(w: Weak<T>) {
 
 	warn!("Shutdown timeout reached, exiting uncleanly.");
 }
-

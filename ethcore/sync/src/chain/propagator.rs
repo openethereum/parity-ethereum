@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::cmp;
 use std::collections::HashSet;
@@ -600,7 +600,7 @@ mod tests {
 		io.peers_info.insert(2, "Parity-Ethereum/v2.6.0/linux/rustc".to_owned());
 		// and peer#3 is Parity, accepting service transactions
 		insert_dummy_peer(&mut sync, 3, block_hash);
-		io.peers_info.insert(3, "Parity-Ethereum/ABCDEFGH/v2.7.3/linux/rustc".to_owned());
+		io.peers_info.insert(3, "Open-Ethereum/ABCDEFGH/v2.7.3/linux/rustc".to_owned());
 
 		// and new service transaction is propagated to peers
 		SyncPropagator::propagate_new_transactions(&mut sync, &mut io, || true);
@@ -624,7 +624,7 @@ mod tests {
 
 		// when peer#1 is Parity, accepting service transactions
 		insert_dummy_peer(&mut sync, 1, block_hash);
-		io.peers_info.insert(1, "Parity-Ethereum/v2.6.0/linux/rustc".to_owned());
+		io.peers_info.insert(1, "Open-Ethereum/v2.6.0/linux/rustc".to_owned());
 
 		// and service + non-service transactions are propagated to peers
 		SyncPropagator::propagate_new_transactions(&mut sync, &mut io, || true);

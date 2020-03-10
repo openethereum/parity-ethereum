@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! A blockchain engine that supports a non-instant BFT proof-of-authority.
 //!
@@ -71,10 +71,11 @@ use common_types::{
 		PendingTransitionStore,
 		Seal,
 		SealingState,
-		machine::{Call, AuxiliaryData},
+		machine::Call,
 	},
 	errors::{BlockError, EthcoreError as Error, EngineError},
 	ids::BlockId,
+	receipt::Receipt,
 	snapshot::Snapshotting,
 	transaction::SignedTransaction,
 };
@@ -1766,11 +1767,11 @@ impl Engine for AuthorityRound {
 			.map(|set_proof| combine_proofs(0, &set_proof, &[]))
 	}
 
-	fn signals_epoch_end(&self, header: &Header, aux: AuxiliaryData) -> engine::EpochChange {
+	fn signals_epoch_end(&self, header: &Header, receipts: Option<&[Receipt]>) -> engine::EpochChange {
 		if self.immediate_transitions { return engine::EpochChange::No }
 
 		let first = header.number() == 0;
-		self.validators.signals_epoch_end(first, header, aux)
+		self.validators.signals_epoch_end(first, header, receipts)
 	}
 
 	fn is_epoch_end_light(
@@ -2552,14 +2553,15 @@ mod tests {
 
 		// step 3
 		let mut b2 = OpenBlock::new(engine, Default::default(), false, db2, &genesis_header, last_hashes.clone(), addr2, (3141562.into(), 31415620.into()), vec![], false).unwrap();
-		b2.push_transaction(Transaction {
+		let signed_tx = Transaction {
 			action: Action::Create,
 			nonce: U256::from(0),
 			gas_price: U256::from(3000),
 			gas: U256::from(53_000),
 			value: U256::from(1),
 			data: vec![],
-		}.fake_sign(addr2)).unwrap();
+		}.fake_sign(addr2);
+		b2.push_transaction(signed_tx).unwrap();
 		let b2 = b2.close_and_lock().unwrap();
 
 		// we will now seal a block with 1tx and include the accumulated empty step message

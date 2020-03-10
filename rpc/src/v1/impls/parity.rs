@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Parity-specific rpc implementation.
 use std::sync::Arc;
@@ -40,7 +40,7 @@ use types::{
 use updater::{Service as UpdateService};
 use version::version_data;
 
-use v1::helpers::{self, errors, fake_sign, ipfs, NetworkSettings, verify_signature};
+use v1::helpers::{self, errors, fake_sign, NetworkSettings, verify_signature};
 use v1::helpers::external_signer::{SigningQueue, SignerService};
 use v1::metadata::Metadata;
 use v1::traits::Parity;
@@ -394,10 +394,6 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 		};
 		let receipts = try_bf!(self.client.localized_block_receipts(id).ok_or_else(errors::unknown_block));
 		Box::new(future::ok(receipts.into_iter().map(Into::into).collect()))
-	}
-
-	fn ipfs_cid(&self, content: Bytes) -> Result<String> {
-		ipfs::cid(content)
 	}
 
 	fn call(&self, requests: Vec<CallRequest>, num: Option<BlockNumber>) -> Result<Vec<Bytes>> {

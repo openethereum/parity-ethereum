@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Transaction Execution environment.
 
@@ -1175,9 +1175,17 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		}
 
 		// perform garbage-collection
-		let min_balance = if schedule.kill_dust != CleanDustMode::Off { Some(U256::from(schedule.tx_gas).overflowing_mul(t.gas_price).0) } else { None };
-		self.state.kill_garbage(&substate.touched, schedule.kill_empty, &min_balance, schedule.kill_dust == CleanDustMode::WithCodeAndStorage)?;
-
+		if schedule.kill_empty {
+			let (min_balance, kill_contracts) = if schedule.kill_dust != CleanDustMode::Off {
+				(
+					Some(U256::from(schedule.tx_gas).overflowing_mul(t.gas_price).0),
+					schedule.kill_dust == CleanDustMode::WithCodeAndStorage,
+				)
+			} else {
+				(None, false)
+			};
+			self.state.kill_garbage(&substate.touched, &min_balance, kill_contracts)?;
+		}
 		match result {
 			Err(vm::Error::Internal(msg)) => Err(ExecutionError::Internal(msg)),
 			Err(exception) => {
@@ -1189,9 +1197,9 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 					cumulative_gas_used: self.info.gas_used + t.gas,
 					logs: vec![],
 					contracts_created: vec![],
-					output: output,
-					trace: trace,
-					vm_trace: vm_trace,
+					output,
+					trace,
+					vm_trace,
 					state_diff: None,
 				})
 			},

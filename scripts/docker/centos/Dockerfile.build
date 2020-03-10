@@ -2,7 +2,7 @@ FROM centos:latest
 
 WORKDIR /build
 
-ADD . /build/parity-ethereum
+ADD . /build/open-ethereum
 
 RUN yum -y update && \
     yum install -y systemd-devel git make gcc-c++ gcc file binutils && \
@@ -17,9 +17,9 @@ RUN yum -y update && \
     gcc -v && \
     g++ -v && \
     cmake --version && \
-    cd parity-ethereum && \
+    cd open-ethereum && \
     cargo build --verbose --release --features final && \
-    strip /build/parity-ethereum/target/release/parity && \
-    file /build/parity-ethereum/target/release/parity
+    strip /build/open-ethereum/target/release/parity && \
+    file /build/open-ethereum/target/release/parity
 
 

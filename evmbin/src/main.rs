@@ -1,30 +1,30 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Parity EVM Interpreter Binary.
 //!
 //! ## Overview
 //!
 //! The Parity EVM interpreter binary is a tool in the Parity
-//! Ethereum toolchain. It is an EVM implementation for Parity Ethereum that
+//! Ethereum toolchain. It is an EVM implementation for Open Ethereum that
 //! is used to run a standalone version of the EVM interpreter.
 //!
 //! ## Usage
 //!
-//! The evmbin tool is not distributed with regular Parity Ethereum releases
+//! The evmbin tool is not distributed with regular Open Ethereum releases
 //! so you need to build it from source and run it like so:
 //!
 //! ```bash

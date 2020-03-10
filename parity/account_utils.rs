@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// This file is part of Open Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
 
@@ -36,7 +36,7 @@ mod accounts {
 	}
 
 	pub fn prepare_account_provider(_spec: &SpecType, _dirs: &Directories, _data_dir: &str, _cfg: AccountsConfig, _passwords: &[Password]) -> Result<AccountProvider, String> {
-		warn!("Note: Your instance of Parity Ethereum is running without account support. Some CLI options are ignored.");
+		warn!("Note: Your instance of Open Ethereum is running without account support. Some CLI options are ignored.");
 		Ok(AccountProvider)
 	}
 
@@ -61,7 +61,7 @@ mod accounts {
 mod accounts {
 	use super::*;
 	use upgrade::upgrade_key_location;
-	use ethereum_types::H160;
+	use ethereum_types::{H160, H256};
 	use std::str::FromStr;
 
 	pub use accounts::AccountProvider;
@@ -132,8 +132,16 @@ mod accounts {
 		LocalAccounts(account_provider)
 	}
 
-	pub fn miner_author(spec: &SpecType, dirs: &Directories, account_provider: &Arc<AccountProvider>, engine_signer: Address, passwords: &[Password]) -> Result<Option<::ethcore::miner::Author>, String> {
+	pub fn miner_author(
+		spec: &SpecType,
+		dirs: &Directories,
+		account_provider: &Arc<AccountProvider>,
+		engine_signer: Address,
+		passwords: &[Password]
+	) -> Result<Option<ethcore::miner::Author>, String> {
 		use engine::signer::EngineSigner;
+
+		const SECP_TEST_MESSAGE: H256 = H256([1_u8; 32]);
 
 		// Check if engine signer exists
 		if !account_provider.has_account(engine_signer) {
@@ -145,24 +153,26 @@ mod accounts {
 			return Err(format!("No password found for the consensus signer {}. {}", engine_signer, VERIFY_PASSWORD_HINT));
 		}
 
-		let mut author = None;
-		for password in passwords {
+		let mut invalid_reasons = std::collections::HashSet::new();
+		for (idx, password) in passwords.iter().enumerate() {
 			let signer = parity_rpc::signer::EngineSigner::new(
 				account_provider.clone(),
 				engine_signer,
 				password.clone(),
 			);
-			if signer.sign(Default::default()).is_ok() {
-				author = Some(::ethcore::miner::Author::Sealer(Box::new(signer)));
+			if let Err(e) = signer.sign(SECP_TEST_MESSAGE) {
+				debug!(target: "account", "Signing test of `EngineSigner ({})` with password index: {} failed because of: {:?}", engine_signer, idx, e);
+				invalid_reasons.insert(e.to_string());
+			} else {
+				return Ok(Some(ethcore::miner::Author::Sealer(Box::new(signer))));
 			}
 		}
-		if author.is_none() {
-			return Err(format!("No valid password for the consensus signer {}. {}", engine_signer, VERIFY_PASSWORD_HINT));
-		}
 
-		Ok(author)
+		Err(format!(
+				"No valid password found for EngineSigner {}, the following errors were found during testing: {:?}. {}",
+				engine_signer, invalid_reasons, VERIFY_PASSWORD_HINT
+		))
 	}
-
 
 	mod private_tx {
 		use super::*;

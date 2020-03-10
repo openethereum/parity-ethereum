@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Execute transactions and modify State. This is glue code between the `ethcore` and
 //! `account-state` crates and contains everything that requires `Machine` or `Executive` (or types
@@ -1573,15 +1573,15 @@ mod tests {
 		state.transfer_balance(&b, &x, &1.into(), CleanupMode::TrackTouched(&mut touched)).unwrap(); // touch an account decreasing its balance
 		state.transfer_balance(&c, &x, &1.into(), CleanupMode::TrackTouched(&mut touched)).unwrap(); // touch an account decreasing its balance
 		state.transfer_balance(&e, &x, &1.into(), CleanupMode::TrackTouched(&mut touched)).unwrap(); // touch an account decreasing its balance
-		state.kill_garbage(&touched, true, &None, false).unwrap();
+		state.kill_garbage(&touched, &None, false).unwrap();
 		assert!(!state.exists(&a).unwrap());
 		assert!(state.exists(&b).unwrap());
-		state.kill_garbage(&touched, true, &Some(100.into()), false).unwrap();
+		state.kill_garbage(&touched,&Some(100.into()), false).unwrap();
 		assert!(!state.exists(&b).unwrap());
 		assert!(state.exists(&c).unwrap());
 		assert!(state.exists(&d).unwrap());
 		assert!(state.exists(&e).unwrap());
-		state.kill_garbage(&touched, true, &Some(100.into()), true).unwrap();
+		state.kill_garbage(&touched, &Some(100.into()), true).unwrap();
 		assert!(state.exists(&c).unwrap());
 		assert!(state.exists(&d).unwrap());
 		assert!(!state.exists(&e).unwrap());

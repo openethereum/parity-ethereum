@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Client related types.
 
@@ -24,7 +24,6 @@ use std::{
 };
 
 use ethereum_types::U256;
-use crate::header::Header;
 
 /// Operating mode for the client.
 #[derive(Debug, Eq, PartialEq, Clone)]
@@ -88,10 +87,10 @@ pub struct IoStats {
 
 impl ClientReport {
 	/// Alter internal reporting to reflect the additional `block` has been processed.
-	pub fn accrue_block(&mut self, header: &Header, transactions: usize) {
+	pub fn accrue_block(&mut self, gas_used: U256, transactions: usize) {
 		self.blocks_imported += 1;
 		self.transactions_applied += transactions;
-		self.gas_processed = self.gas_processed + *header.gas_used();
+		self.gas_processed += gas_used;
 	}
 }
 
@@ -119,4 +118,3 @@ pub enum StateResult<T> {
 	/// State is some
 	Some(T),
 }
-

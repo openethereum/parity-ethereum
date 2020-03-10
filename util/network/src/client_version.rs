@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 #![warn(missing_docs)]
 
@@ -22,8 +22,8 @@ use semver::Version;
 use std::fmt;
 
 /// Parity client string prefix
-const LEGACY_CLIENT_ID_PREFIX: &str = "Parity";
-const PARITY_CLIENT_ID_PREFIX: &str = "Parity-Ethereum";
+const LEGACY_CLIENT_ID_PREFIX: &str = "Parity-Ethereum";
+const CURRENT_CLIENT_ID_PREFIX: &str = "Open-Ethereum";
 
 lazy_static! {
 /// Parity versions starting from this will accept block bodies requests
@@ -153,7 +153,7 @@ impl ClientCapabilities for ClientVersion {
 }
 
 fn is_parity(client_id: &str) -> bool {
-	client_id.starts_with(LEGACY_CLIENT_ID_PREFIX) || client_id.starts_with(PARITY_CLIENT_ID_PREFIX)
+	client_id.starts_with(LEGACY_CLIENT_ID_PREFIX) || client_id.starts_with(CURRENT_CLIENT_ID_PREFIX)
 }
 
 /// Parse known parity formats. Recognizes either a short format with four fields
@@ -260,7 +260,7 @@ pub mod tests {
 	fn make_default_version_string() -> String {
 		format!(
 			"{}/v{}/{}/{}",
-			PARITY_CLIENT_ID_PREFIX,
+			CURRENT_CLIENT_ID_PREFIX,
 			PARITY_CLIENT_SEMVER,
 			PARITY_CLIENT_OS,
 			PARITY_CLIENT_COMPILER
@@ -270,7 +270,7 @@ pub mod tests {
 	fn make_default_long_version_string() -> String {
 		format!(
 			"{}/{}/v{}/{}/{}",
-			PARITY_CLIENT_ID_PREFIX,
+			CURRENT_CLIENT_ID_PREFIX,
 			PARITY_CLIENT_IDENTITY,
 			PARITY_CLIENT_SEMVER,
 			PARITY_CLIENT_OS,
@@ -281,7 +281,7 @@ pub mod tests {
 	fn make_multitoken_identity_long_version_string() -> String {
 		format!(
 			"{}/{}/v{}/{}/{}",
-			PARITY_CLIENT_ID_PREFIX,
+			CURRENT_CLIENT_ID_PREFIX,
 			PARITY_CLIENT_MULTITOKEN_IDENTITY,
 			PARITY_CLIENT_SEMVER,
 			PARITY_CLIENT_OS,
@@ -292,7 +292,7 @@ pub mod tests {
 	fn make_old_semver_version_string() -> String {
 		format!(
 			"{}/v{}/{}/{}",
-			PARITY_CLIENT_ID_PREFIX,
+			CURRENT_CLIENT_ID_PREFIX,
 			PARITY_CLIENT_OLD_SEMVER,
 			PARITY_CLIENT_OS,
 			PARITY_CLIENT_COMPILER
@@ -318,7 +318,7 @@ pub mod tests {
 		let client_version_string = make_default_version_string();
 
 		if let ClientVersion::ParityClient(client_version) = ClientVersion::from(client_version_string.as_str()) {
-			assert_eq!(client_version.name(), PARITY_CLIENT_ID_PREFIX);
+			assert_eq!(client_version.name(), CURRENT_CLIENT_ID_PREFIX);
 			assert_eq!(*client_version.semver(), Version::parse(PARITY_CLIENT_SEMVER).unwrap());
 			assert_eq!(client_version.os(), PARITY_CLIENT_OS);
 			assert_eq!(client_version.compiler(), PARITY_CLIENT_COMPILER);
@@ -332,7 +332,7 @@ pub mod tests {
 		let client_version_string = make_default_long_version_string();
 
 		if let ClientVersion::ParityClient(client_version) = ClientVersion::from(client_version_string.as_str()) {
-			assert_eq!(client_version.name(), PARITY_CLIENT_ID_PREFIX);
+			assert_eq!(client_version.name(), CURRENT_CLIENT_ID_PREFIX);
 			assert_eq!(client_version.identity().unwrap(), PARITY_CLIENT_IDENTITY);
 			assert_eq!(*client_version.semver(), Version::parse(PARITY_CLIENT_SEMVER).unwrap());
 			assert_eq!(client_version.os(), PARITY_CLIENT_OS);
@@ -347,7 +347,7 @@ pub mod tests {
 		let client_version_string = make_multitoken_identity_long_version_string();
 
 		if let ClientVersion::ParityClient(client_version) = ClientVersion::from(client_version_string.as_str()) {
-			assert_eq!(client_version.name(), PARITY_CLIENT_ID_PREFIX);
+			assert_eq!(client_version.name(), CURRENT_CLIENT_ID_PREFIX);
 			assert_eq!(client_version.identity().unwrap(), PARITY_CLIENT_MULTITOKEN_IDENTITY);
 			assert_eq!(*client_version.semver(), Version::parse(PARITY_CLIENT_SEMVER).unwrap());
 			assert_eq!(client_version.os(), PARITY_CLIENT_OS);
@@ -362,7 +362,7 @@ pub mod tests {
 		let client_version_string: String = make_default_version_string();
 
 		if let ClientVersion::ParityClient(client_version) = ClientVersion::from(client_version_string.as_str()) {
-			assert_eq!(client_version.name(), PARITY_CLIENT_ID_PREFIX);
+			assert_eq!(client_version.name(), CURRENT_CLIENT_ID_PREFIX);
 			assert_eq!(*client_version.semver(), Version::parse(PARITY_CLIENT_SEMVER).unwrap());
 			assert_eq!(client_version.os(), PARITY_CLIENT_OS);
 			assert_eq!(client_version.compiler(), PARITY_CLIENT_COMPILER);
@@ -376,7 +376,7 @@ pub mod tests {
 		// This is invalid because version has no leading 'v'
 		let client_version_string = format!(
 			"{}/{}/{}/{}",
-			PARITY_CLIENT_ID_PREFIX,
+			CURRENT_CLIENT_ID_PREFIX,
 			PARITY_CLIENT_SEMVER,
 			PARITY_CLIENT_OS,
 			PARITY_CLIENT_COMPILER);
@@ -392,7 +392,7 @@ pub mod tests {
 	pub fn client_version_when_parity_format_without_identity_and_missing_compiler_field_then_equals_parity_unknown_client_version_string() {
 		let client_version_string = format!(
 			"{}/v{}/{}",
-			PARITY_CLIENT_ID_PREFIX,
+			CURRENT_CLIENT_ID_PREFIX,
 			PARITY_CLIENT_SEMVER,
 			PARITY_CLIENT_OS,
 			);
@@ -408,7 +408,7 @@ pub mod tests {
 	pub fn client_version_when_parity_format_with_identity_and_missing_compiler_field_then_equals_parity_unknown_client_version_string() {
 		let client_version_string = format!(
 			"{}/{}/v{}/{}",
-			PARITY_CLIENT_ID_PREFIX,
+			CURRENT_CLIENT_ID_PREFIX,
 			PARITY_CLIENT_IDENTITY,
 			PARITY_CLIENT_SEMVER,
 			PARITY_CLIENT_OS,
@@ -489,12 +489,12 @@ pub mod tests {
 	fn client_version_accepts_service_transaction_for_different_versions() {
 		assert!(!ClientVersion::from("Geth").accepts_service_transaction());
 		assert!(ClientVersion::from("Parity-Ethereum/v2.6.0/linux/rustc").accepts_service_transaction());
-		assert!(ClientVersion::from("Parity-Ethereum/ABCDEFGH/v2.7.3/linux/rustc").accepts_service_transaction());
+		assert!(ClientVersion::from("Open-Ethereum/ABCDEFGH/v2.7.3/linux/rustc").accepts_service_transaction());
 	}
 
 	#[test]
 	fn is_parity_when_parity_then_true() {
-		let client_id = format!("{}/", PARITY_CLIENT_ID_PREFIX);
+		let client_id = format!("{}/", CURRENT_CLIENT_ID_PREFIX);
 
 		assert!(is_parity(&client_id));
 	}

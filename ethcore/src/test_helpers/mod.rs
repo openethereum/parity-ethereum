@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Set of different helpers for client tests
 
@@ -183,14 +183,15 @@ pub fn generate_dummy_client_with_spec_and_data<F>(
 
 		// first block we don't have any balance, so can't send any transactions.
 		for _ in 0..txs_per_block {
-			b.push_transaction(Transaction {
+			let signed_tx = Transaction {
 				nonce: n.into(),
 				gas_price: tx_gas_prices[n % tx_gas_prices.len()],
 				gas: 100000.into(),
 				action: Action::Create,
 				data: vec![],
 				value: U256::zero(),
-			}.sign(kp.secret(), Some(test_spec.chain_id()))).unwrap();
+			}.sign(kp.secret(), Some(test_spec.chain_id()));
+			b.push_transaction(signed_tx).unwrap();
 			n += 1;
 		}
 

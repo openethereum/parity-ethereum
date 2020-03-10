@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Ethcore client application.
 
@@ -24,7 +24,7 @@ extern crate fdlimit;
 #[macro_use]
 extern crate log;
 extern crate panic_hook;
-extern crate parity_ethereum;
+extern crate open_ethereum;
 extern crate parking_lot;
 extern crate parity_daemonize;
 extern crate ansi_term;
@@ -45,7 +45,7 @@ use ctrlc::CtrlC;
 use dir::default_hypervisor_path;
 use fdlimit::raise_fd_limit;
 use ethcore_logger::setup_log;
-use parity_ethereum::{start, ExecutionAction};
+use open_ethereum::{start, ExecutionAction};
 use parity_daemonize::AsHandle;
 use parking_lot::{Condvar, Mutex};
 
@@ -187,7 +187,7 @@ fn main_direct(force_can_restart: bool) -> i32 {
 
 	let mut conf = {
 		let args = std::env::args().collect::<Vec<_>>();
-		parity_ethereum::Configuration::parse_cli(&args).unwrap_or_else(|e| e.exit())
+		open_ethereum::Configuration::parse_cli(&args).unwrap_or_else(|e| e.exit())
 	};
 
 	let logger = setup_log(&conf.logger_config()).unwrap_or_else(|e| {

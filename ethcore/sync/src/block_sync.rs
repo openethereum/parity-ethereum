@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 ///
 /// Blockchain downloader
@@ -407,9 +407,9 @@ impl BlockDownloader {
 					trace_sync!(self, "Error decoding block receipts RLP: {:?}", e);
 					BlockDownloaderImportError::Invalid
 				})?;
-				receipts.push(receipt.as_raw().to_vec());
+				receipts.push(receipt.as_raw());
 			}
-			let hashes = self.blocks.insert_receipts(receipts);
+			let hashes = self.blocks.insert_receipts(&receipts);
 			if hashes.len() != item_count {
 				trace_sync!(self, "Deactivating peer for giving invalid block receipts");
 				return Err(BlockDownloaderImportError::Invalid);
@@ -501,7 +501,7 @@ impl BlockDownloader {
 					MAX_BODIES_TO_REQUEST_SMALL
 				};
 
-				let needed_bodies = self.blocks.needed_bodies(number_of_bodies_to_request, false);
+				let needed_bodies = self.blocks.needed_bodies(number_of_bodies_to_request);
 				if !needed_bodies.is_empty() {
 					return Some(BlockRequest::Bodies {
 						hashes: needed_bodies,
@@ -509,7 +509,7 @@ impl BlockDownloader {
 				}
 
 				if self.download_receipts {
-					let needed_receipts = self.blocks.needed_receipts(MAX_RECEPITS_TO_REQUEST, false);
+					let needed_receipts = self.blocks.needed_receipts(MAX_RECEPITS_TO_REQUEST);
 					if !needed_receipts.is_empty() {
 						return Some(BlockRequest::Receipts {
 							hashes: needed_receipts,
@@ -518,7 +518,7 @@ impl BlockDownloader {
 				}
 
 				// find subchain to download
-				if let Some((h, count)) = self.blocks.needed_headers(MAX_HEADERS_TO_REQUEST, false) {
+				if let Some((h, count)) = self.blocks.needed_headers(MAX_HEADERS_TO_REQUEST) {
 					return Some(BlockRequest::Headers {
 						start: h,
 						count: count as u64,

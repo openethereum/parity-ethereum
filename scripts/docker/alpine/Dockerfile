@@ -10,13 +10,15 @@ RUN apk add --no-cache \
   eudev-dev \
   linux-headers \
   perl \
-  rust
+  rust \
+  clang-dev \
+  llvm-dev
 
 WORKDIR /parity
 COPY . /parity
-RUN cargo build --release --target x86_64-alpine-linux-musl --verbose
+ENV C=clang CXX=clang++
+RUN cargo build --release --features final --target x86_64-alpine-linux-musl --verbose
 RUN strip target/x86_64-alpine-linux-musl/release/parity
-
 
 FROM alpine:edge
 

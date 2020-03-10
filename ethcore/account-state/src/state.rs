@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! A mutable state representation suitable to execute transactions.
 //! Generic over a `Backend`. Deals with `Account`s.
@@ -352,7 +352,7 @@ impl<B: Backend> State<B> {
 
 	fn insert_cache(&self, address: &Address, account: AccountEntry) {
 		// Dirty account which is not in the cache means this is a new account.
-		// It goes directly into the checkpoint as there's nothing to rever to.
+		// It goes directly into the checkpoint as there's nothing to revert to.
 		//
 		// In all other cases account is read as clean first, and after that made
 		// dirty in and added to the checkpoint with `note_cache`.
@@ -759,20 +759,21 @@ impl<B: Backend> State<B> {
 	}
 
 	/// Remove any touched empty or dust accounts.
-	pub fn kill_garbage(&mut self, touched: &HashSet<Address>, remove_empty_touched: bool, min_balance: &Option<U256>, kill_contracts: bool) -> TrieResult<()> {
-		let to_kill: HashSet<_> = {
-			self.cache.borrow().iter().filter_map(|(address, ref entry)|
-				if touched.contains(address) && // Check all touched accounts
-					((remove_empty_touched && entry.exists_and_is_null()) // Remove all empty touched accounts.
+	pub fn kill_garbage(&mut self, touched: &HashSet<Address>, min_balance: &Option<U256>, kill_contracts: bool) -> TrieResult<()> {
+		let to_kill: HashSet<_> =
+			touched.iter().filter_map(|address| { // Check all touched accounts
+				self.cache.borrow().get(address).and_then(|entry| {
+					if entry.exists_and_is_null() // Remove all empty touched accounts.
 						|| min_balance.map_or(false, |ref balance| entry.account.as_ref().map_or(false, |account|
-						(account.is_basic() || kill_contracts) // Remove all basic and optionally contract accounts where balance has been decreased.
-							&& account.balance() < balance && entry.old_balance.as_ref().map_or(false, |b| account.balance() < b)))) {
+							(account.is_basic() || kill_contracts) // Remove all basic and optionally contract accounts where balance has been decreased.
+							&& account.balance() < balance && entry.old_balance.as_ref().map_or(false, |b| account.balance() < b))) {
+						Some(address)
+					} else { None }
+				})
+			}).collect();
 
-					Some(address.clone())
-				} else { None }).collect()
-		};
 		for address in to_kill {
-			self.kill_account(&address);
+			self.kill_account(address)
 		}
 		Ok(())
 	}

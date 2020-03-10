@@ -13,7 +13,7 @@ docker build --no-cache -t $PARITY_IMAGE_REPO:$PARITY_BUILDER_IMAGE_TAG-$(git lo
 echo Creating $PARITY_BUILDER_IMAGE_TAG-$(git log -1 --format="%H"), extracting binary
 docker create --name extract $PARITY_IMAGE_REPO:$PARITY_BUILDER_IMAGE_TAG-$(git log -1 --format="%H") 
 mkdir scripts/docker/centos/parity
-docker cp extract:/build/parity-ethereum/target/release/parity scripts/docker/centos/parity
+docker cp extract:/build/open-ethereum/target/release/parity scripts/docker/centos/parity
 
 echo Building $PARITY_IMAGE_REPO:$PARITY_RUNNER_IMAGE_TAG
 docker build --no-cache -t $PARITY_IMAGE_REPO:$PARITY_RUNNER_IMAGE_TAG scripts/docker/centos/ -f scripts/docker/centos/Dockerfile
