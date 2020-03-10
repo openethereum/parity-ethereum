@@ -44,7 +44,7 @@ use types::{
 	ids::{BlockId, TransactionId, UncleId, TraceId},
 	basic_account::BasicAccount,
 	errors::{EthcoreError as Error, EthcoreResult},
-	transaction::{self, Transaction, LocalizedTransaction, SignedTransaction, Action, CallError, UnverifiedTransaction},
+	transaction::{self, Transaction, LocalizedTransaction, SignedTransaction, Action, CallError},
 	filter::Filter,
 	trace_filter::Filter as TraceFilter,
 	call_analytics::CallAnalytics,
