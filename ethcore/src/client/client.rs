@@ -737,8 +737,7 @@ impl Client {
 		debug!(target: "client", "Cleanup journal: DB Earliest = {:?}, Latest = {:?}", state_db.journal_db().earliest_era(), state_db.journal_db().latest_era());
 
 		let history = if config.history < MIN_HISTORY_SIZE {
-			info!(target: "client", "Ignoring pruning history parameter of {}\
-				, falling back to minimum of {}",
+			info!(target: "client", "Ignoring pruning history parameter of {} , falling back to minimum of {}",
 				config.history, MIN_HISTORY_SIZE);
 			MIN_HISTORY_SIZE
 		} else {
