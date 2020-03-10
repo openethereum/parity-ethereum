@@ -1231,7 +1231,7 @@ dependencies = [
  "keccak-hash",
  "kvdb",
  "kvdb-memorydb",
- "kvdb-rocksdb",
+ "kvdb-rocksdb 0.6.0",
  "lazy_static",
  "log",
  "machine",
@@ -1597,7 +1597,7 @@ dependencies = [
  "ethcore-sync",
  "ethereum-types",
  "kvdb",
- "kvdb-rocksdb",
+ "kvdb-rocksdb 0.6.0",
  "log",
  "snapshot",
  "spec",
@@ -2614,6 +2614,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "kvdb-rocksdb"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1fecd50b14a534125228d7039951f92aaff742aff151c04546347aba4d3b4fbc"
+dependencies = [
+ "fs-swap",
+ "interleaved-ordered",
+ "kvdb",
+ "log",
+ "num_cpus",
+ "owning_ref 0.4.0",
+ "parity-util-mem",
+ "parking_lot 0.10.0",
+ "regex",
+ "rocksdb",
+ "smallvec 1.2.0",
+]
+
+[[package]]
 name = "lazy_static"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2869,7 +2888,7 @@ name = "migration-rocksdb"
 version = "0.1.0"
 dependencies = [
  "kvdb",
- "kvdb-rocksdb",
+ "kvdb-rocksdb 0.6.0",
  "log",
  "maplit",
  "tempdir",
@@ -3193,7 +3212,7 @@ dependencies = [
  "jsonrpc-core",
  "keccak-hash",
  "kvdb",
- "kvdb-rocksdb",
+ "kvdb-rocksdb 0.6.0",
  "log",
  "migration-rocksdb",
  "node-filter",
@@ -3492,7 +3511,7 @@ dependencies = [
  "jsonrpc-server-utils",
  "keccak-hash",
  "kvdb",
- "kvdb-rocksdb",
+ "kvdb-rocksdb 0.5.0",
  "lazy_static",
  "libsecp256k1",
  "log",
@@ -4661,7 +4680,7 @@ dependencies = [
  "keccak-hash",
  "keccak-hasher 0.1.1",
  "kvdb",
- "kvdb-rocksdb",
+ "kvdb-rocksdb 0.6.0",
  "lazy_static",
  "log",
  "num_cpus",
@@ -4707,7 +4726,7 @@ dependencies = [
  "keccak-hash",
  "keccak-hasher 0.1.1",
  "kvdb",
- "kvdb-rocksdb",
+ "kvdb-rocksdb 0.6.0",
  "lazy_static",
  "log",
  "parity-bytes",
