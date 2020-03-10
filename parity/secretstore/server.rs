@@ -18,16 +18,17 @@
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
+
 use account_utils::AccountProvider;
 use dir::default_data_path;
 use dir::helpers::replace_home;
 use ethcore::client::Client;
 use ethcore::miner::Miner;
+use ethereum_types::Address;
 use ethkey::Password;
 use parity_crypto::publickey::{Secret, Public};
-use sync::SyncProvider;
-use ethereum_types::Address;
 use parity_runtime::Executor;
+use sync::SyncProvider;
 
 /// This node secret key.
 #[derive(Debug, PartialEq, Clone)]
@@ -123,13 +124,15 @@ mod server {
 #[cfg(feature = "secretstore")]
 mod server {
 	use std::sync::Arc;
-	use parity_secretstore;
 	use parity_crypto::publickey::KeyPair;
 	use ansi_term::Colour::{Red, White};
+	use ethereum_types::H256;
 	use super::{Configuration, Dependencies, NodeSecretKey, ContractAddress, Executor};
 	use super::super::TrustedClient;
 	#[cfg(feature = "accounts")]
 	use super::super::KeyStoreNodeKeyPair;
+
+	const SECP_TEST_MESSAGE: H256 = H256([1_u8; 32]);
 
 	fn into_service_contract_address(address: ContractAddress) -> parity_secretstore::ContractAddress {
 		match address {
@@ -163,10 +166,10 @@ mod server {
 
 					// Attempt to sign in the engine signer.
 					let password = deps.accounts_passwords.iter()
-						.find(|p| deps.account_provider.sign(account.clone(), Some((*p).clone()), Default::default()).is_ok())
+						.find(|p| deps.account_provider.sign(account.clone(), Some((*p).clone()), SECP_TEST_MESSAGE).is_ok())
 						.ok_or_else(|| format!("No valid password for the secret store node account {}", account))?;
 					Arc::new(KeyStoreNodeKeyPair::new(deps.account_provider, account, password.clone())
-						.map_err(|e| format!("{}", e))?)
+						.map_err(|e| e.to_string())?)
 				},
 				None => return Err("self secret is required when using secretstore".into()),
 			};
