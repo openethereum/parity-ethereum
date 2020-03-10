@@ -62,7 +62,7 @@ pub struct ClientReport {
 	pub gas_processed: U256,
 	/// Memory used by state DB
 	pub state_db_mem: usize,
-	/// I/O statistics for state DB.
+	/// I/O statistics for the state DB.
 	pub io_stats: IoStats,
 }
 
