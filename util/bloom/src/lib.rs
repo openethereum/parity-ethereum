@@ -110,7 +110,7 @@ impl Bloom {
 		Bloom::new(bitmap_size, items_count)
 	}
 
-	/// Compute a recommended bitmap size for items_count items
+	/// Compute a recommended bitmap size in bytes for items_count items
 	/// and a fp_p rate of false positives.
 	/// fp_p obviously has to be within the ]0.0, 1.0[ range.
 	pub fn compute_bitmap_size(items_count: usize, fp_p: f64) -> usize {
@@ -241,7 +241,7 @@ mod tests {
 	fn hash_backward_compatibility_for_new() {
 		let ss = vec!["you", "should", "not", "break", "hash", "backward", "compatibility"];
 		let mut bloom = Bloom::new(16, 8);
-		for s in ss.iter() {
+		for s in ss {
 			bloom.set(&s);
 		}
 
