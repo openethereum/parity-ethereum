@@ -120,7 +120,7 @@ pub struct StateDB {
 	/// Local dirty cache.
 	local_cache: Vec<CacheQueueItem>,
 	/// Shared account bloom. Does not handle chain reorganizations.
-	// account_bloom: Arc<Mutex<Bloom>>,
+	account_bloom: Arc<Mutex<Bloom>>,
 	cache_size: usize,
 	/// Hash of the block on top of which this instance was created or
 	/// `None` if cache is disabled
@@ -163,7 +163,7 @@ impl StateDB {
 	// TODO: make the cache size actually accurate by moving the account storage cache
 	// into the `AccountCache` structure as its own `LruCache<(Address, H256), H256>`.
 	pub fn new(db: Box<dyn JournalDB>, cache_size: usize) -> StateDB {
-		// let bloom = Self::load_bloom(&**db.backing());
+		let bloom = Self::load_bloom(&**db.backing());
 		let acc_cache_size = cache_size * ACCOUNT_CACHE_RATIO / 100;
 		let code_cache_size = cache_size - acc_cache_size;
 		let cache_items = acc_cache_size / ::std::mem::size_of::<Option<Account>>();
@@ -179,7 +179,7 @@ impl StateDB {
 			// todo[dvdplm] how big does this grow?
 			local_cache: Vec::with_capacity(4096),
 			// local_cache: Vec::new(),
-			// account_bloom: Arc::new(Mutex::new(bloom)),
+			account_bloom: Arc::new(Mutex::new(bloom)),
 			cache_size,
 			parent_hash: None,
 			commit_hash: None,
@@ -191,7 +191,6 @@ impl StateDB {
 	/// Loads accounts bloom from the database
 	/// This bloom is used to quickly handle request for non-existent accounts
 	pub fn load_bloom(db: &dyn KeyValueDB) -> Bloom {
-		// return Bloom::new(ACCOUNT_BLOOM_SPACE, DEFAULT_ACCOUNT_PRESET);
 		let hash_count_entry = db.get(COL_ACCOUNT_BLOOM, ACCOUNT_BLOOM_HASHCOUNT_KEY)
 			.expect("Low-level database error");
 
@@ -243,12 +242,12 @@ impl StateDB {
 
 	/// Journal all recent operations under the given era and ID.
 	pub fn journal_under(&mut self, batch: &mut DBTransaction, now: u64, id: &H256) -> io::Result<u32> {
-		// {
-		// 	let mut bloom_lock = self.account_bloom.lock();
-		// 	Self::commit_bloom(batch, bloom_lock.drain_journal())?;
-		// 	trace!(target: "dp", "[journal_under] comitted bloom; stats: {:?}", self.bloom_stats);
-		// 	self.bloom_stats = BloomStats::default()
-		// }
+		{
+			let mut bloom_lock = self.account_bloom.lock();
+			Self::commit_bloom(batch, bloom_lock.drain_journal())?;
+			trace!(target: "dp", "[journal_under] comitted bloom; stats: {:?}", self.bloom_stats);
+			self.bloom_stats = BloomStats::default()
+		}
 		let records = self.db.journal_under(batch, now, id)?;
 		self.commit_hash = Some(id.clone());
 		self.commit_number = Some(now);
@@ -375,7 +374,7 @@ impl StateDB {
 			account_cache: self.account_cache.clone(),
 			code_cache: self.code_cache.clone(),
 			local_cache: Vec::new(),
-			// account_bloom: self.account_bloom.clone(),
+			account_bloom: self.account_bloom.clone(),
 			cache_size: self.cache_size,
 			parent_hash: None,
 			commit_hash: None,
@@ -391,7 +390,7 @@ impl StateDB {
 			account_cache: self.account_cache.clone(),
 			code_cache: self.code_cache.clone(),
 			local_cache: Vec::new(),
-			// account_bloom: self.account_bloom.clone(),
+			account_bloom: self.account_bloom.clone(),
 			cache_size: self.cache_size,
 			parent_hash: Some(parent.clone()),
 			commit_hash: None,
@@ -505,30 +504,22 @@ impl account_state::Backend for StateDB {
 	}
 
 	fn note_non_null_account(&self, address: &Address) {
-		// unimplemented!()
+		self.bloom_stats.sets.fetch_add(1, Ordering::SeqCst);
+		trace!(target: "account_bloom", "Note account is not null in bloom: {:?}", address);
+		let mut bloom = self.account_bloom.lock();
+		bloom.set(keccak(address).as_bytes());
 	}
 
 	fn is_known_null(&self, address: &Address) -> bool {
-		false
+		trace!(target: "account_bloom", "Check account bloom (is known null?): {:?}", address);
+		self.bloom_stats.queries.fetch_add(1, Ordering::SeqCst);
+		let bloom = self.account_bloom.lock();
+		let is_null = !bloom.check(keccak(address).as_bytes());
+		if !is_null {
+			self.bloom_stats.hits.fetch_add(1, Ordering::SeqCst);
+		}
+		is_null
 	}
-
-	// fn note_non_null_account(&self, address: &Address) {
-	// 	self.bloom_stats.sets.fetch_add(1, Ordering::SeqCst);
-	// 	trace!(target: "account_bloom", "Note account is not null in bloom: {:?}", address);
-	// 	let mut bloom = self.account_bloom.lock();
-	// 	bloom.set(keccak(address).as_bytes());
-	// }
-	//
-	// fn is_known_null(&self, address: &Address) -> bool {
-	// 	trace!(target: "account_bloom", "Check account bloom (is known null?): {:?}", address);
-	// 	self.bloom_stats.queries.fetch_add(1, Ordering::SeqCst);
-	// 	let bloom = self.account_bloom.lock();
-	// 	let is_null = !bloom.check(keccak(address).as_bytes());
-	// 	if !is_null {
-	// 		self.bloom_stats.hits.fetch_add(1, Ordering::SeqCst);
-	// 	}
-	// 	is_null
-	// }
 }
 
 /// Sync wrapper for the account.
