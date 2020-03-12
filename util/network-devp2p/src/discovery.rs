@@ -1096,7 +1096,7 @@ mod tests {
 		let key = Random.generate();
 		discovery.send_find_node(&node_entries[100], key.public()).unwrap();
 		for payload in Discovery::prepare_neighbours_packets(&node_entries[101..116]) {
-			let (packet, _hash) = assemble_packet(PACKET_NEIGHBOURS, payload, &key.secret()).unwrap();
+			let (packet, _hash) = assemble_packet(PacketKind::Neighbours, payload, &key.secret()).unwrap();
 			discovery.on_packet(&packet, from).unwrap();
 		}
 
@@ -1108,7 +1108,7 @@ mod tests {
 		// FIND_NODE does not time out because it receives k results.
 		discovery.send_find_node(&node_entries[100], key.public()).unwrap();
 		for payload in Discovery::prepare_neighbours_packets(&node_entries[101..117]) {
-			let (packet, _hash) = assemble_packet(PACKET_NEIGHBOURS, payload, &key.secret()).unwrap();
+			let (packet, _hash) = assemble_packet(PacketKind::Neighbours, payload, &key.secret()).unwrap();
 			discovery.on_packet(&packet, from).unwrap();
 		}
 
@@ -1342,7 +1342,7 @@ mod tests {
 		incorrect_pong_rlp.append(&H256::zero());
 		append_expiration(&mut incorrect_pong_rlp);
 		let (incorrect_pong_data, _hash) = assemble_packet(
-			PACKET_PONG, incorrect_pong_rlp.drain(), &discovery2.secret
+			PacketKind::Pong, incorrect_pong_rlp.drain(), &discovery2.secret
 		).unwrap();
 		if let Some(_) = discovery1.on_packet(&incorrect_pong_data, ep2.address).unwrap() {
 			panic!("Expected no changes to discovery1's table because pong hash is incorrect");
@@ -1371,7 +1371,7 @@ mod tests {
 		unexpected_pong_rlp.append(&H256::zero());
 		append_expiration(&mut unexpected_pong_rlp);
 		let (unexpected_pong, _hash) = assemble_packet(
-			PACKET_PONG, unexpected_pong_rlp.drain(), key3.secret()
+			PacketKind::Pong, unexpected_pong_rlp.drain(), key3.secret()
 		).unwrap();
 		if let Some(_) = discovery1.on_packet(&unexpected_pong, ep3.address).unwrap() {
 			panic!("Expected no changes to discovery1's table for unexpected pong");
