@@ -16,6 +16,7 @@
 
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::collections::hash_map::Entry;
+use std::convert::{TryFrom, TryInto};
 use std::net::SocketAddr;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
@@ -51,6 +52,29 @@ const PACKET_FIND_NODE: u8 = 3;
 const PACKET_NEIGHBOURS: u8 = 4;
 /// Packet type
 const PACKET_TYPE_LEN: usize = 1;
+
+/// Node discovery packet kinds
+#[derive(Debug)]
+enum PacketKind {
+	Ping = 1,
+	Pong = 2,
+	FindNode = 3,
+	Neighbours = 4,
+}
+
+impl TryFrom<u8> for PacketKind {
+	type Error = Error;
+
+	fn try_from(kind: u8) -> Result<Self, Self::Error> {
+		match kind {
+			PACKET_PING => Ok(Self::Ping),
+			PACKET_PONG  => Ok(Self::Pong),
+			PACKET_FIND_NODE => Ok(Self::FindNode),
+			PACKET_NEIGHBOURS => Ok(Self::Neighbours),
+			_ => Err(Error::BadProtocol),
+		}
+	}
+}
 
 const PING_TIMEOUT: Duration = Duration::from_millis(500);
 const FIND_NODE_TIMEOUT: Duration = Duration::from_secs(2);
@@ -390,7 +414,7 @@ impl Discovery {
 		node.endpoint.to_rlp_list(&mut rlp);
 		append_expiration(&mut rlp);
 		let old_parity_hash = keccak(rlp.as_raw());
-		let hash = self.send_packet(PACKET_PING, node.endpoint.udp_address(), rlp.drain())?;
+		let hash = self.send_packet(PacketKind::Ping, node.endpoint.udp_address(), rlp.drain())?;
 
 		self.in_flight_pings.insert(node.id, PingRequest {
 			sent_at: Instant::now(),
@@ -408,7 +432,7 @@ impl Discovery {
 		let mut rlp = RlpStream::new_list(2);
 		rlp.append(target);
 		append_expiration(&mut rlp);
-		self.send_packet(PACKET_FIND_NODE, node.endpoint.udp_address(), rlp.drain())?;
+		self.send_packet(PacketKind::FindNode, node.endpoint.udp_address(), rlp.drain())?;
 
 		self.in_flight_find_nodes.insert(node.id, FindNodeRequest {
 			sent_at: Instant::now(),
@@ -420,7 +444,7 @@ impl Discovery {
 		Ok(())
 	}
 
-	fn send_packet(&mut self, packet_id: u8, address: SocketAddr, payload: Bytes) -> Result<H256, Error> {
+	fn send_packet(&mut self, packet_id: PacketKind, address: SocketAddr, payload: Bytes) -> Result<H256, Error> {
 		let (packet, hash) = assemble_packet(packet_id, payload, &self.secret)?;
 		self.send_to(packet, address);
 		Ok(hash)
@@ -482,30 +506,13 @@ impl Discovery {
 	}
 
 	pub fn on_packet(&mut self, packet: &[u8], from: SocketAddr) -> Result<Option<TableUpdates>, Error> {
-		if !packet_has_valid_length(packet.len()) {
-			warn!(target: "discovery", "Invalid packet length: {}", packet.len());
-			return Err(Error::BadProtocol);
-		}
-
-		let hash_signed = keccak(&packet[HASH_LEN..]);
-		if hash_signed[..] != packet[0..32] {
-			return Err(Error::BadProtocol);
-		}
-
-		let payload_with_packet_id = &packet[HASH_LEN + SIGNATURE_LEN..];
-		let signature = H520::from_slice(&packet[HASH_LEN..HASH_LEN + SIGNATURE_LEN]);
-		let node_id = recover(&signature.into(), &keccak(payload_with_packet_id))?;
-		let packet_id = payload_with_packet_id[0];
-		let rlp = Rlp::new(&payload_with_packet_id[1..]);
+		let (node_id, payload, packet_id, signed_hash) = disassemble_packet(packet)?;
+		let rlp = Rlp::new(payload);
 		match packet_id {
-			PACKET_PING => self.on_ping(&rlp, node_id, from, hash_signed),
-			PACKET_PONG => self.on_pong(&rlp, node_id, from),
-			PACKET_FIND_NODE => self.on_find_node(&rlp, node_id, from),
-			PACKET_NEIGHBOURS => self.on_neighbours(&rlp, node_id, from),
-			_ => {
-				debug!(target: "discovery", "Unknown UDP packet: {}", packet_id);
-				Ok(None)
-			}
+			PacketKind::Ping => self.on_ping(&rlp, node_id, from, signed_hash),
+			PacketKind::Pong => self.on_pong(&rlp, node_id, from),
+			PacketKind::FindNode => self.on_find_node(&rlp, node_id, from),
+			PacketKind::Neighbours => self.on_neighbours(&rlp, node_id, from),
 		}
 	}
 
@@ -555,7 +562,7 @@ impl Discovery {
 
 		response.append(&echo_hash);
 		append_expiration(&mut response);
-		self.send_packet(PACKET_PONG, from, response.drain())?;
+		self.send_packet(PacketKind::Pong, from, response.drain())?;
 
 		let entry = NodeEntry { id: node_id, endpoint: pong_to };
 		if !entry.endpoint.is_valid_discovery_node() {
@@ -688,7 +695,7 @@ impl Discovery {
 		}
 		let mut packets = Discovery::prepare_neighbours_packets(&nearest);
 		for p in packets.drain(..) {
-			self.send_packet(PACKET_NEIGHBOURS, node.endpoint.address, p)?;
+			self.send_packet(PacketKind::Neighbours, node.endpoint.address, p)?;
 		}
 		trace!(target: "discovery", "Sent {} Neighbours to {:?}", nearest.len(), &node.endpoint);
 		Ok(())
@@ -863,10 +870,10 @@ fn append_expiration(rlp: &mut RlpStream) {
 }
 
 
-/// Helper function to assemble node discovery messages
+/// Helper function to assemble node discovery packets
 ///
 /// The packet format is: `hash | signature | payload | packet_type`, where the maximum packet length is 1280 bytes
-fn assemble_packet(packet_id: u8, payload: Bytes, secret: &Secret) -> Result<(Bytes, H256), Error> {
+fn assemble_packet(packet_id: PacketKind, payload: Bytes, secret: &Secret) -> Result<(Bytes, H256), Error> {
 	let packet_len = payload.len() + HASH_LEN + SIGNATURE_LEN + PACKET_TYPE_LEN;
 
 	if !packet_has_valid_length(packet_len) {
@@ -876,7 +883,7 @@ fn assemble_packet(packet_id: u8, payload: Bytes, secret: &Secret) -> Result<(By
 
 	let mut packet = Bytes::with_capacity(packet_len);
 	packet.resize(HASH_LEN + SIGNATURE_LEN, 0); // Filled in below
-	packet.push(packet_id);
+	packet.push(packet_id as u8);
 	packet.extend(payload);
 
 	let signature = sign_payload_with_packet_id(secret, &packet[HASH_LEN + SIGNATURE_LEN ..])?;
@@ -884,6 +891,31 @@ fn assemble_packet(packet_id: u8, payload: Bytes, secret: &Secret) -> Result<(By
 	let signed_hash = keccak(&packet[HASH_LEN..]);
 	packet[..HASH_LEN].copy_from_slice(signed_hash.as_bytes());
 	Ok((packet, signed_hash))
+}
+
+/// Helper to disassemble node discovery packets
+fn disassemble_packet(packet: &[u8]) -> Result<(NodeId, &[u8], PacketKind, H256), Error> {
+	if !packet_has_valid_length(packet.len()) {
+		warn!(target: "discovery", "Invalid packet length: {}", packet.len());
+		return Err(Error::BadProtocol);
+	}
+
+	let payload_with_packet_id = &packet[HASH_LEN + SIGNATURE_LEN..];
+	let packet_kind = payload_with_packet_id[0];
+	let packet_kind: PacketKind = packet_kind.try_into().map_err(|e| {
+		debug!(target: "discovery", "Unknown UDP packet: {:?}", packet_kind);
+		e
+	})?;
+
+	let signed_hash = keccak(&packet[HASH_LEN..]);
+	if signed_hash[..] != packet[0..HASH_LEN] {
+		return Err(Error::BadProtocol);
+	}
+
+	let signature = H520::from_slice(&packet[HASH_LEN..HASH_LEN + SIGNATURE_LEN]);
+	let node_id = recover(&signature.into(), &keccak(payload_with_packet_id))?;
+
+	Ok((node_id, &payload_with_packet_id[1..], packet_kind, signed_hash))
 }
 
 fn sign_payload_with_packet_id(secret: &Secret, payload_with_packet_id: &[u8]) -> Result<Signature, Error> {
