@@ -25,6 +25,7 @@ use types::errors::EthcoreError;
 
 use super::helpers;
 use super::blooms::migrate_blooms;
+use super::resize_accounts_bloom::resize_accounts_bloom;
 
 /// The migration from v10 to v11.
 /// Adds a column for node info.
@@ -56,6 +57,8 @@ const DEFAULT_VERSION: u32 = 5;
 const CURRENT_VERSION: u32 = 14;
 /// A version of database at which blooms-db was introduced
 const BLOOMS_DB_VERSION: u32 = 13;
+/// A version of database at which the accounts blooms was resized.
+const ACCOUNTS_BLOOM_RESIZE: u32 = 15;
 /// Defines how many items are migrated to the new version of database at once.
 const BATCH_SIZE: usize = 1024;
 /// Version file name.
@@ -72,7 +75,9 @@ pub enum Error {
 	MigrationImpossible,
 	/// Blooms-db migration error.
 	BloomsDB(EthcoreError),
-	/// Migration was completed succesfully,
+	/// Accounts bloom migration error.
+	ResizeAccountsBlooms(EthcoreError),
+	/// Migration was completed successfully,
 	/// but there was a problem with io.
 	Io(IoError),
 }
@@ -84,6 +89,7 @@ impl Display for Error {
 			Error::FutureDBVersion => "Database was created with newer client version. Upgrade your client or delete DB and resync.".into(),
 			Error::MigrationImpossible => format!("Database migration to version {} is not possible.", CURRENT_VERSION),
 			Error::BloomsDB(ref err) => format!("blooms-db migration error: {}", err),
+			Error::ResizeAccountsBlooms(ref err) => format!("resize accounts bloom error: {}", err),
 			Error::Io(ref err) => format!("Unexpected io error on DB migration: {}.", err),
 		};
 
@@ -210,6 +216,19 @@ pub fn migrate(path: &Path, compaction_profile: &DatabaseCompactionProfile) -> R
 
 	// We are in the latest version, yay!
 	if version == CURRENT_VERSION {
+		if version < ACCOUNTS_BLOOM_RESIZE {
+			info!(target: "migrate", "Resizing accounts bloom from version {} to {}", version, ACCOUNTS_BLOOM_RESIZE);
+
+			let db_path = consolidated_database_path(path);
+			let db_config = DatabaseConfig {
+				max_open_files: 64,
+				compaction: compaction_profile,
+				columns: ethcore_db::NUM_COLUMNS,
+				..Default::default()
+			};
+			resize_accounts_bloom(&db_path, &db_config).map_err(Error::ResizeAccountsBlooms)?;
+			info!("Ending session now");
+		}
 		return Ok(())
 	}
 

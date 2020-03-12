@@ -197,7 +197,6 @@ impl StateDB {
 		let hash_count_bytes = match hash_count_entry {
 			Some(bytes) => {
 				trace!(target: "dp", "[load_bloom] found bloom data on disk: {}", bytes.len());
-				trace!(target: "dp", "[load_bloom] bloom data on disk: {:?}", &bytes);
 				bytes
 			},
 			None => return Bloom::new(ACCOUNT_BLOOM_SPACE, DEFAULT_ACCOUNT_PRESET),
@@ -221,9 +220,18 @@ impl StateDB {
 
 		let bloom = Bloom::from_parts(&bloom_parts, hash_count as u32);
 		debug!(target: "account_bloom", "Bloom is {:?} full, hash functions count = {:?}", bloom.saturation(), hash_count);
+
 		debug!(target: "account_bloom", "recommended bitmap size for {} items at 90% accuracy: {}", DEFAULT_ACCOUNT_PRESET, Bloom::compute_bitmap_size(DEFAULT_ACCOUNT_PRESET, 0.9));
+
 		debug!(target: "account_bloom", "recommended bitmap size for {} items at 90% accuracy: {}", 100_000_000, Bloom::compute_bitmap_size(100_000_000, 0.9));
+		debug!(target: "account_bloom", "recommended bitmap size for {} items at 95% accuracy: {}", 100_000_000, Bloom::compute_bitmap_size(100_000_000, 0.95));
+		debug!(target: "account_bloom", "recommended bitmap size for {} items at 99% accuracy: {}", 100_000_000, Bloom::compute_bitmap_size(100_000_000, 0.99));
 		debug!(target: "account_bloom", "recommended bitmap size for {} items at 50% accuracy: {}", 100_000_000, Bloom::compute_bitmap_size(100_000_000, 0.5));
+
+		debug!(target: "account_bloom", "recommended bitmap size for {} items at 90% accuracy: {}", 200_000_000, Bloom::compute_bitmap_size(200_000_000, 0.9));
+		debug!(target: "account_bloom", "recommended bitmap size for {} items at 95% accuracy: {}", 200_000_000, Bloom::compute_bitmap_size(200_000_000, 0.95));
+		debug!(target: "account_bloom", "recommended bitmap size for {} items at 99% accuracy: {}", 200_000_000, Bloom::compute_bitmap_size(200_000_000, 0.99));
+		debug!(target: "account_bloom", "recommended bitmap size for {} items at 50% accuracy: {}", 200_000_000, Bloom::compute_bitmap_size(200_000_000, 0.5));
 		bloom
 	}
 
@@ -511,12 +519,14 @@ impl account_state::Backend for StateDB {
 	}
 
 	fn is_known_null(&self, address: &Address) -> bool {
-		trace!(target: "account_bloom", "Check account bloom (is known null?): {:?}", address);
 		self.bloom_stats.queries.fetch_add(1, Ordering::SeqCst);
 		let bloom = self.account_bloom.lock();
 		let is_null = !bloom.check(keccak(address).as_bytes());
 		if !is_null {
+			trace!(target: "account_bloom", "Check account bloom {:?} is in the DB", address);
 			self.bloom_stats.hits.fetch_add(1, Ordering::SeqCst);
+		} else {
+			trace!(target: "account_bloom", "Check account bloom {:?} is NOT the DB", address);
 		}
 		is_null
 	}

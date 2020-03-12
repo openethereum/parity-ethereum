@@ -97,6 +97,7 @@ extern crate pretty_assertions;
 
 #[cfg(test)]
 extern crate tempdir;
+extern crate trie_db;
 
 mod account;
 mod account_utils;

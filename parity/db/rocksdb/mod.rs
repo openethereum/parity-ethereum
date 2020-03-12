@@ -14,9 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
+extern crate ethcore_blockchain;
+extern crate ethcore_bloom_journal as accounts_bloom;
 extern crate kvdb_rocksdb;
 extern crate migration_rocksdb;
-extern crate ethcore_blockchain;
+extern crate state_db;
+extern crate patricia_trie_ethereum as ethtrie;
 
 #[cfg(test)]
 extern crate tempdir;
@@ -34,6 +37,7 @@ use self::kvdb_rocksdb::{Database, DatabaseConfig};
 use cache::CacheConfig;
 
 mod blooms;
+mod resize_accounts_bloom;
 mod migration;
 mod helpers;
 

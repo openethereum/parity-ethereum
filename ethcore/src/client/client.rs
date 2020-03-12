@@ -729,9 +729,11 @@ impl Client {
 			state_db.journal_under(&mut batch, 0, &spec.genesis_header().hash())?;
 			db.key_value().write(batch)?;
 		}
+		// trace!(target: "dp", "State DB state root: {:?}", state_db);
 
 		let gb = spec.genesis_block();
 		let chain = Arc::new(BlockChain::new(config.blockchain.clone(), &gb, db.clone()));
+		trace!(target: "dp", "State root client is using: {:?}", chain.best_block_header().state_root());
 		let tracedb = RwLock::new(TraceDB::new(config.tracing.clone(), db.clone(), chain.clone()));
 
 		debug!(target: "client", "Cleanup journal: DB Earliest = {:?}, Latest = {:?}", state_db.journal_db().earliest_era(), state_db.journal_db().latest_era());
