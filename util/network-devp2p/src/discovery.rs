@@ -16,7 +16,6 @@
 
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::collections::hash_map::Entry;
-use std::default::Default;
 use std::net::SocketAddr;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
@@ -24,33 +23,40 @@ use ethereum_types::{H256, H520};
 use keccak_hash::keccak;
 use log::{debug, trace, warn};
 use lru_cache::LruCache;
+use network::{Error, IpFilter};
 use parity_bytes::Bytes;
+use parity_crypto::publickey::{KeyPair, recover, Secret, Signature, sign};
 use rlp::{Rlp, RlpStream};
 
-use parity_crypto::publickey::{KeyPair, recover, Secret, Signature, sign};
-use network::Error;
-use network::IpFilter;
-
-use crate::node_table::*;
+use crate::node_table::{NodeEndpoint, NodeId};
 use crate::PROTOCOL_VERSION;
 
-const ADDRESS_BYTES_SIZE: usize = 32;						// Size of address type in bytes.
-const ADDRESS_BITS: usize = 8 * ADDRESS_BYTES_SIZE;			// Denoted by n in [Kademlia].
-const DISCOVERY_MAX_STEPS: u16 = 8;							// Max iterations of discovery. (discover)
-const BUCKET_SIZE: usize = 16;		// Denoted by k in [Kademlia]. Number of nodes stored in each bucket.
-const ALPHA: usize = 3;				// Denoted by \alpha in [Kademlia]. Number of concurrent FindNode requests.
+/// Maximum Node discovery packet size
 pub const MAX_DATAGRAM_SIZE: usize = 1280;
+
+/// Size of address type in bytes.
+const ADDRESS_BYTES_SIZE: usize = 32;
+/// Denoted by n in [Kademlia].
+const ADDRESS_BITS: usize = 8 * ADDRESS_BYTES_SIZE;
+/// Max iterations of discovery. (discover)
+const DISCOVERY_MAX_STEPS: u16 = 8;
+/// Denoted by k in [Kademlia]. Number of nodes stored in each bucket.
+const BUCKET_SIZE: usize = 16;
+/// Denoted by \alpha in [Kademlia]. Number of concurrent FindNode requests.
+const ALPHA: usize = 3;
 
 const PACKET_PING: u8 = 1;
 const PACKET_PONG: u8 = 2;
 const PACKET_FIND_NODE: u8 = 3;
 const PACKET_NEIGHBOURS: u8 = 4;
-const PACKET_KIND_LEN: usize = 1;
+/// Packet type
+const PACKET_TYPE_LEN: usize = 1;
 
 const PING_TIMEOUT: Duration = Duration::from_millis(500);
 const FIND_NODE_TIMEOUT: Duration = Duration::from_secs(2);
 const EXPIRY_TIME: Duration = Duration::from_secs(20);
-const MAX_NODES_PING: usize = 32; // Max nodes to add/ping at once
+/// Max nodes to add/ping at once
+const MAX_NODES_PING: usize = 32;
 const REQUEST_BACKOFF: [Duration; 4] = [
 	Duration::from_secs(1),
 	Duration::from_secs(4),
@@ -861,7 +867,7 @@ fn append_expiration(rlp: &mut RlpStream) {
 ///
 /// The packet format is: `hash | signature | payload | packet_type`, where the maximum packet length is 1280 bytes
 fn assemble_packet(packet_id: u8, payload: Bytes, secret: &Secret) -> Result<(Bytes, H256), Error> {
-	let packet_len = payload.len() + HASH_LEN + SIGNATURE_LEN + PACKET_KIND_LEN;
+	let packet_len = payload.len() + HASH_LEN + SIGNATURE_LEN + PACKET_TYPE_LEN;
 
 	if !packet_has_valid_length(packet_len) {
 		warn!(target: "discovery", "Invalid packet length: {}", packet_len);
@@ -890,7 +896,7 @@ fn sign_payload_with_packet_id(secret: &Secret, payload_with_packet_id: &[u8]) -
 
 fn packet_has_valid_length(packet_len: usize) -> bool {
 	// Q(niklasad1): why `4`?
-	if packet_len > MAX_DATAGRAM_SIZE || packet_len < HASH_LEN + SIGNATURE_LEN + PACKET_KIND_LEN + 4 {
+	if packet_len > MAX_DATAGRAM_SIZE || packet_len < HASH_LEN + SIGNATURE_LEN + PACKET_TYPE_LEN + 4 {
 		false
 	} else {
 		true
