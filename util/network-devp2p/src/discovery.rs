@@ -27,7 +27,7 @@ use lru_cache::LruCache;
 use parity_bytes::Bytes;
 use rlp::{Rlp, RlpStream};
 
-use parity_crypto::publickey::{KeyPair, recover, Secret, sign};
+use parity_crypto::publickey::{KeyPair, recover, Secret, Signature, sign};
 use network::Error;
 use network::IpFilter;
 
@@ -45,6 +45,7 @@ const PACKET_PING: u8 = 1;
 const PACKET_PONG: u8 = 2;
 const PACKET_FIND_NODE: u8 = 3;
 const PACKET_NEIGHBOURS: u8 = 4;
+const PACKET_KIND_LEN: usize = 1;
 
 const PING_TIMEOUT: Duration = Duration::from_millis(500);
 const FIND_NODE_TIMEOUT: Duration = Duration::from_secs(2);
@@ -57,8 +58,9 @@ const REQUEST_BACKOFF: [Duration; 4] = [
 	Duration::from_secs(64)
 ];
 
-const NODE_LAST_SEEN_TIMEOUT: Duration = Duration::from_secs(24*60*60);
-
+const HASH_LEN: usize = 32;
+const SIGNATURE_LEN: usize = 65;
+const NODE_LAST_SEEN_TIMEOUT: Duration = Duration::from_secs(24 * 60 * 60);
 const OBSERVED_NODES_MAX_SIZE: usize = 10_000;
 
 #[derive(Clone, Debug)]
@@ -413,8 +415,7 @@ impl Discovery {
 	}
 
 	fn send_packet(&mut self, packet_id: u8, address: SocketAddr, payload: Bytes) -> Result<H256, Error> {
-		let packet = assemble_packet(packet_id, payload, &self.secret)?;
-		let hash = H256::from_slice(&packet[0..32]);
+		let (packet, hash) = assemble_packet(packet_id, payload, &self.secret)?;
 		self.send_to(packet, address);
 		Ok(hash)
 	}
@@ -475,23 +476,23 @@ impl Discovery {
 	}
 
 	pub fn on_packet(&mut self, packet: &[u8], from: SocketAddr) -> Result<Option<TableUpdates>, Error> {
-		// validate packet
-		if packet.len() < 32 + 65 + 4 + 1 {
+		if !packet_has_valid_length(packet.len()) {
+			warn!(target: "discovery", "Invalid packet length: {}", packet.len());
 			return Err(Error::BadProtocol);
 		}
 
-		let hash_signed = keccak(&packet[32..]);
+		let hash_signed = keccak(&packet[HASH_LEN..]);
 		if hash_signed[..] != packet[0..32] {
 			return Err(Error::BadProtocol);
 		}
 
-		let signed = &packet[(32 + 65)..];
-		let signature = H520::from_slice(&packet[32..(32 + 65)]);
-		let node_id = recover(&signature.into(), &keccak(signed))?;
-		let packet_id = signed[0];
-		let rlp = Rlp::new(&signed[1..]);
+		let payload_with_packet_id = &packet[HASH_LEN + SIGNATURE_LEN..];
+		let signature = H520::from_slice(&packet[HASH_LEN..HASH_LEN + SIGNATURE_LEN]);
+		let node_id = recover(&signature.into(), &keccak(payload_with_packet_id))?;
+		let packet_id = payload_with_packet_id[0];
+		let rlp = Rlp::new(&payload_with_packet_id[1..]);
 		match packet_id {
-			PACKET_PING => self.on_ping(&rlp, node_id, from, hash_signed.as_bytes()),
+			PACKET_PING => self.on_ping(&rlp, node_id, from, hash_signed),
 			PACKET_PONG => self.on_pong(&rlp, node_id, from),
 			PACKET_FIND_NODE => self.on_find_node(&rlp, node_id, from),
 			PACKET_NEIGHBOURS => self.on_neighbours(&rlp, node_id, from),
@@ -516,7 +517,7 @@ impl Discovery {
 		entry.endpoint.is_allowed(&self.ip_filter) && entry.id != self.id
 	}
 
-	fn on_ping(&mut self, rlp: &Rlp, node_id: NodeId, from: SocketAddr, echo_hash: &[u8]) -> Result<Option<TableUpdates>, Error> {
+	fn on_ping(&mut self, rlp: &Rlp, node_id: NodeId, from: SocketAddr, echo_hash: H256) -> Result<Option<TableUpdates>, Error> {
 		trace!(target: "discovery", "Got Ping from {:?}", &from);
 		let ping_from = if let Ok(node_endpoint) = NodeEndpoint::from_rlp(&rlp.at(1)?) {
 			node_endpoint
@@ -855,24 +856,45 @@ fn append_expiration(rlp: &mut RlpStream) {
 	rlp.append(&timestamp);
 }
 
-fn assemble_packet(packet_id: u8, payload: Bytes, secret: &Secret) -> Result<Bytes, Error> {
-	let mut packet = Bytes::with_capacity(payload.len() + 32 + 65 + 1);
-	packet.resize(32 + 65, 0); // Filled in below
+
+/// Helper function to assemble node discovery messages
+///
+/// The packet format is: `hash | signature | payload | packet_type`, where the maximum packet length is 1280 bytes
+fn assemble_packet(packet_id: u8, payload: Bytes, secret: &Secret) -> Result<(Bytes, H256), Error> {
+	let packet_len = payload.len() + HASH_LEN + SIGNATURE_LEN + PACKET_KIND_LEN;
+
+	if !packet_has_valid_length(packet_len) {
+		warn!(target: "discovery", "Invalid packet length: {}", packet_len);
+		return Err(Error::BadProtocol);
+	}
+
+	let mut packet = Bytes::with_capacity(packet_len);
+	packet.resize(HASH_LEN + SIGNATURE_LEN, 0); // Filled in below
 	packet.push(packet_id);
 	packet.extend(payload);
 
-	let hash = keccak(&packet[(32 + 65)..]);
-	let signature = match sign(secret, &hash) {
-		Ok(s) => s,
-		Err(e) => {
-			warn!(target: "discovery", "Error signing UDP packet");
-			return Err(Error::from(e));
-		}
-	};
-	packet[32..(32 + 65)].copy_from_slice(&signature[..]);
-	let signed_hash = keccak(&packet[32..]);
-	packet[0..32].copy_from_slice(signed_hash.as_bytes());
-	Ok(packet)
+	let signature = sign_payload_with_packet_id(secret, &packet[HASH_LEN + SIGNATURE_LEN ..])?;
+	packet[HASH_LEN..(HASH_LEN + SIGNATURE_LEN)].copy_from_slice(&signature[..]);
+	let signed_hash = keccak(&packet[HASH_LEN..]);
+	packet[..HASH_LEN].copy_from_slice(signed_hash.as_bytes());
+	Ok((packet, signed_hash))
+}
+
+fn sign_payload_with_packet_id(secret: &Secret, payload_with_packet_id: &[u8]) -> Result<Signature, Error> {
+	let hash = keccak(payload_with_packet_id);
+	sign(secret, &hash).map_err(|e| {
+		warn!(target: "discovery", "Error signing UDP packet");
+		e.into()
+	})
+}
+
+fn packet_has_valid_length(packet_len: usize) -> bool {
+	// Q(niklasad1): why `4`?
+	if packet_len > MAX_DATAGRAM_SIZE || packet_len < HASH_LEN + SIGNATURE_LEN + PACKET_KIND_LEN + 4 {
+		false
+	} else {
+		true
+	}
 }
 
 // Selects the next node in a bucket to ping. Chooses the eligible node least recently seen.
