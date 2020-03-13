@@ -28,7 +28,7 @@ use log::{debug, trace};
 use lru_cache::LruCache;
 use parking_lot::Mutex;
 
-use account_state::{self, Account};
+use account_state::{self, Account, Backend};
 use bloom_journal::{Bloom, BloomJournal};
 use common_types::BlockNumber;
 use ethcore_db::COL_ACCOUNT_BLOOM;
@@ -168,7 +168,7 @@ impl StateDB {
 		let code_cache_size = cache_size - acc_cache_size;
 		let cache_items = acc_cache_size / ::std::mem::size_of::<Option<Account>>();
 		trace!(target: "dp", "New StateDB with code_cache_size={}, account_cache_size={}, cache_items={}", code_cache_size, acc_cache_size, cache_items);
-		StateDB {
+		let state_db = StateDB {
 			db,
 			account_cache: Arc::new(Mutex::new(AccountCache {
 				accounts: LruCache::new(cache_items),
@@ -185,7 +185,11 @@ impl StateDB {
 			commit_hash: None,
 			commit_number: None,
 			bloom_stats: BloomStats::default(),
-		}
+		};
+		use std::str::FromStr;
+		let canary_addr = Address::from_str("ea674fdde714fd979de3edf0f56aa9716b898ec8").unwrap();
+		debug!(target: "account_bloom", "[StateDB::new] Is {} a known null? {}", canary_addr, state_db.is_known_null(&canary_addr));
+		state_db
 	}
 
 	/// Loads accounts bloom from the database
@@ -227,7 +231,8 @@ impl StateDB {
 		);
 		use std::str::FromStr;
 		let canary = H256::from_str("59e7449aaced683b3ca8826910182e66444f16da575d9751b28a59f44e70d0b1").unwrap();
-		debug!(target: "account_bloom", "[load_bloom] Is {} in the bloom? {}", canary, bloom.check(&canary));
+		debug!(target: "account_bloom", "[load_bloom] Is {} in the bloom, i.e. not null? {}", canary, bloom.check(&canary));
+
 		// debug!(target: "account_bloom", "recommended bitmap size for {} items at 90% accuracy: {}", DEFAULT_ACCOUNT_PRESET, Bloom::compute_bitmap_size(DEFAULT_ACCOUNT_PRESET, 0.9));
 		//
 		// debug!(target: "account_bloom", "recommended bitmap size for {} items at 90% accuracy: {}", 100_000_000, Bloom::compute_bitmap_size(100_000_000, 0.9));
@@ -523,17 +528,25 @@ impl account_state::Backend for StateDB {
 		trace!(target: "account_bloom", "Note account is not null in bloom: {:?} -> {:?}", address, keccak(address));
 		let mut bloom = self.account_bloom.lock();
 		bloom.set(keccak(address).as_bytes());
+		// bloom.set(keccak(address));
 	}
 
 	fn is_known_null(&self, address: &Address) -> bool {
 		self.bloom_stats.queries.fetch_add(1, Ordering::SeqCst);
 		let bloom = self.account_bloom.lock();
+		// let address_hash = keccak(address);
+		// let is_there = bloom.check(address_hash);
+		// let is_there2 = bloom.check(address_hash.as_bytes());
+
+
 		let is_null = !bloom.check(keccak(address).as_bytes());
+		// let is_null = !bloom.check(keccak(address));
 		if !is_null {
-			trace!(target: "account_bloom", "Account bloom for address {:?} says it is in the DB with key {:?}", address, keccak(address));
+			trace!(target: "account_bloom", "[is_known_null] Account bloom for address {:?} says it is in the DB with key {:?}", address, keccak(address));
 			self.bloom_stats.hits.fetch_add(1, Ordering::SeqCst);
 		} else {
-			trace!(target: "account_bloom", "Account bloom for address {:?} says it is NOT the DB with key {:?}", address, keccak(address));
+			trace!(target: "account_bloom", "[is_known_null] Account bloom for address {:?} says it is NOT in the DB with key {:?}", address, keccak(address));
+			// trace!(target: "account_bloom", "[is_known_null] is_there={}, is_there2={}", is_there, is_there2);
 			// trace!(target: "account_bloom", "Check account bloom {:?} is NOT the DB", address);
 		}
 		is_null

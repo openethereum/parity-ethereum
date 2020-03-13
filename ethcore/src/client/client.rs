@@ -36,7 +36,7 @@ use rlp::PayloadInfo;
 use rustc_hex::FromHex;
 use trie::{Trie, TrieFactory, TrieSpec};
 
-use account_state::State;
+use account_state::{State, Backend};
 use account_state::state::StateInfo;
 use block::{ClosedBlock, Drain, enact, LockedBlock, OpenBlock, SealedBlock};
 use blockchain::{
@@ -722,6 +722,10 @@ impl Client {
 
 		let journal_db = journaldb::new(db.key_value().clone(), config.pruning, ::db::COL_STATE);
 		let mut state_db = StateDB::new(journal_db, config.state_cache_size);
+		// let canary = H256::from_str("59e7449aaced683b3ca8826910182e66444f16da575d9751b28a59f44e70d0b1").unwrap();
+		use std::str::FromStr;
+		let canary_addr = Address::from_str("ea674fdde714fd979de3edf0f56aa9716b898ec8").unwrap();
+		trace!(target: "dp", "[Client::new] Just loaded the bloom. Is the canary {} known as null? {}", canary_addr, state_db.is_known_null(&canary_addr));
 		if state_db.journal_db().is_empty() {
 			// Sets the correct state root.
 			state_db = spec.ensure_db_good(state_db, &factories)?;

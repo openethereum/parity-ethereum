@@ -1005,6 +1005,10 @@ impl<B: Backend> State<B> {
 				let canary_addr = Address::from_str("ea674fdde714fd979de3edf0f56aa9716b898ec8").unwrap();
 				if a == &canary_addr {
 					trace!(target: "dp", "[ensure_cached] checking if {:?}/{:?} is in the DB", canary_addr, canary);
+					if self.db.is_known_null(a) {
+						panic!("Bloom says {} is null, but we know it's there", a)
+					}
+
 				}
 				// todo[dvdplm] why aren't we running this check before checking local/global cache?
 				if check_null && self.db.is_known_null(a) { return Ok(f(None)); }

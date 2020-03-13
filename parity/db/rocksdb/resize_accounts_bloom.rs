@@ -133,7 +133,8 @@ pub fn generate_bloom(source: Arc<Database>) -> Result<(), Error> {
 					debug!(target: "migration", "DB contains {:?} (not empty)", account_key_hash);
 				}
 				non_empties += 1;
-				bloom.set(account_key_hash);
+				// bloom.set(account_key_hash);
+				bloom.set(account_key);
 			}
 		}
 
