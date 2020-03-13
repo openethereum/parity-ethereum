@@ -7,6 +7,7 @@ license = "GPL-3.0"
 authors = ["Open Ethereum developers", "Parity Technologies <admin@parity.io>"]
 
 [dependencies]
+account-state = {path = "ethcore/account-state" }
 ansi_term = "0.11"
 atty = "0.2.8"
 blooms-db = { path = "util/blooms-db" }

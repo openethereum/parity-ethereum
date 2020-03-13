@@ -20,6 +20,7 @@ extern crate kvdb_rocksdb;
 extern crate migration_rocksdb;
 extern crate state_db;
 extern crate patricia_trie_ethereum as ethtrie;
+extern crate account_state;
 
 #[cfg(test)]
 extern crate tempdir;
