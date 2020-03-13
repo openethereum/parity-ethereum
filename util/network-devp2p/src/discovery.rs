@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
+//! Ethereum Node Discovery Protocol V4
+
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::collections::hash_map::Entry;
 use std::convert::{TryFrom, TryInto};
@@ -34,6 +36,9 @@ use crate::PROTOCOL_VERSION;
 
 /// Maximum Node discovery packet size
 pub const MAX_DATAGRAM_SIZE: usize = 1280;
+/// Minimum node discovery packet size
+// TODO(niklasad1): why 4?
+const MIN_DATAGRAM_SIZE: usize = HASH_LEN + SIGNATURE_LEN + PACKET_TYPE_LEN + 4;
 
 /// Size of address type in bytes.
 const ADDRESS_BYTES_SIZE: usize = 32;
@@ -869,15 +874,14 @@ fn append_expiration(rlp: &mut RlpStream) {
 	rlp.append(&timestamp);
 }
 
-
 /// Helper function to assemble node discovery packets
 ///
-/// The packet format is: `hash | signature | payload | packet_type`, where the maximum packet length is 1280 bytes
+/// The packet format is: `hash || signature || packet_type || payload`, where the maximum packet length is 1280 bytes
 fn assemble_packet(packet_id: PacketKind, payload: Bytes, secret: &Secret) -> Result<(Bytes, H256), Error> {
 	let packet_len = payload.len() + HASH_LEN + SIGNATURE_LEN + PACKET_TYPE_LEN;
 
 	if !packet_has_valid_length(packet_len) {
-		warn!(target: "discovery", "Invalid packet length: {}", packet_len);
+		warn!(target: "discovery", "Ignored to write discovery packet with invalid packet length: {}, expected to be in range {} - {}", packet_len, MIN_DATAGRAM_SIZE, MAX_DATAGRAM_SIZE);
 		return Err(Error::BadProtocol);
 	}
 
@@ -894,9 +898,11 @@ fn assemble_packet(packet_id: PacketKind, payload: Bytes, secret: &Secret) -> Re
 }
 
 /// Helper to disassemble node discovery packets
+///
+/// The packet format is: `hash || signature || packet_type || payload`, where the maximum packet length is 1280 bytes
 fn disassemble_packet(packet: &[u8]) -> Result<(NodeId, &[u8], PacketKind, H256), Error> {
 	if !packet_has_valid_length(packet.len()) {
-		warn!(target: "discovery", "Invalid packet length: {}", packet.len());
+		warn!(target: "discovery", "Ignored to read discovery packet with invalid packet length: {}, expected to be in range {} - {}", packet.len(), MIN_DATAGRAM_SIZE, MAX_DATAGRAM_SIZE);
 		return Err(Error::BadProtocol);
 	}
 
@@ -927,8 +933,7 @@ fn sign_payload_with_packet_id(secret: &Secret, payload_with_packet_id: &[u8]) -
 }
 
 fn packet_has_valid_length(packet_len: usize) -> bool {
-	// Q(niklasad1): why `4`?
-	if packet_len > MAX_DATAGRAM_SIZE || packet_len < HASH_LEN + SIGNATURE_LEN + PACKET_TYPE_LEN + 4 {
+	if packet_len > MAX_DATAGRAM_SIZE || packet_len < MIN_DATAGRAM_SIZE {
 		false
 	} else {
 		true
