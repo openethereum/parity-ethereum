@@ -26,7 +26,7 @@ jobs:
       # https://github.com/actions/cache/issues/133 
       - name:                   Fixup the owner of ~/.cargo/
         if:                     matrix.platform == 'ubuntu-16.04'
-        run:                    sudo chown -R $(whoami):$(id -ng) ~/.cargo
+        run:                    sudo chown -R $(whoami):$(id -ng) ~/.cargo/
       - name:                   Checkout submodules
         shell:                  bash
         run:                    git submodule update --init --recursive
