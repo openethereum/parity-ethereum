@@ -134,6 +134,11 @@ mod server {
 
 	const SECP_TEST_MESSAGE: H256 = H256([1_u8; 32]);
 
+	/// Version of the secret store database
+	const SECRET_STORE_DB_VERSION: &str = "4";
+	/// Version file name
+	const SECRET_STORE_DB_VERSION_FILE_NAME: &str = "db_version";
+
 	fn into_service_contract_address(address: ContractAddress) -> parity_secretstore::ContractAddress {
 		match address {
 			ContractAddress::Registry => parity_secretstore::ContractAddress::Registry,
@@ -209,6 +214,13 @@ mod server {
 			};
 
 			cconf.cluster_config.nodes.insert(self_secret.public().clone(), cconf.cluster_config.listener_address.clone());
+
+			// Create a file containing the version of the database of the SecretStore
+			// when no database exists yet
+			if std::fs::read_dir(&conf.data_path).map_or(false, |mut list| list.next().is_none ()) {
+				std::fs::write(std::path::Path::new(&conf.data_path).join(SECRET_STORE_DB_VERSION_FILE_NAME), SECRET_STORE_DB_VERSION)
+				.map_err(|e| format!("Error creating SecretStore database version file: {}", e))?;
+			}
 
 			let db = parity_secretstore::open_secretstore_db(&conf.data_path)?;
 			let trusted_client = TrustedClient::new(self_secret.clone(), deps.client, deps.sync, deps.miner);
