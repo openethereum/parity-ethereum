@@ -14,13 +14,10 @@ jobs:
       - name:                   Checkout sources
         uses:                   actions/checkout@v2
         with:
-          fetch-depth:          50
+          submodules:           true
       # https://github.com/actions/cache/issues/133
       - name:                   Fixup the owner of ~/.cargo/
         run:                    sudo chown -R $(whoami):$(id -ng) ~/.cargo/
-      - name:                   Checkout submodules
-        shell:                  bash
-        run:                    git submodule update --init --recursive
       - name:                   Install stable toolchain
         uses:                   actions-rs/toolchain@v1
         with:
