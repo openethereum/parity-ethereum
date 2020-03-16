@@ -27,14 +27,16 @@ jobs:
       - name:                   Fixup the owner of ~/.cargo/
         if:                     matrix.platform == 'ubuntu-16.04'
         run:                    sudo chown -R $(whoami):$(id -ng) ~/.cargo/
-      - name:                   Fixup the owner of C:\Users\runneradmin\.cargo\
+      - name:                   Fixup the owner of C:\Users\runneradmin\.cargo\registry
         if:                     matrix.platform == 'windows-latest'
         shell:                  powershell
         run:                    |
-          $acl = Get-Acl "C:\Users\runneradmin\.cargo\"
-          $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule("everyone","FullControl","Allow")
+          $registry-path = "C:\Users\runneradmin\.cargo\registry"
+          Get-Acl $registry-path | fl
+          $acl = Get-Acl 
+          $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule("everyone","FullControl","ContainerInherit,ObjectInherit", "None", "Allow")
           $acl.SetAccessRule($accessRule)
-          $acl | Set-Acl "C:\Users\runneradmin\.cargo\"      
+          $acl | Set-Acl $registry-path      
       - name:                   Install toolchain
         uses:                   actions-rs/toolchain@v1
         with:
