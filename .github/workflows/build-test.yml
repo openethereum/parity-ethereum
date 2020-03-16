@@ -31,6 +31,7 @@ jobs:
         if:                     matrix.platform == 'windows-latest'
         shell:                  powershell
         run:                    |
+          Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy Unrestricted -Force
           $registryPath = "C:\Rust\.cargo\registry"
           Get-Acl $registryPath | fl *
           $acl = Get-Acl 
