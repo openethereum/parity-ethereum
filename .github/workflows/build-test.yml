@@ -31,12 +31,13 @@ jobs:
         if:                     matrix.platform == 'windows-latest'
         shell:                  powershell
         run:                    |
-          $registry-path = "C:\Users\runneradmin\.cargo\registry"
-          Get-Acl $registry-path | fl
+          $registryPath = "C:\Users\runneradmin\.cargo\registry"
+          Get-Acl $registryPath | fl *
           $acl = Get-Acl 
           $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule("everyone","FullControl","ContainerInherit,ObjectInherit", "None", "Allow")
           $acl.SetAccessRule($accessRule)
-          $acl | Set-Acl $registry-path      
+          $acl | Set-Acl $registryPath
+          Get-Acl $registryPath | fl *    
       - name:                   Install toolchain
         uses:                   actions-rs/toolchain@v1
         with:
