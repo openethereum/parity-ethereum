@@ -21,7 +21,7 @@ jobs:
     runs-on:                    ${{ matrix.platform }}
     steps:
       - name:                   Checkout sources
-        uses:                   actions/checkout@v2
+        uses:                   actions/checkout@master
       # https://github.com/actions/cache/issues/133
       - name:                   Fixup the owner of ~/.cargo/
         shell:                  bash
