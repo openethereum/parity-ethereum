@@ -31,7 +31,7 @@ jobs:
         if:                     matrix.platform == 'windows-latest'
         shell:                  powershell
         run:                    |
-          $registryPath = "C:\Users\runneradmin\.cargo\registry"
+          $registryPath = "C:\Rust\.cargo\registry"
           Get-Acl $registryPath | fl *
           $acl = Get-Acl 
           $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule("everyone","FullControl","ContainerInherit,ObjectInherit", "None", "Allow")
