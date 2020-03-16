@@ -877,7 +877,7 @@ impl RunningClient {
 				wait_for_drop(weak_client);
 			},
 			RunningClientInner::Full { rpc, informant, client, client_service, keep_alive } => {
-				info!("Finishing work, please wait...");
+				info!("Finishing work, please wait... Best block: {}", client.best_block_header().number());
 				// Create a weak reference to the client so that we can wait on shutdown
 				// until it is dropped
 				let weak_client = Arc::downgrade(&client);

@@ -28,7 +28,7 @@ use log::{debug, trace};
 use lru_cache::LruCache;
 use parking_lot::Mutex;
 
-use account_state::{self, Account, Backend};
+use account_state::{self, Account};
 use bloom_journal::{Bloom, BloomJournal};
 use common_types::BlockNumber;
 use ethcore_db::COL_ACCOUNT_BLOOM;
@@ -39,15 +39,16 @@ use memory_cache::MemoryLruCache;
 /// Value used to initialize bloom bitmap size.
 ///
 /// Bitmap size is the size in bytes (not bits) that will be allocated in memory.
-pub const ACCOUNT_BLOOM_SPACE: usize = 1048576;
-// pub const ACCOUNT_BLOOM_SPACE: usize = 10485760;
+// pub const ACCOUNT_BLOOM_SPACE: usize = 1048576;
+pub const ACCOUNT_BLOOM_SPACE: usize = 10485760;
+// pub const ACCOUNT_BLOOM_SPACE: usize = 5482353;
 
 /// Value used to initialize bloom items count.
 ///
 /// Items count is an estimation of the maximum number of items to store.
 // todo[dvdplm]: figure out where this estimate came from – there are 100M accounts, so 1M seems small?
-pub const DEFAULT_ACCOUNT_PRESET: usize = 1_000_000;
-// pub const DEFAULT_ACCOUNT_PRESET: usize = 100_000_000;
+// pub const DEFAULT_ACCOUNT_PRESET: usize = 1_000_000;
+pub const DEFAULT_ACCOUNT_PRESET: usize = 200_000_000;
 
 /// Key for a value storing amount of hashes
 pub const ACCOUNT_BLOOM_HASHCOUNT_KEY: &'static [u8] = b"account_hash_count";
@@ -172,13 +173,11 @@ impl StateDB {
 			db,
 			account_cache: Arc::new(Mutex::new(AccountCache {
 				accounts: LruCache::new(cache_items),
-				// modifications: VecDeque::new(),
 				modifications: VecDeque::with_capacity(4096),
 			})),
 			code_cache: Arc::new(Mutex::new(MemoryLruCache::new(code_cache_size))),
 			// todo[dvdplm] how big does this grow?
 			local_cache: Vec::with_capacity(4096),
-			// local_cache: Vec::new(),
 			account_bloom: Arc::new(Mutex::new(bloom)),
 			cache_size,
 			parent_hash: None,
@@ -186,9 +185,6 @@ impl StateDB {
 			commit_number: None,
 			bloom_stats: BloomStats::default(),
 		};
-		use std::str::FromStr;
-		let canary_addr = Address::from_str("ea674fdde714fd979de3edf0f56aa9716b898ec8").unwrap();
-		debug!(target: "account_bloom", "[StateDB::new] Is {} a known null? {}", canary_addr, state_db.is_known_null(&canary_addr));
 		state_db
 	}
 
@@ -199,17 +195,13 @@ impl StateDB {
 			.expect("Low-level database error");
 
 		let hash_count_bytes = match hash_count_entry {
-			Some(bytes) => {
-				// trace!(target: "dp", "[load_bloom] found bloom data on disk: {}", bytes.len());
-				bytes
-			},
+			Some(bytes) => bytes,
 			None => return Bloom::new(ACCOUNT_BLOOM_SPACE, DEFAULT_ACCOUNT_PRESET),
 		};
 
 		assert_eq!(hash_count_bytes.len(), 1);
 		let hash_count = hash_count_bytes[0];
-		trace!(target: "dp", "[load_bloom] hashes loaded from on-disk bloom: {}", hash_count);
-		let mut bloom_parts = vec![0u64; ACCOUNT_BLOOM_SPACE / 8]; //a vec of size 131 072
+		let mut bloom_parts = vec![0u64; ACCOUNT_BLOOM_SPACE / 8];
 		for i in 0..ACCOUNT_BLOOM_SPACE / 8 {
 			let key: [u8; 8] = (i as u64).to_le_bytes();
 			bloom_parts[i] = db.get(COL_ACCOUNT_BLOOM, &key).expect("low-level database error")
@@ -223,15 +215,11 @@ impl StateDB {
 		}
 
 		let bloom = Bloom::from_parts(&bloom_parts, hash_count as u32);
-		// debug!(target: "account_bloom", "Bloom is {:?} full, hash functions count = {:?}", bloom.saturation(), hash_count);
 		debug!(target: "account_bloom", "[load_bloom] Loaded bloom from DB. Saturation={}, number_of_bits={}, number_of_hash_functions={}",
 		       bloom.saturation(),
 		       bloom.number_of_bits(),
 		       bloom.number_of_hash_functions(),
 		);
-		use std::str::FromStr;
-		let canary = H256::from_str("59e7449aaced683b3ca8826910182e66444f16da575d9751b28a59f44e70d0b1").unwrap();
-		debug!(target: "account_bloom", "[load_bloom] Is {} in the bloom, i.e. not null? {}", canary, bloom.check(&canary));
 
 		// debug!(target: "account_bloom", "recommended bitmap size for {} items at 90% accuracy: {}", DEFAULT_ACCOUNT_PRESET, Bloom::compute_bitmap_size(DEFAULT_ACCOUNT_PRESET, 0.9));
 		//
@@ -527,27 +515,18 @@ impl account_state::Backend for StateDB {
 		self.bloom_stats.sets.fetch_add(1, Ordering::SeqCst);
 		trace!(target: "account_bloom", "Note account is not null in bloom: {:?} -> {:?}", address, keccak(address));
 		let mut bloom = self.account_bloom.lock();
-		bloom.set(keccak(address).as_bytes());
-		// bloom.set(keccak(address));
+		bloom.set(keccak(address));
 	}
 
 	fn is_known_null(&self, address: &Address) -> bool {
 		self.bloom_stats.queries.fetch_add(1, Ordering::SeqCst);
 		let bloom = self.account_bloom.lock();
-		// let address_hash = keccak(address);
-		// let is_there = bloom.check(address_hash);
-		// let is_there2 = bloom.check(address_hash.as_bytes());
-
-
-		let is_null = !bloom.check(keccak(address).as_bytes());
-		// let is_null = !bloom.check(keccak(address));
+		let is_null = !bloom.check(keccak(address));
 		if !is_null {
 			trace!(target: "account_bloom", "[is_known_null] Account bloom for address {:?} says it is in the DB with key {:?}", address, keccak(address));
 			self.bloom_stats.hits.fetch_add(1, Ordering::SeqCst);
 		} else {
 			trace!(target: "account_bloom", "[is_known_null] Account bloom for address {:?} says it is NOT in the DB with key {:?}", address, keccak(address));
-			// trace!(target: "account_bloom", "[is_known_null] is_there={}, is_there2={}", is_there, is_there2);
-			// trace!(target: "account_bloom", "Check account bloom {:?} is NOT the DB", address);
 		}
 		is_null
 	}

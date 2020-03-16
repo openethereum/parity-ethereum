@@ -580,12 +580,6 @@ impl<B: Backend> State<B> {
 		}
 
 		// check if the account could exist before any requests to trie
-		use std::str::FromStr;
-		let canary = H256::from_str("59e7449aaced683b3ca8826910182e66444f16da575d9751b28a59f44e70d0b1").unwrap();
-		let canary_addr = Address::from_str("ea674fdde714fd979de3edf0f56aa9716b898ec8").unwrap();
-		if address == &canary_addr {
-			trace!(target: "dp", "[storage_at_inner] checking if {:?}/{:?} is in the DB", canary_addr, canary);
-		}
 		if self.db.is_known_null(address) { return Ok(H256::zero()) }
 
 		// account is not found in the global cache, get from the DB and insert into local
@@ -1000,16 +994,6 @@ impl<B: Backend> State<B> {
 			Some(r) => Ok(r?),
 			None => {
 				// first check if it is not in database for sure
-				use std::str::FromStr;
-				let canary = H256::from_str("59e7449aaced683b3ca8826910182e66444f16da575d9751b28a59f44e70d0b1").unwrap();
-				let canary_addr = Address::from_str("ea674fdde714fd979de3edf0f56aa9716b898ec8").unwrap();
-				if a == &canary_addr {
-					trace!(target: "dp", "[ensure_cached] checking if {:?}/{:?} is in the DB", canary_addr, canary);
-					if self.db.is_known_null(a) {
-						panic!("Bloom says {} is null, but we know it's there", a)
-					}
-
-				}
 				// todo[dvdplm] why aren't we running this check before checking local/global cache?
 				if check_null && self.db.is_known_null(a) { return Ok(f(None)); }
 
@@ -1046,12 +1030,6 @@ impl<B: Backend> State<B> {
 			match self.db.get_cached_account(a) {
 				Some(acc) => self.insert_cache(a, AccountEntry::new_clean_cached(acc)),
 				None => {
-					use std::str::FromStr;
-					let canary = H256::from_str("59e7449aaced683b3ca8826910182e66444f16da575d9751b28a59f44e70d0b1").unwrap();
-					let canary_addr = Address::from_str("ea674fdde714fd979de3edf0f56aa9716b898ec8").unwrap();
-					if a == &canary_addr {
-						trace!(target: "dp", "[require_or_from] checking if {:?}/{:?} is in the DB", canary_addr, canary);
-					}
 					let maybe_acc = if !self.db.is_known_null(a) {
 						let db = &self.db.as_hash_db();
 						let db = self.factories.trie.readonly(db, &self.root)?;

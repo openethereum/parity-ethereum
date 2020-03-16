@@ -17,37 +17,113 @@
 //! Resize the accounts bloom filter for modern times
 //! todo[dvdplm] document the choice of parameters etc
 
-use std::path::Path;
-use types::errors::EthcoreError as Error;
-use super::kvdb_rocksdb::{Database, DatabaseConfig};
+use std::{
+	path::Path,
+	sync::Arc,
+};
 
-use std::sync::Arc;
 use ethcore_db::{COL_EXTRA, COL_HEADERS, COL_STATE, COL_ACCOUNT_BLOOM};
-use super::state_db::{ACCOUNT_BLOOM_SPACE, DEFAULT_ACCOUNT_PRESET, StateDB};
-use super::ethtrie::TrieDB;
-use super::accounts_bloom::Bloom; // todo[dvdplm] rename this crate
-use ethereum_types::H256;
+use ethereum_types::{H256, U256};
 use journaldb;
-use kvdb::{DBTransaction, KeyValueDB};
-use trie_db::Trie;
-use types::views::{HeaderView, ViewRlp};
-use ethereum_types::U256;
+use kvdb::DBTransaction;
 use super::account_state::account::Account as StateAccount;
-use std::str::FromStr;
-use std::collections::HashSet;
+use super::accounts_bloom::Bloom; // todo[dvdplm] rename this crate
+use super::ethtrie::TrieDB;
+use super::kvdb_rocksdb::{Database, DatabaseConfig};
+use super::state_db::{ACCOUNT_BLOOM_SPACE, DEFAULT_ACCOUNT_PRESET, StateDB};
+use trie_db::Trie;
+use types::{
+	errors::EthcoreError as Error,
+	views::{HeaderView, ViewRlp},
+};
+use rlp::{RlpStream, Rlp};
 
 pub fn resize_accounts_bloom<P: AsRef<Path>>(path: P, db_config: &DatabaseConfig) -> Result<(), Error> {
 	let path_str = path.as_ref().to_string_lossy();
 	let db = Arc::new(Database::open(&db_config, &path_str)?);
 
-	generate_bloom(db)
+	// generate_bloom(db)
+	Ok(())
 }
 
+
+pub fn backup_bloom(bloom_backup_path: &Path, source: Arc<Database>) -> Result<(), Error> {
+	let num_keys = source.num_keys(COL_ACCOUNT_BLOOM)? as usize;
+	if num_keys == 0 {
+		warn!("No bloom in the DB to back up");
+		return Ok(())
+	}
+
+	let mut bloom_backup = std::fs::File::create(bloom_backup_path)
+		.map_err(|_| format!("Cannot write to file given: {}", bloom_backup_path.display()))?;
+
+	info!("Saving old bloom to '{}'", bloom_backup_path.display());
+	let mut stream = RlpStream::new();
+	stream.begin_unbounded_list();
+	for (n, (k, v)) in source.iter(COL_ACCOUNT_BLOOM).enumerate() {
+		stream
+			.begin_list(2)
+			.append(&k.to_vec())
+			.append(&v.to_vec());
+		if n > 0 && n % 50_000 == 0 {
+			info!("Bloom entries processed: {}", n);
+		}
+	}
+	stream.finalize_unbounded_list();
+
+	use std::io::Write;
+	let written = bloom_backup.write(&stream.out())?;
+	info!("Saved old bloom to '{}' ({} bytes)", bloom_backup_path.display(), written);
+	Ok(())
+}
+
+fn restore_bloom(bloom_backup_path: &Path, db: Arc<Database>) -> Result<(), Error> {
+	let mut bloom_backup = std::fs::File::open(bloom_backup_path)?;
+	info!("Restoring bloom from '{}'", bloom_backup_path.display());
+	let num_keys = db.num_keys(COL_ACCOUNT_BLOOM)? as usize;
+	if num_keys != 0 {
+		warn!("Will not overwrite existing bloom! ({} items found in the DB)", num_keys);
+		return Err(format!("Blooms DB column is not empty").into())
+	}
+	let mut buf = Vec::with_capacity(10_000_000);
+	use std::io::Read;
+	let bytes_read = bloom_backup.read_to_end(&mut buf)?;
+	let rlp = Rlp::new(&buf);
+	info!("{} bloom key/values and {} bytes read from disk", rlp.item_count()?, bytes_read);
+
+	let mut batch = DBTransaction::with_capacity(rlp.item_count()?);
+	for (n, kv_rlp) in rlp.iter().enumerate() {
+		let kv: Vec<Vec<u8>> = kv_rlp.as_list()?;
+		assert_eq!(kv.len(), 2);
+		batch.put(COL_ACCOUNT_BLOOM, &kv[0], &kv[1]);
+		if n > 0 && n % 10_000 == 0 {
+			info!("Bloom entries prepared for restoration: {}", n);
+		}
+	}
+	db.write(batch)?;
+	db.flush()?;
+	info!("Bloom restored");
+	Ok(())
+}
+
+fn clear_bloom(db: Arc<Database>) -> Result<(), Error> {
+	let num_keys_before_del = db.num_keys(COL_ACCOUNT_BLOOM)? as usize;
+	info!("Clearing out old accounts bloom ({} keys)", num_keys_before_del);
+	let mut batch = DBTransaction::with_capacity(num_keys_before_del);
+	for (n, (k,_)) in db.iter(COL_ACCOUNT_BLOOM).enumerate() {
+		batch.delete(COL_ACCOUNT_BLOOM, &k);
+		if n > 0 && n % 10_000 == 0 {
+			info!("Bloom entries queued for deletion: {}", n);
+		}
+	}
+	debug!(target: "migration", "Deleting {} old bloom items from the DB", batch.ops.len());
+	db.write(batch)?;
+	db.flush().map_err(|e| Error::StdIo(e))
+}
 
 /// Account bloom upgrade routine. If bloom already present, does nothing.
 /// If database empty (no best block), does nothing.
 /// Can be called on upgraded database with no issues (will do nothing).
-// pub fn generate_bloom(source: Arc<Database>, dest: &mut Database) -> Result<(), Error> {
 pub fn generate_bloom(source: Arc<Database>) -> Result<(), Error> {
 	info!(target: "migration", "Account bloom upgrade started");
 	let best_block_hash = match source.get(COL_EXTRA, b"best")? {
@@ -66,117 +142,64 @@ pub fn generate_bloom(source: Arc<Database>) -> Result<(), Error> {
 		},
 		Some(x) => x,
 	};
-	let view = ViewRlp::new(&best_block_header, "", 1);
-	let state_root = HeaderView::new(view).state_root();
-	trace!(target: "dp", "state root migration: {:?}", state_root);
 
-	let num_keys_before_del = source.num_keys(COL_ACCOUNT_BLOOM)?;
-	info!("Clearing out old accounts bloom ({} keys)", num_keys_before_del);
-	let mut batch = DBTransaction::new();
-	for (n, (k,_)) in source.iter(COL_ACCOUNT_BLOOM).enumerate() {
-		if n > 0 && n % 10_000 == 0 {
-			info!("Bloom entries processed: {}", n);
-		}
-		batch.delete(COL_ACCOUNT_BLOOM, &k);
-	}
-	debug!(target: "migration", "bloom items to delete {}", batch.ops.len());
-	source.write(batch)?;
-	source.flush()?;
-	let num_keys_after_del = source.num_keys(COL_ACCOUNT_BLOOM)?;
-	info!("Cleared out old accounts bloom ({} keys)", num_keys_after_del);
+	let num_keys_before_del = source.num_keys(COL_ACCOUNT_BLOOM)? as usize;
+	use std::time::{SystemTime, UNIX_EPOCH};
+	let bloom_backup_path_str = format!("./bloom-backup-{:?}.bin", SystemTime::now().duration_since(UNIX_EPOCH).expect("system clock error").as_secs());
+	let bloom_backup_path = std::path::Path::new(&bloom_backup_path_str);
+	backup_bloom(bloom_backup_path, source.clone())?;
+	// clear_bloom(source.clone())?;
+	// let test_path = std::path::Path::new("./bloom-backup-1584359135.bin");
+	// restore_bloom(test_path, source.clone())?;
+	info!("STOP");
+	return Ok(());
 
 	info!("Creating the accounts bloom (one-time upgrade)");
 
-	let mut empties = 0u64;
-	let mut non_empties = 0u64;
+	let mut empty_accounts = 0u64;
+	let mut non_empty_accounts = 0u64;
 
-	let mut hs: HashSet<H256> = HashSet::new();
-	// All hashes that are looked up before verification failure
-	hs.insert(H256::from_str("1c5e6ae7c6cb17fc942a0c5c4061a4168fb31c0380dae26acea079b8508a4884").unwrap());
-	hs.insert(H256::from_str("5380c7b7ae81a58eb98d9c78de4a1fd7fd9535fc953ed2be602daaa41767312a").unwrap());
-	hs.insert(H256::from_str("59e7449aaced683b3ca8826910182e66444f16da575d9751b28a59f44e70d0b1").unwrap());
-	hs.insert(H256::from_str("a7c33937fe86045ad5fc94249d77bd8d94d5ba11a9977602d8771e806e621621").unwrap());
-	hs.insert(H256::from_str("bc370692f7423557740dbac30cb0aecf3af03d5900eba4f47a759381d4a18578").unwrap());
-	hs.insert(H256::from_str("d0220c1805eeae7d9e997053ec79f29a83128d3394ecdf1916caa0ffea57b3dd").unwrap());
-	hs.insert(H256::from_str("dc0b9c5df8db94d2d30c482ff54d87d8734b22ab667dadae2b3c3dfcf0174167").unwrap());
-
-	// let bloom_journal = {
 	let mut bloom = {
 		let mut bloom = Bloom::new(ACCOUNT_BLOOM_SPACE, DEFAULT_ACCOUNT_PRESET);
-		// no difference what algorithm is passed, since there will be no writes
 		let state_db = journaldb::new(
 			source.clone(),
+			// It does not matter which `journaldb::Algorithm` is used since
+			// there will be no writes to the state column.
 			journaldb::Algorithm::OverlayRecent,
 			COL_STATE);
 
 		let db = state_db.as_hash_db();
-
+		let view = ViewRlp::new(&best_block_header, "", 1);
+		let state_root = HeaderView::new(view).state_root();
 		let account_trie = TrieDB::new(&db, &state_root)?;
-
+		// Don't insert empty accounts into the bloom
 		let empty_account_rlp = StateAccount::new_basic(U256::zero(), U256::zero()).rlp();
-
+		let start = std::time::Instant::now();
+		let mut batch_start = std::time::Instant::now();
 		for (n, (account_key, account_data)) in account_trie.iter()?.filter_map(Result::ok).enumerate() {
-			if n > 0 && n % 10_000 == 0 {
-				info!("Accounts processed: {}. Bloom saturation: {} – length of an account key from the db: {}", n, bloom.saturation(), account_key.len());
+			if n > 0 && n % 50_000 == 0 {
+				info!("Accounts processed: {} in {:?}. Bloom saturation: {}", n, batch_start.elapsed(), bloom.saturation());
+				batch_start = std::time::Instant::now();
 			}
-			// let basic_account: BasicAccount = rlp::decode(&*account_data).expect("rlp from disk is ok");
-			let account_key_hash = H256::from_slice(&account_key);
-
-			if account_data == empty_account_rlp {
-				// debug!(target: "migration", "Empty account at hash: {:?}, data={:?}", account_key_hash, account_data);
-				if hs.contains(&account_key_hash) {
-					debug!(target: "migration", "DB contains {:?} (empty account though)", account_key_hash);
-				}
-				empties += 1;
+			if account_data != empty_account_rlp {
+				non_empty_accounts += 1;
+				let account_key_hash = H256::from_slice(&account_key);
+				bloom.set(account_key_hash);
 			} else {
-				if hs.contains(&account_key_hash) {
-					debug!(target: "migration", "DB contains {:?} (not empty)", account_key_hash);
-				}
-				non_empties += 1;
-				// bloom.set(account_key_hash);
-				bloom.set(account_key);
+				empty_accounts += 1;
 			}
 		}
-
-		// bloom.drain_journal()
+		info!("Finished iterating over the accounts in: {:?}. Bloom saturation: {}", start.elapsed(), bloom.saturation());
 		bloom
 	};
 
-	for h in hs.iter() {
-		if bloom.check(h) {
-			debug!(target: "migration", "Bloom says {:?} is in the DB", h);
-		} else {
-			debug!(target: "migration", "Bloom says {:?} is NOT the DB", h);
-		}
-	}
 	let bloom_journal = bloom.drain_journal();
-	info!(target: "migration", "Generated {} bloom updates, empty accounts={}, non-empty accounts={}", bloom_journal.entries.len(), empties, non_empties);
+	info!(target: "migration", "Generated {} bloom updates, empty accounts={}, non-empty accounts={}", bloom_journal.entries.len(), empty_accounts, non_empty_accounts);
 	info!(target: "migration", "k_bits (aka 'hash functions') in the resized BloomJournal: {}", bloom_journal.hash_functions);
 	let mut batch = DBTransaction::new();
 	StateDB::commit_bloom(&mut batch, bloom_journal)?;
 	source.write(batch)?;
 	source.flush()?;
-	let num_keys_after_insert = source.num_keys(COL_ACCOUNT_BLOOM)?;
-	debug!(target: "migration", "Keys in account bloom after insert: {}", num_keys_after_insert);
-
-	if let Ok(inner) = Arc::try_unwrap(source) {
-		let bloom2 = StateDB::load_bloom(&inner as &dyn KeyValueDB);
-		debug!(target: "migration", "Loaded new bloom from DB. Saturation={}, number_of_bits={}, number_of_hash_functions={}",
-			bloom2.saturation(),
-			bloom2.number_of_bits(),
-			bloom2.number_of_hash_functions(),
-		);
-		for h in hs.iter() {
-			if bloom2.check(h) {
-				debug!(target: "migration", "Reloaded bloom says {:?} is in the DB", h);
-			} else {
-				debug!(target: "migration", "Reloaded bloom says {:?} is NOT the DB", h);
-			}
-		}
-	}
-	// debug!(target: "migration", "NOT WRITING THE NEW BLOOM");
 	info!(target: "migration", "Finished bloom update");
-
-
 	Ok(())
 }
