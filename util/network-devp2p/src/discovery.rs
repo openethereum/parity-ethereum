@@ -55,19 +55,20 @@ const PACKET_PING: u8 = 1;
 const PACKET_PONG: u8 = 2;
 const PACKET_FIND_NODE: u8 = 3;
 const PACKET_NEIGHBOURS: u8 = 4;
-/// Packet type
+/// The length of the packet type
 const PACKET_TYPE_LEN: usize = 1;
 
 /// Node discovery packet kinds
+// TODO: add `ENR packets
 #[derive(Debug)]
-enum PacketKind {
+enum PacketType {
 	Ping = 1,
 	Pong = 2,
 	FindNode = 3,
 	Neighbours = 4,
 }
 
-impl TryFrom<u8> for PacketKind {
+impl TryFrom<u8> for PacketType {
 	type Error = Error;
 
 	fn try_from(kind: u8) -> Result<Self, Self::Error> {
@@ -419,7 +420,7 @@ impl Discovery {
 		node.endpoint.to_rlp_list(&mut rlp);
 		append_expiration(&mut rlp);
 		let old_parity_hash = keccak(rlp.as_raw());
-		let hash = self.send_packet(PacketKind::Ping, node.endpoint.udp_address(), rlp.drain())?;
+		let hash = self.send_packet(PacketType::Ping, node.endpoint.udp_address(), rlp.drain())?;
 
 		self.in_flight_pings.insert(node.id, PingRequest {
 			sent_at: Instant::now(),
@@ -437,7 +438,7 @@ impl Discovery {
 		let mut rlp = RlpStream::new_list(2);
 		rlp.append(target);
 		append_expiration(&mut rlp);
-		self.send_packet(PacketKind::FindNode, node.endpoint.udp_address(), rlp.drain())?;
+		self.send_packet(PacketType::FindNode, node.endpoint.udp_address(), rlp.drain())?;
 
 		self.in_flight_find_nodes.insert(node.id, FindNodeRequest {
 			sent_at: Instant::now(),
@@ -449,7 +450,7 @@ impl Discovery {
 		Ok(())
 	}
 
-	fn send_packet(&mut self, packet_id: PacketKind, address: SocketAddr, payload: Bytes) -> Result<H256, Error> {
+	fn send_packet(&mut self, packet_id: PacketType, address: SocketAddr, payload: Bytes) -> Result<H256, Error> {
 		let (packet, hash) = assemble_packet(packet_id, payload, &self.secret)?;
 		self.send_to(packet, address);
 		Ok(hash)
@@ -514,10 +515,10 @@ impl Discovery {
 		let (node_id, payload, packet_id, signed_hash) = disassemble_packet(packet)?;
 		let rlp = Rlp::new(payload);
 		match packet_id {
-			PacketKind::Ping => self.on_ping(&rlp, node_id, from, signed_hash),
-			PacketKind::Pong => self.on_pong(&rlp, node_id, from),
-			PacketKind::FindNode => self.on_find_node(&rlp, node_id, from),
-			PacketKind::Neighbours => self.on_neighbours(&rlp, node_id, from),
+			PacketType::Ping => self.on_ping(&rlp, node_id, from, signed_hash),
+			PacketType::Pong => self.on_pong(&rlp, node_id, from),
+			PacketType::FindNode => self.on_find_node(&rlp, node_id, from),
+			PacketType::Neighbours => self.on_neighbours(&rlp, node_id, from),
 		}
 	}
 
@@ -567,7 +568,7 @@ impl Discovery {
 
 		response.append(&echo_hash);
 		append_expiration(&mut response);
-		self.send_packet(PacketKind::Pong, from, response.drain())?;
+		self.send_packet(PacketType::Pong, from, response.drain())?;
 
 		let entry = NodeEntry { id: node_id, endpoint: pong_to };
 		if !entry.endpoint.is_valid_discovery_node() {
@@ -700,7 +701,7 @@ impl Discovery {
 		}
 		let mut packets = Discovery::prepare_neighbours_packets(&nearest);
 		for p in packets.drain(..) {
-			self.send_packet(PacketKind::Neighbours, node.endpoint.address, p)?;
+			self.send_packet(PacketType::Neighbours, node.endpoint.address, p)?;
 		}
 		trace!(target: "discovery", "Sent {} Neighbours to {:?}", nearest.len(), &node.endpoint);
 		Ok(())
@@ -877,7 +878,7 @@ fn append_expiration(rlp: &mut RlpStream) {
 /// Helper function to assemble node discovery packets
 ///
 /// The packet format is: `hash || signature || packet_type || payload`, where the maximum packet length is 1280 bytes
-fn assemble_packet(packet_id: PacketKind, payload: Bytes, secret: &Secret) -> Result<(Bytes, H256), Error> {
+fn assemble_packet(packet_id: PacketType, payload: Bytes, secret: &Secret) -> Result<(Bytes, H256), Error> {
 	let packet_len = payload.len() + HASH_LEN + SIGNATURE_LEN + PACKET_TYPE_LEN;
 
 	if !packet_has_valid_length(packet_len) {
@@ -900,7 +901,7 @@ fn assemble_packet(packet_id: PacketKind, payload: Bytes, secret: &Secret) -> Re
 /// Helper to disassemble node discovery packets
 ///
 /// The packet format is: `hash || signature || packet_type || payload`, where the maximum packet length is 1280 bytes
-fn disassemble_packet(packet: &[u8]) -> Result<(NodeId, &[u8], PacketKind, H256), Error> {
+fn disassemble_packet(packet: &[u8]) -> Result<(NodeId, &[u8], PacketType, H256), Error> {
 	if !packet_has_valid_length(packet.len()) {
 		warn!(target: "discovery", "Ignored to read discovery packet with invalid packet length: {}, expected to be in range {} - {}", packet.len(), MIN_DATAGRAM_SIZE, MAX_DATAGRAM_SIZE);
 		return Err(Error::BadProtocol);
@@ -908,8 +909,8 @@ fn disassemble_packet(packet: &[u8]) -> Result<(NodeId, &[u8], PacketKind, H256)
 
 	let payload_with_packet_id = &packet[HASH_LEN + SIGNATURE_LEN..];
 	let packet_kind = payload_with_packet_id[0];
-	let packet_kind: PacketKind = packet_kind.try_into().map_err(|e| {
-		debug!(target: "discovery", "Unknown UDP packet: {:?}", packet_kind);
+	let packet_kind: PacketType = packet_kind.try_into().map_err(|e| {
+		debug!(target: "discovery", "Unknown discovery packet id: {:?}", packet_kind);
 		e
 	})?;
 
@@ -1101,7 +1102,7 @@ mod tests {
 		let key = Random.generate();
 		discovery.send_find_node(&node_entries[100], key.public()).unwrap();
 		for payload in Discovery::prepare_neighbours_packets(&node_entries[101..116]) {
-			let (packet, _hash) = assemble_packet(PacketKind::Neighbours, payload, &key.secret()).unwrap();
+			let (packet, _hash) = assemble_packet(PacketType::Neighbours, payload, &key.secret()).unwrap();
 			discovery.on_packet(&packet, from).unwrap();
 		}
 
@@ -1113,7 +1114,7 @@ mod tests {
 		// FIND_NODE does not time out because it receives k results.
 		discovery.send_find_node(&node_entries[100], key.public()).unwrap();
 		for payload in Discovery::prepare_neighbours_packets(&node_entries[101..117]) {
-			let (packet, _hash) = assemble_packet(PacketKind::Neighbours, payload, &key.secret()).unwrap();
+			let (packet, _hash) = assemble_packet(PacketType::Neighbours, payload, &key.secret()).unwrap();
 			discovery.on_packet(&packet, from).unwrap();
 		}
 
@@ -1347,7 +1348,7 @@ mod tests {
 		incorrect_pong_rlp.append(&H256::zero());
 		append_expiration(&mut incorrect_pong_rlp);
 		let (incorrect_pong_data, _hash) = assemble_packet(
-			PacketKind::Pong, incorrect_pong_rlp.drain(), &discovery2.secret
+			PacketType::Pong, incorrect_pong_rlp.drain(), &discovery2.secret
 		).unwrap();
 		if let Some(_) = discovery1.on_packet(&incorrect_pong_data, ep2.address).unwrap() {
 			panic!("Expected no changes to discovery1's table because pong hash is incorrect");
@@ -1376,7 +1377,7 @@ mod tests {
 		unexpected_pong_rlp.append(&H256::zero());
 		append_expiration(&mut unexpected_pong_rlp);
 		let (unexpected_pong, _hash) = assemble_packet(
-			PacketKind::Pong, unexpected_pong_rlp.drain(), key3.secret()
+			PacketType::Pong, unexpected_pong_rlp.drain(), key3.secret()
 		).unwrap();
 		if let Some(_) = discovery1.on_packet(&unexpected_pong, ep3.address).unwrap() {
 			panic!("Expected no changes to discovery1's table for unexpected pong");
