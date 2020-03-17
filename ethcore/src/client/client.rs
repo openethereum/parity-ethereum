@@ -109,7 +109,7 @@ use types::{
 	BlockNumber,
 	call_analytics::CallAnalytics,
 	chain_notify::{ChainMessageType, ChainRoute, NewBlocks},
-	client_types::{ClientReport, Mode, StateResult},
+	client_types::{ClientReport, IoStats, Mode, StateResult},
 	encoded,
 	engines::{
 		epoch::{PendingTransition, Transition as EpochTransition},
@@ -1096,7 +1096,19 @@ impl Client {
 	/// Get the report.
 	pub fn report(&self) -> ClientReport {
 		let mut report = self.report.read().clone();
-		report.state_db_mem = self.state_db.read().mem_used();
+		let state_db = self.state_db.read();
+		report.state_db_mem = state_db.mem_used();
+		let io_stats = state_db.journal_db().io_stats();
+		report.io_stats = IoStats {
+			transactions: io_stats.transactions,
+			reads: io_stats.reads,
+			cache_reads: io_stats.cache_reads,
+			writes: io_stats.writes,
+			bytes_read: io_stats.bytes_read,
+			cache_read_bytes: io_stats.cache_read_bytes,
+			bytes_written: io_stats.bytes_written,
+		};
+
 		report
 	}
 

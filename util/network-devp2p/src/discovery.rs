@@ -169,9 +169,6 @@ struct PingRequest {
 	node: NodeEntry,
 	// The hash sent in the Ping request
 	echo_hash: H256,
-	// The hash Parity used to respond with (until rev 01f825b0e1f1c4c420197b51fc801cbe89284b29)
-	#[deprecated()]
-	deprecated_echo_hash: H256,
 	reason: PingReason
 }
 
@@ -293,23 +290,17 @@ impl Discovery {
         }.and_then(|(node_entry, bucket_distance)| {
 			trace!(target: "discovery", "Adding a new node {:?} into our bucket {}", &node_entry, bucket_distance);
 
-            let mut added = HashMap::with_capacity(1);
-            added.insert(node_entry.id, node_entry.clone());
-
-			let node_to_ping = {
-				let bucket = &mut self.node_buckets[bucket_distance];
-				bucket.nodes.push_front(BucketEntry::new(node_entry.clone()));
-				if bucket.nodes.len() > BUCKET_SIZE {
-					select_bucket_ping(bucket.nodes.iter())
-				} else {
-					None
+			let bucket = &mut self.node_buckets[bucket_distance];
+			bucket.nodes.push_front(BucketEntry::new(node_entry.clone()));
+			if bucket.nodes.len() > BUCKET_SIZE {
+				if let Some(node) = select_bucket_ping(bucket.nodes.iter()) {
+					self.try_ping(node, PingReason::Default);
 				}
-			};
-			if let Some(node) = node_to_ping {
-				self.try_ping(node, PingReason::Default);
-			};
+			}
 
             if node_entry.endpoint.is_valid_sync_node() {
+				let mut added = HashMap::with_capacity(1);
+				added.insert(node_entry.id, node_entry);
 				Some(TableUpdates { added, removed: HashSet::new() })
 			} else {
 				None
@@ -419,14 +410,12 @@ impl Discovery {
 		self.public_endpoint.to_rlp_list(&mut rlp);
 		node.endpoint.to_rlp_list(&mut rlp);
 		append_expiration(&mut rlp);
-		let old_parity_hash = keccak(rlp.as_raw());
 		let hash = self.send_packet(PacketType::Ping, node.endpoint.udp_address(), rlp.drain())?;
 
 		self.in_flight_pings.insert(node.id, PingRequest {
 			sent_at: Instant::now(),
 			node: node.clone(),
 			echo_hash: hash,
-			deprecated_echo_hash: old_parity_hash,
 			reason,
 		});
 
@@ -589,28 +578,15 @@ impl Discovery {
 		self.check_timestamp(timestamp)?;
 
 		let expected_node = match self.in_flight_pings.entry(node_id) {
-			Entry::Occupied(entry) => {
-				let expected_node = {
-					let request = entry.get();
-					if request.echo_hash != echo_hash && request.deprecated_echo_hash != echo_hash {
-						debug!(target: "discovery", "Got unexpected Pong from {:?} ; packet_hash={:#x} ; expected_hash={:#x}", &from, request.echo_hash, echo_hash);
-						None
-					} else {
-						if request.deprecated_echo_hash == echo_hash {
-							trace!(target: "discovery", "Got Pong from an old open-ethereum version.");
-						}
-						Some((request.node.clone(), request.reason))
-					}
-				};
-
-				if expected_node.is_some() {
-					entry.remove();
-				}
-				expected_node
-			},
-			Entry::Vacant(_) => {
+			Entry::Occupied(entry) if entry.get().echo_hash != echo_hash => {
+				debug!(target: "discovery", "Got unexpected Pong from {:?} ; packet_hash={:#x} ; expected_hash={:#x}", &from, entry.get().echo_hash, echo_hash);
 				None
 			},
+			Entry::Occupied(entry) => {
+				let request = entry.remove();
+				Some((request.node, request.reason))
+			},
+			Entry::Vacant(_) => None,
 		};
 
 		if let Some((node, ping_reason)) = expected_node {
@@ -626,7 +602,7 @@ impl Discovery {
 							debug!(target: "discovery", "Error occured when processing ping from a bucket node: {:?}", &error);
 						});
 					},
-					NodeValidity::UnknownNode | NodeValidity::ExpiredNode(NodeCategory::Observed) | NodeValidity::ValidNode(NodeCategory::Observed)=> {
+					NodeValidity::UnknownNode | NodeValidity::ExpiredNode(NodeCategory::Observed) | NodeValidity::ValidNode(NodeCategory::Observed) => {
 						trace!(target: "discovery", "Updating node {:?} in the list of other_observed_nodes", &node);
 						self.other_observed_nodes.insert(node.id, (node.endpoint, Instant::now()));
 					},
