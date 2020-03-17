@@ -99,6 +99,9 @@ pub struct ClientConfig {
 impl Default for ClientConfig {
 	fn default() -> Self {
 		let mb = 1024 * 1024;
+		// Note/TODO: the defaults here are overridden by the command line
+		// argument parser and changes to defaults here must be performed "over
+		// there" as well (see `cli/mod.rs`).
 		ClientConfig {
 			queue: Default::default(),
 			blockchain: Default::default(),
@@ -114,7 +117,7 @@ impl Default for ClientConfig {
 			state_cache_size: 1 * mb,
 			jump_table_size: 1 * mb,
 			history: 128,
-			history_mem: 48 * mb,
+			history_mem: 64 * mb,
 			check_seal: true,
 			transaction_verification_queue_size: 8192,
 			max_round_blocks_to_import: 12,
