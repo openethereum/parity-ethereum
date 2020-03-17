@@ -101,7 +101,7 @@ impl Default for ClientConfig {
 		let mb = 1024 * 1024;
 		// Note/TODO: the defaults here are overridden by the command line
 		// argument parser and changes to defaults here must be performed "over
-		// there" as well (see `cli/mod.rs`).
+		// there" as well (see `cli/mod.rs` and https://github.com/openethereum/openethereum/issues/11574).
 		ClientConfig {
 			queue: Default::default(),
 			blockchain: Default::default(),
