@@ -234,7 +234,7 @@ impl<K: Kind, C> VerificationQueue<K, C> {
 		let number_of_threads = if scale_verifiers {
 			max_verifiers
 		} else {
-			cmp::min(default_amount, max_verifiers)
+			default_amount
 		};
 
 		let state = Arc::new((Mutex::new(State::Work(default_amount)), Condvar::new()));
