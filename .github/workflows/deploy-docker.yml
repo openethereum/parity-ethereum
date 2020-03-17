@@ -22,9 +22,6 @@ jobs:
           override:             true
       - name:                   Deploy to docker hub
         uses: elgohr/Publish-Docker-Github-Action@master
-        env:
-          VCS_REF: $GITHUB_SHA
-          BUILD_DATE: $(date -u '+%Y-%m-%dT%H:%M:%SZ')
         with:
           name: openethereum/openethereum
           username: ${{ secrets.DOCKER_USERNAME }}
