@@ -12,7 +12,7 @@ Fast and feature-rich multi-network Ethereum client.
 [license-url]: LICENSE
 [ci-badge]: https://github.com/openethereum/openethereum/workflows/Build%20and%20Test%20Suite/badge.svg
 [ci-url]: https://github.com/openethereum/openethereum/actions
-[chat-badge]: https://img.shields.io/discord/669192218728202270.svg?logo=discord&style=flat-square
+[chat-badge]: https://img.shields.io/discord/669192218728202270.svg?logo=discord
 [chat-url]: https://discord.io/openethereum
 
 ## Table of Contents
