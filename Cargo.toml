@@ -113,8 +113,9 @@ path = "parity/main.rs"
 name = "parity"
 
 [profile.release]
-debug = false
-lto = true
+debug = true
+lto = "fat"
+codegen-units = 1
 
 [workspace]
 # This should only list projects that are not
