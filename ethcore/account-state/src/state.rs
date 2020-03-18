@@ -580,7 +580,7 @@ impl<B: Backend> State<B> {
 		}
 
 		// check if the account could exist before any requests to trie
-		// if self.db.is_known_null(address) { return Ok(H256::zero()) }
+		if self.db.is_known_null(address) { return Ok(H256::zero()) }
 
 		// account is not found in the global cache, get from the DB and insert into local
 		let db = &self.db.as_hash_db();
@@ -719,9 +719,9 @@ impl<B: Backend> State<B> {
 					account.commit_storage(&self.factories.trie, account_db.as_hash_db_mut())?;
 					account.commit_code(account_db.as_hash_db_mut());
 				}
-				// if !account.is_empty() {
-				// 	self.db.note_non_null_account(address);
-				// }
+				if !account.is_empty() {
+					self.db.note_non_null_account(address);
+				}
 			}
 		}
 
@@ -995,7 +995,7 @@ impl<B: Backend> State<B> {
 			None => {
 				// first check if it is not in database for sure
 				// todo[dvdplm] why aren't we running this check before checking local/global cache?
-				// if check_null && self.db.is_known_null(a) { return Ok(f(None)); }
+				if check_null && self.db.is_known_null(a) { return Ok(f(None)); }
 
 				// not found in the global cache, get from the DB and insert into local
 				let db = &self.db.as_hash_db();
@@ -1030,16 +1030,14 @@ impl<B: Backend> State<B> {
 			match self.db.get_cached_account(a) {
 				Some(acc) => self.insert_cache(a, AccountEntry::new_clean_cached(acc)),
 				None => {
-					// let maybe_acc = if !self.db.is_known_null(a) {
-					let maybe_acc = {
+					let maybe_acc = if !self.db.is_known_null(a) {
 						let db = &self.db.as_hash_db();
 						let db = self.factories.trie.readonly(db, &self.root)?;
-						let from_rlp = |b: &[u8]| { Account::from_rlp(b).expect("decoding db value failed") };
+						let from_rlp = |b:&[u8]| { Account::from_rlp(b).expect("decoding db value failed") };
 						AccountEntry::new_clean(db.get_with(a.as_bytes(), from_rlp)?)
+					} else {
+						AccountEntry::new_clean(None)
 					};
-					// } else {
-					// 	AccountEntry::new_clean(None)
-					// };
 					self.insert_cache(a, maybe_acc);
 				}
 			}

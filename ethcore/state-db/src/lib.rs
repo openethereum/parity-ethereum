@@ -121,7 +121,7 @@ pub struct StateDB {
 	/// Local dirty cache.
 	local_cache: Vec<CacheQueueItem>,
 	/// Shared account bloom. Does not handle chain reorganizations.
-	// account_bloom: Arc<Mutex<Bloom>>, // todo[dvdplm] Better with RWLock? Measure! Also: what can be done about reorgs?
+	account_bloom: Arc<Mutex<Bloom>>, // todo[dvdplm] Better with RWLock? Measure! Also: what can be done about reorgs?
 	cache_size: usize,
 	/// Hash of the block on top of which this instance was created or
 	/// `None` if cache is disabled
@@ -178,7 +178,7 @@ impl StateDB {
 			code_cache: Arc::new(Mutex::new(MemoryLruCache::new(code_cache_size))),
 			// todo[dvdplm] how big does this grow?
 			local_cache: Vec::with_capacity(4096),
-			// account_bloom: Arc::new(Mutex::new(bloom)),
+			account_bloom: Arc::new(Mutex::new(bloom)),
 			cache_size,
 			parent_hash: None,
 			commit_hash: None,
@@ -250,12 +250,12 @@ impl StateDB {
 
 	/// Journal all recent operations under the given era and ID.
 	pub fn journal_under(&mut self, batch: &mut DBTransaction, now: u64, id: &H256) -> io::Result<u32> {
-		// {
-		// 	let mut bloom_lock = self.account_bloom.lock();
-		// 	Self::commit_bloom(batch, bloom_lock.drain_journal())?;
-		// 	trace!(target: "dp", "[journal_under] comitted bloom; stats: {:?}", self.bloom_stats);
-		// 	self.bloom_stats = BloomStats::default()
-		// }
+		{
+			let mut bloom_lock = self.account_bloom.lock();
+			Self::commit_bloom(batch, bloom_lock.drain_journal())?;
+			trace!(target: "dp", "[journal_under] comitted bloom; stats: {:?}", self.bloom_stats);
+			self.bloom_stats = BloomStats::default()
+		}
 		let records = self.db.journal_under(batch, now, id)?;
 		self.commit_hash = Some(id.clone());
 		self.commit_number = Some(now);
@@ -382,7 +382,7 @@ impl StateDB {
 			account_cache: self.account_cache.clone(),
 			code_cache: self.code_cache.clone(),
 			local_cache: Vec::new(),
-			// account_bloom: self.account_bloom.clone(),
+			account_bloom: self.account_bloom.clone(),
 			cache_size: self.cache_size,
 			parent_hash: None,
 			commit_hash: None,
@@ -398,7 +398,7 @@ impl StateDB {
 			account_cache: self.account_cache.clone(),
 			code_cache: self.code_cache.clone(),
 			local_cache: Vec::new(),
-			// account_bloom: self.account_bloom.clone(),
+			account_bloom: self.account_bloom.clone(),
 			cache_size: self.cache_size,
 			parent_hash: Some(parent.clone()),
 			commit_hash: None,
@@ -512,24 +512,23 @@ impl account_state::Backend for StateDB {
 	}
 
 	fn note_non_null_account(&self, address: &Address) {
-		// self.bloom_stats.sets.fetch_add(1, Ordering::SeqCst);
-		// trace!(target: "account_bloom", "Note account is not null in bloom: {:?} -> {:?}", address, keccak(address));
-		// let mut bloom = self.account_bloom.lock();
-		// bloom.set(keccak(address));
+		self.bloom_stats.sets.fetch_add(1, Ordering::SeqCst);
+		trace!(target: "account_bloom", "Note account is not null in bloom: {:?} -> {:?}", address, keccak(address));
+		let mut bloom = self.account_bloom.lock();
+		bloom.set(keccak(address));
 	}
 
 	fn is_known_null(&self, address: &Address) -> bool {
-		false
-		// self.bloom_stats.queries.fetch_add(1, Ordering::SeqCst);
-		// let bloom = self.account_bloom.lock();
-		// let is_null = !bloom.check(keccak(address));
-		// if !is_null {
-		// 	trace!(target: "account_bloom", "[is_known_null] Account bloom for address {:?} says it is in the DB with key {:?}", address, keccak(address));
-		// 	self.bloom_stats.hits.fetch_add(1, Ordering::SeqCst);
-		// } else {
-		// 	trace!(target: "account_bloom", "[is_known_null] Account bloom for address {:?} says it is NOT in the DB with key {:?}", address, keccak(address));
-		// }
-		// is_null
+		self.bloom_stats.queries.fetch_add(1, Ordering::SeqCst);
+		let bloom = self.account_bloom.lock();
+		let is_null = !bloom.check(keccak(address));
+		if !is_null {
+			trace!(target: "account_bloom", "[is_known_null] Account bloom for address {:?} says it is in the DB with key {:?}", address, keccak(address));
+			self.bloom_stats.hits.fetch_add(1, Ordering::SeqCst);
+		} else {
+			trace!(target: "account_bloom", "[is_known_null] Account bloom for address {:?} says it is NOT in the DB with key {:?}", address, keccak(address));
+		}
+		is_null
 	}
 }
 
