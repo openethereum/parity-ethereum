@@ -39,16 +39,13 @@ use memory_cache::MemoryLruCache;
 /// Value used to initialize bloom bitmap size.
 ///
 /// Bitmap size is the size in bytes (not bits) that will be allocated in memory.
-// pub const ACCOUNT_BLOOM_SPACE: usize = 1048576;
+/// NOTE: Must be a multiple of 8.
 pub const ACCOUNT_BLOOM_SPACE: usize = 10485760;
-// pub const ACCOUNT_BLOOM_SPACE: usize = 5482353;
 
 /// Value used to initialize bloom items count.
 ///
 /// Items count is an estimation of the maximum number of items to store.
-// todo[dvdplm]: figure out where this estimate came from – there are 100M accounts, so 1M seems small?
-// pub const DEFAULT_ACCOUNT_PRESET: usize = 1_000_000;
-pub const DEFAULT_ACCOUNT_PRESET: usize = 200_000_000;
+pub const DEFAULT_ACCOUNT_PRESET: usize = 100_000_000;
 
 /// Key for a value storing amount of hashes
 pub const ACCOUNT_BLOOM_HASHCOUNT_KEY: &'static [u8] = b"account_hash_count";
@@ -121,7 +118,7 @@ pub struct StateDB {
 	/// Local dirty cache.
 	local_cache: Vec<CacheQueueItem>,
 	/// Shared account bloom. Does not handle chain reorganizations.
-	account_bloom: Arc<Mutex<Bloom>>, // todo[dvdplm] Better with RWLock? Measure! Also: what can be done about reorgs?
+	account_bloom: Arc<Mutex<Bloom>>,
 	cache_size: usize,
 	/// Hash of the block on top of which this instance was created or
 	/// `None` if cache is disabled

@@ -112,7 +112,7 @@ impl Default for ClientConfig {
 			spec_name: "".into(),
 			verifier_type: VerifierType::Canon,
 			state_cache_size: 256 * mb,
-			jump_table_size: 1 * mb, // todo[dvdplm]: increasing this is dangerous: tx execution error with 256Mb, and 4Mb – or maybe not really.
+			jump_table_size: 1 * mb,
 			history: 128,
 			history_mem: 48 * mb,
 			check_seal: true,
