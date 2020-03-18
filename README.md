@@ -1,6 +1,6 @@
 # OpenEthereum
 
-The Fastest and most Advanced Ethereum Client.
+Fast and feature-rich multi-network Ethereum client.
 
 [» Download the latest release «]("https://github.com/openethereum/openethereum/releases/latest")
 
@@ -135,7 +135,7 @@ To start OpenEthereum as a regular user using `systemd` init:
 1. Copy `./scripts/parity.service` to your
 `systemd` user directory (usually `~/.config/systemd/user`).
 2. Copy release to bin folder, write `sudo install ./target/release/parity /usr/bin/parity`
-3. To configure OpenEthereum, write a `/etc/parity/config.toml` config file, see [our old wiki](https://paritytech.github.io/wiki/Configuring-Parity) for details.
+3. To configure OpenEthereum, see [our old wiki](https://paritytech.github.io/wiki/Configuring-Parity) for details.
 
 ## 4. Testing <a id="chapter-004"></a>
 
@@ -296,32 +296,6 @@ Caching, Importing Blocks, and Block Information
   ```
 
 </p></details>
-
-### Contributing to documentation for OpenEthereum packages
-
-[Document source code](https://doc.rust-lang.org/1.9.0/book/documentation.html) for OpenEthereum packages by annotating the source code with documentation comments.
-
-Example (generic documentation comment):
-```markdown
-/// Summary
-///
-/// Description
-///
-/// # Panics
-///
-/// # Errors
-///
-/// # Safety
-///
-/// # Examples
-///
-/// Summary of Example 1
-///
-/// ```rust
-/// // insert example 1 code here for use with documentation as tests
-/// ```
-///
-```
 
 ## 6. Toolchain <a id="chapter-006"></a>
 
