@@ -331,7 +331,7 @@ In addition to the OpenEthereum client, there are additional tools in this repos
 - [ethstore](./accounts/ethstore) - OpenEthereum Key Management.
 - [ethkey](./accounts/ethkey) - OpenEthereum Keys Generator.
 
-The following tool is available in a separate repository:
+The following tools are available in a separate repository:
 - [ethabi](https://github.com/openethereum/ethabi) - OpenEthereum Encoding of Function Calls. [Docs here](https://crates.io/crates/ethabi)
 - [whisper](https://github.com/openethereum/whisper) - OpenEthereum Whisper-v2 PoC Implementation.
 
