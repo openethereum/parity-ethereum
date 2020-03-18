@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Parity-specific rpc interface.
+//! OpenEthereum-specific rpc interface.
 
 use std::collections::BTreeMap;
 
@@ -31,7 +31,7 @@ use v1::types::{
 	RichHeader, Receipt,
 };
 
-/// Parity-specific rpc interface.
+/// OpenEthereum-specific rpc interface.
 #[rpc(server)]
 pub trait Parity {
 	/// RPC Metadata

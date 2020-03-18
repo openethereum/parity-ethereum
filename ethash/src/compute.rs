@@ -264,7 +264,7 @@ fn hash_compute(light: &Light, full_size: usize, header_hash: &H256, nonce: u64)
 			unsafe { make_const_array!(MIX_WORDS / 4, &mut buf.compress_bytes) };
 		#[cfg(target_endian = "big")]
 		{
-			compile_error!("open-ethereum currently only supports little-endian targets");
+			compile_error!("OpenEthereum currently only supports little-endian targets");
 		}
 
 		// Compress mix

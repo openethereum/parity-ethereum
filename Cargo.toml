@@ -1,10 +1,13 @@
 [package]
-description = "Open Ethereum client"
-name = "open-ethereum"
+description = "OpenEthereum"
+name = "openethereum"
 # NOTE Make sure to update util/version/Cargo.toml as well
 version = "2.8.0"
 license = "GPL-3.0"
-authors = ["Open Ethereum developers", "Parity Technologies <admin@parity.io>"]
+authors = [
+	"OpenEthereum developers",
+	"Parity Technologies <admin@parity.io>"
+]
 
 [dependencies]
 ansi_term = "0.11"
@@ -111,7 +114,7 @@ path = "parity/lib.rs"
 
 [[bin]]
 path = "parity/main.rs"
-name = "parity"
+name = "openethereum"
 
 [profile.release]
 debug = false

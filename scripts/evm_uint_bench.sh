@@ -8,9 +8,9 @@ if [ -x "$(command -v ethvm)" ]; then
   ethvm --code $CODE1
   echo "^^^^ ethvm"
 fi
-./target/release/parity-evm stats --code $CODE1 --gas 4402000
+./target/release/openethereum-evm stats --code $CODE1 --gas 4402000
 echo "^^^^ usize"
-./target/release/parity-evm stats --code $CODE1
+./target/release/openethereum-evm stats --code $CODE1
 echo "^^^^ U256"
 
 # RNG TEST
@@ -19,7 +19,7 @@ if [ -x "$(command -v ethvm)" ]; then
   ethvm --code $CODE2
   echo "^^^^ ethvm"
 fi
-./target/release/parity-evm stats --code $CODE2 --gas 143020115
+./target/release/openethereum-evm stats --code $CODE2 --gas 143020115
 echo "^^^^ usize"
-./target/release/parity-evm stats --code $CODE2
+./target/release/openethereum-evm stats --code $CODE2
 echo "^^^^ U256"

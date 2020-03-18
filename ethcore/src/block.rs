@@ -222,7 +222,7 @@ impl<'x> OpenBlock<'x> {
 		self.block.header.set_transactions_root(*header.transactions_root());
 		// For Aura-based chains, the seal may contain EmptySteps which are used to bestow rewards;
 		// such rewards affect the state and the state root (see
-		// https://github.com/OpenEthereum/open-ethereum/pull/11475).
+		// https://github.com/openethereum/openethereum/pull/11475).
 		self.block.header.set_seal(header.seal().to_vec());
 		// TODO: that's horrible. set only for backwards compatibility
 		if header.extra_data().len() > self.engine.maximum_extra_data_size() {
@@ -363,7 +363,7 @@ impl LockedBlock {
 	/// Provide a valid seal in order to turn this into a `SealedBlock`.
 	/// This does check the validity of `seal` with the engine.
 	/// Returns the `ClosedBlock` back again if the seal is no good.
-	/// TODO(https://github.com/OpenEthereum/open-ethereum/issues/10407): This is currently only used in POW chain call paths, we should really merge it with seal() above.
+	/// TODO(https://github.com/openethereum/openethereum/issues/10407): This is currently only used in POW chain call paths, we should really merge it with seal() above.
 	pub fn try_seal(
 		self,
 		engine: &dyn Engine,

@@ -681,7 +681,7 @@ impl Miner {
 		}
 	}
 
-	// TODO: (https://github.com/OpenEthereum/open-ethereum/issues/10407)
+	// TODO: (https://github.com/openethereum/openethereum/issues/10407)
 	// This is only used in authority_round path, and should be refactored to merge with the other seal() path.
 	// Attempts to perform internal sealing (one that does not require work: e.g. Clique
 	// and Aura) and handles the result depending on the type of Seal.

@@ -90,7 +90,7 @@ Make sure that these binaries are in your `PATH`. After that, you should be able
 ```bash
 # download OpenEthereum code
 $ git clone https://github.com/openethereum/openethereum
-$ cd open-ethereum
+$ cd openethereum
 
 # build in release mode
 $ cargo build --release --features final
@@ -123,7 +123,7 @@ $ git checkout stable
 To start OpenEthereum manually, just run
 
 ```bash
-$ ./target/release/parity
+$ ./target/release/openethereum
 ```
 
 so OpenEthereum begins syncing the Ethereum blockchain.
@@ -132,9 +132,9 @@ so OpenEthereum begins syncing the Ethereum blockchain.
 
 To start OpenEthereum as a regular user using `systemd` init:
 
-1. Copy `./scripts/parity.service` to your
+1. Copy `./scripts/openethereum.service` to your
 `systemd` user directory (usually `~/.config/systemd/user`).
-2. Copy release to bin folder, write `sudo install ./target/release/parity /usr/bin/parity`
+2. Copy release to bin folder, write `sudo install ./target/release/openethereum /usr/bin/openethereum`
 3. To configure OpenEthereum, see [our old wiki](https://paritytech.github.io/wiki/Configuring-Parity) for details.
 
 ## 4. Testing <a id="chapter-004"></a>
@@ -175,7 +175,7 @@ You can generate documentation for OpenEthereum Rust packages that automatically
 
 Use`--document-private-items` to also view private documentation and `--no-deps` to exclude building documentation for dependencies.
 
-Replacing `<spec>` with one of the following from the details section below (i.e. `cargo doc --package open-ethereum --open`):
+Replacing `<spec>` with one of the following from the details section below (i.e. `cargo doc --package openethereum --open`):
 
 <a id="package-list"></a>
 **Package List**
@@ -183,7 +183,7 @@ Replacing `<spec>` with one of the following from the details section below (i.e
 
 * OpenEthereum Client Application
   ```bash
-  open-ethereum
+  openethereum
   ```
 * OpenEthereum Account Management, Key Management Tool, and Keys Generator
   ```bash

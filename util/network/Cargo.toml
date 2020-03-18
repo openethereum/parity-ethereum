@@ -1,6 +1,6 @@
 [package]
 description = "Ethcore network library"
-repository = "https://github.com/OpenEthereum/open-ethereum"
+repository = "https://github.com/openethereum/openethereum"
 license = "GPL-3.0"
 name = "ethcore-network"
 version = "1.12.0"

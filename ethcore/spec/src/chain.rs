@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Load chain specifications for all chains supported by the open-ethereum client.
+//! Load chain specifications for all chains supported by OpenEthereum.
 
 macro_rules! bundle_release_spec {
 	($($path: expr => $name: ident), *) => {

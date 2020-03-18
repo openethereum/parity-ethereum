@@ -277,7 +277,7 @@ impl<'a> EvmTestClient<'a> {
 
 		// Touch the coinbase at the end of the test to simulate
 		// miner reward.
-		// Details: https://github.com/OpenEthereum/open-ethereum/issues/9431
+		// Details: https://github.com/openethereum/openethereum/issues/9431
 		let schedule = self.spec.engine.machine().schedule(env_info.number);
 		self.state.add_balance(&env_info.author, &0.into(), if schedule.no_empty {
 			CleanupMode::NoEmpty
