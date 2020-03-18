@@ -2,7 +2,7 @@
 
 Fast and feature-rich multi-network Ethereum client.
 
-[» Download the latest release «]("https://github.com/openethereum/openethereum/releases/latest")
+[» Download the latest release «](https://github.com/openethereum/openethereum/releases/latest)
 
 [![GPL licensed][license-badge]][license-url]
 [![Build Status][ci-badge]][ci-url]
