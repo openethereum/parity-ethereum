@@ -38,9 +38,13 @@ use crate::PROTOCOL_VERSION;
 pub const MAX_DATAGRAM_SIZE: usize = 1280;
 /// Minimum node discovery packet size
 // TODO(niklasad1): why 4?
-const MIN_DATAGRAM_SIZE: usize = HASH_LEN + SIGNATURE_LEN + PACKET_TYPE_LEN + 4;
+const MIN_DATAGRAM_SIZE: usize = HEADER_SIZE + 4;
 
-/// Size of address type in bytes.
+/// Size of the `hash` and `signature` in bytes (denoted MAC)
+const HEADER_MAC_SIZE: usize = ADDRESS_BYTES_SIZE + SIGNATURE_BYTES_LEN;
+/// Size of the Node discovery wire protocol header
+const HEADER_SIZE: usize = HEADER_MAC_SIZE + PACKET_TYPE_BYTES_LEN;
+/// Size of address in bytes.
 const ADDRESS_BYTES_SIZE: usize = 32;
 /// Denoted by n in [Kademlia].
 const ADDRESS_BITS: usize = 8 * ADDRESS_BYTES_SIZE;
@@ -55,11 +59,29 @@ const PACKET_PING: u8 = 1;
 const PACKET_PONG: u8 = 2;
 const PACKET_FIND_NODE: u8 = 3;
 const PACKET_NEIGHBOURS: u8 = 4;
-/// The length of the packet type
-const PACKET_TYPE_LEN: usize = 1;
+/// The length of the packet type in bytes
+const PACKET_TYPE_BYTES_LEN: usize = 1;
+
+/// Length of `Ethereum signature` in number of bytes
+const SIGNATURE_BYTES_LEN: usize = 65;
+const PING_TIMEOUT: Duration = Duration::from_millis(500);
+const FIND_NODE_TIMEOUT: Duration = Duration::from_secs(2);
+const EXPIRY_TIME: Duration = Duration::from_secs(20);
+/// Max nodes to add/ping at once
+const MAX_NODES_PING: usize = 32;
+const REQUEST_BACKOFF: [Duration; 4] = [
+	Duration::from_secs(1),
+	Duration::from_secs(4),
+	Duration::from_secs(16),
+	Duration::from_secs(64)
+];
+
+const NODE_LAST_SEEN_TIMEOUT: Duration = Duration::from_secs(24 * 60 * 60);
+const OBSERVED_NODES_MAX_SIZE: usize = 10_000;
+
 
 /// Node discovery packet kinds
-// TODO: add `ENR packets
+// TODO: Add support for `Node Discovery v4 ENR Extension` <https://eips.ethereum.org/EIPS/eip-868>
 #[derive(Debug)]
 enum PacketType {
 	Ping = 1,
@@ -81,23 +103,6 @@ impl TryFrom<u8> for PacketType {
 		}
 	}
 }
-
-const PING_TIMEOUT: Duration = Duration::from_millis(500);
-const FIND_NODE_TIMEOUT: Duration = Duration::from_secs(2);
-const EXPIRY_TIME: Duration = Duration::from_secs(20);
-/// Max nodes to add/ping at once
-const MAX_NODES_PING: usize = 32;
-const REQUEST_BACKOFF: [Duration; 4] = [
-	Duration::from_secs(1),
-	Duration::from_secs(4),
-	Duration::from_secs(16),
-	Duration::from_secs(64)
-];
-
-const HASH_LEN: usize = 32;
-const SIGNATURE_LEN: usize = 65;
-const NODE_LAST_SEEN_TIMEOUT: Duration = Duration::from_secs(24 * 60 * 60);
-const OBSERVED_NODES_MAX_SIZE: usize = 10_000;
 
 #[derive(Clone, Debug)]
 pub struct NodeEntry {
@@ -855,7 +860,7 @@ fn append_expiration(rlp: &mut RlpStream) {
 ///
 /// The packet format is: `hash || signature || packet_type || payload`, where the maximum packet length is 1280 bytes
 fn assemble_packet(packet_id: PacketType, payload: Bytes, secret: &Secret) -> Result<(Bytes, H256), Error> {
-	let packet_len = payload.len() + HASH_LEN + SIGNATURE_LEN + PACKET_TYPE_LEN;
+	let packet_len = payload.len() + HEADER_SIZE;
 
 	if !packet_has_valid_length(packet_len) {
 		warn!(target: "discovery", "Ignored to write discovery packet with invalid packet length: {}, expected to be in range {} - {}", packet_len, MIN_DATAGRAM_SIZE, MAX_DATAGRAM_SIZE);
@@ -863,14 +868,14 @@ fn assemble_packet(packet_id: PacketType, payload: Bytes, secret: &Secret) -> Re
 	}
 
 	let mut packet = Bytes::with_capacity(packet_len);
-	packet.resize(HASH_LEN + SIGNATURE_LEN, 0); // Filled in below
+	packet.resize(HEADER_MAC_SIZE, 0); // Filled in below
 	packet.push(packet_id as u8);
 	packet.extend(payload);
 
-	let signature = sign_payload_with_packet_id(secret, &packet[HASH_LEN + SIGNATURE_LEN ..])?;
-	packet[HASH_LEN..(HASH_LEN + SIGNATURE_LEN)].copy_from_slice(&signature[..]);
-	let signed_hash = keccak(&packet[HASH_LEN..]);
-	packet[..HASH_LEN].copy_from_slice(signed_hash.as_bytes());
+	let signature = sign_payload_with_packet_id(secret, &packet[HEADER_MAC_SIZE..])?;
+	packet[ADDRESS_BYTES_SIZE..HEADER_MAC_SIZE].copy_from_slice(&signature[..]);
+	let signed_hash = keccak(&packet[ADDRESS_BYTES_SIZE..]);
+	packet[..ADDRESS_BYTES_SIZE].copy_from_slice(signed_hash.as_bytes());
 	Ok((packet, signed_hash))
 }
 
@@ -883,22 +888,22 @@ fn disassemble_packet(packet: &[u8]) -> Result<(NodeId, &[u8], PacketType, H256)
 		return Err(Error::BadProtocol);
 	}
 
-	let payload_with_packet_id = &packet[HASH_LEN + SIGNATURE_LEN..];
-	let packet_kind = payload_with_packet_id[0];
-	let packet_kind: PacketType = packet_kind.try_into().map_err(|e| {
-		debug!(target: "discovery", "Unknown discovery packet id: {:?}", packet_kind);
+	let payload_with_packet_id = &packet[HEADER_MAC_SIZE..];
+	let packet_id = payload_with_packet_id[0];
+	let packet_id: PacketType = packet_id.try_into().map_err(|e| {
+		warn!(target: "discovery", "Unknown discovery packet id: {:?}", packet_id);
 		e
 	})?;
 
-	let signed_hash = keccak(&packet[HASH_LEN..]);
-	if signed_hash[..] != packet[0..HASH_LEN] {
+	let signed_hash = keccak(&packet[ADDRESS_BYTES_SIZE..]);
+	if signed_hash[..] != packet[0..ADDRESS_BYTES_SIZE] {
 		return Err(Error::BadProtocol);
 	}
 
-	let signature = H520::from_slice(&packet[HASH_LEN..HASH_LEN + SIGNATURE_LEN]);
+	let signature = H520::from_slice(&packet[ADDRESS_BYTES_SIZE..HEADER_MAC_SIZE]);
 	let node_id = recover(&signature.into(), &keccak(payload_with_packet_id))?;
 
-	Ok((node_id, &payload_with_packet_id[1..], packet_kind, signed_hash))
+	Ok((node_id, &payload_with_packet_id[1..], packet_id, signed_hash))
 }
 
 fn sign_payload_with_packet_id(secret: &Secret, payload_with_packet_id: &[u8]) -> Result<Signature, Error> {
@@ -910,11 +915,7 @@ fn sign_payload_with_packet_id(secret: &Secret, payload_with_packet_id: &[u8]) -
 }
 
 fn packet_has_valid_length(packet_len: usize) -> bool {
-	if packet_len > MAX_DATAGRAM_SIZE || packet_len < MIN_DATAGRAM_SIZE {
-		false
-	} else {
-		true
-	}
+	packet_len >= MIN_DATAGRAM_SIZE && packet_len <= MAX_DATAGRAM_SIZE
 }
 
 // Selects the next node in a bucket to ping. Chooses the eligible node least recently seen.
