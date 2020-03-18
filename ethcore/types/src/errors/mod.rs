@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! General error types for use in parity-ethereum.
+//! General error types for use in open-ethereum.
 
 mod block_error;
 mod engine_error;

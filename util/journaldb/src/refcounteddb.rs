@@ -98,6 +98,10 @@ impl JournalDB for RefCountedDB {
 		Box::new(self.clone())
 	}
 
+	fn io_stats(&self) -> kvdb::IoStats {
+		self.backing.io_stats(kvdb::IoStatsKind::SincePrevious)
+	}
+
 	fn mem_used(&self) -> usize {
 		let mut ops = new_malloc_size_ops();
 		self.inserts.size_of(&mut ops) + self.removes.size_of(&mut ops)

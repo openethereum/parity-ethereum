@@ -18,16 +18,17 @@
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
+
 use account_utils::AccountProvider;
 use dir::default_data_path;
 use dir::helpers::replace_home;
 use ethcore::client::Client;
 use ethcore::miner::Miner;
+use ethereum_types::Address;
 use ethkey::Password;
 use parity_crypto::publickey::{Secret, Public};
-use sync::SyncProvider;
-use ethereum_types::Address;
 use parity_runtime::Executor;
+use sync::SyncProvider;
 
 /// This node secret key.
 #[derive(Debug, PartialEq, Clone)]
@@ -123,13 +124,20 @@ mod server {
 #[cfg(feature = "secretstore")]
 mod server {
 	use std::sync::Arc;
-	use parity_secretstore;
 	use parity_crypto::publickey::KeyPair;
 	use ansi_term::Colour::{Red, White};
+	use ethereum_types::H256;
 	use super::{Configuration, Dependencies, NodeSecretKey, ContractAddress, Executor};
 	use super::super::TrustedClient;
 	#[cfg(feature = "accounts")]
 	use super::super::KeyStoreNodeKeyPair;
+
+	const SECP_TEST_MESSAGE: H256 = H256([1_u8; 32]);
+
+	/// Version of the secret store database
+	const SECRET_STORE_DB_VERSION: &str = "4";
+	/// Version file name
+	const SECRET_STORE_DB_VERSION_FILE_NAME: &str = "db_version";
 
 	fn into_service_contract_address(address: ContractAddress) -> parity_secretstore::ContractAddress {
 		match address {
@@ -163,10 +171,10 @@ mod server {
 
 					// Attempt to sign in the engine signer.
 					let password = deps.accounts_passwords.iter()
-						.find(|p| deps.account_provider.sign(account.clone(), Some((*p).clone()), Default::default()).is_ok())
+						.find(|p| deps.account_provider.sign(account.clone(), Some((*p).clone()), SECP_TEST_MESSAGE).is_ok())
 						.ok_or_else(|| format!("No valid password for the secret store node account {}", account))?;
 					Arc::new(KeyStoreNodeKeyPair::new(deps.account_provider, account, password.clone())
-						.map_err(|e| format!("{}", e))?)
+						.map_err(|e| e.to_string())?)
 				},
 				None => return Err("self secret is required when using secretstore".into()),
 			};
@@ -206,6 +214,13 @@ mod server {
 			};
 
 			cconf.cluster_config.nodes.insert(self_secret.public().clone(), cconf.cluster_config.listener_address.clone());
+
+			// Create a file containing the version of the database of the SecretStore
+			// when no database exists yet
+			if std::fs::read_dir(&conf.data_path).map_or(false, |mut list| list.next().is_none ()) {
+				std::fs::write(std::path::Path::new(&conf.data_path).join(SECRET_STORE_DB_VERSION_FILE_NAME), SECRET_STORE_DB_VERSION)
+				.map_err(|e| format!("Error creating SecretStore database version file: {}", e))?;
+			}
 
 			let db = parity_secretstore::open_secretstore_db(&conf.data_path)?;
 			let trusted_client = TrustedClient::new(self_secret.clone(), deps.client, deps.sync, deps.miner);

@@ -43,7 +43,7 @@ use ethstore::{EthStore, SimpleSecretStore, SecretStore, import_accounts, Presal
 mod crack;
 
 pub const USAGE: &'static str = r#"
-Parity Ethereum key management tool.
+Open Ethereum key management tool.
   Copyright 2015-2020 Parity Technologies (UK) Ltd.
 
 Usage:

@@ -109,7 +109,7 @@ use types::{
 	BlockNumber,
 	call_analytics::CallAnalytics,
 	chain_notify::{ChainMessageType, ChainRoute, NewBlocks},
-	client_types::{ClientReport, Mode, StateResult},
+	client_types::{ClientReport, IoStats, Mode, StateResult},
 	encoded,
 	engines::{
 		epoch::{PendingTransition, Transition as EpochTransition},
@@ -178,7 +178,7 @@ struct Importer {
 }
 
 /// Blockchain database client backed by a persistent database. Owns and manages a blockchain and a block queue.
-/// Call `import_block()` to import a block asynchronously; `flush_queue()` flushes the queue.
+/// Call `import_block()` to import a block asynchronously.
 pub struct Client {
 	/// Flag used to disable the client forever. Not to be confused with `liveness`.
 	///
@@ -870,7 +870,7 @@ impl Client {
 		*self.on_user_defaults_change.lock() = Some(Box::new(f));
 	}
 
-	/// Flush the block import queue.
+	/// Flush the block import queue. Used mostly for tests.
 	pub fn flush_queue(&self) {
 		self.importer.block_queue.flush();
 		while !self.importer.block_queue.is_empty() {
@@ -1096,7 +1096,19 @@ impl Client {
 	/// Get the report.
 	pub fn report(&self) -> ClientReport {
 		let mut report = self.report.read().clone();
-		report.state_db_mem = self.state_db.read().mem_used();
+		let state_db = self.state_db.read();
+		report.state_db_mem = state_db.mem_used();
+		let io_stats = state_db.journal_db().io_stats();
+		report.io_stats = IoStats {
+			transactions: io_stats.transactions,
+			reads: io_stats.reads,
+			cache_reads: io_stats.cache_reads,
+			writes: io_stats.writes,
+			bytes_read: io_stats.bytes_read,
+			cache_read_bytes: io_stats.cache_read_bytes,
+			bytes_written: io_stats.bytes_written,
+		};
+
 		report
 	}
 
@@ -1444,6 +1456,7 @@ impl ImportBlock for Client {
 			return Err(EthcoreError::Block(BlockError::UnknownParent(unverified.parent_hash())));
 		}
 
+		// If the queue is empty we propagate the block in a `PriorityTask`.
 		let raw = if self.importer.block_queue.is_empty() {
 			Some((unverified.bytes.clone(), *unverified.header.difficulty()))
 		} else {
@@ -2185,7 +2198,7 @@ impl IoClient for Client {
 	fn queue_transactions(&self, transactions: Vec<Bytes>, peer_id: usize) {
 		trace_time!("queue_transactions");
 		let len = transactions.len();
-		self.queue_transactions.queue(&self.io_channel.read(), len, move |client| {
+		self.queue_transactions.enqueue(&self.io_channel.read(), len, move |client| {
 			trace_time!("import_queued_transactions");
 
 			let txs: Vec<UnverifiedTransaction> = transactions
@@ -2230,7 +2243,7 @@ impl IoClient for Client {
 
 		let queued = self.queued_ancient_blocks.clone();
 		let lock = self.ancient_blocks_import_lock.clone();
-		self.queue_ancient_blocks.queue(&self.io_channel.read(), 1, move |client| {
+		self.queue_ancient_blocks.enqueue(&self.io_channel.read(), 1, move |client| {
 			trace_time!("import_ancient_block");
 			// Make sure to hold the lock here to prevent importing out of order.
 			// We use separate lock, cause we don't want to block queueing.
@@ -2264,7 +2277,7 @@ impl IoClient for Client {
 	}
 
 	fn queue_consensus_message(&self, message: Bytes) {
-		match self.queue_consensus_message.queue(&self.io_channel.read(), 1, move |client| {
+		match self.queue_consensus_message.enqueue(&self.io_channel.read(), 1, move |client| {
 			if let Err(e) = client.engine().handle_message(&message) {
 				debug!(target: "poa", "Invalid message received: {}", e);
 			}
@@ -2729,6 +2742,7 @@ impl ImportExportBlocks for Client {
 			}
 		};
 		self.flush_queue();
+
 		Ok(())
 	}
 }
@@ -2796,7 +2810,11 @@ impl IoChannelQueue {
 		}
 	}
 
-	pub fn queue<F>(&self, channel: &IoChannel<ClientIoMessage<Client>>, count: usize, fun: F) -> EthcoreResult<()> where
+	/// Try to to add an item to the queue for deferred processing by the IO
+	/// client. Messages take the form of `Fn` closures that carry a `Client`
+	/// reference with them. Enqueuing a message can fail if the queue is full
+	/// or if the `send()` on the `IoChannel` fails.
+	pub fn enqueue<F>(&self, channel: &IoChannel<ClientIoMessage<Client>>, count: usize, fun: F) -> EthcoreResult<()> where
 		F: Fn(&Client) + Send + Sync + 'static,
 	{
 		let queue_size = self.currently_queued.load(AtomicOrdering::Relaxed);

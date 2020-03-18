@@ -4,7 +4,7 @@ _If you think that your issue is an exploitable security vulnerability, please m
 _You can find mode info on the reporting process in [SECURITY.md](https://github.com/OpenEthereum/open-ethereum/blob/master/SECURITY.md)_
 
 
-- **Parity Ethereum version**: 0.0.0
+- **Open Ethereum version**: 0.0.0
 - **Operating system**: Windows / MacOS / Linux
 - **Installation**: homebrew / one-line installer / built from source
 - **Fully synchronized**: no / yes

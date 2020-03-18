@@ -1,11 +1,11 @@
 ## ethkey-cli
 
-Parity Ethereum keys generator.
+Open Ethereum keys generator.
 
 ### Usage
 
 ```
-Parity Ethereum Keys Generator.
+Open Ethereum Keys Generator.
   Copyright 2015-2020 Parity Technologies (UK) Ltd.
 
 Usage:
@@ -211,11 +211,11 @@ public:  4e19a5fdae82596e1485c69b687c9cc52b5078e5b0668ef3ce8543cd90e712cb00df822
 address: 00cf3711cbd3a1512570639280758118ba0b2bcb
 ```
 
-## Parity Ethereum toolchain
-_This project is a part of the Parity Ethereum toolchain._
+## Open Ethereum toolchain
+_This project is a part of the Open Ethereum toolchain._
 
-- [evmbin](https://github.com/OpenEthereum/open-ethereum/blob/master/evmbin/) - EVM implementation for Parity Ethereum.
-- [ethabi](https://github.com/paritytech/ethabi) - Parity Ethereum function calls encoding.
-- [ethstore](https://github.com/OpenEthereum/open-ethereum/blob/master/accounts/ethstore) - Parity Ethereum key management.
-- [ethkey](https://github.com/OpenEthereum/open-ethereum/blob/master/accounts/ethkey) - Parity Ethereum keys generator.
-- [whisper](https://github.com/paritytech/whisper) - Implementation of Whisper-v2 PoC.
+- [evmbin](https://github.com/OpenEthereum/open-ethereum/blob/master/evmbin/) - EVM implementation for Open Ethereum.
+- [ethabi](https://github.com/OpenEthereum/ethabi) - Open Ethereum function calls encoding.
+- [ethstore](https://github.com/OpenEthereum/open-ethereum/blob/master/accounts/ethstore) - Open Ethereum key management.
+- [ethkey](https://github.com/OpenEthereum/open-ethereum/blob/master/accounts/ethkey) - Open Ethereum keys generator.
+- [whisper](https://github.com/OpenEthereum/whisper) - Implementation of Whisper-v2 PoC.

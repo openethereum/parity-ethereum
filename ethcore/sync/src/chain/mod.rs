@@ -762,7 +762,7 @@ impl ChainSync {
 		self.transactions_stats.stats()
 	}
 
-	/// Updates transactions were received by a peer
+	/// Updates the set of transactions recently sent to this peer to avoid spamming.
 	pub fn transactions_received(&mut self, txs: &[UnverifiedTransaction], peer_id: PeerId) {
 		if let Some(peer_info) = self.peers.get_mut(&peer_id) {
 			peer_info.last_sent_transactions.extend(txs.iter().map(|tx| tx.hash()));

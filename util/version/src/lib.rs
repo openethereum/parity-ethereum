@@ -45,7 +45,7 @@ pub fn platform() -> String {
 pub fn version() -> String {
 	let commit_date = format!("{}", env!("VERGEN_COMMIT_DATE")).replace("-", "");
 	format!(
-		"Parity-Ethereum/v{}-{}-{}-{}/{}/rustc{}",
+		"Open-Ethereum/v{}-{}-{}-{}/{}/rustc{}",
 		env!("CARGO_PKG_VERSION"),
 		THIS_TRACK,
 		env!("VERGEN_SHA_SHORT"),
@@ -63,7 +63,7 @@ pub fn version_data() -> Bytes {
 		(env!("CARGO_PKG_VERSION_MINOR").parse::<u32>().expect("Environment variables are known to be valid; qed") << 8) +
 		env!("CARGO_PKG_VERSION_PATCH").parse::<u32>().expect("Environment variables are known to be valid; qed");
 	s.append(&v);
-	s.append(&"Parity-Ethereum");
+	s.append(&"Open-Ethereum");
 	s.append(&generated::rustc_version());
 	s.append(&&Target::os()[0..2]);
 	s.out()

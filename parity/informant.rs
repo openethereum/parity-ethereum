@@ -257,6 +257,14 @@ impl<T: InformantData> Informant<T> {
 			(diffed, full_report)
 		};
 
+		debug!(
+			target: "io_stats", 
+			"{} reads, {} writes, {} transactions",
+			client_report.io_stats.reads,
+			client_report.io_stats.writes,
+			client_report.io_stats.transactions,
+		);
+
 		let Report {
 			importing,
 			chain_info,

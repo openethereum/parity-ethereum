@@ -407,9 +407,9 @@ impl BlockDownloader {
 					trace_sync!(self, "Error decoding block receipts RLP: {:?}", e);
 					BlockDownloaderImportError::Invalid
 				})?;
-				receipts.push(receipt.as_raw().to_vec());
+				receipts.push(receipt.as_raw());
 			}
-			let hashes = self.blocks.insert_receipts(receipts);
+			let hashes = self.blocks.insert_receipts(&receipts);
 			if hashes.len() != item_count {
 				trace_sync!(self, "Deactivating peer for giving invalid block receipts");
 				return Err(BlockDownloaderImportError::Invalid);
@@ -501,7 +501,7 @@ impl BlockDownloader {
 					MAX_BODIES_TO_REQUEST_SMALL
 				};
 
-				let needed_bodies = self.blocks.needed_bodies(number_of_bodies_to_request, false);
+				let needed_bodies = self.blocks.needed_bodies(number_of_bodies_to_request);
 				if !needed_bodies.is_empty() {
 					return Some(BlockRequest::Bodies {
 						hashes: needed_bodies,
@@ -509,7 +509,7 @@ impl BlockDownloader {
 				}
 
 				if self.download_receipts {
-					let needed_receipts = self.blocks.needed_receipts(MAX_RECEPITS_TO_REQUEST, false);
+					let needed_receipts = self.blocks.needed_receipts(MAX_RECEPITS_TO_REQUEST);
 					if !needed_receipts.is_empty() {
 						return Some(BlockRequest::Receipts {
 							hashes: needed_receipts,
@@ -518,7 +518,7 @@ impl BlockDownloader {
 				}
 
 				// find subchain to download
-				if let Some((h, count)) = self.blocks.needed_headers(MAX_HEADERS_TO_REQUEST, false) {
+				if let Some((h, count)) = self.blocks.needed_headers(MAX_HEADERS_TO_REQUEST) {
 					return Some(BlockRequest::Headers {
 						start: h,
 						count: count as u64,

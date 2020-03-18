@@ -1,6 +1,6 @@
 [package]
-description = "Parity Ethereum (EthCore) Library"
-homepage = "http://parity.io"
+description = "Open Ethereum (EthCore) Library"
+repository = "https://github.com/OpenEthereum/open-ethereum"
 license = "GPL-3.0"
 name = "ethcore"
 version = "1.12.0"

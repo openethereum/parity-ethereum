@@ -244,6 +244,10 @@ impl JournalDB for OverlayRecentDB {
 		Box::new(self.clone())
 	}
 
+	fn io_stats(&self) -> kvdb::IoStats {
+		self.backing.io_stats(kvdb::IoStatsKind::SincePrevious)
+	}
+
 	fn mem_used(&self) -> usize {
 		let mut ops = new_malloc_size_ops();
 		let mut mem = self.transaction_overlay.size_of(&mut ops);

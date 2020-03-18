@@ -1,6 +1,6 @@
 [package]
-description = "Parity Ethereum Blockchain Database, Test Generator, Configuration, Caching, Importing Blocks, and Block Information"
-homepage = "http://parity.io"
+description = "Open Ethereum Blockchain Database, Test Generator, Configuration, Caching, Importing Blocks, and Block Information"
+repository = "https://github.com/OpenEthereum/open-ethereum"
 license = "GPL-3.0"
 name = "ethcore-blockchain"
 version = "0.1.0"
