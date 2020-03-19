@@ -737,8 +737,7 @@ impl Client {
 		debug!(target: "client", "Cleanup journal: DB Earliest = {:?}, Latest = {:?}", state_db.journal_db().earliest_era(), state_db.journal_db().latest_era());
 
 		let history = if config.history < MIN_HISTORY_SIZE {
-			info!(target: "client", "Ignoring pruning history parameter of {}\
-				, falling back to minimum of {}",
+			info!(target: "client", "Ignoring pruning history parameter of {} , falling back to minimum of {}",
 				config.history, MIN_HISTORY_SIZE);
 			MIN_HISTORY_SIZE
 		} else {
@@ -2558,6 +2557,7 @@ impl SnapshotClient for Client {
 		let block_number = self.block_number(at).ok_or_else(|| SnapshotError::InvalidStartingBlock(at))?;
 		let earliest_era = db.earliest_era().unwrap_or(0);
 		if db.is_prunable() && earliest_era > block_number {
+			warn!(target: "snapshot", "Tried to take a snapshot at #{} but the earliest available block is #{}", block_number, earliest_era);
 			return Err(SnapshotError::OldBlockPrunedDB.into());
 		}
 
