@@ -38,6 +38,7 @@ mod migration;
 mod helpers;
 
 pub use self::migration::migrate;
+pub use self::helpers::compaction_profile;
 
 struct AppDB {
 	key_value: Arc<dyn KeyValueDB>,

@@ -47,7 +47,7 @@ use secretstore::{NodeSecretKey, Configuration as SecretStoreConfiguration, Cont
 use updater::{UpdatePolicy, UpdateFilter, ReleaseTrack};
 use run::RunCmd;
 use types::data_format::DataFormat;
-use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, KillBlockchain, ExportState, ResetBlockchain};
+use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, KillBlockchain, ExportState, ResetBlockchain, RebuildAccountsBloom};
 use export_hardcoded_sync::ExportHsyncCmd;
 use presale::ImportWallet;
 use account::{AccountCmd, NewAccount, ListAccounts, ImportAccounts, ImportFromGethAccounts};
@@ -194,16 +194,23 @@ impl Configuration {
 			}))
 		} else if self.args.cmd_db && self.args.cmd_db_kill {
 			Cmd::Blockchain(BlockchainCmd::Kill(KillBlockchain {
-				spec: spec,
-				dirs: dirs,
-				pruning: pruning,
+				spec,
+				dirs,
+				pruning,
+			}))
+		} else if self.args.cmd_db && self.args.cmd_db_rebuild_accounts_bloom {
+			Cmd::Blockchain(BlockchainCmd::RebuildAccountsBloom(RebuildAccountsBloom {
+				spec,
+				dirs,
+				pruning,
+				compaction,
 			}))
 		} else if self.args.cmd_account {
 			let account_cmd = if self.args.cmd_account_new {
 				let new_acc = NewAccount {
 					iterations: key_iterations,
 					path: dirs.keys,
-					spec: spec,
+					spec,
 					password_file: self.accounts_config()?.password_files.first().map(|x| x.to_owned()),
 				};
 				AccountCmd::New(new_acc)

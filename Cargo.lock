@@ -3176,6 +3176,7 @@ checksum = "93f5bb2e8e8dec81642920ccff6b61f1eb94fa3020c5a325c9851ff604152409"
 name = "open-ethereum"
 version = "2.8.0"
 dependencies = [
+ "account-state",
  "ansi_term",
  "atty",
  "blooms-db",
@@ -3191,6 +3192,7 @@ dependencies = [
  "ethcore",
  "ethcore-accounts",
  "ethcore-blockchain",
+ "ethcore-bloom-journal",
  "ethcore-call-contract",
  "ethcore-db",
  "ethcore-io",
@@ -3232,6 +3234,7 @@ dependencies = [
  "parity-util-mem",
  "parity-version",
  "parking_lot 0.10.0",
+ "patricia-trie-ethereum",
  "pretty_assertions",
  "regex",
  "registrar",
@@ -3245,10 +3248,12 @@ dependencies = [
  "serde_json",
  "snapshot",
  "spec",
+ "state-db",
  "tempdir",
  "term_size",
  "textwrap 0.9.0",
  "toml",
+ "trie-db",
  "verification",
  "winapi 0.3.8",
 ]

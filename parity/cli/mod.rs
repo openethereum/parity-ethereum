@@ -229,6 +229,10 @@ usage! {
 				"Number of blocks to revert",
 			}
 
+			CMD cmd_db_rebuild_accounts_bloom {
+				"Rebuild the accounts bloom filter. Iterate over all accounts in the state db and add its address to the bloom filter. Can take a very long time for big databases.",
+			}
+
 		}
 
 		CMD cmd_export_hardcoded_sync
@@ -1692,6 +1696,7 @@ mod tests {
 			cmd_db: false,
 			cmd_db_kill: false,
 			cmd_db_reset: false,
+			cmd_db_regenerate_bloom: false,
 			cmd_export_hardcoded_sync: false,
 
 			// Arguments
