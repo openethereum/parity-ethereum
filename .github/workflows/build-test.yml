@@ -26,6 +26,7 @@ jobs:
       # https://github.com/actions/cache/issues/133 
       - name:                   Prepare cache dirs
         run:                    mkdir -p {$HOME/.cargo/git,$HOME/.cargo/registry}
+        shell:                  bash
         #      - name:                   Fixup the owner of ~/.cargo/
         #        if:                     matrix.platform == 'ubuntu-16.04'
         #        run:                    sudo chown -R $(whoami):$(id -ng) ~/.cargo/
