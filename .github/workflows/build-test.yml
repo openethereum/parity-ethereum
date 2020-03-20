@@ -24,18 +24,20 @@ jobs:
         with:
           submodules:           true
       # https://github.com/actions/cache/issues/133 
-      - name:                   Fixup the owner of ~/.cargo/
-        if:                     matrix.platform == 'ubuntu-16.04'
-        run:                    sudo chown -R $(whoami):$(id -ng) ~/.cargo/
-      - name:                   Fixup the owner of C:\Users\runneradmin\.cargo\registry
-        if:                     matrix.platform == 'windows-latest'
-        shell:                  powershell
-        run:                    |
-          $registryPath = "C:\Rust\.cargo\registry"
-          $acl = Get-Acl $registryPath
-          $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule("runneradmin","FullControl","ContainerInherit,ObjectInherit", "None", "Allow")
-          $acl.SetAccessRule($accessRule)
-          $acl | Set-Acl $registryPath
+      - name:                   Prepare cache dirs
+        run:                    mkdir -p {$HOME/.cargo/git,$HOME/.cargo/registry}
+        #      - name:                   Fixup the owner of ~/.cargo/
+        #        if:                     matrix.platform == 'ubuntu-16.04'
+        #        run:                    sudo chown -R $(whoami):$(id -ng) ~/.cargo/
+        #      - name:                   Fixup the owner of C:\Users\runneradmin\.cargo\registry
+        #        if:                     matrix.platform == 'windows-latest'
+        #        shell:                  powershell
+        #        run:                    |
+        #          $registryPath = "C:\Rust\.cargo\registry"
+        #          $acl = Get-Acl $registryPath
+        #          $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule("runneradmin","FullControl","ContainerInherit,ObjectInherit", "None", "Allow")
+        #          $acl.SetAccessRule($accessRule)
+        #          $acl | Set-Acl $registryPath
       - name:                   Install toolchain
         uses:                   actions-rs/toolchain@v1
         with:
