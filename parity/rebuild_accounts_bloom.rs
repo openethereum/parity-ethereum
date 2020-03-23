@@ -85,7 +85,7 @@ fn load_state_root(db: Arc<Database>) -> Result<Option<H256>, Error> {
 	let best_block_hash = match db.get(COL_EXTRA, b"best")? {
 		None => {
 			warn!(target: "migration", "No best block hash, skipping");
-			return Ok(None);
+			return Err(Error::Msg("No best block hash in the DB.".to_owned()));
 		},
 		Some(hash) => hash,
 	};

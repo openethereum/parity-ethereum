@@ -1713,6 +1713,7 @@ mod tests {
 			arg_export_state_format: None,
 			arg_snapshot_file: None,
 			arg_restore_file: None,
+			arg_db_rebuild_accounts_bloom_backup_path: None,
 			arg_tools_hash_file: None,
 
 			arg_enable_signing_queue: false,
