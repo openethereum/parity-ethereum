@@ -62,17 +62,13 @@ pub fn rebuild_accounts_bloom<P: AsRef<Path>>(
 	let db_path_str = db_path.as_ref().to_string_lossy();
 	let db = Arc::new(Database::open(&db_config, &db_path_str)?);
 
-	let state_root = if let Some(state_root) = load_state_root(db.clone())? {
-		state_root
-	} else {
-		info!("Nothing to do.");
-		return Ok(())
-	};
+	let state_root = load_state_root(db.clone())?;
 
 	// todo[dvdplm] I can't make the `--backup-path` optional with the `usage!`
 	// macro so having `Option<String>` here is pretty useless – it must be
 	// specified. For the time being we'll always make a backup.
 	if let Some(backup_path) = backup_path {
+		let backup_path = dir::helpers::replace_home("", &backup_path);
 		let backup_path = Path::new(&backup_path);
 		backup_bloom(&backup_path, db.clone())?;
 	}
@@ -81,7 +77,7 @@ pub fn rebuild_accounts_bloom<P: AsRef<Path>>(
 	Ok(())
 }
 
-fn load_state_root(db: Arc<Database>) -> Result<Option<H256>, Error> {
+fn load_state_root(db: Arc<Database>) -> Result<H256, Error> {
 	let best_block_hash = match db.get(COL_EXTRA, b"best")? {
 		None => {
 			warn!(target: "migration", "No best block hash, skipping");
@@ -93,13 +89,13 @@ fn load_state_root(db: Arc<Database>) -> Result<Option<H256>, Error> {
 		// no best block, nothing to do
 		None => {
 			warn!(target: "migration", "No best block header, skipping");
-			return Ok(None)
+			return Err(Error::Msg("No best block header in the DB.".to_owned()));
 		},
 		Some(x) => x,
 	};
 	let view = ViewRlp::new(&best_block_header, "", 1);
 	let state_root = HeaderView::new(view).state_root();
-	Ok(Some(state_root))
+	Ok(state_root)
 }
 
 // todo[dvdplm]: using `~/path/` does not work – expand `~` to home dir.

@@ -23,6 +23,8 @@ pub fn replace_home(base: &str, arg: &str) -> String {
 	// We use an `if` so that we don't need to call `home_dir()` if not necessary.
 	let r = if arg.contains("$HOME") {
 		arg.replace("$HOME", home_dir().expect("$HOME isn't defined").to_str().unwrap())
+	} else if arg.contains("~") {
+		arg.replace("~", home_dir().expect("$HOME isn't defined").to_str().unwrap())
 	} else {
 		arg.to_owned()
 	};
