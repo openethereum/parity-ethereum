@@ -1722,7 +1722,7 @@ mod tests {
 			arg_snapshot_file: None,
 			arg_restore_file: None,
 			arg_db_rebuild_accounts_bloom_backup_path: None,
-			arg_db_restore_accounts_bloom_backup_path: "",
+			arg_db_restore_accounts_bloom_backup_path: "".to_string(),
 			arg_tools_hash_file: None,
 
 			arg_enable_signing_queue: false,
