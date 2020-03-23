@@ -38,16 +38,16 @@ use self::{
 	account_state::account::Account as StateAccount,
 	accounts_bloom::Bloom, // todo[dvdplm] rename this crate
 	ethtrie::TrieDB,
-	kvdb_rocksdb::{Database, DatabaseConfig},
+	kvdb_rocksdb::{CompactionProfile, Database, DatabaseConfig},
 	state_db::{ACCOUNT_BLOOM_SPACE, DEFAULT_ACCOUNT_PRESET, StateDB},
 	trie_db::Trie,
 };
 use types::{
+	BlockNumber,
 	errors::EthcoreError as Error,
 	views::{HeaderView, ViewRlp},
 };
 use rlp::{RlpStream, Rlp};
-use self::kvdb_rocksdb::CompactionProfile;
 
 pub fn rebuild_accounts_bloom<P: AsRef<Path>>(
 	db_path: P,
@@ -62,7 +62,7 @@ pub fn rebuild_accounts_bloom<P: AsRef<Path>>(
 	let db_path_str = db_path.as_ref().to_string_lossy();
 	let db = Arc::new(Database::open(&db_config, &db_path_str)?);
 
-	let state_root = load_state_root(db.clone())?;
+	let (state_root, best_block) = load_state_root(db.clone())?;
 
 	// todo[dvdplm] I can't make the `--backup-path` optional with the `usage!`
 	// macro so having `Option<String>` here is pretty useless – it must be
@@ -70,10 +70,10 @@ pub fn rebuild_accounts_bloom<P: AsRef<Path>>(
 	if let Some(backup_path) = backup_path {
 		let backup_path = dir::helpers::replace_home("", &backup_path);
 		let backup_path = Path::new(&backup_path);
-		backup_bloom(&backup_path, db.clone())?;
+		backup_bloom(&backup_path, db.clone(), best_block)?;
 	}
 
-	generate_bloom(db, state_root)?;
+	generate_bloom(db, state_root, best_block)?;
 	Ok(())
 }
 
@@ -95,7 +95,7 @@ pub fn restore_accounts_bloom<P: AsRef<Path>>(
 	Ok(())
 }
 
-fn load_state_root(db: Arc<Database>) -> Result<H256, Error> {
+fn load_state_root(db: Arc<Database>) -> Result<(H256, BlockNumber), Error> {
 	let best_block_hash = match db.get(COL_EXTRA, b"best")? {
 		None => {
 			warn!(target: "migration", "No best block hash, skipping");
@@ -112,13 +112,16 @@ fn load_state_root(db: Arc<Database>) -> Result<H256, Error> {
 		Some(x) => x,
 	};
 	let view = ViewRlp::new(&best_block_header, "", 1);
-	let state_root = HeaderView::new(view).state_root();
-	Ok(state_root)
+	let header = HeaderView::new(view);
+	let best_block_nr = header.number();
+	let state_root = header.state_root();
+	Ok((state_root, best_block_nr))
 }
 
 fn backup_bloom<P: AsRef<Path>>(
 	bloom_backup_path: &P,
-	source: Arc<Database>
+	source: Arc<Database>,
+	best_block: BlockNumber,
 ) -> Result<(), Error> {
 	let num_keys = source.num_keys(COL_ACCOUNT_BLOOM)? / 2;
 	if num_keys == 0 {
@@ -129,7 +132,7 @@ fn backup_bloom<P: AsRef<Path>>(
 	let mut bloom_backup = std::fs::File::create(bloom_backup_path)
 		.map_err(|_| format!("Cannot write to file at path: {}", bloom_backup_path.as_ref().display()))?;
 
-	info!("Saving old bloom to '{}'", bloom_backup_path.as_ref().display());
+	info!("Saving old bloom as of block #{} to '{}'", best_block, bloom_backup_path.as_ref().display());
 	let mut stream = RlpStream::new();
 	stream.begin_unbounded_list();
 	for (n, (k, v)) in source.iter(COL_ACCOUNT_BLOOM).enumerate() {
@@ -145,7 +148,7 @@ fn backup_bloom<P: AsRef<Path>>(
 
 	use std::io::Write;
 	let written = bloom_backup.write(&stream.out())?;
-	info!("Saved old bloom to '{}' ({} bytes, {} keys)", bloom_backup_path.as_ref().display(), written, num_keys);
+	info!("Saved old bloom as of block#{} to '{}' ({} bytes, {} keys)", best_block, bloom_backup_path.as_ref().display(), written, num_keys);
 	Ok(())
 }
 
@@ -197,15 +200,13 @@ fn clear_bloom(db: Arc<Database>) -> Result<(), Error> {
 }
 
 /// Rebuild the account bloom.
-fn generate_bloom(source: Arc<Database>, state_root: H256) -> Result<(), Error> {
-	info!(target: "migration", "Account bloom rebuild started");
+fn generate_bloom(
+	source: Arc<Database>,
+	state_root: H256,
+	best_block: BlockNumber,
+) -> Result<(), Error> {
+	info!(target: "migration", "Account bloom rebuild started for chain at #{}", best_block);
 	clear_bloom(source.clone())?;
-
-	// todo[dvdplm]: need a restore command for this
-	// let test_path = std::path::Path::new("./bloom-backup-1584359135.bin");
-	// restore_bloom(test_path, source.clone())?;
-	// info!("STOP");
-	// return Ok(());
 
 	let mut empty_accounts = 0u64;
 	let mut non_empty_accounts = 0u64;
@@ -238,7 +239,7 @@ fn generate_bloom(source: Arc<Database>, state_root: H256) -> Result<(), Error> 
 				empty_accounts += 1;
 			}
 		}
-		info!("Finished iterating over the accounts in: {:?}. Bloom saturation: {}", start.elapsed(), bloom.saturation());
+		info!("Finished iterating over the accounts as of block #{} in: {:?}. Bloom saturation: {}", best_block, start.elapsed(), bloom.saturation());
 		bloom
 	};
 
@@ -249,6 +250,6 @@ fn generate_bloom(source: Arc<Database>, state_root: H256) -> Result<(), Error> 
 	StateDB::commit_bloom(&mut batch, bloom_journal)?;
 	source.write(batch)?;
 	source.flush()?;
-	info!(target: "migration", "Finished bloom update");
+	info!(target: "migration", "Finished bloom update for chain at #{}", best_block);
 	Ok(())
 }
