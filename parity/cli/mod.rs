@@ -195,7 +195,7 @@ usage! {
 			"Restore the database of the given --chain (default: mainnet) from a snapshot file",
 
 			ARG arg_restore_file: (Option<String>) = None,
-			"[FILE]",
+			"<FILE>",
 			"Path to the file to restore from",
 		}
 
@@ -231,6 +231,10 @@ usage! {
 
 			CMD cmd_db_rebuild_accounts_bloom {
 				"Rebuild the accounts bloom filter. Iterate over all accounts in the state db and add its address to the bloom filter. Can take a very long time for big databases.",
+				// todo[dvdplm]: how to make this optional? I doesn't seem possible atm.
+				ARG arg_db_rebuild_accounts_bloom_backup_path: (Option<String>) = None,
+				"--backup-path=<PATH>",
+				"Path to accounts bloom backup",
 			}
 
 		}

@@ -679,21 +679,21 @@ macro_rules! usage {
 						// Subcommand arguments
 						$(
 							raw_args.$subc_arg = return_if_parse_error!(if_option!(
+								$($subc_arg_type_tt)+,
+								THEN {
+									if_option_vec!(
 										$($subc_arg_type_tt)+,
-										THEN {
-											if_option_vec!(
-												$($subc_arg_type_tt)+,
-												THEN { values_t!(submatches, stringify!($subc_arg), inner_option_vec_type!($($subc_arg_type_tt)+)) }
-												ELSE { value_t!(submatches, stringify!($subc_arg), inner_option_type!($($subc_arg_type_tt)+)) }
-											)
-										}
-										ELSE {
-											if_vec!(
-												$($subc_arg_type_tt)+,
-												THEN { values_t!(submatches, stringify!($subc_arg), inner_vec_type!($($subc_arg_type_tt)+)) }
-												ELSE { value_t!(submatches, stringify!($subc_arg), $($subc_arg_type_tt)+) }
-											)
-										}
+										THEN { values_t!(submatches, stringify!($subc_arg), inner_option_vec_type!($($subc_arg_type_tt)+)) }
+										ELSE { value_t!(submatches, stringify!($subc_arg), inner_option_type!($($subc_arg_type_tt)+)) }
+									)
+								}
+								ELSE {
+									if_vec!(
+										$($subc_arg_type_tt)+,
+										THEN { values_t!(submatches, stringify!($subc_arg), inner_vec_type!($($subc_arg_type_tt)+)) }
+										ELSE { value_t!(submatches, stringify!($subc_arg), $($subc_arg_type_tt)+) }
+									)
+								}
 							));
 						)*
 						// Sub-subcommands

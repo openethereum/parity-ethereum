@@ -50,22 +50,63 @@ use rlp::{RlpStream, Rlp};
 use self::kvdb_rocksdb::CompactionProfile;
 
 pub fn rebuild_accounts_bloom<P: AsRef<Path>>(
-	path: P,
-	compaction: CompactionProfile
+	db_path: P,
+	compaction: CompactionProfile,
+	backup_path: Option<String>,
 ) -> Result<(), Error> {
 	let db_config = DatabaseConfig {
 		compaction,
 		columns: ethcore_db::NUM_COLUMNS,
 		..Default::default()
 	};
-	let path_str = path.as_ref().to_string_lossy();
-	let db = Arc::new(Database::open(&db_config, &path_str)?);
+	let db_path_str = db_path.as_ref().to_string_lossy();
+	let db = Arc::new(Database::open(&db_config, &db_path_str)?);
 
-	generate_bloom(db)?;
+	let state_root = if let Some(state_root) = load_state_root(db.clone())? {
+		state_root
+	} else {
+		info!("Nothing to do.");
+		return Ok(())
+	};
+
+	// todo[dvdplm] I can't make the `--backup-path` optional with the `usage!`
+	// macro so having `Option<String>` here is pretty useless – it must be
+	// specified. For the time being we'll always make a backup.
+	if let Some(backup_path) = backup_path {
+		let backup_path = Path::new(&backup_path);
+		backup_bloom(&backup_path, db.clone())?;
+	}
+
+	generate_bloom(db, state_root)?;
 	Ok(())
 }
 
-pub fn backup_bloom(bloom_backup_path: &Path, source: Arc<Database>) -> Result<(), Error> {
+fn load_state_root(db: Arc<Database>) -> Result<Option<H256>, Error> {
+	let best_block_hash = match db.get(COL_EXTRA, b"best")? {
+		None => {
+			warn!(target: "migration", "No best block hash, skipping");
+			return Ok(None);
+		},
+		Some(hash) => hash,
+	};
+	let best_block_header = match db.get(COL_HEADERS, &best_block_hash)? {
+		// no best block, nothing to do
+		None => {
+			warn!(target: "migration", "No best block header, skipping");
+			return Ok(None)
+		},
+		Some(x) => x,
+	};
+	let view = ViewRlp::new(&best_block_header, "", 1);
+	let state_root = HeaderView::new(view).state_root();
+	Ok(Some(state_root))
+}
+
+// todo[dvdplm]: using `~/path/` does not work – expand `~` to home dir.
+fn backup_bloom<P: AsRef<Path>>(
+	bloom_backup_path: &P,
+	source: Arc<Database>
+) -> Result<(), Error> {
 	let num_keys = source.num_keys(COL_ACCOUNT_BLOOM)? / 2;
 	if num_keys == 0 {
 		warn!("No bloom in the DB to back up");
@@ -73,9 +114,9 @@ pub fn backup_bloom(bloom_backup_path: &Path, source: Arc<Database>) -> Result<(
 	}
 
 	let mut bloom_backup = std::fs::File::create(bloom_backup_path)
-		.map_err(|_| format!("Cannot write to file given: {}", bloom_backup_path.display()))?;
+		.map_err(|_| format!("Cannot write to file at path: {}", bloom_backup_path.as_ref().display()))?;
 
-	info!("Saving old bloom to '{}'", bloom_backup_path.display());
+	info!("Saving old bloom to '{}'", bloom_backup_path.as_ref().display());
 	let mut stream = RlpStream::new();
 	stream.begin_unbounded_list();
 	for (n, (k, v)) in source.iter(COL_ACCOUNT_BLOOM).enumerate() {
@@ -91,7 +132,7 @@ pub fn backup_bloom(bloom_backup_path: &Path, source: Arc<Database>) -> Result<(
 
 	use std::io::Write;
 	let written = bloom_backup.write(&stream.out())?;
-	info!("Saved old bloom to '{}' ({} bytes, {} keys)", bloom_backup_path.display(), written, num_keys);
+	info!("Saved old bloom to '{}' ({} bytes, {} keys)", bloom_backup_path.as_ref().display(), written, num_keys);
 	Ok(())
 }
 
@@ -142,29 +183,8 @@ fn clear_bloom(db: Arc<Database>) -> Result<(), Error> {
 }
 
 /// Rebuild the account bloom.
-fn generate_bloom(source: Arc<Database>) -> Result<(), Error> {
+fn generate_bloom(source: Arc<Database>, state_root: H256) -> Result<(), Error> {
 	info!(target: "migration", "Account bloom rebuild started");
-	let best_block_hash = match source.get(COL_EXTRA, b"best")? {
-		None => {
-			warn!(target: "migration", "No best block hash, skipping");
-			return Ok(());
-		},
-		Some(hash) => hash,
-	};
-	let best_block_header = match source.get(COL_HEADERS, &best_block_hash)? {
-		// no best block, nothing to do
-		None => {
-			warn!(target: "migration", "No best block header, skipping");
-			return Ok(())
-		},
-		Some(x) => x,
-	};
-
-	// todo[dvdplm]: need a param `--to=…` for the user to save the old bloom somewhere.
-	use std::time::{SystemTime, UNIX_EPOCH};
-	let bloom_backup_path_str = format!("./bloom-backup-{:?}.bin", SystemTime::now().duration_since(UNIX_EPOCH).expect("system clock error").as_secs());
-	let bloom_backup_path = std::path::Path::new(&bloom_backup_path_str);
-	backup_bloom(bloom_backup_path, source.clone())?;
 	clear_bloom(source.clone())?;
 
 	// todo[dvdplm]: need a restore command for this
@@ -186,8 +206,6 @@ fn generate_bloom(source: Arc<Database>) -> Result<(), Error> {
 			COL_STATE);
 
 		let db = state_db.as_hash_db();
-		let view = ViewRlp::new(&best_block_header, "", 1);
-		let state_root = HeaderView::new(view).state_root();
 		let account_trie = TrieDB::new(&db, &state_root)?;
 		// Don't insert empty accounts into the bloom
 		let empty_account_rlp = StateAccount::new_basic(U256::zero(), U256::zero()).rlp();

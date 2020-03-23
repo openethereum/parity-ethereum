@@ -204,6 +204,7 @@ impl Configuration {
 				dirs,
 				pruning,
 				compaction,
+				backup_path: self.args.arg_db_rebuild_accounts_bloom_backup_path,
 			}))
 		} else if self.args.cmd_account {
 			let account_cmd = if self.args.cmd_account_new {

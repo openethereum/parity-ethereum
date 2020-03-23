@@ -87,6 +87,7 @@ pub struct RebuildAccountsBloom {
 	pub dirs: Directories,
 	pub pruning: Pruning,
 	pub compaction: DatabaseCompactionProfile,
+	pub backup_path: Option<String>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -714,7 +715,11 @@ pub fn rebuild_accounts_bloom(cmd: RebuildAccountsBloom) -> Result<(), String> {
 		&db_path,
 	);
 
-	rebuild_accounts_bloom(&db_path, compaction).map_err(|e| e.to_string() )?;
+	rebuild_accounts_bloom(
+		&db_path,
+		compaction,
+		cmd.backup_path,
+	).map_err(|e| e.to_string() )?;
 	Ok(())
 }
 
