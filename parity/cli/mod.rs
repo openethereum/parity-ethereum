@@ -1696,7 +1696,7 @@ mod tests {
 			cmd_db: false,
 			cmd_db_kill: false,
 			cmd_db_reset: false,
-			cmd_db_regenerate_bloom: false,
+			cmd_db_rebuild_accounts_bloom: false,
 			cmd_export_hardcoded_sync: false,
 
 			// Arguments
