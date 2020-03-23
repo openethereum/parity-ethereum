@@ -57,6 +57,7 @@ pub enum BlockchainCmd {
 	ExportState(ExportState),
 	Reset(ResetBlockchain),
 	RebuildAccountsBloom(RebuildAccountsBloom),
+	RestoreAccountsBloom(RestoreAccountsBloom),
 }
 
 #[derive(Debug, PartialEq)]
@@ -88,6 +89,16 @@ pub struct RebuildAccountsBloom {
 	pub pruning: Pruning,
 	pub compaction: DatabaseCompactionProfile,
 	pub backup_path: Option<String>,
+}
+
+#[derive(Debug, PartialEq)]
+/// Restore the accounts existence-test bloom filter from a backup on disk
+pub struct RestoreAccountsBloom {
+	pub spec: SpecType,
+	pub dirs: Directories,
+	pub pruning: Pruning,
+	pub compaction: DatabaseCompactionProfile,
+	pub backup_path: String,
 }
 
 #[derive(Debug, PartialEq)]
@@ -164,6 +175,7 @@ pub fn execute(cmd: BlockchainCmd) -> Result<(), String> {
 		BlockchainCmd::ExportState(export_cmd) => execute_export_state(export_cmd),
 		BlockchainCmd::Reset(reset_cmd) => execute_reset(reset_cmd),
 		BlockchainCmd::RebuildAccountsBloom(cmd) => rebuild_accounts_bloom(cmd),
+		BlockchainCmd::RestoreAccountsBloom(cmd) => restore_accounts_bloom(cmd),
 	}
 }
 
@@ -689,33 +701,42 @@ pub fn kill_db(cmd: KillBlockchain) -> Result<(), String> {
 pub fn rebuild_accounts_bloom(cmd: RebuildAccountsBloom) -> Result<(), String> {
 	use super::rebuild_accounts_bloom::rebuild_accounts_bloom;
 	info!("Rebuilding accounts bloom");
-
-	// load spec file
 	let spec = cmd.spec.spec(&cmd.dirs.cache)?;
-
-	// load genesis hash
 	let genesis_hash = spec.genesis_header().hash();
-
-	// database paths
 	let db_dirs = cmd.dirs.database(genesis_hash, None, spec.data_dir.clone());
-
-	// user defaults path
 	let user_defaults_path = db_dirs.user_defaults_path();
-
-	// load user defaults
 	let user_defaults = UserDefaults::load(&user_defaults_path)?;
-
-	// select pruning algorithm
 	let algorithm = cmd.pruning.to_algorithm(&user_defaults);
-
 	let db_path = db_dirs.client_path(algorithm);
-
 	let compaction = super::db::compaction_profile(
 		&cmd.compaction,
 		&db_path,
 	);
 
 	rebuild_accounts_bloom(
+		&db_path,
+		compaction,
+		cmd.backup_path,
+	).map_err(|e| e.to_string() )?;
+	Ok(())
+}
+
+pub fn restore_accounts_bloom(cmd: RestoreAccountsBloom) -> Result<(), String> {
+	use super::rebuild_accounts_bloom::restore_accounts_bloom;
+	info!("Restoring accounts bloom from backup at {}", cmd.backup_path);
+	let spec = cmd.spec.spec(&cmd.dirs.cache)?;
+	let genesis_hash = spec.genesis_header().hash();
+	let db_dirs = cmd.dirs.database(genesis_hash, None, spec.data_dir.clone());
+	let user_defaults_path = db_dirs.user_defaults_path();
+	let user_defaults = UserDefaults::load(&user_defaults_path)?;
+	let algorithm = cmd.pruning.to_algorithm(&user_defaults);
+	let db_path = db_dirs.client_path(algorithm);
+	let compaction = super::db::compaction_profile(
+		&cmd.compaction,
+		&db_path,
+	);
+
+	restore_accounts_bloom(
 		&db_path,
 		compaction,
 		cmd.backup_path,

@@ -47,7 +47,7 @@ use secretstore::{NodeSecretKey, Configuration as SecretStoreConfiguration, Cont
 use updater::{UpdatePolicy, UpdateFilter, ReleaseTrack};
 use run::RunCmd;
 use types::data_format::DataFormat;
-use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, KillBlockchain, ExportState, ResetBlockchain, RebuildAccountsBloom};
+use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, KillBlockchain, ExportState, ResetBlockchain, RebuildAccountsBloom, RestoreAccountsBloom};
 use export_hardcoded_sync::ExportHsyncCmd;
 use presale::ImportWallet;
 use account::{AccountCmd, NewAccount, ListAccounts, ImportAccounts, ImportFromGethAccounts};
@@ -205,6 +205,14 @@ impl Configuration {
 				pruning,
 				compaction,
 				backup_path: self.args.arg_db_rebuild_accounts_bloom_backup_path,
+			}))
+		} else if self.args.cmd_db && self.args.cmd_db_restore_accounts_bloom {
+			Cmd::Blockchain(BlockchainCmd::RestoreAccountsBloom(RestoreAccountsBloom {
+				spec,
+				dirs,
+				pruning,
+				compaction,
+				backup_path: self.args.arg_db_restore_accounts_bloom_backup_path,
 			}))
 		} else if self.args.cmd_account {
 			let account_cmd = if self.args.cmd_account_new {

@@ -77,6 +77,24 @@ pub fn rebuild_accounts_bloom<P: AsRef<Path>>(
 	Ok(())
 }
 
+pub fn restore_accounts_bloom<P: AsRef<Path>>(
+	db_path: P,
+	compaction: CompactionProfile,
+	backup_path: String,
+) -> Result<(), Error> {
+	let db_config = DatabaseConfig {
+		compaction,
+		columns: ethcore_db::NUM_COLUMNS,
+		..Default::default()
+	};
+	let db_path_str = db_path.as_ref().to_string_lossy();
+	let db = Arc::new(Database::open(&db_config, &db_path_str)?);
+
+	let backup_path = dir::helpers::replace_home("", &backup_path);
+	restore_bloom(&backup_path, db.clone())?;
+	Ok(())
+}
+
 fn load_state_root(db: Arc<Database>) -> Result<H256, Error> {
 	let best_block_hash = match db.get(COL_EXTRA, b"best")? {
 		None => {
@@ -98,7 +116,6 @@ fn load_state_root(db: Arc<Database>) -> Result<H256, Error> {
 	Ok(state_root)
 }
 
-// todo[dvdplm]: using `~/path/` does not work – expand `~` to home dir.
 fn backup_bloom<P: AsRef<Path>>(
 	bloom_backup_path: &P,
 	source: Arc<Database>
@@ -132,21 +149,21 @@ fn backup_bloom<P: AsRef<Path>>(
 	Ok(())
 }
 
-fn restore_bloom(bloom_backup_path: &Path, db: Arc<Database>) -> Result<(), Error> {
+fn restore_bloom<P: AsRef<Path>>(
+	bloom_backup_path: &P,
+	db: Arc<Database>
+) -> Result<(), Error> {
 	let mut bloom_backup = std::fs::File::open(bloom_backup_path)?;
-	info!("Restoring bloom from '{}'", bloom_backup_path.display());
-	let num_keys = db.num_keys(COL_ACCOUNT_BLOOM)? / 2;
-	if num_keys != 0 {
-		warn!("Will not overwrite existing bloom! ({} items found in the DB)", num_keys);
-		return Err(format!("Blooms DB column is not empty").into())
-	}
+	info!("Restoring bloom from '{}'", bloom_backup_path.as_ref().display());
 	let mut buf = Vec::with_capacity(10_000_000);
 	use std::io::Read;
+	// todo[dvdplm]: this is a little terrible – what's the better way?
 	let bytes_read = bloom_backup.read_to_end(&mut buf)?;
 	let rlp = Rlp::new(&buf);
-	info!("{} bloom key/values and {} bytes read from disk", rlp.item_count()?, bytes_read);
+	let item_count = rlp.item_count()?;
+	info!("{} bloom key/values and {} bytes read from disk", item_count, bytes_read);
 
-	let mut batch = DBTransaction::with_capacity(rlp.item_count()?);
+	let mut batch = DBTransaction::with_capacity(item_count);
 	for (n, kv_rlp) in rlp.iter().enumerate() {
 		let kv: Vec<Vec<u8>> = kv_rlp.as_list()?;
 		assert_eq!(kv.len(), 2);
@@ -155,9 +172,10 @@ fn restore_bloom(bloom_backup_path: &Path, db: Arc<Database>) -> Result<(), Erro
 			info!("  Bloom entries prepared for restoration: {}", n);
 		}
 	}
+	clear_bloom(db.clone())?;
 	db.write(batch)?;
 	db.flush()?;
-	info!("Bloom restored ({} bytes)", bytes_read);
+	info!("Bloom restored (wrote {} entries, {} bytes)", item_count, bytes_read);
 	Ok(())
 }
 

@@ -237,6 +237,13 @@ usage! {
 				"Path to accounts bloom backup",
 			}
 
+			CMD cmd_db_restore_accounts_bloom {
+				"Restore the accounts bloom filter from a backup file on disk. Destructive.",
+				ARG arg_db_restore_accounts_bloom_backup_path: (String) = "",
+				"--backup-path=<PATH>",
+				"Path to accounts bloom backup file",
+			}
+
 		}
 
 		CMD cmd_export_hardcoded_sync
@@ -1701,6 +1708,7 @@ mod tests {
 			cmd_db_kill: false,
 			cmd_db_reset: false,
 			cmd_db_rebuild_accounts_bloom: false,
+			cmd_db_restore_accounts_bloom: false,
 			cmd_export_hardcoded_sync: false,
 
 			// Arguments
@@ -1714,6 +1722,7 @@ mod tests {
 			arg_snapshot_file: None,
 			arg_restore_file: None,
 			arg_db_rebuild_accounts_bloom_backup_path: None,
+			arg_db_restore_accounts_bloom_backup_path: "",
 			arg_tools_hash_file: None,
 
 			arg_enable_signing_queue: false,
