@@ -526,11 +526,11 @@ checksum = "926013f2860c46252efceabb19f4a6b308197505082c609025aa6706c011d427"
 
 [[package]]
 name = "cc"
-version = "1.0.41"
+version = "1.0.50"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8dae9c4b8fedcae85592ba623c4fd08cfdab3e3b72d6df780c6ead964a69bfff"
+checksum = "95e28fa049fda1c330bcf9d723be7663a899c4679724b34c81e9f5a326aab8cd"
 dependencies = [
- "rayon",
+ "jobserver",
 ]
 
 [[package]]
@@ -2413,6 +2413,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "jobserver"
+version = "0.1.21"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5c71313ebb9439f74b00d9d2dcec36440beaf57a6aa0623068441dd7cd81a7f2"
+dependencies = [
+ "libc",
+]
+
+[[package]]
 name = "journaldb"
 version = "0.2.0"
 dependencies = [
@@ -2635,7 +2644,7 @@ dependencies = [
 [[package]]
 name = "kvdb-sled"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/parity-common?branch=ao-kvdb-sled#96745ec4bcca3a1c6b1f0f88e81d2c5333597857"
+source = "git+https://github.com/paritytech/parity-common?branch=ao-kvdb-sled#a03854491f4a139f2c4900288e88794e8d862a57"
 dependencies = [
  "kvdb",
  "log",
@@ -2664,9 +2673,9 @@ dependencies = [
 
 [[package]]
 name = "libc"
-version = "0.2.66"
+version = "0.2.68"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d515b1f41455adea1313a4a2ac8a8a477634fbae63cc6100e3aebb207ce61558"
+checksum = "dea0c0405123bba743ee3f91f49b1c7cfb684eef0da0a50110f758ccf24cdff0"
 
 [[package]]
 name = "libloading"
@@ -4290,6 +4299,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "rio"
+version = "0.9.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "22bf983e7a1d718d6c80af1f0dd4626c48e7b7d4b23561c9564644fa63d04d54"
+dependencies = [
+ "libc",
+]
+
+[[package]]
 name = "ripemd160"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4490,8 +4508,7 @@ dependencies = [
 [[package]]
 name = "secp256k1"
 version = "0.17.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2932dc07acd2066ff2e3921a4419606b220ba6cd03a9935123856cc534877056"
+source = "git+https://github.com/ordian/rust-secp256k1#ba013945d5343eb8a7187fe8f715333b4d4de632"
 dependencies = [
  "rand 0.6.5",
  "secp256k1-sys",
@@ -4500,8 +4517,7 @@ dependencies = [
 [[package]]
 name = "secp256k1-sys"
 version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7ab2c26f0d3552a0f12e639ae8a64afc2e3db9c52fe32f5fc6c289d38519f220"
+source = "git+https://github.com/ordian/rust-secp256k1#ba013945d5343eb8a7187fe8f715333b4d4de632"
 dependencies = [
  "cc",
 ]
@@ -4641,8 +4657,7 @@ checksum = "5f9776d6b986f77b35c6cf846c11ad986ff128fe0b2b63a3628e3755e8d3102d"
 [[package]]
 name = "sled"
 version = "0.31.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8fb6824dde66ad33bf20c6e8476f5b82b871bc8bc3c129a10ea2f7dae5060fa3"
+source = "git+https://github.com/ordian/sled#c3a6b7c4b611a3cddb960449da620f3a22973318"
 dependencies = [
  "crc32fast",
  "crossbeam-epoch 0.8.2",
@@ -4652,6 +4667,8 @@ dependencies = [
  "libc",
  "log",
  "parking_lot 0.10.0",
+ "rio",
+ "zstd",
 ]
 
 [[package]]
@@ -5969,3 +5986,33 @@ name = "zeroize"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3cbac2ed2ba24cc90f5e06485ac8c7c1e5449fe8911aef4d8877218af021a5b8"
+
+[[package]]
+name = "zstd"
+version = "0.5.1+zstd.1.4.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5c5d978b793ae64375b80baf652919b148f6a496ac8802922d9999f5a553194f"
+dependencies = [
+ "zstd-safe",
+]
+
+[[package]]
+name = "zstd-safe"
+version = "2.0.3+zstd.1.4.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bee25eac9753cfedd48133fa1736cbd23b774e253d89badbeac7d12b23848d3f"
+dependencies = [
+ "libc",
+ "zstd-sys",
+]
+
+[[package]]
+name = "zstd-sys"
+version = "1.4.15+zstd.1.4.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "89719b034dc22d240d5b407fb0a3fe6d29952c181cff9a9f95c0bd40b4f8f7d8"
+dependencies = [
+ "cc",
+ "glob",
+ "libc",
+]

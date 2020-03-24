@@ -113,7 +113,7 @@ path = "parity/main.rs"
 name = "parity"
 
 [profile.release]
-debug = true
+debug = false
 lto = "fat"
 codegen-units = 1
 
@@ -131,3 +131,4 @@ members = [
 
 [patch.crates-io]
 kvdb-sled = { git = "https://github.com/paritytech/parity-common", branch = "ao-kvdb-sled" }
+secp256k1 = { git = "https://github.com/ordian/rust-secp256k1" }
