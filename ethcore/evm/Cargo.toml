@@ -15,6 +15,7 @@ vm = { path = "../vm" }
 keccak-hash = "0.4.0"
 parking_lot = "0.10.0"
 memory-cache = { path = "../../util/memory-cache" }
+ethcore-builtin = { path = "./../builtin" }
 
 [dev-dependencies]
 criterion = "0.3"

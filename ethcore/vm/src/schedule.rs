@@ -71,8 +71,10 @@ pub struct Schedule {
 	pub log_topic_gas: usize,
 	/// Gas price for `CREATE` opcode
 	pub create_gas: usize,
-	/// Gas price for `*CALL*` opcodes
+	/// Gas price for `*CALL*` opcodes, EXCEPT for staticcall to precompiles
 	pub call_gas: usize,
+	/// Gas price for staticcall to precompiles
+	pub staticcall_precompile_gas: usize,
 	/// Stipend for transfer for `CALL|CALLCODE` opcode when `value>0`
 	pub call_stipend: usize,
 	/// Additional gas required for value transfer (`CALL|CALLCODE`)
@@ -250,6 +252,7 @@ impl Schedule {
 			log_topic_gas: 375,
 			create_gas: 32000,
 			call_gas: 700,
+			staticcall_precompile_gas: 700,
 			call_stipend: 2300,
 			call_value_transfer_gas: 9000,
 			call_new_account_gas: 25000,
@@ -312,6 +315,13 @@ impl Schedule {
 		schedule
 	}
 
+	/// Schedule for the Berlin fork of the Ethereum main net.
+	pub fn new_berlin() -> Schedule {
+		let mut schedule = Self::new_istanbul();
+		schedule.staticcall_precompile_gas = 40; // EIPs 2046 1352
+		schedule
+	}
+	
 	fn new(efcd: bool, hdc: bool, tcg: usize) -> Schedule {
 		Schedule {
 			exceptional_failed_code_deposit: efcd,
@@ -341,6 +351,7 @@ impl Schedule {
 			log_topic_gas: 375,
 			create_gas: 32000,
 			call_gas: 40,
+			staticcall_precompile_gas: 40,
 			call_stipend: 2300,
 			call_value_transfer_gas: 9000,
 			call_new_account_gas: 25000,

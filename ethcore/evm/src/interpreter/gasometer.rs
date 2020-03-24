@@ -22,6 +22,7 @@ use {evm, vm};
 use instructions::{self, Instruction, InstructionInfo};
 use interpreter::stack::Stack;
 use vm::Schedule;
+use ethcore_builtin::Builtin;
 
 macro_rules! overflowing {
 	($x: expr) => {{
@@ -224,12 +225,29 @@ impl<Gas: evm::CostType> Gasometer<Gas> {
 
 				Request::GasMemProvide(gas, mem, Some(requested))
 			},
-			instructions::DELEGATECALL | instructions::STATICCALL => {
+			instructions::DELEGATECALL => {
 				let gas = Gas::from(schedule.call_gas);
 				let mem = cmp::max(
 					mem_needed(stack.peek(4), stack.peek(5))?,
 					mem_needed(stack.peek(2), stack.peek(3))?
 				);
+				let requested = *stack.peek(0);
+
+				Request::GasMemProvide(gas, mem, Some(requested))
+			},
+			instructions::STATICCALL => {				
+				let code_address = u256_to_address(stack.peek(1));
+				let gas = if Builtin::in_precompiles_address_range(&code_address) {
+					Gas::from(schedule.staticcall_precompile_gas)
+				} else {
+					Gas::from(schedule.call_gas)
+				};
+
+				let mem = cmp::max(
+					mem_needed(stack.peek(4), stack.peek(5))?, // out_off, out_size 
+					mem_needed(stack.peek(2), stack.peek(3))?  // in_off, in_size
+				);
+
 				let requested = *stack.peek(0);
 
 				Request::GasMemProvide(gas, mem, Some(requested))
