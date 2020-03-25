@@ -29,7 +29,7 @@ use std::{
 
 use byteorder::{BigEndian, LittleEndian, ReadBytesExt};
 use common_types::errors::EthcoreError;
-use ethereum_types::{H256, U256,Address};
+use ethereum_types::{H256, U256, Address};
 use parity_crypto::publickey::{Signature, recover as ec_recover};
 use keccak_hash::keccak;
 use log::{warn, trace};
