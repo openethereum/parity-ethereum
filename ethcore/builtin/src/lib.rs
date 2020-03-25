@@ -19,7 +19,7 @@
 #![warn(missing_docs)]
 
 use std::{
-	cmp::{max, min,Ordering},
+	cmp::{max, min, Ordering},
 	collections::BTreeMap,
 	convert::{TryFrom, TryInto},
 	io::{self, Read, Cursor},
