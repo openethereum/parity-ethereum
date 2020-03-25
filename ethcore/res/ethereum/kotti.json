@@ -12,6 +12,8 @@
 	"params": {
 		"accountStartNonce": "0x0",
 		"chainID": "0x6",
+		"forkBlock": "0x1febd1",
+		"forkCanonHash": "0x5e870cdcb252261bd5e7ed3499f42a8f7b9ef6ce08ece55e8187247cc0551f4c",
 		"eip140Transition": "0xaef49",
 		"eip145Transition": "0x1a064d",
 		"eip150Transition": "0x0",
