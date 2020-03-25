@@ -230,7 +230,7 @@ fn execute<Cr, Rr>(
 /// binary.
 ///
 /// On error, returns what to print on stderr.
-// FIXME: totally independent logging capability, see https://github.com/OpenEthereum/open-ethereum/issues/10252
+// FIXME: totally independent logging capability, see https://github.com/openethereum/openethereum/issues/10252
 pub fn start<Cr, Rr>(
 	conf: Configuration,
 	logger: Arc<RotatingLogger>,

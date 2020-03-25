@@ -10,11 +10,11 @@ See also frequently asked questions [tagged with `parity`](https://ethereum.stac
 
 Do **not** open an issue on Github if you think your discovered bug could be a **security-relevant vulnerability**. Please, read our [security policy](../SECURITY.md) instead.
 
-Otherwise, just create a [new issue](https://github.com/OpenEthereum/open-ethereum/issues/new) in our repository and state:
+Otherwise, just create a [new issue](https://github.com/openethereum/openethereum/issues/new) in our repository and state:
 
-- What's your Open Ethereum version?
+- What's your OpenEthereum version?
 - What's your operating system and version?
-- How did you install Open Ethereum?
+- How did you install OpenEthereum?
 - Is your node fully synchronized?
 - Did you try turning it off and on again?
 
@@ -22,11 +22,11 @@ Also, try to include **steps to reproduce** the issue and expand on the **actual
 
 ## Contribute!
 
-If you would like to contribute to Open Ethereum, please **fork it**, fix bugs or implement features, and [propose a pull request](https://github.com/OpenEthereum/open-ethereum/compare).
+If you would like to contribute to OpenEthereum, please **fork it**, fix bugs or implement features, and [propose a pull request](https://github.com/openethereum/openethereum/compare).
 
 ### Labels & Milestones
 
-We use [labels](https://github.com/OpenEthereum/open-ethereum/labels) to manage PRs and issues and communicate the state of a PR. Please familiarize yourself with them. Furthermore we are organizing issues in [milestones](https://github.com/OpenEthereum/open-ethereum/milestones). Best way to get started is to a pick a ticket from the current milestone tagged [`easy`](https://github.com/OpenEthereum/open-ethereum/labels/Q2-easy%20%F0%9F%92%83) and get going, or [`mentor`](https://github.com/OpenEthereum/open-ethereum/labels/Q1-mentor%20%F0%9F%95%BA) and get in contact with the mentor offering their support on that larger task.
+We use [labels](https://github.com/openethereum/openethereum/labels) to manage PRs and issues and communicate the state of a PR. Please familiarize yourself with them. Furthermore we are organizing issues in [milestones](https://github.com/openethereum/openethereum/milestones). Best way to get started is to a pick a ticket from the current milestone tagged [`easy`](https://github.com/openethereum/openethereum/labels/Q2-easy%20%F0%9F%92%83) and get going, or [`mentor`](https://github.com/openethereum/openethereum/labels/Q1-mentor%20%F0%9F%95%BA) and get in contact with the mentor offering their support on that larger task.
 
 ### Rules
 
@@ -39,18 +39,18 @@ There are a few basic ground-rules for contributors (including the maintainer(s)
 
 ### Recommendations
 
-* **Non-master branch names** *should* be prefixed with a short name moniker, followed by the associated Github Issue ID (if any), and a brief description of the task using the format `<GITHUB_USERNAME>-<ISSUE_ID>-<BRIEF_DESCRIPTION>` (e.g. `gavin-123-readme`). The name moniker helps people to inquiry about their unfinished work, and the GitHub Issue ID helps your future self and other developers (particularly those who are onboarding) find out about and understand the original scope of the task, and where it fits into Open Ethereum [Projects](https://github.com/OpenEthereum/open-ethereum/projects).
+* **Non-master branch names** *should* be prefixed with a short name moniker, followed by the associated Github Issue ID (if any), and a brief description of the task using the format `<GITHUB_USERNAME>-<ISSUE_ID>-<BRIEF_DESCRIPTION>` (e.g. `gavin-123-readme`). The name moniker helps people to inquiry about their unfinished work, and the GitHub Issue ID helps your future self and other developers (particularly those who are onboarding) find out about and understand the original scope of the task, and where it fits into OpenEthereum [Projects](https://github.com/openethereum/openethereum/projects).
 * **Remove stale branches periodically**
 
 ### Preparing Pull Requests
 
-* If your PR does not alter any logic (e.g. comments, dependencies, docs), then it may be tagged [`insubstantial`](https://github.com/OpenEthereum/open-ethereum/pulls?q=is%3Aopen+is%3Apr+label%3A%22A2-insubstantial+%F0%9F%91%B6%22).
+* If your PR does not alter any logic (e.g. comments, dependencies, docs), then it may be tagged [`insubstantial`](https://github.com/openethereum/openethereum/pulls?q=is%3Aopen+is%3Apr+label%3A%22A2-insubstantial+%F0%9F%91%B6%22).
 
-* Once a PR is ready for review please add the [`pleasereview`](https://github.com/OpenEthereum/open-ethereum/pulls?utf8=%E2%9C%93&q=is%3Aopen+is%3Apr+label%3A%22A0-pleasereview+%F0%9F%A4%93%22+) label.
+* Once a PR is ready for review please add the [`pleasereview`](https://github.com/openethereum/openethereum/pulls?utf8=%E2%9C%93&q=is%3Aopen+is%3Apr+label%3A%22A0-pleasereview+%F0%9F%A4%93%22+) label.
 
 ### Reviewing Pull Requests*:
 
-* At least two reviewers are required to review PRs (even for PRs tagged [`insubstantial`](https://github.com/OpenEthereum/open-ethereum/pulls?q=is%3Aopen+is%3Apr+label%3A%22A2-insubstantial+%F0%9F%91%B6%22)).
+* At least two reviewers are required to review PRs (even for PRs tagged [`insubstantial`](https://github.com/openethereum/openethereum/pulls?q=is%3Aopen+is%3Apr+label%3A%22A2-insubstantial+%F0%9F%91%B6%22)).
 
 When doing a review, make sure to look for any:
 
@@ -63,4 +63,4 @@ When doing a review, make sure to look for any:
 
 ## License.
 
-By contributing to Open Ethereum, you agree that your contributions will be licensed under the [GPLv3 License](../LICENSE).
+By contributing to OpenEthereum, you agree that your contributions will be licensed under the [GPLv3 License](../LICENSE).

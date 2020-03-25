@@ -1,5 +1,5 @@
 [package]
-description = "Open Ethereum (EthCore) Contract Calls and Blockchain Service & Registry Information"
+description = "OpenEthereum (EthCore) Contract Calls and Blockchain Service & Registry Information"
 name = "ethcore-call-contract"
 version = "0.1.0"
 license = "GPL-3.0"

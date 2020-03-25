@@ -1,5 +1,5 @@
 [package]
-description = "Open Ethereum Account Management"
+description = "OpenEthereum Account Management"
 license = "GPL-3.0"
 name = "ethcore-accounts"
 version = "0.1.0"

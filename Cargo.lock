@@ -3167,7 +3167,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2839e79665f131bdb5782e51f2c6c9599c133c6098982a54c794358bf432529c"
 
 [[package]]
-name = "open-ethereum"
+name = "openethereum"
 version = "2.8.0"
 dependencies = [
  "ansi_term",

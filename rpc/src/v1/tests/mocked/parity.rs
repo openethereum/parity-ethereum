@@ -303,7 +303,7 @@ fn rpc_parity_net_peers() {
 							"can_handle_large_requests": true,
 							"compiler": "rustc",
 							"identity": "2",
-							"name": "Open-Ethereum",
+							"name": "OpenEthereum",
 							"os": "linux",
 							"semver": "2.7.0"
 						}

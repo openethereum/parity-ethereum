@@ -118,10 +118,10 @@ pub enum Error {
 	#[display(fmt = "Packet is too large")]
 	OversizedPacket,
 	/// Reached system resource limits for this process
-	#[display(fmt = "Too many open files in this process. Check your resource limits and restart parity")]
+	#[display(fmt = "Too many open files in this process. Check your resource limits and restart the client.")]
 	ProcessTooManyFiles,
 	/// Reached system wide resource limits
-	#[display(fmt = "Too many open files on system. Consider closing some processes/release some file handlers or increas the system-wide resource limits and restart parity.")]
+	#[display(fmt = "Too many open files on system. Consider closing some processes/release some file handlers or increas the system-wide resource limits and restart the client.")]
 	SystemTooManyFiles,
 	/// An unknown IO error occurred.
 	#[display(fmt = "Unexpected IO error: {}", _0)]

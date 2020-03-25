@@ -1,6 +1,6 @@
 [package]
 description = "Fetching hash-addressed content."
-repository = "https://github.com/OpenEthereum/open-ethereum"
+repository = "https://github.com/openethereum/openethereum"
 license = "GPL-3.0"
 name = "parity-hash-fetch"
 version = "1.12.0"

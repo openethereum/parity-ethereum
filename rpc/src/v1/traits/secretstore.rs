@@ -24,7 +24,7 @@ use ethereum_types::{H160, H256, H512};
 use ethkey::Password;
 use v1::types::{Bytes, EncryptedDocumentKey};
 
-/// Parity-specific rpc interface.
+/// OpenEthereum-specific rpc interface.
 #[rpc(server)]
 pub trait SecretStore {
 	/// Generate document key to store in secret store.

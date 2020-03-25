@@ -414,7 +414,7 @@ impl<O: OperationsClient, F: HashFetch, T: TimeProvider, R: GenRange> Updater<O,
 		*self.exit_handler.lock() = Some(Box::new(g));
 	}
 
-	/// Returns release track of the parity node.
+	/// Returns release track of the node.
 	/// `update_policy.track` is the track specified from the command line, whereas `this.track`
 	/// is the track of the software which is currently run
 	fn track(&self) -> ReleaseTrack {

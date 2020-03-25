@@ -1,7 +1,7 @@
 [package]
-description = "Open Ethereum Miner Interface."
+description = "OpenEthereum Miner Interface."
 name = "ethcore-miner"
-repository = "https://github.com/OpenEthereum/open-ethereum"
+repository = "https://github.com/openethereum/openethereum"
 license = "GPL-3.0"
 version = "1.12.0"
 authors = ["Parity Technologies <admin@parity.io>"]

@@ -709,7 +709,7 @@ impl Engine for Clique {
 
 	// Our task here is to set difficulty
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
-		// TODO(https://github.com/OpenEthereum/open-ethereum/issues/10410): this is a horrible hack,
+		// TODO(https://github.com/openethereum/openethereum/issues/10410): this is a horrible hack,
 		// it is due to the fact that enact and miner both use OpenBlock::new() which will both call
 		// this function. more refactoring is definitely needed.
 		if header.extra_data().len() < VANITY_LENGTH + SIGNATURE_LENGTH {
