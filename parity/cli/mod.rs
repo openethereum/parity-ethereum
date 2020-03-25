@@ -230,15 +230,17 @@ usage! {
 			}
 
 			CMD cmd_db_rebuild_accounts_bloom {
-				"Rebuild the accounts bloom filter. Iterate over all accounts in the state db and add its address to the bloom filter. Can take a very long time for big databases.",
+				"Rebuild the accounts bloom filter. Iterate over all accounts in the state db and add its address to the bloom filter. Can take a very long time for big databases. The old bloom is backed up before starting the rebuilding process. To restore from a backup, use `db restore-accounts-bloom`, but be aware that you can only restore a bloom from backup if the target db is at the same block as the backup file.",
 				// todo[dvdplm]: how to make this optional? I doesn't seem possible atm.
 				ARG arg_db_rebuild_accounts_bloom_backup_path: (Option<String>) = None,
-				"--backup-path=<PATH>",
-				"Path to accounts bloom backup",
+				"--backup-path=<PATH>", "Path to accounts bloom backup",
+
+				ARG arg_db_rebuild_accounts_bloom_account_count: (u64) = 100_000_000u64,
+				"--accounts=<NUM>", "The number of accounts the bloom should handle",
 			}
 
 			CMD cmd_db_restore_accounts_bloom {
-				"Restore the accounts bloom filter from a backup file on disk. Destructive.",
+				"Restore the accounts bloom filter from a backup file on disk. This is a destructive operation. Make sure that the chain you are restoring to is at the same block as the backup or verification errors are nigh inevitable.",
 				ARG arg_db_restore_accounts_bloom_backup_path: (String) = "",
 				"--backup-path=<PATH>",
 				"Path to accounts bloom backup file",

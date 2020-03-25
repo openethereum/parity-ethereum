@@ -39,7 +39,7 @@ use self::{
 	accounts_bloom::Bloom, // todo[dvdplm] rename this crate
 	ethtrie::TrieDB,
 	kvdb_rocksdb::{CompactionProfile, Database, DatabaseConfig},
-	state_db::{ACCOUNT_BLOOM_SPACE, DEFAULT_ACCOUNT_PRESET, StateDB},
+	state_db::StateDB,
 	trie_db::Trie,
 };
 use types::{
@@ -48,11 +48,13 @@ use types::{
 	views::{HeaderView, ViewRlp},
 };
 use rlp::{RlpStream, Rlp};
+use self::state_db::ACCOUNTS_BLOOM_ITEM_COUNT_KEY;
 
 pub fn rebuild_accounts_bloom<P: AsRef<Path>>(
 	db_path: P,
 	compaction: CompactionProfile,
 	backup_path: Option<String>,
+	account_count: u64,
 ) -> Result<(), Error> {
 	let db_config = DatabaseConfig {
 		compaction,
@@ -73,7 +75,7 @@ pub fn rebuild_accounts_bloom<P: AsRef<Path>>(
 		backup_bloom(&backup_path, db.clone(), best_block)?;
 	}
 
-	generate_bloom(db, state_root, best_block)?;
+	generate_bloom(db, account_count, state_root, best_block)?;
 	Ok(())
 }
 
@@ -188,7 +190,7 @@ fn clear_bloom(db: Arc<Database>) -> Result<(), Error> {
 	let mut batch = DBTransaction::with_capacity(num_keys as usize);
 	for (n, (k,_)) in db.iter(COL_ACCOUNT_BLOOM).enumerate() {
 		batch.delete(COL_ACCOUNT_BLOOM, &k);
-		if n > 0 && n % 10_000 == 0 {
+		if n > 0 && n % 50_000 == 0 {
 			info!("  Bloom entries queued for deletion: {}", n);
 		}
 	}
@@ -202,17 +204,24 @@ fn clear_bloom(db: Arc<Database>) -> Result<(), Error> {
 /// Rebuild the account bloom.
 fn generate_bloom(
 	source: Arc<Database>,
+	account_count: u64,
 	state_root: H256,
 	best_block: BlockNumber,
 ) -> Result<(), Error> {
-	info!(target: "migration", "Account bloom rebuild started for chain at #{}", best_block);
+	let num_keys = source.num_keys(COL_STATE)? / 2;
+	info!(target: "migration", "Account bloom rebuild started for chain at #{}. There are {} accounts in the DB", best_block, num_keys);
+	if account_count <= num_keys {
+		warn!("Rebuilding the bloom with space for {} accounts when the DB contains {} keys is not a good idea: the bloom filter will be saturated right away.",
+			account_count, num_keys
+		);
+	}
 	clear_bloom(source.clone())?;
 
 	let mut empty_accounts = 0u64;
 	let mut non_empty_accounts = 0u64;
 
 	let mut bloom = {
-		let mut bloom = Bloom::new(ACCOUNT_BLOOM_SPACE, DEFAULT_ACCOUNT_PRESET);
+		let mut bloom = Bloom::new_for_fp_rate(account_count, 0.01);
 		let state_db = journaldb::new(
 			source.clone(),
 			// It does not matter which `journaldb::Algorithm` is used since
@@ -245,9 +254,11 @@ fn generate_bloom(
 
 	let bloom_journal = bloom.drain_journal();
 	info!(target: "migration", "Generated {} bloom entries; the DB has {} empty accounts and {} non-empty accounts", bloom_journal.entries.len(), empty_accounts, non_empty_accounts);
-	info!(target: "migration", "New bloom has {} k_bits (aka 'hash functions')", bloom_journal.hash_functions);
+	info!(target: "migration", "New bloom has {} k_bits (aka 'hash functions') and a bitmap size of {} bits", bloom_journal.hash_functions, bloom.number_of_bits());
 	let mut batch = DBTransaction::new();
 	StateDB::commit_bloom(&mut batch, bloom_journal)?;
+	// Write the size of the bloom we just built to the db so we can load&rebuild the bloom at startup
+	batch.put(COL_ACCOUNT_BLOOM, ACCOUNTS_BLOOM_ITEM_COUNT_KEY, &account_count.to_le_bytes());
 	source.write(batch)?;
 	source.flush()?;
 	info!(target: "migration", "Finished bloom update for chain at #{}", best_block);

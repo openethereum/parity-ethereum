@@ -205,6 +205,7 @@ impl Configuration {
 				pruning,
 				compaction,
 				backup_path: self.args.arg_db_rebuild_accounts_bloom_backup_path,
+				account_count: self.args.arg_db_rebuild_accounts_bloom_account_count,
 			}))
 		} else if self.args.cmd_db && self.args.cmd_db_restore_accounts_bloom {
 			Cmd::Blockchain(BlockchainCmd::RestoreAccountsBloom(RestoreAccountsBloom {
