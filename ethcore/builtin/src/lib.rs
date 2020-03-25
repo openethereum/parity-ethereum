@@ -247,7 +247,6 @@ impl Builtin {
 	}
 
 	/// EIP 1352: Restricted address range for precompiles/system contracts
-	#[inline]
 	pub fn in_precompiles_address_range(addr : &Address) -> bool {
 		let limit = Address::from_low_u64_ne(0xffff);
 		addr.cmp(&limit) !=  Ordering::Greater
