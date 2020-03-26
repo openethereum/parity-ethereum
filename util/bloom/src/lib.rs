@@ -249,7 +249,9 @@ mod tests {
 		let bitmap_size = Bloom::compute_bitmap_size(10_000_000, 0.01);
 		// ~12Mbytes
 		let expected_size_in_bits = (-(10_000_000 as f64 * f64::ln(0.01)) / ( LN_2 * LN_2)).ceil() as u64;
-		assert_eq!(bitmap_size, expected_size_in_bits / 8);
+		// rounded up to nearest multiple of 8
+		let expected_size_in_bytes = (((expected_size_in_bits / 8) + 7) / 8) * 8;
+		assert_eq!(bitmap_size, expected_size_in_bytes);
 		let bloom = Bloom::new( bitmap_size,10_000_000);
 		assert_eq!(bloom.number_of_hash_functions(), 7);
 	}

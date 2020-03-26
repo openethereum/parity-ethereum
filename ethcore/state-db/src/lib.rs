@@ -175,7 +175,12 @@ impl StateDB {
 			});
 		let bloom_hash_functions = match bloom_hash_functions {
 			Some(nr) => nr,
-			None => return Bloom::new_for_fp_rate(ACCOUNTS_BLOOM_ITEM_COUNT, ACCOUNTS_BLOOM_FP_RATE),
+			None => {
+				let mut batch = DBTransaction::new();
+				batch.put(COL_ACCOUNT_BLOOM, ACCOUNTS_BLOOM_ITEM_COUNT_KEY, &ACCOUNTS_BLOOM_ITEM_COUNT.to_le_bytes());
+				db.write(batch).expect("Low-level database error");
+				return Bloom::new_for_fp_rate(ACCOUNTS_BLOOM_ITEM_COUNT, ACCOUNTS_BLOOM_FP_RATE)
+			},
 		};
 
 		let item_count = db.get(COL_ACCOUNT_BLOOM, ACCOUNTS_BLOOM_ITEM_COUNT_KEY)
