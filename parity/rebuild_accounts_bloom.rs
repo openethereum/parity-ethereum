@@ -14,9 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Resize the accounts bloom filter for modern times
-//! todo[dvdplm] document the choice of parameters etc
-
+//! Resize the accounts bloom filter for modern times. ! The accounts bloom
+//! filter provides a way to check if a given account (`Address`) exists or not
+//! without touching the database. The filter cannot be resized with less than a
+//! complete rebuild, i.e. iterate over all accounts in the state database and
+//! mark each account in the bloom bitmap. At the time of writing the number of
+//! ethereum accounts is ~85M and increasing. This module implements backing up,
+//! clearing, rebuilding and restoring the accounts bloom filter.
 
 extern crate kvdb_rocksdb;
 extern crate state_db;
@@ -75,7 +79,7 @@ pub fn rebuild_accounts_bloom<P: AsRef<Path>>(
 		backup_bloom(&backup_path, db.clone(), best_block)?;
 	}
 
-	generate_bloom(db, account_count, state_root, best_block)?;
+	rebuild_bloom(db, account_count, state_root, best_block)?;
 	Ok(())
 }
 
@@ -202,7 +206,7 @@ fn clear_bloom(db: Arc<Database>) -> Result<(), Error> {
 }
 
 /// Rebuild the account bloom.
-fn generate_bloom(
+fn rebuild_bloom(
 	source: Arc<Database>,
 	account_count: u64,
 	state_root: H256,

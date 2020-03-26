@@ -77,12 +77,12 @@ pub struct Bloom {
 
 impl Bloom {
 	/// Create a new bloom filter structure.
-	/// bitmap_size is the size in bytes (not bits) that will be allocated in memory
-	/// items_count is an estimation of the maximum number of items to store.
-	pub fn new(bitmap_size: u64, items_count: u64) -> Bloom {
-		assert!(bitmap_size > 0 && items_count > 0);
+	/// `bitmap_size` is the size in bytes (not bits) that will be allocated in memory
+	/// `items_count` is an estimation of the maximum number of items to store.
+	pub fn new(bitmap_size: u64, item_count: u64) -> Bloom {
+		assert!(bitmap_size > 0 && item_count > 0);
 		let bitmap_bits = bitmap_size * 8;
-		let k_num = Bloom::optimal_k_num(bitmap_bits, items_count);
+		let k_num = Bloom::optimal_k_num(bitmap_bits, item_count);
 		let bitmap = BitVecJournal::new(bitmap_bits as usize);
 		Bloom {
 			bitmap,
@@ -92,13 +92,11 @@ impl Bloom {
 	}
 
 	/// Initializes bloom filter from saved state
-	// todo[dvdplm] we should not need to pass in `k_num` here – it's a
-	//  deterministic function of the item count in the bloom so we should be
-	//  able to store one of the two only.
-	pub fn from_parts(parts: &[u64], k_num: u32) -> Bloom {
+	pub fn from_parts(parts: &[u64], item_count: u64) -> Bloom {
 		let bitmap_size = parts.len() * 8;
 		let bitmap_bits = (bitmap_size as u64) * 8u64;
 		let bitmap = BitVecJournal::from_parts(parts);
+		let k_num = Self::optimal_k_num(bitmap_bits, item_count);
 		Bloom {
 			bitmap,
 			bitmap_bits,
@@ -107,20 +105,20 @@ impl Bloom {
 	}
 
 	/// Create a new bloom filter structure.
-	/// items_count is an estimation of the maximum number of items to store.
-	/// fp_p is the wanted rate of false positives, in ]0.0, 1.0[
-	pub fn new_for_fp_rate(items_count: u64, fp_p: f64) -> Bloom {
-		let bitmap_size = Bloom::compute_bitmap_size(items_count, fp_p);
-		Bloom::new(bitmap_size, items_count)
+	/// `item_count` is an estimation of the maximum number of items to store.
+	/// `fp_p` is the desired false positives rate, in ]0.0, 1.0[
+	pub fn new_for_fp_rate(item_count: u64, fp_p: f64) -> Bloom {
+		let bitmap_size = Bloom::compute_bitmap_size(item_count, fp_p);
+		Bloom::new(bitmap_size, item_count)
 	}
 
 	/// Compute a recommended Bloom bitmap size in bytes for `items_count` items
 	/// and a fp_p rate of false positives.
 	/// `fp_p` obviously has to be within the ]0.0, 1.0[ range.
-	pub fn compute_bitmap_size(items_count: u64, fp_p: f64) -> u64 {
-		assert!(items_count > 0);
+	pub fn compute_bitmap_size(item_count: u64, fp_p: f64) -> u64 {
+		assert!(item_count > 0);
 		assert!(fp_p > 0.0 && fp_p < 1.0);
-		let bitmap_size = ((items_count as f64) * f64::ln(fp_p) / (-8.0 * LN_2 * LN_2)).ceil() as u64;
+		let bitmap_size = ((item_count as f64) * f64::ln(fp_p) / (-8.0 * LN_2 * LN_2)).ceil() as u64;
 		// Round up to nearest multiple of 8 because we need to use this to index u64s
 		((bitmap_size + 7) / 8) * 8
 	}
@@ -162,10 +160,10 @@ impl Bloom {
 	}
 
 	/// The optimal number of hash functions for a given bitmap size and item
-	/// count is calculated as the bits-per-item * ln(2).
-	fn optimal_k_num(bitmap_bits: u64, items_count: u64) -> u32 {
+	/// count is calculated as `bits-per-item * ln(2)`.
+	fn optimal_k_num(bitmap_bits: u64, item_count: u64) -> u32 {
 		let m = bitmap_bits as f64;
-		let n = items_count as f64;
+		let n = item_count as f64;
 		let k_num = (m / n * LN_2).ceil() as u32;
 		cmp::max(k_num, 1)
 	}

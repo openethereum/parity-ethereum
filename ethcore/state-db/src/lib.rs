@@ -167,6 +167,7 @@ impl StateDB {
 	/// Loads accounts bloom from the database
 	/// This bloom is used to quickly handle requests for non-existent accounts.
 	pub fn load_bloom(db: &dyn KeyValueDB) -> Bloom {
+		// todo[dvdplm] Now this isn't needed anymore – how to handle new DBs? and legacy DBs?
 		let bloom_hash_functions = db.get(COL_ACCOUNT_BLOOM, ACCOUNTS_BLOOM_HASHCOUNT_KEY)
 			.expect("Low-level database error")
 			.and_then(|bytes| {
@@ -210,8 +211,8 @@ impl StateDB {
 				.unwrap_or(0u64);
 		}
 
-		let bloom = Bloom::from_parts(&bloom_parts, bloom_hash_functions);
-		debug!(target: "accounts_bloom", "Bloom saturation: {:?}, hash functions: {:?}, bitmap size: {} bits", bloom.saturation(), bloom_hash_functions, bloom.number_of_bits());
+		let bloom = Bloom::from_parts(&bloom_parts, item_count);
+		debug!(target: "accounts_bloom", "Bloom saturation: {:?}, hash functions: {:?}, bitmap size: {} bits", bloom.saturation(), bloom.number_of_hash_functions(), bloom.number_of_bits());
 		bloom
 	}
 

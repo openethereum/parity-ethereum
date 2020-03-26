@@ -79,7 +79,7 @@ state-db = { path = "ethcore/state-db" }
 term_size = "0.3"
 textwrap = "0.9"
 toml = "0.5.6"
-trie-db = "0.20.0" # todo[dvdplm] maybe not?
+trie-db = "0.20.0"
 verification = { path = "ethcore/verification" }
 
 [build-dependencies]
