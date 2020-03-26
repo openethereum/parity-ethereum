@@ -15,7 +15,7 @@
 // along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::cmp;
-use ethereum_types::{BigEndianHash, U256, Address};
+use ethereum_types::{BigEndianHash, U256, H160, Address};
 use super::u256_to_address;
 
 use {evm, vm};
@@ -31,9 +31,7 @@ macro_rules! overflowing {
 	}}
 }
 
-lazy_static! {
-	static ref PRECOMPILES_ADDRESS_LIMIT: Address = Address::from([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0xff,0xff]);
-}
+const PRECOMPILES_ADDRESS_LIMIT: Address = H160([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0xff,0xff]);
 
 enum Request<Cost: ::evm::CostType> {
 	Gas(Cost),
@@ -240,7 +238,7 @@ impl<Gas: evm::CostType> Gasometer<Gas> {
 			},
 			instructions::STATICCALL => {				
 				let code_address = u256_to_address(stack.peek(1));
-				let gas = if &code_address <= (&PRECOMPILES_ADDRESS_LIMIT as &Address){
+				let gas = if code_address <= PRECOMPILES_ADDRESS_LIMIT {
 					Gas::from(schedule.staticcall_precompile_gas)
 				} else {
 					Gas::from(schedule.call_gas)
