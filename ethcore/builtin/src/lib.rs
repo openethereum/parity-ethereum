@@ -19,7 +19,7 @@
 #![warn(missing_docs)]
 
 use std::{
-	cmp::{max, min, Ordering},
+	cmp::{max, min},
 	collections::BTreeMap,
 	convert::{TryFrom, TryInto},
 	io::{self, Read, Cursor},
@@ -29,7 +29,7 @@ use std::{
 
 use byteorder::{BigEndian, LittleEndian, ReadBytesExt};
 use common_types::errors::EthcoreError;
-use ethereum_types::{H256, U256, Address};
+use ethereum_types::{H256, U256};
 use parity_crypto::publickey::{Signature, recover as ec_recover};
 use keccak_hash::keccak;
 use log::{warn, trace};
@@ -244,12 +244,6 @@ impl Builtin {
 	#[inline]
 	pub fn is_active(&self, at: u64) -> bool {
 		self.pricer.range(0..=at).last().is_some()
-	}
-
-	/// EIP 1352: Restricted address range for precompiles/system contracts
-	pub fn in_precompiles_address_range(addr: &Address) -> bool {
-		let limit = Address::from_low_u64_ne(0xffff);
-		addr.cmp(&limit) !=  Ordering::Greater
 	}
 }
 

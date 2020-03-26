@@ -1775,7 +1775,6 @@ version = "0.1.0"
 dependencies = [
  "bit-set",
  "criterion",
- "ethcore-builtin",
  "ethereum-types",
  "hex-literal",
  "keccak-hash",
