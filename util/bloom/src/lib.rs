@@ -37,9 +37,9 @@ impl BitVecJournal {
 		}
 	}
 
-	pub fn from_parts(parts: &[u64]) -> BitVecJournal {
+	pub fn from_parts(parts: Vec<u64>) -> BitVecJournal {
 		BitVecJournal {
-			elems: parts.to_vec(), // todo[dvdplm] looks like a clone we could get rid of
+			elems: parts,
 			journal: HashSet::new(),
 		}
 	}
@@ -92,7 +92,7 @@ impl Bloom {
 	}
 
 	/// Initializes bloom filter from saved state
-	pub fn from_parts(parts: &[u64], item_count: u64) -> Bloom {
+	pub fn from_parts(parts: Vec<u64>, item_count: u64) -> Bloom {
 		let bitmap_size = parts.len() * 8;
 		let bitmap_bits = (bitmap_size as u64) * 8u64;
 		let bitmap = BitVecJournal::from_parts(parts);
@@ -222,22 +222,26 @@ mod tests {
 
 	#[test]
 	fn journalling() {
+		// Set up bloom a with 512 bits and 120 estimated items stored; we'll get a `k` of 3…
 		let initial = vec![0u64; 8];
-		let mut bloom = Bloom::from_parts(&initial, 3);
+		let mut bloom = Bloom::from_parts(initial, 120);
+		// …which will cause this particular key…
 		bloom.set(&vec![5u8, 4]);
 		let drain = bloom.drain_journal();
-
+		// …to set one bit in two different entries.
 		assert_eq!(2, drain.entries.len())
 	}
 
 	#[test]
 	fn saturation() {
+		// Set up bloom a with 512 bits and 120 estimated items stored; we'll get a `k` of 3…
 		let initial = vec![0u64; 8];
-		let mut bloom = Bloom::from_parts(&initial, 3);
+		let mut bloom = Bloom::from_parts(initial, 120);
+		// …which will cause this particular key to set one bit in two different entries.
 		bloom.set(&vec![5u8, 4]);
 
 		let full = bloom.saturation();
-		// 2/8/64 = 0.00390625
+		// 2 bits touched, over 8 entries where each entry has 64 bits, so 2/8/64 = 0.00390625
 		assert!(full >= 0.0039f64 && full <= 0.004f64);
 	}
 
@@ -272,7 +276,7 @@ mod tests {
 	fn hash_backward_compatibility_for_from_parts() {
 		let stored_state = vec![2094615114573771027u64, 244675582389208413u64];
 		let k_num = 12;
-		let bloom = Bloom::from_parts(&stored_state, k_num);
+		let bloom = Bloom::from_parts(stored_state, k_num);
 
 		let ss = vec!["you", "should", "not", "break", "hash", "backward", "compatibility"];
 		let tt = vec!["this", "doesnot", "exist"];

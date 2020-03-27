@@ -203,7 +203,7 @@ impl StateDB {
 			let key: [u8; 8] = i.to_le_bytes();
 			bloom_parts[i as usize] = db.get(COL_ACCOUNT_BLOOM, &key).expect("low-level database error")
 				.map(|val| {
-					assert_eq!(val.len(), 8, "low-level database error");
+					assert_eq!(val.len(), 8, "Expected a u64");
 					let mut buff = [0u8; 8];
 					buff.copy_from_slice(&*val);
 					u64::from_le_bytes(buff)
@@ -211,7 +211,7 @@ impl StateDB {
 				.unwrap_or(0u64);
 		}
 
-		let bloom = Bloom::from_parts(&bloom_parts, item_count);
+		let bloom = Bloom::from_parts(bloom_parts, item_count);
 		debug!(target: "accounts_bloom", "Bloom saturation: {:?}, hash functions: {:?}, bitmap size: {} bits", bloom.saturation(), bloom.number_of_hash_functions(), bloom.number_of_bits());
 		bloom
 	}
