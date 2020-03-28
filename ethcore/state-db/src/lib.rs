@@ -24,7 +24,7 @@ use ethereum_types::{Address, H256};
 use hash_db::HashDB;
 use keccak_hash::keccak;
 use kvdb::{DBTransaction, DBValue, KeyValueDB};
-use log::{debug, trace};
+use log::{debug, trace, warn};
 use lru_cache::LruCache;
 use parking_lot::Mutex;
 
@@ -36,16 +36,10 @@ use journaldb::JournalDB;
 use keccak_hasher::KeccakHasher;
 use memory_cache::MemoryLruCache;
 
-/// Value used to initialize bloom bitmap size.
-///
-/// Bitmap size is the size in bytes (not bits) that will be allocated in memory.
-// todo[dvdplm] deprecate this one
-const LEGACY_ACCOUNTS_BLOOM_ITEM_COUNT: u64 = 1048576;
-
-
-/// Value used to initialize bloom items count.
+/// Value used to initialize the bloom items count for new DBs
 ///
 /// Items count is an estimation of the maximum number of items to store.
+// todo[dvdplm] Determine the best value here. Should probably be twice as big.
 pub const ACCOUNTS_BLOOM_ITEM_COUNT: u64 = 100_000_000;
 /// False positive rate for the accounts bloom filter: 1 in 100.
 pub const ACCOUNTS_BLOOM_FP_RATE: f64 = 0.01;
@@ -58,6 +52,8 @@ const STATE_CACHE_BLOCKS: usize = 12;
 
 // The percentage of supplied cache size to go to accounts.
 const ACCOUNT_CACHE_RATIO: usize = 90;
+
+const DB_ERROR: &'static str = "Low-level database error";
 
 /// Shared canonical state cache.
 struct AccountCache {
@@ -164,44 +160,11 @@ impl StateDB {
 		}
 	}
 
-	/// Loads accounts bloom from the database
-	/// This bloom is used to quickly handle requests for non-existent accounts.
-	pub fn load_bloom(db: &dyn KeyValueDB) -> Bloom {
-		// todo[dvdplm] Now this isn't needed anymore – how to handle new DBs? and legacy DBs?
-		let bloom_hash_functions = db.get(COL_ACCOUNT_BLOOM, ACCOUNTS_BLOOM_HASHCOUNT_KEY)
-			.expect("Low-level database error")
-			.and_then(|bytes| {
-				assert_eq!(bytes.len(), 1);
-				Some(bytes[0] as u32)
-			});
-		let bloom_hash_functions = match bloom_hash_functions {
-			Some(nr) => nr,
-			None => {
-				let mut batch = DBTransaction::new();
-				batch.put(COL_ACCOUNT_BLOOM, ACCOUNTS_BLOOM_ITEM_COUNT_KEY, &ACCOUNTS_BLOOM_ITEM_COUNT.to_le_bytes());
-				db.write(batch).expect("Low-level database error");
-				return Bloom::new_for_fp_rate(ACCOUNTS_BLOOM_ITEM_COUNT, ACCOUNTS_BLOOM_FP_RATE)
-			},
-		};
-
-		let item_count = db.get(COL_ACCOUNT_BLOOM, ACCOUNTS_BLOOM_ITEM_COUNT_KEY)
-			.expect("Low-level database error")
-			.and_then(|bytes| {
-				assert_eq!(bytes.len(), 8, "Expected a u64");
-				let mut buf = [0u8; 8];
-				buf.copy_from_slice(&*bytes);
-				trace!(target: "accounts_bloom", "DB had a value under 'accounts_bloom_item_count': {:?} (as u64: {})", &bytes, u64::from_le_bytes(buf));
-				Some(u64::from_le_bytes(buf))
-			})
-			// Assume this is an old bloom
-			.unwrap_or(LEGACY_ACCOUNTS_BLOOM_ITEM_COUNT);
-		debug!(target: "accounts_bloom", "Accounts bloom is sized for {} entries", item_count);
-
-		let bitmap_size = Bloom::compute_bitmap_size(item_count, ACCOUNTS_BLOOM_FP_RATE);
+	fn fetch_bloom_parts(db: &dyn KeyValueDB, bitmap_size: u64) -> Vec<u64> {
 		let mut bloom_parts = vec![0u64; (bitmap_size / 8) as usize];
-		for i in 0..bitmap_size / 8 {
+		for i in 0..bloom_parts.len() {
 			let key: [u8; 8] = i.to_le_bytes();
-			bloom_parts[i as usize] = db.get(COL_ACCOUNT_BLOOM, &key).expect("low-level database error")
+			bloom_parts[i as usize] = db.get(COL_ACCOUNT_BLOOM, &key).expect(DB_ERROR)
 				.map(|val| {
 					assert_eq!(val.len(), 8, "Expected a u64");
 					let mut buff = [0u8; 8];
@@ -210,17 +173,58 @@ impl StateDB {
 				})
 				.unwrap_or(0u64);
 		}
+		bloom_parts
+	}
 
-		let bloom = Bloom::from_parts(bloom_parts, item_count);
-		debug!(target: "accounts_bloom", "Bloom saturation: {:?}, hash functions: {:?}, bitmap size: {} bits", bloom.saturation(), bloom.number_of_hash_functions(), bloom.number_of_bits());
+	/// Loads accounts bloom from the database
+	/// This bloom is used to quickly handle requests for non-existent accounts.
+	pub fn load_bloom(db: &dyn KeyValueDB) -> Bloom {
+		let (bloom, item_count) =
+			if db.get(COL_ACCOUNT_BLOOM, ACCOUNTS_BLOOM_HASHCOUNT_KEY)
+				.expect(DB_ERROR)
+				.is_some() {
+				// The legacy values for bitmap size and hash function count
+				// (ACCOUNT_BLOOM_SPACE, DEFAULT_ACCOUNT_PRESET)  are not
+				// optimal, so we can't calculate them.
+				let parts = Self::fetch_bloom_parts(db, 1048576);
+				(Bloom::from_parts_legacy(parts, 6), 1_000_000)
+			} else {
+				let item_count =
+					db.get(COL_ACCOUNT_BLOOM, ACCOUNTS_BLOOM_ITEM_COUNT_KEY)
+						.expect(DB_ERROR)
+						.and_then(|bytes| {
+							assert_eq!(bytes.len(), 8, "Expected a u64");
+							let mut buf = [0u8; 8];
+							buf.copy_from_slice(&*bytes);
+							let val = u64::from_le_bytes(buf);
+							trace!(target: "accounts_bloom", "DB has a value under 'accounts_bloom_item_count': {}",  val);
+							Some(val)
+						})
+						// Assume this is a new DB
+						.unwrap_or_else(|| {
+							trace!(target: "accounts_bloom", "New database, building default bloom with space for {} accounts", ACCOUNTS_BLOOM_ITEM_COUNT);
+							let mut tx = DBTransaction::new();
+							tx.put(COL_ACCOUNT_BLOOM, ACCOUNTS_BLOOM_ITEM_COUNT_KEY, &ACCOUNTS_BLOOM_ITEM_COUNT.to_le_bytes());
+							db.write(tx).expect(DB_ERROR);
+							ACCOUNTS_BLOOM_ITEM_COUNT
+						});
+				let bitmap_size = Bloom::compute_bitmap_size(item_count, ACCOUNTS_BLOOM_FP_RATE);
+				let parts = Self::fetch_bloom_parts(db, bitmap_size);
+				(Bloom::from_parts(parts, item_count), item_count)
+			};
+
+		debug!(target: "accounts_bloom", "Bloom saturation: {:?}, hash functions: {:?}, bitmap size: {} bits",
+		       bloom.saturation(), bloom.number_of_hash_functions(), bloom.number_of_bits());
+		if bloom.saturation() > 0.9 {
+			warn!("Your accounts bloom is almost full ({}). Please rebuild it with more space. Your current filter uses {} bits and was built for {} accounts.",
+			      bloom.saturation(), bloom.number_of_bits(), item_count);
+		}
+
 		bloom
 	}
 
 	/// Commit blooms journal to the database transaction
 	pub fn commit_bloom(batch: &mut DBTransaction, journal: BloomJournal) -> io::Result<()> {
-		assert!(journal.hash_functions <= 255);
-		batch.put(COL_ACCOUNT_BLOOM, ACCOUNTS_BLOOM_HASHCOUNT_KEY, &[journal.hash_functions as u8]);
-
 		for (bloom_part_index, bloom_part_value) in journal.entries {
 			let key: [u8; 8] = (bloom_part_index as u64).to_le_bytes();
 			let val: [u8; 8] = bloom_part_value.to_le_bytes();
@@ -490,13 +494,13 @@ impl account_state::Backend for StateDB {
 	fn note_non_null_account(&self, address: &Address) {
 		trace!(target: "accounts_bloom", "Note account bloom: {:?}", address);
 		let mut bloom = self.account_bloom.lock();
-		bloom.set(keccak(address));
+		bloom.set(keccak(address).as_bytes());
 	}
 
 	fn is_known_null(&self, address: &Address) -> bool {
 		trace!(target: "accounts_bloom", "Check account bloom: {:?}", address);
 		let bloom = self.account_bloom.lock();
-		let is_null = !bloom.check(keccak(address));
+		let is_null = !bloom.check(keccak(address).as_bytes());
 		is_null
 	}
 }

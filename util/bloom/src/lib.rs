@@ -29,7 +29,7 @@ struct BitVecJournal {
 }
 
 impl BitVecJournal {
-	pub fn new(size: usize) -> BitVecJournal {
+	fn new(size: usize) -> BitVecJournal {
 		let extra = if size % 64 > 0  { 1 } else { 0 };
 		BitVecJournal {
 			elems: vec![0u64; size / 64 + extra],
@@ -37,14 +37,14 @@ impl BitVecJournal {
 		}
 	}
 
-	pub fn from_parts(parts: Vec<u64>) -> BitVecJournal {
+	fn from_parts(parts: Vec<u64>) -> BitVecJournal {
 		BitVecJournal {
 			elems: parts,
 			journal: HashSet::new(),
 		}
 	}
 
-	pub fn set(&mut self, index: usize) {
+	fn set(&mut self, index: usize) {
 		let e_index = index / 64;
 		let bit_index = index % 64;
 		let val = self.elems.get_mut(e_index).unwrap();
@@ -52,18 +52,18 @@ impl BitVecJournal {
 		self.journal.insert(e_index);
 	}
 
-	pub fn get(&self, index: usize) -> bool {
+	fn get(&self, index: usize) -> bool {
 		let e_index = index / 64;
 		let bit_index = index % 64;
 		self.elems[e_index] & (1 << bit_index) != 0
 	}
 
-	pub fn drain(&mut self) -> Vec<(usize, u64)> {
+	fn drain(&mut self) -> Vec<(usize, u64)> {
 		let journal = mem::replace(&mut self.journal, HashSet::new()).into_iter();
 		journal.map(|idx| (idx, self.elems[idx])).collect::<Vec<(usize, u64)>>()
 	}
 
-	pub fn saturation(&self) -> f64 {
+	fn saturation(&self) -> f64 {
 		self.elems.iter().fold(0u64, |acc, e| acc + e.count_ones() as u64) as f64 / (self.elems.len() * 64) as f64
 	}
 }
@@ -79,7 +79,7 @@ impl Bloom {
 	/// Create a new bloom filter structure.
 	/// `bitmap_size` is the size in bytes (not bits) that will be allocated in memory
 	/// `items_count` is an estimation of the maximum number of items to store.
-	pub fn new(bitmap_size: u64, item_count: u64) -> Bloom {
+	fn new(bitmap_size: u64, item_count: u64) -> Bloom {
 		assert!(bitmap_size > 0 && item_count > 0);
 		let bitmap_bits = bitmap_size * 8;
 		let k_num = Bloom::optimal_k_num(bitmap_bits, item_count);
@@ -91,17 +91,23 @@ impl Bloom {
 		}
 	}
 
-	/// Initializes bloom filter from saved state
+	/// The legacy accounts bloom filter used non-optimal parameters that cannot
+	/// be calculated with the facilities in this crate, hence this method that
+	/// allows the instantiation of a non-optimal filter so that older databases
+	/// can continue to work. DO NOT USE FOR OTHER PURPOSES.
+	pub fn from_parts_legacy(parts: Vec<u64>, k_num: u32) -> Bloom {
+		let bitmap_bits = parts.len() as u64 * 64 ;
+		let bitmap = BitVecJournal::from_parts(parts);
+		Bloom { bitmap, bitmap_bits, k_num }
+	}
+
+	/// Initializes a bloom filter from saved state
 	pub fn from_parts(parts: Vec<u64>, item_count: u64) -> Bloom {
 		let bitmap_size = parts.len() * 8;
 		let bitmap_bits = (bitmap_size as u64) * 8u64;
 		let bitmap = BitVecJournal::from_parts(parts);
 		let k_num = Self::optimal_k_num(bitmap_bits, item_count);
-		Bloom {
-			bitmap,
-			bitmap_bits,
-			k_num,
-		}
+		Bloom { bitmap, bitmap_bits, k_num }
 	}
 
 	/// Create a new bloom filter structure.
