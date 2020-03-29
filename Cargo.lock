@@ -3184,6 +3184,7 @@ dependencies = [
  "cli-signer",
  "client-traits",
  "common-types",
+ "crossbeam-utils 0.7.2",
  "ctrlc",
  "dir",
  "docopt",

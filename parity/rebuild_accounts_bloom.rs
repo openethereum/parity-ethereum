@@ -22,28 +22,31 @@
 //! ethereum accounts is ~85M and increasing. This module implements backing up,
 //! clearing, rebuilding and restoring the accounts bloom filter.
 
-extern crate kvdb_rocksdb;
-extern crate state_db;
-extern crate patricia_trie_ethereum as ethtrie;
 extern crate account_state;
 extern crate ethcore_bloom_journal as accounts_bloom;
+extern crate kvdb_rocksdb;
+extern crate patricia_trie_ethereum as ethtrie;
+extern crate state_db;
 extern crate trie_db;
+extern crate crossbeam_utils;
 
 use std::{
 	path::Path,
-	sync::Arc,
+	sync::{Arc, atomic::{AtomicU64, Ordering}},
 };
 
 use ethcore_db::{COL_EXTRA, COL_HEADERS, COL_STATE, COL_ACCOUNT_BLOOM};
 use ethereum_types::{H256, U256};
 use journaldb;
 use kvdb::DBTransaction;
+use parking_lot::Mutex;
 use self::{
 	account_state::account::Account as StateAccount,
 	accounts_bloom::Bloom, // todo[dvdplm] rename this crate
+	crossbeam_utils::thread,
 	ethtrie::TrieDB,
 	kvdb_rocksdb::{CompactionProfile, Database, DatabaseConfig},
-	state_db::StateDB,
+	state_db::{StateDB, ACCOUNTS_BLOOM_ITEM_COUNT_KEY},
 	trie_db::Trie,
 };
 use types::{
@@ -52,7 +55,6 @@ use types::{
 	views::{HeaderView, ViewRlp},
 };
 use rlp::{RlpStream, Rlp};
-use self::state_db::ACCOUNTS_BLOOM_ITEM_COUNT_KEY;
 
 pub fn rebuild_accounts_bloom<P: AsRef<Path>>(
 	db_path: P,
@@ -154,7 +156,7 @@ fn backup_bloom<P: AsRef<Path>>(
 
 	use std::io::Write;
 	let written = bloom_backup.write(&stream.out())?;
-	info!("Saved old bloom as of block#{} to '{}' ({} bytes, {} keys)", best_block, bloom_backup_path.as_ref().display(), written, num_keys);
+	info!("Saved old bloom as of block #{} to '{}' ({} bytes, {} keys)", best_block, bloom_backup_path.as_ref().display(), written, num_keys);
 	Ok(())
 }
 
@@ -213,7 +215,7 @@ fn rebuild_bloom(
 	best_block: BlockNumber,
 ) -> Result<(), Error> {
 	let num_keys = source.num_keys(COL_STATE)? / 2;
-	info!(target: "migration", "Account bloom rebuild started for chain at #{}. There are {} accounts in the DB", best_block, num_keys);
+	info!(target: "migration", "Accounts bloom rebuild started for chain at #{}. There are {} accounts in the DB", best_block, num_keys);
 	if account_count <= num_keys {
 		warn!("Rebuilding the bloom with space for {} accounts when the DB contains {} keys is not a good idea: the bloom filter will be saturated right away.",
 			account_count, num_keys
@@ -221,43 +223,95 @@ fn rebuild_bloom(
 	}
 	clear_bloom(source.clone())?;
 
-	let mut empty_accounts = 0u64;
-	let mut non_empty_accounts = 0u64;
 
-	let mut bloom = {
-		let mut bloom = Bloom::new_for_fp_rate(account_count, 0.01);
-		let state_db = journaldb::new(
-			source.clone(),
-			// It does not matter which `journaldb::Algorithm` is used since
-			// there will be no writes to the state column.
-			journaldb::Algorithm::OverlayRecent,
-			COL_STATE);
+	// Progress counters
+	let empty_accounts = Arc::new(AtomicU64::new(0));
+	let non_empty_accounts = Arc::new(AtomicU64::new(0));
+	let total_accounts = Arc::new(AtomicU64::new(0));
 
-		let db = state_db.as_hash_db();
-		let account_trie = TrieDB::new(&db, &state_root)?;
-		// Don't insert empty accounts into the bloom
-		let empty_account_rlp = StateAccount::new_basic(U256::zero(), U256::zero()).rlp();
-		let start = std::time::Instant::now();
-		let mut batch_start = std::time::Instant::now();
-		for (n, (account_key, account_data)) in account_trie.iter()?.filter_map(Result::ok).enumerate() {
-			if n > 0 && n % 50_000 == 0 {
-				info!("  Accounts processed: {} in {:?}. Bloom saturation: {}", n, batch_start.elapsed(), bloom.saturation());
-				batch_start = std::time::Instant::now();
-			}
-			if account_data != empty_account_rlp {
-				non_empty_accounts += 1;
-				let account_key_hash = H256::from_slice(&account_key);
-				bloom.set(account_key_hash);
-			} else {
-				empty_accounts += 1;
-			}
+	let state_db = journaldb::new(
+		source.clone(),
+		// It does not matter which `journaldb::Algorithm` is used since
+		// there will be no writes to the state column.
+		journaldb::Algorithm::OverlayRecent,
+		COL_STATE);
+
+	let db = state_db.as_hash_db();
+	let start = std::time::Instant::now();
+
+	let threads = 6;
+	// Chunk up the state in this many parts; each thread will be assigned one part at a time.
+	const STATE_SUBPARTS: usize = 16;
+	let bloom_result = thread::scope(|scope| -> Result<Arc<Mutex<Bloom>>, Error> {
+		let bloom = Bloom::new_for_fp_rate(account_count, 0.01);
+		let bloom = Arc::new(Mutex::new(bloom));
+		for thr_idx in 0..threads {
+			let tb = scope.builder().name(format!("accounts worker #{}", thr_idx).to_string());
+			let my_bloom = bloom.clone();
+			let my_total_accounts = total_accounts.clone();
+			let my_non_empty_accounts = non_empty_accounts.clone();
+			let my_empty_accounts = empty_accounts.clone();
+			tb.spawn(move |_| -> Result<(), Error> {
+				let mut part_start = std::time::Instant::now();
+				// Don't insert empty accounts into the bloom
+				let empty_account_rlp = StateAccount::new_basic(U256::zero(), U256::zero()).rlp();
+				for part in (thr_idx..STATE_SUBPARTS).step_by(threads) {
+					info!("Processing part {} of the accounts in thread {}", part, thr_idx);
+					let account_trie = TrieDB::new(&db, &state_root)?;
+					let mut account_iter = account_trie.iter()?;
+
+					// Seek to the start of this data segment
+					let mut seek_from = vec![0; 32];
+					seek_from[0] = (part * STATE_SUBPARTS) as u8;
+					account_iter.seek(&seek_from)?;
+					// Set the upper-bound for this section of the data (but let the last part finish the whole range).
+					let seek_to =
+						if part < STATE_SUBPARTS - 1 {
+							Some(((part + 1) * STATE_SUBPARTS) as u8)
+						} else {
+							None
+						};
+					let mut batch_start = std::time::Instant::now();
+					for (n, (account_key, account_data)) in account_iter.filter_map(Result::ok).enumerate() {
+						if seek_to.map_or(false, |seek_to| account_key[0] >= seek_to) {
+							my_total_accounts.fetch_add(n as u64, Ordering::Relaxed);
+							let sat = my_bloom.lock().saturation();
+							info!("  {} accounts processed in {:?} – end of part {} by thread {}. Bloom saturation: {}", n, part_start.elapsed(), part, thr_idx, sat);
+							part_start = std::time::Instant::now();
+
+							break;
+						}
+						if n > 0 && n % 50_000 == 0 {
+							info!("  Accounts processed: {} in {:?} by thread {}", n, batch_start.elapsed(), thr_idx);
+							batch_start = std::time::Instant::now();
+						}
+						if account_data != empty_account_rlp {
+							my_bloom.lock().set(&account_key);
+							my_non_empty_accounts.fetch_add(1, Ordering::Relaxed);
+						} else {
+							my_empty_accounts.fetch_add(1, Ordering::Relaxed);
+						}
+					}
+				}
+				Ok(())
+			})?;
 		}
-		info!("Finished iterating over the accounts as of block #{} in: {:?}. Bloom saturation: {}", best_block, start.elapsed(), bloom.saturation());
-		bloom
-	};
+		Ok(bloom)
+	});
 
+	let bloom = match bloom_result {
+		Ok(bloom_arc) => bloom_arc?,
+		Err(e) => {
+			warn!("One of the bloom-building threads panicked: {:?}", e);
+			return Err("One of the bloom-building threads panicked".into())
+		}
+	};
+	let mut bloom = bloom.lock();
+	info!("Finished iterating over {} accounts as of block #{} in: {:?}. Bloom saturation: {}",
+	      total_accounts.load(Ordering::Relaxed), best_block, start.elapsed(), bloom.saturation());
 	let bloom_journal = bloom.drain_journal();
-	info!(target: "migration", "Generated {} bloom entries; the DB has {} empty accounts and {} non-empty accounts", bloom_journal.entries.len(), empty_accounts, non_empty_accounts);
+	info!(target: "migration", "Generated {} bloom entries; the DB has {} empty accounts and {} non-empty accounts",
+	      bloom_journal.entries.len(), empty_accounts.load(Ordering::Relaxed), non_empty_accounts.load(Ordering::Relaxed));
 	info!(target: "migration", "New bloom has {} k_bits (aka 'hash functions') and a bitmap size of {} bits", bloom_journal.hash_functions, bloom.number_of_bits());
 	let mut batch = DBTransaction::new();
 	StateDB::commit_bloom(&mut batch, bloom_journal)?;
@@ -266,5 +320,6 @@ fn rebuild_bloom(
 	source.write(batch)?;
 	source.flush()?;
 	info!(target: "migration", "Finished bloom update for chain at #{}", best_block);
+
 	Ok(())
 }

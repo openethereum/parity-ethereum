@@ -15,6 +15,7 @@ clap = "2"
 cli-signer= { path = "cli-signer" }
 client-traits = { path = "ethcore/client-traits" }
 common-types = { path = "ethcore/types" }
+crossbeam-utils = "0.7.2"
 ctrlc = { git = "https://github.com/paritytech/rust-ctrlc.git" }
 dir = { path = "util/dir" }
 docopt = "1.0"
