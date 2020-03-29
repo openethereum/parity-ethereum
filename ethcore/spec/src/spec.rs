@@ -120,7 +120,6 @@ fn run_constructors<T: Backend>(
 	}
 
 	for (address, account) in genesis_state.get().iter() {
-		db.note_non_null_account(address);
 		account.insert_additional(
 			&mut *factories.accountdb.create(
 				db.as_hash_db_mut(),

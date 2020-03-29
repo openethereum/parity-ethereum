@@ -1315,13 +1315,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ethcore-bloom-journal"
-version = "0.1.0"
-dependencies = [
- "siphasher",
-]
-
-[[package]]
 name = "ethcore-builtin"
 version = "0.1.0"
 dependencies = [
@@ -4616,12 +4609,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7fdf1b9db47230893d76faad238fd6097fd6d6a9245cd7a4d90dbd639536bbd2"
 
 [[package]]
-name = "siphasher"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9913c75df657d84a03fa689c016b0bb2863ff0b497b26a8d6e9703f8d5df03a8"
-
-[[package]]
 name = "slab"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4656,7 +4643,6 @@ name = "snapshot"
 version = "0.1.0"
 dependencies = [
  "account-db",
- "account-state",
  "client-traits",
  "common-types",
  "criterion",
@@ -4669,7 +4655,6 @@ dependencies = [
  "ethcore",
  "ethcore-accounts",
  "ethcore-blockchain",
- "ethcore-bloom-journal",
  "ethcore-db",
  "ethcore-io",
  "ethereum-types",
@@ -4695,7 +4680,6 @@ dependencies = [
  "scopeguard 1.0.0",
  "snapshot-tests",
  "spec",
- "state-db",
  "tempdir",
  "trie-db",
  "trie-standardmap",
@@ -4820,12 +4804,9 @@ dependencies = [
  "common-types",
  "env_logger 0.5.13",
  "ethcore",
- "ethcore-bloom-journal",
- "ethcore-db",
  "ethereum-types",
  "hash-db",
  "journaldb",
- "keccak-hash",
  "keccak-hasher 0.1.1",
  "kvdb",
  "log",
