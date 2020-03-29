@@ -25,4 +25,4 @@ ethcore = { path = "..", features = ["test-helpers"] }
 kvdb-memorydb = "0.4.0"
 ethcore-io = { path = "../../util/io" }
 spec = { path = "../spec" }
-tempdir = "0.3"
+tempfile = "3.1"

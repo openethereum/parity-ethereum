@@ -49,7 +49,7 @@ use snapshot::{
 	io::{SnapshotReader, PackedWriter, PackedReader},
 	chunker,
 };
-use tempdir::TempDir;
+use tempfile::TempDir;
 use trie_db::{TrieMut, Trie};
 use trie_standardmap::{Alphabet, StandardMap, ValueMode};
 
@@ -144,7 +144,7 @@ pub fn fill_storage(mut db: AccountDBMut, root: &mut H256, seed: &mut H256) {
 /// Take a snapshot from the given client into a temporary file.
 /// Return a snapshot reader for it.
 pub fn snap(client: &Client) -> (Box<dyn SnapshotReader>, TempDir) {
-	let tempdir = TempDir::new("").unwrap();
+	let tempdir = TempDir::new().unwrap();
 	let path = tempdir.path().join("file");
 	let writer = PackedWriter::new(&path).unwrap();
 	let progress = RwLock::new(Progress::new());

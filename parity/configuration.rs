@@ -1171,7 +1171,7 @@ mod tests {
 	use std::fs::File;
 	use std::str::FromStr;
 
-	use tempdir::TempDir;
+	use tempfile::TempDir;
 	use ethcore::miner::MinerOptions;
 	use miner::pool::PrioritizationStrategy;
 	use parity_rpc::NetworkSettings;
@@ -1620,7 +1620,7 @@ mod tests {
 
 	#[test]
 	fn should_not_bail_on_empty_line_in_reserved_peers() {
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 		let filename = tempdir.path().join("peers");
 		File::create(&filename).unwrap().write_all(b"  \n\t\n").unwrap();
 		let args = vec!["parity", "--reserved-peers", filename.to_str().unwrap()];
@@ -1630,7 +1630,7 @@ mod tests {
 
 	#[test]
 	fn should_ignore_comments_in_reserved_peers() {
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 		let filename = tempdir.path().join("peers_comments");
 		File::create(&filename).unwrap().write_all(b"# Sample comment\nenode://6f8a80d14311c39f35f516fa664deaaaa13e85b2f7493f37f6144d86991ec012937307647bd3b9a82abe2974e1407241d54947bbb39763a4cac9f77166ad92a0@172.0.0.1:30303\n").unwrap();
 		let args = vec!["parity", "--reserved-peers", filename.to_str().unwrap()];

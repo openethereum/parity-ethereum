@@ -43,7 +43,7 @@ extern crate lazy_static;
 extern crate log;
 
 #[cfg(test)]
-extern crate tempdir;
+extern crate tempfile;
 
 #[cfg(test)]
 #[macro_use]

@@ -239,7 +239,7 @@ pub mod tests {
 	use std::sync::Arc;
 	use rustc_hex::FromHex;
 	use super::*;
-	use tempdir::TempDir;
+	use tempfile::TempDir;
 	use ethereum_types::Address;
 	use spec::{self, Spec};
 
@@ -258,7 +258,7 @@ pub mod tests {
 		params.code = Some(Arc::new(code.from_hex().unwrap()));
 		params.gas = gas.into();
 
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 		let spec = spec::new_foundation(&tempdir.path());
 		let result = run_action(&spec, params, informant, TrieSpec::Secure);
 		match result {
@@ -280,7 +280,7 @@ pub mod tests {
 		params.code_address = Address::from_low_u64_be(0x20);
 		params.gas = 0xffff.into();
 
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 		let spec = Spec::load(&tempdir.path(), include_bytes!("../res/testchain.json") as &[u8]).unwrap();
 		let _result = run_action(&spec, params, inf, TrieSpec::Secure);
 

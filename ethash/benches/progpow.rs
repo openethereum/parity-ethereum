@@ -22,19 +22,19 @@ extern crate hex_literal;
 
 extern crate common_types;
 extern crate ethash;
-extern crate tempdir;
+extern crate tempfile;
 
 use criterion::Criterion;
 use ethash::progpow;
 
-use tempdir::TempDir;
+use tempfile::TempDir;
 use ethash::NodeCacheBuilder;
 use ethash::compute::light_compute;
 use common_types::engines::OptimizeFor;
 
 fn bench_hashimoto_light(c: &mut Criterion) {
 	let builder = NodeCacheBuilder::new(OptimizeFor::Memory, u64::max_value());
-	let tempdir = TempDir::new("").unwrap();
+	let tempdir = TempDir::new().unwrap();
 	let light = builder.light(&tempdir.path(), 1);
 	let h = hex!("c9149cc0386e689d789a1c2f3d5d169a61a6218ed30e74414dc736e442ef3d1f");
 	let mut hash = [0; 32];
@@ -47,7 +47,7 @@ fn bench_hashimoto_light(c: &mut Criterion) {
 
 fn bench_progpow_light(c: &mut Criterion) {
 	let builder = NodeCacheBuilder::new(OptimizeFor::Memory, u64::max_value());
-	let tempdir = TempDir::new("").unwrap();
+	let tempdir = TempDir::new().unwrap();
 	let cache = builder.new_cache(tempdir.into_path(), 0);
 
 	let h = hex!("c9149cc0386e689d789a1c2f3d5d169a61a6218ed30e74414dc736e442ef3d1f");
@@ -70,7 +70,7 @@ fn bench_progpow_light(c: &mut Criterion) {
 
 fn bench_progpow_optimal_light(c: &mut Criterion) {
 	let builder = NodeCacheBuilder::new(OptimizeFor::Memory, u64::max_value());
-	let tempdir = TempDir::new("").unwrap();
+	let tempdir = TempDir::new().unwrap();
 	let cache = builder.new_cache(tempdir.into_path(), 0);
 	let c_dag = progpow::generate_cdag(cache.as_ref());
 

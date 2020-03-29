@@ -64,11 +64,11 @@ macro_rules! difficulty_json_test {
 
 	use std::path::Path;
 	use super::json_difficulty_test;
-	use tempdir::TempDir;
+	use tempfile::TempDir;
 	use json_tests::HookType;
 
 	fn do_json_test<H: FnMut(&str, HookType)>(path: &Path, json_data: &[u8], h: &mut H) -> Vec<String> {
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 		json_difficulty_test(path, json_data, crate::spec::$spec(&tempdir.path()), h)
 	}
 

@@ -688,13 +688,13 @@ impl SimpleSecretStore for EthMultiStore {
 
 #[cfg(test)]
 mod tests {
-	extern crate tempdir;
+	extern crate tempfile;
 
 	use accounts_dir::{KeyDirectory, MemoryDirectory, RootDiskDirectory};
 	use crypto::publickey::{Random, Generator, KeyPair};
 	use secret_store::{SimpleSecretStore, SecretStore, SecretVaultRef, StoreAccountRef, Derivation};
 	use super::{EthStore, EthMultiStore};
-	use self::tempdir::TempDir;
+	use self::tempfile::TempDir;
 	use ethereum_types::H256;
 
 	fn keypair() -> KeyPair {
@@ -716,7 +716,7 @@ mod tests {
 
 	impl RootDiskDirectoryGuard {
 		pub fn new() -> Self {
-			let temp_path = TempDir::new("").unwrap();
+			let temp_path = TempDir::new().unwrap();
 			let disk_dir = Box::new(RootDiskDirectory::create(temp_path.path()).unwrap());
 
 			RootDiskDirectoryGuard {

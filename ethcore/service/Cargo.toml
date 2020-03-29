@@ -24,4 +24,4 @@ trace-time = "0.1"
 ethcore = { path = "..", features = ["test-helpers"] }
 ethcore-db = { path = "../db" }
 kvdb-rocksdb = "0.6.0"
-tempdir = "0.3"
+tempfile = "3.1"

@@ -19,7 +19,7 @@
 use std::fs;
 use std::sync::Arc;
 
-use tempdir::TempDir;
+use tempfile::TempDir;
 use blockchain::BlockProvider;
 use ethcore::client::{Client, ClientConfig};
 use client_traits::{BlockInfo, ImportBlock};
@@ -54,7 +54,7 @@ fn sends_async_messages() {
 	let service = IoService::<ClientIoMessage<Client>>::start().unwrap();
 	let spec = spec::new_test();
 
-	let tempdir = TempDir::new("").unwrap();
+	let tempdir = TempDir::new().unwrap();
 	let dir = tempdir.path().join("snapshot");
 
 	let snapshot_params = ServiceParams {
@@ -94,7 +94,7 @@ fn cannot_finish_with_invalid_chunks() {
 	use kvdb_rocksdb::DatabaseConfig;
 
 	let spec = spec::new_test();
-	let tempdir = TempDir::new("").unwrap();
+	let tempdir = TempDir::new().unwrap();
 
 	let state_hashes: Vec<_> = (0..5).map(|_| H256::random()).collect();
 	let block_hashes: Vec<_> = (0..5).map(|_| H256::random()).collect();
@@ -145,7 +145,7 @@ fn restored_is_equivalent() {
 	let gas_prices = vec![1.into(), 2.into(), 3.into(), 999.into()];
 	let client = generate_dummy_client_with_spec_and_data(spec::new_null, NUM_BLOCKS, TX_PER, &gas_prices, false);
 
-	let tempdir = TempDir::new("").unwrap();
+	let tempdir = TempDir::new().unwrap();
 	let client_db = tempdir.path().join("client_db");
 	let path = tempdir.path().join("snapshot");
 
@@ -210,7 +210,7 @@ fn guards_delete_folders() {
 	let client = generate_dummy_client_with_spec_and_data(spec::new_null, 400, 5, &gas_prices, false);
 
 	let spec = spec::new_null();
-	let tempdir = TempDir::new("").unwrap();
+	let tempdir = TempDir::new().unwrap();
 	let service_params = ServiceParams {
 		engine: spec.engine.clone(),
 		genesis_block: spec.genesis_block(),
@@ -259,7 +259,7 @@ fn keep_ancient_blocks() {
 	const SNAPSHOT_MODE: PowSnapshot = PowSnapshot { blocks: NUM_SNAPSHOT_BLOCKS, max_restore_blocks: NUM_SNAPSHOT_BLOCKS };
 
 	// Temporary folders
-	let tempdir = TempDir::new("").unwrap();
+	let tempdir = TempDir::new().unwrap();
 	let snapshot_path = tempdir.path().join("SNAP");
 
 	// Generate blocks
@@ -377,7 +377,7 @@ fn recover_aborted_recovery() {
 	let client = generate_dummy_client_with_spec_and_data(spec::new_null, NUM_BLOCKS, 5, &gas_prices, false);
 
 	let spec = spec::new_null();
-	let tempdir = TempDir::new("").unwrap();
+	let tempdir = TempDir::new().unwrap();
 	let db_config = DatabaseConfig::with_columns(ethcore_db::NUM_COLUMNS);
 	let client_db = new_db();
 	let client2 = Client::new(
