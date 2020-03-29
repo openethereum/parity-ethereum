@@ -26,7 +26,7 @@ use std::sync::Arc;
 use kvdb_rocksdb::{Database, DatabaseConfig};
 use maplit::btreemap;
 use migration_rocksdb::{Batch, Config, SimpleMigration, Migration, Manager, ChangeColumns};
-use tempdir::TempDir;
+use tempfile::TempDir;
 
 #[inline]
 fn db_path(path: &Path) -> PathBuf {
@@ -107,7 +107,7 @@ impl Migration for AddsColumn {
 
 #[test]
 fn one_simple_migration() {
-	let tempdir = TempDir::new("").unwrap();
+	let tempdir = TempDir::new().unwrap();
 	let db_path = db_path(tempdir.path());
 	let mut manager = Manager::new(Config::default());
 	make_db(&db_path, btreemap![vec![] => vec![], vec![1] => vec![1]]);
@@ -122,7 +122,7 @@ fn one_simple_migration() {
 #[test]
 #[should_panic]
 fn no_migration_needed() {
-	let tempdir = TempDir::new("").unwrap();
+	let tempdir = TempDir::new().unwrap();
 	let db_path = db_path(tempdir.path());
 	let mut manager = Manager::new(Config::default());
 	make_db(&db_path, btreemap![vec![] => vec![], vec![1] => vec![1]]);
@@ -134,7 +134,7 @@ fn no_migration_needed() {
 #[test]
 #[should_panic]
 fn wrong_adding_order() {
-	let tempdir = TempDir::new("").unwrap();
+	let tempdir = TempDir::new().unwrap();
 	let db_path = db_path(tempdir.path());
 	let mut manager = Manager::new(Config::default());
 	make_db(&db_path, btreemap![vec![] => vec![], vec![1] => vec![1]]);
@@ -145,7 +145,7 @@ fn wrong_adding_order() {
 
 #[test]
 fn multiple_migrations() {
-	let tempdir = TempDir::new("").unwrap();
+	let tempdir = TempDir::new().unwrap();
 	let db_path = db_path(tempdir.path());
 	let mut manager = Manager::new(Config::default());
 	make_db(&db_path, btreemap![vec![] => vec![], vec![1] => vec![1]]);
@@ -160,7 +160,7 @@ fn multiple_migrations() {
 
 #[test]
 fn second_migration() {
-	let tempdir = TempDir::new("").unwrap();
+	let tempdir = TempDir::new().unwrap();
 	let db_path = db_path(tempdir.path());
 	let mut manager = Manager::new(Config::default());
 	make_db(&db_path, btreemap![vec![] => vec![], vec![1] => vec![1]]);
@@ -175,7 +175,7 @@ fn second_migration() {
 
 #[test]
 fn first_and_noop_migration() {
-	let tempdir = TempDir::new("").unwrap();
+	let tempdir = TempDir::new().unwrap();
 	let db_path = db_path(tempdir.path());
 	let mut manager = Manager::new(Config::default());
 	make_db(&db_path, btreemap![vec![] => vec![], vec![1] => vec![1]]);
@@ -189,7 +189,7 @@ fn first_and_noop_migration() {
 
 #[test]
 fn noop_and_second_migration() {
-	let tempdir = TempDir::new("").unwrap();
+	let tempdir = TempDir::new().unwrap();
 	let db_path = db_path(tempdir.path());
 	let mut manager = Manager::new(Config::default());
 	make_db(&db_path, btreemap![vec![] => vec![], vec![1] => vec![1]]);
@@ -217,7 +217,7 @@ fn pre_columns() {
 	let mut manager = Manager::new(Config::default());
 	manager.add_migration(AddsColumn).unwrap();
 
-	let tempdir = TempDir::new("").unwrap();
+	let tempdir = TempDir::new().unwrap();
 	let db_path = db_path(tempdir.path());
 
 	// this shouldn't fail to open the database even though it's one column
@@ -236,7 +236,7 @@ fn change_columns() {
 		version: 1,
 	}).unwrap();
 
-	let tempdir = TempDir::new("").unwrap();
+	let tempdir = TempDir::new().unwrap();
 	let db_path = db_path(tempdir.path());
 
 	let new_path = manager.execute(&db_path, 0).unwrap();

@@ -24,4 +24,4 @@ path = "src/main.rs"
 doc = false
 
 [dev-dependencies]
-tempdir = "0.3"
+tempfile = "3.1"

@@ -28,7 +28,7 @@ extern crate serde_json;
 extern crate smallvec;
 extern crate time;
 extern crate tiny_keccak;
-extern crate tempdir;
+extern crate tempfile;
 
 extern crate parity_crypto as crypto;
 extern crate ethereum_types;

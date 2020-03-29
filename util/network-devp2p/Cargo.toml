@@ -37,7 +37,7 @@ tiny-keccak = "1.4"
 assert_matches = "1.2"
 env_logger = "0.5"
 hex-literal = "0.2.1"
-tempdir = "0.3"
+tempfile = "3.1"
 
 [features]
 default = []

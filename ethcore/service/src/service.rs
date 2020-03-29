@@ -297,7 +297,7 @@ mod tests {
 	use std::sync::Arc;
 	use std::{time, thread};
 
-	use tempdir::TempDir;
+	use tempfile::TempDir;
 
 	use ethcore_db::NUM_COLUMNS;
 	use ethcore::client::ClientConfig;
@@ -311,7 +311,7 @@ mod tests {
 
 	#[test]
 	fn it_can_be_started() {
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 		let client_path = tempdir.path().join("client");
 		let snapshot_path = tempdir.path().join("snapshot");
 

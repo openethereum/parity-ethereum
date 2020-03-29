@@ -129,14 +129,14 @@ mod tests {
 	use account_state::State;
 	use common_types::{view, views::BlockView};
 	use ethereum_types::U256;
-	use tempdir::TempDir;
+	use tempfile::TempDir;
 	use ethcore::test_helpers::get_temp_state_db;
 
 	use super::{new_ropsten, new_foundation};
 
 	#[test]
 	fn ensure_db_good() {
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 		let spec = new_ropsten(&tempdir.path());
 		let engine = &spec.engine;
 		let genesis_header = spec.genesis_header();
@@ -152,7 +152,7 @@ mod tests {
 
 	#[test]
 	fn ropsten() {
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 		let ropsten = new_ropsten(&tempdir.path());
 
 		assert_eq!(ropsten.state_root, "217b0bbcfb72e2d57e28f33cb361b9983513177755dc3f33ce3e7022ed62b77b".parse().unwrap());
@@ -162,7 +162,7 @@ mod tests {
 
 	#[test]
 	fn frontier() {
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 		let frontier = new_foundation(&tempdir.path());
 
 		assert_eq!(frontier.state_root, "d7f8974fb5ac78d9ac099b9ad5018bedc2ce0a72dad1827a1709da30580f0544".parse().unwrap());

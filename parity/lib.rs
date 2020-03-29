@@ -96,7 +96,7 @@ extern crate ethcore_call_contract as call_contract;
 extern crate pretty_assertions;
 
 #[cfg(test)]
-extern crate tempdir;
+extern crate tempfile;
 
 mod account;
 mod account_utils;

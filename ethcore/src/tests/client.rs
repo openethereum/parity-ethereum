@@ -22,7 +22,7 @@ use ethereum_types::{U256, Address};
 use parity_crypto::publickey::KeyPair;
 use hash::keccak;
 use io::IoChannel;
-use tempdir::TempDir;
+use tempfile::TempDir;
 use types::{
 	data_format::DataFormat,
 	ids::BlockId,
@@ -75,7 +75,7 @@ fn imports_from_empty() {
 #[test]
 fn should_return_registrar() {
 	let db = test_helpers::new_db();
-	let tempdir = TempDir::new("").unwrap();
+	let tempdir = TempDir::new().unwrap();
 	let spec = spec::new_ropsten(&tempdir.path().to_owned());
 
 	let client = Client::new(

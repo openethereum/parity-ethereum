@@ -37,7 +37,7 @@ extern crate rustc_hex;
 extern crate serde_json;
 
 #[cfg(test)]
-extern crate tempdir;
+extern crate tempfile;
 
 
 #[cfg(feature = "bench")]
@@ -196,9 +196,9 @@ fn difficulty_to_boundary_aux<T: Into<U512>>(difficulty: T) -> ethereum_types::U
 
 #[test]
 fn test_lru() {
-	use tempdir::TempDir;
+	use tempfile::TempDir;
 
-	let tempdir = TempDir::new("").unwrap();
+	let tempdir = TempDir::new().unwrap();
 	let ethash = EthashManager::new(tempdir.path(), None, u64::max_value());
 	let hash = [0u8; 32];
 	ethash.compute_light(1, &hash, 1);
