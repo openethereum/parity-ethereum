@@ -329,7 +329,7 @@ pub fn calculate_dag_item(node_index: u32, cache: &[Node]) -> Node {
 mod test {
 	use super::*;
 	use std::fs;
-	use tempdir::TempDir;
+	use tempfile::TempDir;
 
 	#[test]
 	fn test_get_cache_size() {
@@ -402,7 +402,7 @@ mod test {
 		];
 		let nonce = 0xd7b3ac70a301a249;
 
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 		// difficulty = 0x085657254bd9u64;
 		let light = NodeCacheBuilder::new(None, u64::max_value()).light(tempdir.path(), 486382);
 		let result = light_compute(&light, &hash, nonce);
@@ -412,7 +412,7 @@ mod test {
 
 	#[test]
 	fn test_drop_old_data() {
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 		let builder = NodeCacheBuilder::new(None, u64::max_value());
 		let first = builder.light(tempdir.path(), 0).to_file().unwrap().to_owned();
 

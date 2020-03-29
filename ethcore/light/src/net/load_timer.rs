@@ -264,7 +264,7 @@ mod tests {
 
 	#[test]
 	fn file_store() {
-		let tempdir = ::tempdir::TempDir::new("").unwrap();
+		let tempdir = ::tempdir::TempDir::new().unwrap();
 		let path = tempdir.path().join("file");
 		let store = FileStore(path);
 

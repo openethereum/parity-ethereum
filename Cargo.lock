@@ -281,7 +281,7 @@ dependencies = [
  "parking_lot 0.10.0",
  "rlp",
  "spec",
- "tempdir",
+ "tempfile",
  "validator-set",
 ]
 
@@ -425,7 +425,7 @@ dependencies = [
  "criterion",
  "ethbloom",
  "parking_lot 0.10.0",
- "tempdir",
+ "tempfile",
 ]
 
 [[package]]
@@ -1119,7 +1119,7 @@ dependencies = [
  "rustc-hex 2.1.0",
  "serde_json",
  "static_assertions",
- "tempdir",
+ "tempfile",
 ]
 
 [[package]]
@@ -1138,7 +1138,7 @@ dependencies = [
  "machine",
  "rlp",
  "spec",
- "tempdir",
+ "tempfile",
  "unexpected",
 ]
 
@@ -1215,7 +1215,7 @@ dependencies = [
  "spec",
  "state-db",
  "stats",
- "tempdir",
+ "tempfile",
  "trace",
  "trace-time",
  "trie-db",
@@ -1241,7 +1241,7 @@ dependencies = [
  "serde",
  "serde_derive",
  "serde_json",
- "tempdir",
+ "tempfile",
 ]
 
 [[package]]
@@ -1269,7 +1269,7 @@ dependencies = [
  "rlp-derive",
  "rlp_compress",
  "rustc-hex 2.1.0",
- "tempdir",
+ "tempfile",
  "triehash-ethereum",
 ]
 
@@ -1380,7 +1380,7 @@ dependencies = [
  "smallvec 1.2.0",
  "spec",
  "stats",
- "tempdir",
+ "tempfile",
  "trie-db",
  "triehash-ethereum",
  "verification",
@@ -1486,7 +1486,7 @@ dependencies = [
  "serde",
  "serde_json",
  "slab 0.2.0",
- "tempdir",
+ "tempfile",
  "tiny-keccak 1.5.0",
 ]
 
@@ -1560,7 +1560,7 @@ dependencies = [
  "log",
  "snapshot",
  "spec",
- "tempdir",
+ "tempfile",
  "trace-time",
 ]
 
@@ -1704,7 +1704,7 @@ dependencies = [
  "serde_derive",
  "serde_json",
  "smallvec 1.2.0",
- "tempdir",
+ "tempfile",
  "time",
  "tiny-keccak 1.5.0",
 ]
@@ -1725,7 +1725,7 @@ dependencies = [
  "rustc-hex 2.1.0",
  "serde",
  "serde_derive",
- "tempdir",
+ "tempfile",
 ]
 
 [[package]]
@@ -1767,7 +1767,7 @@ dependencies = [
  "serde",
  "serde_json",
  "spec",
- "tempdir",
+ "tempfile",
  "trace",
  "vm",
 ]
@@ -1799,7 +1799,7 @@ dependencies = [
  "pod",
  "spec",
  "state-db",
- "tempdir",
+ "tempfile",
  "trace",
  "trie-db",
  "trie-vm-factories",
@@ -2808,7 +2808,7 @@ dependencies = [
  "rlp",
  "spec",
  "state-db",
- "tempdir",
+ "tempfile",
  "trace",
  "trie-vm-factories",
  "vm",
@@ -2891,7 +2891,7 @@ dependencies = [
  "kvdb-rocksdb 0.6.0",
  "log",
  "maplit",
- "tempdir",
+ "tempfile",
 ]
 
 [[package]]
@@ -3031,7 +3031,7 @@ dependencies = [
  "lru-cache",
  "parking_lot 0.10.0",
  "spec",
- "tempdir",
+ "tempfile",
 ]
 
 [[package]]
@@ -3239,7 +3239,7 @@ dependencies = [
  "serde_json",
  "snapshot",
  "spec",
- "tempdir",
+ "tempfile",
  "term_size",
  "textwrap 0.9.0",
  "toml",
@@ -3434,7 +3434,7 @@ dependencies = [
  "snapshot",
  "spec",
  "stats",
- "tempdir",
+ "tempfile",
  "tiny-keccak 1.5.0",
  "tokio-timer 0.1.2",
  "trace",
@@ -3582,7 +3582,7 @@ dependencies = [
  "rand 0.7.3",
  "semver",
  "target_info",
- "tempdir",
+ "tempfile",
 ]
 
 [[package]]
@@ -4690,7 +4690,7 @@ dependencies = [
  "snapshot-tests",
  "spec",
  "state-db",
- "tempdir",
+ "tempfile",
  "trie-db",
  "trie-standardmap",
  "triehash-ethereum",
@@ -4733,7 +4733,7 @@ dependencies = [
  "rlp",
  "snapshot",
  "spec",
- "tempdir",
+ "tempfile",
  "trie-db",
  "trie-standardmap",
  "triehash-ethereum",
@@ -4782,7 +4782,7 @@ dependencies = [
  "parity-bytes",
  "pod",
  "rlp",
- "tempdir",
+ "tempfile",
  "trace",
  "trie-vm-factories",
  "vm",
@@ -4918,13 +4918,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c63f48baada5c52e65a29eef93ab4f8982681b67f9e8d29c7b05abcfec2b9ffe"
 
 [[package]]
-name = "tempdir"
-version = "0.3.7"
+name = "tempfile"
+version = "3.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "15f2b5fb00ccdf689e0149d1b1b3c03fead81c2b37735d812fa8bddbbf41b6d8"
+checksum = "7a6e24d9338a0a5be79593e2fa15a648add6138caa803e2d5bc782c371732ca9"
 dependencies = [
- "rand 0.4.6",
+ "cfg-if",
+ "libc",
+ "rand 0.7.3",
+ "redox_syscall",
  "remove_dir_all",
+ "winapi 0.3.8",
 ]
 
 [[package]]
@@ -5627,7 +5631,7 @@ dependencies = [
  "parking_lot 0.10.0",
  "rlp",
  "spec",
- "tempdir",
+ "tempfile",
  "time-utils",
  "triehash-ethereum",
  "unexpected",

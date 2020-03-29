@@ -638,13 +638,13 @@ mod tests {
 	use common_types::{view, views::BlockView};
 	use ethereum_types::{Address, H256};
 	use ethcore::test_helpers::get_temp_state_db;
-	use tempdir::TempDir;
+	use tempfile::TempDir;
 
 	use super::Spec;
 
 	#[test]
 	fn test_load_empty() {
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 		assert!(Spec::load(&tempdir.path(), &[] as &[u8]).is_err());
 	}
 

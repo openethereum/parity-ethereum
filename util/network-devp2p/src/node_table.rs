@@ -616,7 +616,7 @@ mod tests {
 
 	use ethereum_types::H512;
 	use ipnetwork::IpNetwork;
-	use tempdir::TempDir;
+	use tempfile::TempDir;
 
 	use assert_matches::assert_matches;
 

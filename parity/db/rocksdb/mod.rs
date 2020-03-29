@@ -19,7 +19,7 @@ extern crate migration_rocksdb;
 extern crate ethcore_blockchain;
 
 #[cfg(test)]
-extern crate tempdir;
+extern crate tempfile;
 
 use std::{io, fs};
 use std::sync::Arc;

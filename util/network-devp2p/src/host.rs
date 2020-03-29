@@ -1270,9 +1270,9 @@ fn load_key(path: &Path) -> Option<Secret> {
 
 #[test]
 fn key_save_load() {
-	use tempdir::TempDir;
+	use tempfile::TempDir;
 
-	let tempdir = TempDir::new("").unwrap();
+	let tempdir = TempDir::new().unwrap();
 	let key = H256::random().into();
 	save_key(tempdir.path(), &key);
 	let r = load_key(tempdir.path());

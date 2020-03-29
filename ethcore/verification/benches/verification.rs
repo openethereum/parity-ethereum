@@ -24,7 +24,7 @@ use ethash::{EthashParams, Ethash};
 use ethereum_types::U256;
 use ethcore::test_helpers::TestBlockChainClient;
 use spec::new_constantinople_test_machine;
-use tempdir::TempDir;
+use tempfile::TempDir;
 
 use ::verification::{
 	FullFamilyParams,
@@ -72,7 +72,7 @@ fn ethash_params() -> EthashParams {
 fn build_ethash() -> Ethash {
 	let machine = new_constantinople_test_machine();
 	let ethash_params = ethash_params();
-	let cache_dir = TempDir::new("").unwrap();
+	let cache_dir = TempDir::new().unwrap();
 	Ethash::new(
 		cache_dir.path(),
 		ethash_params,

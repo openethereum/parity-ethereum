@@ -36,7 +36,7 @@ use ethereum_types::H256;
 use journaldb::{self, Algorithm};
 use kvdb_rocksdb::{Database, DatabaseConfig};
 use parking_lot::{Mutex, RwLock};
-use tempdir::TempDir;
+use tempfile::TempDir;
 
 use crate::helpers::StateProducer;
 
@@ -54,7 +54,7 @@ fn snap_and_restore() {
 		producer.tick(&mut rng, &mut old_db);
 	}
 
-	let tempdir = TempDir::new("").unwrap();
+	let tempdir = TempDir::new().unwrap();
 	let snap_file = tempdir.path().join("SNAP");
 
 	let state_root = producer.state_root();
@@ -152,7 +152,7 @@ fn get_code_from_prev_chunk() {
 	let chunk1 = make_chunk(acc.clone(), h1);
 	let chunk2 = make_chunk(acc, h2);
 
-	let tempdir = TempDir::new("").unwrap();
+	let tempdir = TempDir::new().unwrap();
 	let db_cfg = DatabaseConfig::with_columns(ethcore_db::NUM_COLUMNS);
 	let new_db = Arc::new(Database::open(&db_cfg, tempdir.path().to_str().unwrap()).unwrap());
 
@@ -181,7 +181,7 @@ fn checks_flag() {
 		producer.tick(&mut rng, &mut old_db);
 	}
 
-	let tempdir = TempDir::new("").unwrap();
+	let tempdir = TempDir::new().unwrap();
 	let snap_file = tempdir.path().join("SNAP");
 
 	let state_root = producer.state_root();
@@ -199,7 +199,7 @@ fn checks_flag() {
 		block_hash: H256::zero(),
 	}).unwrap();
 
-	let tempdir = TempDir::new("").unwrap();
+	let tempdir = TempDir::new().unwrap();
 	let db_path = tempdir.path().join("db");
 	{
 		let new_db = Arc::new(Database::open(&db_cfg, &db_path.to_string_lossy()).unwrap());

@@ -44,7 +44,7 @@ use kvdb::KeyValueDB;
 use kvdb_rocksdb::{self, Database, DatabaseConfig};
 use parking_lot::RwLock;
 use rlp::{self, RlpStream};
-use tempdir::TempDir;
+use tempfile::TempDir;
 use types::{
 	chain_notify::ChainMessageType,
 	transaction::{Action, Transaction, SignedTransaction},
@@ -305,8 +305,8 @@ impl BlockChainDB for TestBlockChainDB {
 
 /// Creates new test instance of `BlockChainDB`
 pub fn new_db() -> Arc<dyn BlockChainDB> {
-	let blooms_dir = TempDir::new("").unwrap();
-	let trace_blooms_dir = TempDir::new("").unwrap();
+	let blooms_dir = TempDir::new().unwrap();
+	let trace_blooms_dir = TempDir::new().unwrap();
 
 	let db = TestBlockChainDB {
 		blooms: blooms_db::Database::open(blooms_dir.path()).unwrap(),
@@ -321,8 +321,8 @@ pub fn new_db() -> Arc<dyn BlockChainDB> {
 
 /// Creates a new temporary `BlockChainDB` on FS
 pub fn new_temp_db(tempdir: &Path) -> Arc<dyn BlockChainDB> {
-	let blooms_dir = TempDir::new("").unwrap();
-	let trace_blooms_dir = TempDir::new("").unwrap();
+	let blooms_dir = TempDir::new().unwrap();
+	let trace_blooms_dir = TempDir::new().unwrap();
 	let key_value_dir = tempdir.join("key_value");
 
 	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);

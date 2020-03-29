@@ -16,7 +16,7 @@
 
 //! Tests for snapshot i/o.
 
-use tempdir::TempDir;
+use tempfile::TempDir;
 use keccak_hash::keccak;
 
 use common_types::snapshot::ManifestData;
@@ -31,7 +31,7 @@ const BLOCK_CHUNKS: &'static [&'static [u8]] = &[b"hello!", b"goodbye!", b"abcde
 
 #[test]
 fn packed_write_and_read() {
-	let tempdir = TempDir::new("").unwrap();
+	let tempdir = TempDir::new().unwrap();
 	let path = tempdir.path().join("packed");
 	let mut writer = PackedWriter::new(&path).unwrap();
 
@@ -71,7 +71,7 @@ fn packed_write_and_read() {
 
 #[test]
 fn loose_write_and_read() {
-	let tempdir = TempDir::new("").unwrap();
+	let tempdir = TempDir::new().unwrap();
 	let mut writer = LooseWriter::new(tempdir.path().into()).unwrap();
 
 	let mut state_hashes = Vec::new();

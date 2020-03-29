@@ -724,7 +724,7 @@ pub mod tests {
 	use std::io::Read;
 	use std::sync::Arc;
 	use semver::Version;
-	use tempdir::TempDir;
+	use tempfile::TempDir;
 	use ethcore::test_helpers::{TestBlockChainClient, EachBlockWith};
 	use self::fetch::Error;
 	use super::*;
@@ -865,7 +865,7 @@ pub mod tests {
 	}
 
 	fn update_policy() -> (UpdatePolicy, TempDir) {
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 
 		let update_policy = UpdatePolicy {
 			path: tempdir.path().into(),

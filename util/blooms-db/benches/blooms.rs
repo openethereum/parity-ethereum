@@ -16,13 +16,13 @@
 
 #[macro_use]
 extern crate criterion;
-extern crate tempdir;
+extern crate tempfile;
 extern crate blooms_db;
 extern crate ethbloom;
 
 use std::iter;
 use criterion::Criterion;
-use tempdir::TempDir;
+use tempfile::TempDir;
 use blooms_db::Database;
 use ethbloom::Bloom;
 

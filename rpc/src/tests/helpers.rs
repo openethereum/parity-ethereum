@@ -16,7 +16,7 @@
 
 use std::ops::{Deref, DerefMut};
 use std::path::PathBuf;
-use tempdir::TempDir;
+use tempfile::TempDir;
 
 use parity_runtime::{Runtime, TaskExecutor};
 
@@ -62,7 +62,7 @@ pub struct GuardedAuthCodes {
 
 impl Default for GuardedAuthCodes {
 	fn default() -> Self {
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 		let path = tempdir.path().join("file");
 
 		GuardedAuthCodes {

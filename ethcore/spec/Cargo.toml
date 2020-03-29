@@ -39,4 +39,4 @@ vm = { path = "../vm" }
 [dev-dependencies]
 ethcore = { path = "..", features = ["test-helpers"] }
 env_logger = "0.5"
-tempdir = "0.3.7"
+tempfile = "3.1"

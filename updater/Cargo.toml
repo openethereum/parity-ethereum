@@ -28,7 +28,7 @@ target_info = "0.1"
 
 [dev-dependencies]
 ethcore = { path = "../ethcore", features = ["test-helpers"] }
-tempdir = "0.3"
+tempfile = "3.1"
 matches = "0.1"
 
 [features]

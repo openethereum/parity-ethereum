@@ -351,13 +351,13 @@ fn account_filename(account: &SafeAccount) -> String {
 
 #[cfg(test)]
 mod test {
-	extern crate tempdir;
+	extern crate tempfile;
 
 	use std::{env, fs};
 	use super::{KeyDirectory, RootDiskDirectory, VaultKey};
 	use account::SafeAccount;
 	use crypto::publickey::{Random, Generator};
-	use self::tempdir::TempDir;
+	use self::tempfile::TempDir;
 
 	#[test]
 	fn should_create_new_account() {
@@ -448,7 +448,7 @@ mod test {
 	#[test]
 	fn should_list_vaults() {
 		// given
-		let temp_path = TempDir::new("").unwrap();
+		let temp_path = TempDir::new().unwrap();
 		let directory = RootDiskDirectory::create(&temp_path).unwrap();
 		let vault_provider = directory.as_vault_provider().unwrap();
 		vault_provider.create("vault1", VaultKey::new(&"password1".into(), 1)).unwrap();
@@ -463,7 +463,7 @@ mod test {
 
 	#[test]
 	fn hash_of_files() {
-		let temp_path = TempDir::new("").unwrap();
+		let temp_path = TempDir::new().unwrap();
 		let directory = RootDiskDirectory::create(&temp_path).unwrap();
 
 		let hash = directory.files_hash().expect("Files hash should be calculated ok");

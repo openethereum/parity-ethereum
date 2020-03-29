@@ -14,9 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-extern crate tempdir;
+extern crate tempfile;
 use std::process::Command;
-use tempdir::TempDir;
+use tempfile::TempDir;
 use std::fs::File;
 use std::io::Write;
 
@@ -37,7 +37,7 @@ fn cli_cmd() {
 		.output()
 		.unwrap();
 
-	let dir = TempDir::new("test-vault").unwrap();
+	let dir = TempDir::new().prefix("test-vault").unwrap();
 
 	let mut passwd = File::create(dir.path().join("test-password")).unwrap();
 	writeln!(passwd, "password").unwrap();
