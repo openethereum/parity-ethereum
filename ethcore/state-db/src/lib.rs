@@ -161,18 +161,35 @@ impl StateDB {
 	}
 
 	fn fetch_bloom_parts(db: &dyn KeyValueDB, bitmap_size: u64) -> Vec<u64> {
-		let mut bloom_parts = vec![0u64; (bitmap_size / 8) as usize];
-		for i in 0..bloom_parts.len() {
-			let key: [u8; 8] = i.to_le_bytes();
-			bloom_parts[i as usize] = db.get(COL_ACCOUNT_BLOOM, &key).expect(DB_ERROR)
-				.map(|val| {
-					assert_eq!(val.len(), 8, "Expected a u64");
+		let nr_parts = bitmap_size / 8;
+		let mut bloom_parts = vec![0u64; nr_parts as usize];
+		trace!(target: "accounts_bloom]", "Fething bloom from disk. bitmap_size={}, nr_parts={}", bitmap_size, nr_parts);
+
+		let start = std::time::Instant::now();
+		for (k, v) in db.iter(COL_ACCOUNT_BLOOM) {
+			// The only keys in the `COL_ACCOUNT_BLOOM` that are not `u64`s are
+			// the two keys where we store the number of hash functions for
+			// legacy blooms (ACCOUNTS_BLOOM_HASHCOUNT_KEY) and the number of
+			// estimated items for the bloom (ACCOUNTS_BLOOM_ITEM_COUNT_KEY).
+			if k.len() == 8 {
+				let part_idx = {
 					let mut buff = [0u8; 8];
-					buff.copy_from_slice(&*val);
+					buff.copy_from_slice(&*k);
 					u64::from_le_bytes(buff)
-				})
-				.unwrap_or(0u64);
+				};
+				bloom_parts[part_idx as usize] = {
+					let mut buff = [0u8; 8];
+					buff.copy_from_slice(&*v);
+					u64::from_le_bytes(buff)
+				};
+			} else {
+				assert!(
+					&*k == ACCOUNTS_BLOOM_HASHCOUNT_KEY || &*k == ACCOUNTS_BLOOM_ITEM_COUNT_KEY,
+					"Expect the DB to contain `u64`s or the above two keys – corrupt db?"
+				)
+			}
 		}
+		debug!(target: "accounts_bloom", "Fetched the bloom from the DB in {:?}. bloom_parts.len={}", start.elapsed(), bloom_parts.len());
 		bloom_parts
 	}
 
