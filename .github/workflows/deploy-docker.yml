@@ -5,7 +5,7 @@ on:
     branches:
       - stable
     tags:
-      - v2*
+      - v*
 
 jobs:
   deploy-docker:
