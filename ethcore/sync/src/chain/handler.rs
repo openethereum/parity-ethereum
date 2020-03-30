@@ -149,12 +149,6 @@ impl SyncHandler {
 			trace!(target: "sync", "Ignoring new block from unconfirmed peer {}", peer_id);
 			return Ok(());
 		}
-		let difficulty: U256 = r.val_at(1)?;
-		if let Some(ref mut peer) = sync.peers.get_mut(&peer_id) {
-			if peer.difficulty.map_or(true, |pd| difficulty > pd) {
-				peer.difficulty = Some(difficulty);
-			}
-		}
 		let block = Unverified::from_rlp(r.at(0)?.as_raw().to_vec())?;
 		let hash = block.header.hash();
 		let number = block.header.number();
@@ -162,10 +156,20 @@ impl SyncHandler {
 		if number > sync.highest_block.unwrap_or(0) {
 			sync.highest_block = Some(number);
 		}
+		let parent_hash = block.header.parent_hash();
+		let difficulty: U256 = r.val_at(1)?;
+		// Most probably the sent block is being imported by peer right now
+		// Use td and hash, that peer must have for now
+		let parent_td = difficulty - block.header.difficulty();
+		if let Some(ref mut peer) = sync.peers.get_mut(&peer_id) {
+			if peer.difficulty.map_or(true, |pd| parent_td > pd) {
+				peer.difficulty = Some(parent_td);
+			}
+		}
 		let mut unknown = false;
 
 		if let Some(ref mut peer) = sync.peers.get_mut(&peer_id) {
-			peer.latest_hash = hash;
+			peer.latest_hash = *parent_hash;
 		}
 
 		let last_imported_number = sync.new_blocks.last_imported_block_number();
