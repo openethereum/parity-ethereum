@@ -308,8 +308,6 @@ fn execute_import_light(cmd: ImportBlockchain) -> Result<(), String> {
 }
 
 fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
-	let timer = Instant::now();
-
 	// load spec file
 	let spec = cmd.spec.spec(&cmd.dirs.cache)?;
 
@@ -406,7 +404,10 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 
 	service.register_io_handler(informant).map_err(|_| "Unable to register informant handler".to_owned())?;
 
+	let timer = Instant::now();
 	client.import_blocks(instream, cmd.format)?;
+	let elapsed = timer.elapsed();
+	let ms = timer.elapsed().as_millis();
 
 	// save user defaults
 	user_defaults.pruning = algorithm;
@@ -414,10 +415,10 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 	user_defaults.fat_db = fat_db;
 	user_defaults.save(&user_defaults_path)?;
 
+	// Sometimes when importing a small number of blocks (~10) the report seems inaccurate, so we sleep a little before getting it.
+	std::thread::sleep(Duration::from_secs(1));
 	let report = client.report();
-	let elapsed = timer.elapsed();
-	let ms = timer.elapsed().as_millis();
-	info!("Import completed in {} seconds, {} blocks, {} blk/s, {} transactions, {} tx/s, {} Mgas, {} Mgas/s",
+	info!("Import completed in {} seconds, {} blocks, {} blk/s, {} transactions, {} tx/s, {} Mgas, {} Mgas/s, {} state DB memory",
 		elapsed.as_secs(),
 		report.blocks_imported,
 		(report.blocks_imported as u128 * 1000) / ms,
@@ -425,6 +426,7 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 		(report.transactions_applied as u128 * 1000) / ms,
 		report.gas_processed / 1_000_000,
 		report.gas_processed / (ms * 1000),
+		report.state_db_mem,
 	);
 	Ok(())
 }
