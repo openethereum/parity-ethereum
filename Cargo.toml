@@ -48,7 +48,7 @@ kvdb-rocksdb = "0.6.0"
 log = "0.4"
 migration-rocksdb = { path = "util/migration-rocksdb" }
 node-filter = { path = "ethcore/node-filter" }
-num_cpus = "1.2"
+num_cpus = "1.12"
 number_prefix = "0.2"
 panic_hook = { path = "util/panic-hook" }
 parity-bytes = "0.1"

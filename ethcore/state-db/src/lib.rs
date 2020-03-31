@@ -177,11 +177,15 @@ impl StateDB {
 					buff.copy_from_slice(&*k);
 					u64::from_le_bytes(buff)
 				};
-				bloom_parts[part_idx as usize] = {
-					let mut buff = [0u8; 8];
-					buff.copy_from_slice(&*v);
-					u64::from_le_bytes(buff)
-				};
+				if part_idx >= nr_parts {
+					warn!(target: "accounts_bloom", "Accounts bloom DB has a key out of bounds: {}/{:?}. Expected {} bloom parts.", part_idx, k, nr_parts);
+				} else {
+					bloom_parts[part_idx as usize] = {
+						let mut buff = [0u8; 8];
+						buff.copy_from_slice(&*v);
+						u64::from_le_bytes(buff)
+					};
+				}
 			} else {
 				assert!(
 					&*k == ACCOUNTS_BLOOM_HASHCOUNT_KEY || &*k == ACCOUNTS_BLOOM_ITEM_COUNT_KEY,

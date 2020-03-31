@@ -215,7 +215,7 @@ fn rebuild_bloom(
 	best_block: BlockNumber,
 ) -> Result<(), Error> {
 	let num_keys = source.num_keys(COL_STATE)? / 2;
-	info!(target: "migration", "Accounts bloom rebuild started for chain at #{}. There are {} accounts in the DB", best_block, num_keys);
+	info!(target: "migration", "Accounts bloom rebuild started for chain at #{}. There are {} accounts in the DB (estimate).", best_block, num_keys);
 	if account_count <= num_keys {
 		warn!("Rebuilding the bloom with space for {} accounts when the DB contains {} keys is not a good idea: the bloom filter will be saturated right away.",
 			account_count, num_keys
@@ -239,7 +239,12 @@ fn rebuild_bloom(
 	let db = state_db.as_hash_db();
 	let start = std::time::Instant::now();
 
-	let threads = 6;
+	// 1 thread:    49627s –> ~14h
+	// 4 threads:   10825s –> ~3h
+	// 6 threads:    9399s –> ~2.6h
+	// 12 threads:   9401s -> ~2.6h (slightly bigger chain though)
+	// 16 threads:   8805s –> ~2.45h
+	let threads = num_cpus::get();
 	// Chunk up the state in this many parts; each thread will be assigned one part at a time.
 	const STATE_SUBPARTS: usize = 16;
 	let bloom_result = thread::scope(|scope| -> Result<Arc<Mutex<Bloom>>, Error> {

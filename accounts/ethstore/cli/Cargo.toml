@@ -7,7 +7,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [dependencies]
 docopt = "1.0"
 env_logger = "0.5"
-num_cpus = "1.6"
+num_cpus = "1.12"
 rustc-hex = "2.1.0"
 serde = "1.0"
 serde_derive = "1.0"
