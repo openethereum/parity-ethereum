@@ -491,11 +491,10 @@ impl<K: Kind, C> VerificationQueue<K, C> {
 
 		match K::create(input, &*self.engine, self.verification.check_seal) {
 			Ok(item) => {
-				if self.processing.write().insert(hash, item.difficulty()).is_some() {
+				if self.processing.write().insert(hash, (item.difficulty(), item.parent_hash())).is_some() {
 					return Err((Error::Import(ImportError::AlreadyQueued), None));
 				}
 				self.verification.sizes.unverified.fetch_add(item.malloc_size_of(), AtomicOrdering::SeqCst);
-				self.processing.write().insert(hash, (item.difficulty(), item.parent_hash()));
 				{
 					let mut td = self.total_difficulty.write();
 					*td = *td + item.difficulty();
