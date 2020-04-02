@@ -605,20 +605,19 @@ impl<K: Kind, C> VerificationQueue<K, C> {
 			&& v.verified.load_len() == 0
 	}
 
-	/// Returns true, if in processing queue there is no descendant of the current best block
+	/// Returns true, if in processing queue there are descendants of the current best block
 	pub fn is_processing_fork(&self, best_block_hash: &H256) -> bool {
 		let processing = self.processing.read();
 		if processing.is_empty() || processing.len() > MAX_QUEUE_WITH_FORK {
 			// Assume, that long enough processing queue doesn't have fork blocks
 			return false;
 		}
-
 		for item in processing.values() {
-			if item.1 == *best_block_hash {
-				return false;
+			if chain.tree_route(*best_block_hash, item.1).map_or(true, |route| route.ancestor != *best_block_hash) {
+				return true;
 			}
 		}
-		return true;
+		return false;
 	}
 
 	/// Get queue status.
