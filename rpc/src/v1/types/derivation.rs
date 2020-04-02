@@ -30,7 +30,7 @@ pub enum DerivationType {
 }
 
 /// Derivation request by hash
-#[cfg(any(test, feature = "accounts"))]
+#[cfg_attr(not(any(test, feature = "accounts")), allow_unused)]
 #[derive(Deserialize)]
 pub struct DeriveHash {
 	hash: H256,
@@ -38,8 +38,8 @@ pub struct DeriveHash {
 	d_type: DerivationType,
 }
 
-/// Node propertoes in hierarchical derivation request
-#[cfg(any(test, feature = "accounts"))]
+/// Node properties in hierarchical derivation request
+#[cfg_attr(not(any(test, feature = "accounts")), allow_unused)]
 #[derive(Deserialize)]
 pub struct DeriveHierarchicalItem {
 	index: u64,
