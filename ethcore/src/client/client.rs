@@ -1766,7 +1766,7 @@ impl BlockChainClient for Client {
 
 	fn is_processing_fork(&self) -> bool {
 		let chain = self.chain.read();
-		self.importer.block_queue.is_processing_fork(&chain.best_block_hash())
+		self.importer.block_queue.is_processing_fork(&chain.best_block_hash(), &chain)
 	}
 
 	fn block_total_difficulty(&self, id: BlockId) -> Option<U256> {

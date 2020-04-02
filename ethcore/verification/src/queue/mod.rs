@@ -28,6 +28,7 @@ use common_types::{
 	errors::{BlockError, EthcoreError as Error, ImportError},
 	verification::VerificationQueueInfo as QueueInfo,
 };
+use blockchain::BlockChain;
 use ethcore_io::*;
 use ethereum_types::{H256, U256};
 use engine::Engine;
@@ -606,7 +607,7 @@ impl<K: Kind, C> VerificationQueue<K, C> {
 	}
 
 	/// Returns true, if in processing queue there are descendants of the current best block
-	pub fn is_processing_fork(&self, best_block_hash: &H256) -> bool {
+	pub fn is_processing_fork(&self, best_block_hash: &H256, chain: &BlockChain) -> bool {
 		let processing = self.processing.read();
 		if processing.is_empty() || processing.len() > MAX_QUEUE_WITH_FORK {
 			// Assume, that long enough processing queue doesn't have fork blocks
