@@ -22,6 +22,10 @@ for eip in $(grep --only-matching "eip.*Transition" ethcore/res/ethereum/istanbu
         echo "ERROR: $eip is missing in the foundation json spec"
         ERR=1
     fi
+    if ! grep -q $eip ethcore/res/ethereum/classic.json; then
+        echo "ERROR: $eip is missing in the classic json spec"
+        ERR=1
+    fi
 done
 
 exit $ERR
