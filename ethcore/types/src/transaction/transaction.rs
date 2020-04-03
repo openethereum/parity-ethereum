@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Transaction data structure.
 
@@ -316,11 +316,6 @@ impl UnverifiedTransaction {
 		self
 	}
 
-	/// Checks if the signature is empty.
-	pub fn is_unsigned(&self) -> bool {
-		self.r.is_zero() && self.s.is_zero()
-	}
-
 	/// Returns transaction receiver, if any
 	pub fn receiver(&self) -> Option<Address> {
 		match self.unsigned.action {
@@ -357,7 +352,6 @@ impl UnverifiedTransaction {
 	/// The chain ID, or `None` if this is a global transaction.
 	pub fn chain_id(&self) -> Option<u64> {
 		match self.v {
-			v if self.is_unsigned() => Some(v),
 			v if v >= 35 => Some((v - 35) / 2),
 			_ => None,
 		}
@@ -391,9 +385,6 @@ impl UnverifiedTransaction {
 
 	/// Verify basic signature params. Does not attempt sender recovery.
 	pub fn verify_basic(&self, check_low_s: bool, chain_id: Option<u64>) -> Result<(), error::Error> {
-		if self.is_unsigned() {
-			return Err(parity_crypto::publickey::Error::InvalidSignature.into());
-		}
 		if check_low_s {
 			self.check_low_s()?;
 		}
@@ -439,9 +430,6 @@ impl From<SignedTransaction> for UnverifiedTransaction {
 impl SignedTransaction {
 	/// Try to verify transaction and recover sender.
 	pub fn new(transaction: UnverifiedTransaction) -> Result<Self, parity_crypto::publickey::Error> {
-		if transaction.is_unsigned() {
-			return Err(parity_crypto::publickey::Error::InvalidSignature);
-		}
 		let public = transaction.recover_public()?;
 		let sender = public_to_address(&public);
 		Ok(SignedTransaction {
@@ -459,11 +447,6 @@ impl SignedTransaction {
 	/// Returns a public key of the sender.
 	pub fn public_key(&self) -> Option<Public> {
 		self.public
-	}
-
-	/// Checks is signature is empty.
-	pub fn is_unsigned(&self) -> bool {
-		self.transaction.is_unsigned()
 	}
 
 	/// Deconstructs this transaction back into `UnverifiedTransaction`
@@ -493,9 +476,6 @@ impl LocalizedTransaction {
 	pub fn sender(&mut self) -> Address {
 		if let Some(sender) = self.cached_sender {
 			return sender;
-		}
-		if self.is_unsigned() {
-			return UNSIGNED_SENDER.clone();
 		}
 		let sender = public_to_address(&self.recover_public()
 			.expect("LocalizedTransaction is always constructed from transaction from blockchain; Blockchain only stores verified transactions; qed"));

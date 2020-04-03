@@ -25,7 +25,10 @@
 					}
 				},
 				"blockRewardContractAddress": "0x3145197AD50D7083D0222DE4fCCf67d9BD05C30D",
-				"blockRewardContractTransition": 4639000
+				"blockRewardContractTransition": 4639000,
+				"randomnessContractAddress": {
+					"13391641": "0x8f2b78169B0970F11a762e56659Db52B59CBCf1B"
+				}
 			}
 		}
 	},

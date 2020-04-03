@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::cmp;
 use std::fs;
@@ -414,7 +414,7 @@ impl<O: OperationsClient, F: HashFetch, T: TimeProvider, R: GenRange> Updater<O,
 		*self.exit_handler.lock() = Some(Box::new(g));
 	}
 
-	/// Returns release track of the parity node.
+	/// Returns release track of the node.
 	/// `update_policy.track` is the track specified from the command line, whereas `this.track`
 	/// is the track of the software which is currently run
 	fn track(&self) -> ReleaseTrack {
@@ -724,7 +724,7 @@ pub mod tests {
 	use std::io::Read;
 	use std::sync::Arc;
 	use semver::Version;
-	use tempdir::TempDir;
+	use tempfile::TempDir;
 	use ethcore::test_helpers::{TestBlockChainClient, EachBlockWith};
 	use self::fetch::Error;
 	use super::*;
@@ -865,7 +865,7 @@ pub mod tests {
 	}
 
 	fn update_policy() -> (UpdatePolicy, TempDir) {
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 
 		let update_policy = UpdatePolicy {
 			path: tempdir.path().into(),

@@ -12,6 +12,8 @@
 	"params": {
 		"accountStartNonce": "0x0",
 		"chainID": "0x6",
+		"forkBlock": "0x1febd1",
+		"forkCanonHash": "0x5e870cdcb252261bd5e7ed3499f42a8f7b9ef6ce08ece55e8187247cc0551f4c",
 		"eip140Transition": "0xaef49",
 		"eip145Transition": "0x1a064d",
 		"eip150Transition": "0x0",
@@ -24,11 +26,13 @@
 		"eip658Transition": "0xaef49",
 		"eip1014Transition": "0x1a064d",
 		"eip1052Transition": "0x1a064d",
-		"eip1283Transition": "0x1f67cf",
-		"eip1344Transition": "0x1f67cf",
-		"eip1706Transition": "0x1f67cf",
-		"eip2028Transition": "0x1f67cf",
-		"eip2200AdvanceTransition": "0x1f67cf",
+		"eip1283Transition": "0x0",
+		"eip1283DisableTransition": "0x0",
+		"eip1283ReenableTransition": "0x2191cd",
+		"eip1344Transition": "0x2191cd",
+		"eip1706Transition": "0x2191cd",
+		"eip1884Transition": "0x2191cd",
+		"eip2028Transition": "0x2191cd",
 		"gasLimitBoundDivisor": "0x400",
 		"maxCodeSize": "0x6000",
 		"maxCodeSizeTransition": "0xaef49",
@@ -55,7 +59,11 @@
 		"enode://93c94e999be5dd854c5d82a7cf5c14822973b5d9badb56ad4974586ec4d4f1995c815af795c20bb6e0a6226d3ee55808435c4dc89baf94ee581141b064d19dfc@80.187.116.161:25720",
 		"enode://ae8658da8d255d1992c3ec6e62e11d6e1c5899aa1566504bc1ff96a0c9c8bd44838372be643342553817f5cc7d78f1c83a8093dee13d77b3b0a583c050c81940@18.232.185.151:30303",
 		"enode://b477ca6d507a3f57070783eb62ba838847635f8b1a0cbffb8b7f8173f5894cf550f0225a5c279341e2d862a606e778b57180a4f1db3db78c51eadcfa4fdc6963@40.68.240.160:30303",
-		"enode://a59e33ccd2b3e52d578f1fbd70c6f9babda2650f0760d6ff3b37742fdcdfdb3defba5d56d315b40c46b70198c7621e63ffa3f987389c7118634b0fefbbdfa7fd@51.158.191.43:37956"
+		"enode://4956f6924335c951cb70cbc169a85c081f6ff0b374aa2815453b8a3132b49613f38a1a6b8e103f878dbec86364f60091e92a376d7cd3aca9d82d2f2554794e63@51.15.97.240:41235",
+		"enode://6c9a052c01bb9995fa53bebfcdbc17733fe90708270d0e6d8e38dc57b32e1dbe8c287590b634ee9753b94ba302f411c96519c7fa07df0df6a6848149d819b2c5@51.15.70.7:41235",
+		"enode://95a7302fd8f35d9ad716a591b90dfe839dbf2d3d6a6737ef39e07899f844ad82f1659dd6212492922dd36705fb0a1e984c1d5d5c42069d5bd329388831e820c1@51.15.97.240:45678",
+		"enode://8c5c4dec9a0728c7058d3c29698bae888adc244e443cebc21f3d708a20751511acbf98a52b5e5ea472f8715c658913e8084123461fd187a4980a0600420b0791@51.15.70.7:45678",
+		"enode://efd7391a3bed73ad74ae5760319bb48f9c9f1983ff22964422688cdb426c5d681004ece26c47121396653cf9bafe7104aa4ecff70e24cc5b11fd76be8e5afce0@51.158.191.43:45678"
 	],
 	"accounts": {
 		"0x0000000000000000000000000000000000000000": {
@@ -129,7 +137,7 @@
 					"0xaef49": {
 						"price": { "alt_bn128_const_operations": { "price": 500 }}
 					},
-					"0x1f67cf": {
+					"0x2191cd": {
 						"info": "EIP 1108 transition",
 						"price": { "alt_bn128_const_operations": { "price": 150 }}
 					}
@@ -144,7 +152,7 @@
 					"0xaef49": {
 						"price": { "alt_bn128_const_operations": { "price": 40000 }}
 					},
-					"0x1f67cf": {
+					"0x2191cd": {
 						"info": "EIP 1108 transition",
 						"price": { "alt_bn128_const_operations": { "price": 6000 }}
 					}
@@ -159,7 +167,7 @@
 					"0xaef49": {
 						"price": { "alt_bn128_pairing": { "base": 100000, "pair": 80000 }}
 					},
-					"0x1f67cf": {
+					"0x2191cd": {
 						"info": "EIP 1108 transition",
 						"price": { "alt_bn128_pairing": { "base": 45000, "pair": 34000 }}
 					}
@@ -170,7 +178,7 @@
 			"balance": "0x1",
 			"builtin": {
 				"name": "blake2_f",
-				"activate_at": "0x1f67cf",
+				"activate_at": "0x2191cd",
 				"pricing": {
 					"blake2_f": {
 						"gas_per_round": 1

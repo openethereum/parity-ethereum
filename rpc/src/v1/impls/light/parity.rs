@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Parity-specific rpc implementation.
 use std::sync::Arc;
@@ -33,7 +33,7 @@ use ethcore_logger::RotatingLogger;
 use jsonrpc_core::{Result, BoxFuture};
 use jsonrpc_core::futures::{future, Future};
 use light::on_demand::OnDemandRequester;
-use v1::helpers::{self, errors, ipfs, NetworkSettings, verify_signature};
+use v1::helpers::{self, errors, NetworkSettings, verify_signature};
 use v1::helpers::external_signer::{SignerService, SigningQueue};
 use v1::helpers::dispatch::LightDispatcher;
 use v1::helpers::light_fetch::{LightFetch, light_all_transactions};
@@ -370,10 +370,6 @@ where
 	fn block_receipts(&self, number: Option<BlockNumber>) -> BoxFuture<Vec<Receipt>> {
 		let id = number.unwrap_or_default().to_block_id();
 		Box::new(self.fetcher().receipts(id).and_then(|receipts| Ok(receipts.into_iter().map(Into::into).collect())))
-	}
-
-	fn ipfs_cid(&self, content: Bytes) -> Result<String> {
-		ipfs::cid(content)
 	}
 
 	fn call(&self, _requests: Vec<CallRequest>, _block: Option<BlockNumber>) -> Result<Vec<Bytes>> {

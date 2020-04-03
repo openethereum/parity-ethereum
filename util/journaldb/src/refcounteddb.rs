@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Disk-backed, ref-counted `JournalDB` implementation.
 
@@ -57,6 +57,7 @@ use crate::{
 /// we remove all of its removes assuming it is canonical and all
 /// of its inserts otherwise.
 // TODO: store last_era, reclaim_period.
+#[derive(Clone)]
 pub struct RefCountedDB {
 	forward: OverlayDB,
 	backing: Arc<dyn KeyValueDB>,
@@ -88,20 +89,17 @@ impl HashDB<KeccakHasher, DBValue> for RefCountedDB {
 	fn get(&self, key: &H256, prefix: Prefix) -> Option<DBValue> { self.forward.get(key, prefix) }
 	fn contains(&self, key: &H256, prefix: Prefix) -> bool { self.forward.contains(key, prefix) }
 	fn insert(&mut self, prefix: Prefix, value: &[u8]) -> H256 { let r = self.forward.insert(prefix, value); self.inserts.push(r.clone()); r }
-	fn emplace(&mut self, key: H256, prefix: Prefix, value: DBValue) { self.inserts.push(key.clone()); self.forward.emplace(key, prefix, value); }
-	fn remove(&mut self, key: &H256, _prefix: Prefix) { self.removes.push(key.clone()); }
+	fn emplace(&mut self, key: H256, prefix: Prefix, value: DBValue) { self.inserts.push(key); self.forward.emplace(key, prefix, value); }
+	fn remove(&mut self, key: &H256, _prefix: Prefix) { self.removes.push(*key); }
 }
 
 impl JournalDB for RefCountedDB {
 	fn boxed_clone(&self) -> Box<dyn JournalDB> {
-		Box::new(RefCountedDB {
-			forward: self.forward.clone(),
-			backing: self.backing.clone(),
-			latest_era: self.latest_era,
-			inserts: self.inserts.clone(),
-			removes: self.removes.clone(),
-			column: self.column.clone(),
-		})
+		Box::new(self.clone())
+	}
+
+	fn io_stats(&self) -> kvdb::IoStats {
+		self.backing.io_stats(kvdb::IoStatsKind::SincePrevious)
 	}
 
 	fn mem_used(&self) -> usize {

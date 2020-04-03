@@ -24,7 +24,7 @@ accounts = { package = "ethcore-accounts", path = "../../../accounts" }
 engine = { path = "../../engine", features = ["test-helpers"] }
 ethcore = { path = "../..", features = ["test-helpers"] }
 keccak-hash = "0.4.0"
-tempdir = "0.3"
+tempfile = "3.1"
 spec = { path = "../../spec" }
 
 [features]

@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Implementation of the Clique PoA Engine.
 //!
@@ -80,13 +80,11 @@ use machine::{
 	ExecutedBlock,
 	Machine,
 };
-use macros::map;
 use parking_lot::RwLock;
 use rand::Rng;
 use unexpected::{Mismatch, OutOfBounds};
 use time_utils::CheckedSystemTime;
 use common_types::{
-	BlockNumber,
 	ids::BlockId,
 	header::Header,
 	engines::{
@@ -104,7 +102,6 @@ use crate::{
 	block_state::CliqueBlockState,
 	params::CliqueParams,
 };
-
 
 mod params;
 mod block_state;
@@ -158,7 +155,7 @@ impl VoteType {
 		} else if nonce == NONCE_DROP_VOTE {
 			Ok(VoteType::Remove)
 		} else {
-			Err(EngineError::CliqueInvalidNonce(nonce))?
+			Err(EngineError::CliqueInvalidNonce(nonce).into())
 		}
 	}
 
@@ -251,17 +248,14 @@ impl Clique {
 		}
 	}
 
-	fn sign_header(&self, header: &Header) -> Result<(Signature, H256), Error> {
-
+	fn sign_header(&self, header: &Header) -> Result<(Signature, H256), EngineError> {
 		match self.signer.read().as_ref() {
-			None => {
-				Err(EngineError::RequiresSigner)?
-			}
+			None => Err(EngineError::RequiresSigner),
 			Some(signer) => {
 				let digest = header.hash();
 				match signer.sign(digest) {
 					Ok(sig) => Ok((sig, digest)),
-					Err(e) => Err(EngineError::Custom(e.into()))?,
+					Err(e) => Err(EngineError::Custom(e.to_string())),
 				}
 			}
 		}
@@ -297,9 +291,7 @@ impl Clique {
 		}
 		// BlockState is not found in memory, which means we need to reconstruct state from last checkpoint.
 		match self.client.read().as_ref().and_then(|w| w.upgrade()) {
-			None => {
-				return Err(EngineError::RequiresClient)?;
-			}
+			None => return Err(EngineError::RequiresClient.into()),
 			Some(c) => {
 				let last_checkpoint_number = header.number() - header.number() % self.epoch_length as u64;
 				debug_assert_ne!(last_checkpoint_number, header.number());
@@ -328,7 +320,7 @@ impl Clique {
 					}
 					match c.block_header(BlockId::Hash(last_parent_hash)) {
 						None => {
-							return Err(BlockError::UnknownParent(last_parent_hash))?;
+							return Err(Error::Block(BlockError::UnknownParent(last_parent_hash)));
 						}
 						Some(next) => {
 							chain.push_front(next.decode()?);
@@ -342,7 +334,7 @@ impl Clique {
 					.parent_hash();
 
 				let last_checkpoint_header = match c.block_header(BlockId::Hash(last_checkpoint_hash)) {
-					None => return Err(EngineError::CliqueMissingCheckpoint(last_checkpoint_hash))?,
+					None => return Err(EngineError::CliqueMissingCheckpoint(last_checkpoint_hash).into()),
 					Some(header) => header.decode()?,
 				};
 
@@ -354,15 +346,14 @@ impl Clique {
 				block_state_by_hash.insert(last_checkpoint_header.hash(), last_checkpoint_state.clone());
 
 				// Backfill!
-				let mut new_state = last_checkpoint_state.clone();
+				let mut new_state = last_checkpoint_state;
 				for item in &chain {
 					new_state.apply(item, false)?;
 				}
 				new_state.calc_next_timestamp(header.timestamp(), self.period)?;
 				block_state_by_hash.insert(header.hash(), new_state.clone());
 
-				let elapsed = backfill_start.elapsed();
-				trace!(target: "engine", "Back-filling succeed, took {} ms.", elapsed.as_millis());
+				trace!(target: "engine", "Back-filling succeed, took {} ms.", backfill_start.elapsed().as_millis());
 				Ok(new_state)
 			}
 		}
@@ -379,16 +370,13 @@ impl Engine for Clique {
 
 	fn extra_info(&self, header: &Header) -> BTreeMap<String, String> {
 		// clique engine seal fields are the same as ethash seal fields
-		match EthashSeal::parse_seal(header.seal()) {
-			Ok(seal) => map![
-				"nonce".to_owned() => format!("{:#x}", seal.nonce),
-				"mixHash".to_owned() => format!("{:#x}", seal.mix_hash)
-			],
-			_ => BTreeMap::default()
+		let mut engine_info = BTreeMap::new();
+		if let Ok(seal) = EthashSeal::parse_seal(header.seal()) {
+			engine_info.insert("nonce".to_string(), format!("{:#x}", seal.nonce));
+			engine_info.insert("mixHash".to_string(), format!("{:#x}", seal.mix_hash));
 		}
+		engine_info
 	}
-
-	fn maximum_uncle_count(&self, _block: BlockNumber) -> usize { 0 }
 
 	fn on_new_block(
 		&self,
@@ -411,9 +399,8 @@ impl Engine for Clique {
 		trace!(target: "engine", "on_seal_block");
 
 		let header = &mut block.header;
-
-		let state = self.state_no_backfill(header.parent_hash())
-			.ok_or_else(|| BlockError::UnknownParent(*header.parent_hash()))?;
+		let mut state = self.state_no_backfill(header.parent_hash())
+			.ok_or_else(|| Error::Block(BlockError::UnknownParent(*header.parent_hash())))?;
 
 		let is_checkpoint = header.number() % self.epoch_length == 0;
 
@@ -440,16 +427,15 @@ impl Engine for Clique {
 		}
 
 		// Work on clique seal.
-
 		let mut seal: Vec<u8> = Vec::with_capacity(VANITY_LENGTH + SIGNATURE_LENGTH);
 
 		// At this point, extra_data should only contain miner vanity.
 		if header.extra_data().len() != VANITY_LENGTH {
-			Err(BlockError::ExtraDataOutOfBounds(OutOfBounds {
+			return Err(Error::Block(BlockError::ExtraDataOutOfBounds(OutOfBounds {
 				min: Some(VANITY_LENGTH),
 				max: Some(VANITY_LENGTH),
 				found: header.extra_data().len()
-			}))?;
+			})));
 		}
 		// vanity
 		{
@@ -469,15 +455,14 @@ impl Engine for Clique {
 		// append signature onto extra_data
 		let (sig, _msg) = self.sign_header(&header)?;
 		seal.extend_from_slice(&sig[..]);
-		header.set_extra_data(seal.clone());
+		header.set_extra_data(seal);
 
 		header.compute_hash();
 
 		// locally sealed block don't go through valid_block_family(), so we have to record state here.
-		let mut new_state = state.clone();
-		new_state.apply(&header, is_checkpoint)?;
-		new_state.calc_next_timestamp(header.timestamp(), self.period)?;
-		self.block_state_by_hash.write().insert(header.hash(), new_state);
+		state.apply(&header, is_checkpoint)?;
+		state.calc_next_timestamp(header.timestamp(), self.period)?;
+		self.block_state_by_hash.write().insert(header.hash(), state);
 
 		trace!(target: "engine", "on_seal_block: finished, final header: {:?}", header);
 
@@ -576,18 +561,18 @@ impl Engine for Clique {
 
 			// This should succeed under the constraints that the system clock works
 			let limit_as_dur = limit.duration_since(UNIX_EPOCH).map_err(|e| {
-				Box::new(format!("Converting SystemTime to Duration failed: {}", e))
+				format!("Converting SystemTime to Duration failed: {}", e)
 			})?;
 
 			let hdr = Duration::from_secs(header.timestamp());
 			if hdr > limit_as_dur {
 				let found = CheckedSystemTime::checked_add(UNIX_EPOCH, hdr).ok_or(BlockError::TimestampOverflow)?;
 
-				Err(BlockError::TemporarilyInvalid(OutOfBounds {
+				return Err(Error::Block(BlockError::TemporarilyInvalid(From::from(OutOfBounds {
 					min: None,
 					max: Some(limit),
 					found,
-				}.into()))?
+				}))));
 			}
 		}
 
@@ -602,10 +587,10 @@ impl Engine for Clique {
 
 		let seal_fields = header.decode_seal::<Vec<_>>()?;
 		if seal_fields.len() != 2 {
-			Err(BlockError::InvalidSealArity(Mismatch {
+			return Err(Error::Block(BlockError::InvalidSealArity(Mismatch {
 				expected: 2,
 				found: seal_fields.len(),
-			}))?
+			})));
 		}
 
 		let mixhash = H256::from_slice(seal_fields[0]);
@@ -613,58 +598,58 @@ impl Engine for Clique {
 
 		// Nonce must be 0x00..0 or 0xff..f
 		if nonce != NONCE_DROP_VOTE && nonce != NONCE_AUTH_VOTE {
-			Err(EngineError::CliqueInvalidNonce(nonce))?;
+			return Err(EngineError::CliqueInvalidNonce(nonce).into());
 		}
 
 		if is_checkpoint && nonce != NULL_NONCE {
-			Err(EngineError::CliqueInvalidNonce(nonce))?;
+			return Err(EngineError::CliqueInvalidNonce(nonce).into());
 		}
 
 		// Ensure that the mix digest is zero as Clique don't have fork protection currently
 		if mixhash != NULL_MIXHASH {
-			Err(BlockError::MismatchedH256SealElement(Mismatch {
+			return Err(Error::Block(BlockError::MismatchedH256SealElement(Mismatch {
 				expected: NULL_MIXHASH,
 				found: mixhash,
-			}))?
+			})));
 		}
 
 		let extra_data_len = header.extra_data().len();
 
 		if extra_data_len < VANITY_LENGTH {
-			Err(EngineError::CliqueMissingVanity)?
+			return Err(EngineError::CliqueMissingVanity.into());
 		}
 
 		if extra_data_len < VANITY_LENGTH + SIGNATURE_LENGTH {
-			Err(EngineError::CliqueMissingSignature)?
+			return Err(EngineError::CliqueMissingSignature.into());
 		}
 
 		let signers = extra_data_len - (VANITY_LENGTH + SIGNATURE_LENGTH);
 
 		// Checkpoint blocks must at least contain one signer
 		if is_checkpoint && signers == 0 {
-			Err(EngineError::CliqueCheckpointNoSigner)?
+			return Err(EngineError::CliqueCheckpointNoSigner.into());
 		}
 
 		// Addresses must be be divisable by 20
 		if is_checkpoint && signers % ADDRESS_LENGTH != 0 {
-			Err(EngineError::CliqueCheckpointInvalidSigners(signers))?
+			return Err(EngineError::CliqueCheckpointInvalidSigners(signers).into());
 		}
 
 		// Ensure that the block doesn't contain any uncles which are meaningless in PoA
 		if *header.uncles_hash() != NULL_UNCLES_HASH {
-			Err(BlockError::InvalidUnclesHash(Mismatch {
+			return Err(Error::Block(BlockError::InvalidUnclesHash(Mismatch {
 				expected: NULL_UNCLES_HASH,
 				found: *header.uncles_hash(),
-			}))?
+			})));
 		}
 
 		// Ensure that the block's difficulty is meaningful (may not be correct at this point)
 		if *header.difficulty() != DIFF_INTURN && *header.difficulty() != DIFF_NOTURN {
-			Err(BlockError::DifficultyOutOfBounds(OutOfBounds {
+			return Err(Error::Block(BlockError::DifficultyOutOfBounds(OutOfBounds {
 				min: Some(DIFF_NOTURN),
 				max: Some(DIFF_INTURN),
 				found: *header.difficulty(),
-			}))?
+			})));
 		}
 
 		// All basic checks passed, continue to next phase
@@ -686,7 +671,7 @@ impl Engine for Clique {
 
 		// parent sanity check
 		if parent.hash() != *header.parent_hash() || header.number() != parent.number() + 1 {
-			Err(BlockError::UnknownParent(parent.hash()))?
+			return Err(Error::Block(BlockError::UnknownParent(parent.hash())));
 		}
 
 		// Ensure that the block's timestamp isn't too close to it's parent
@@ -696,17 +681,16 @@ impl Engine for Clique {
 			let found = CheckedSystemTime::checked_add(UNIX_EPOCH, Duration::from_secs(limit))
 				.ok_or(BlockError::TimestampOverflow)?;
 
-			Err(BlockError::InvalidTimestamp(OutOfBounds {
+			return Err(Error::Block(BlockError::InvalidTimestamp(From::from(OutOfBounds {
 				min: None,
 				max,
 				found,
-			}.into()))?
+			}))));
 		}
 
 		// Retrieve the parent state
-		let parent_state = self.state(&parent)?;
 		// Try to apply current state, apply() will further check signer and recent signer.
-		let mut new_state = parent_state.clone();
+		let mut new_state = self.state(&parent)?;
 		new_state.apply(header, header.number() % self.epoch_length == 0)?;
 		new_state.calc_next_timestamp(header.timestamp(), self.period)?;
 		self.block_state_by_hash.write().insert(header.hash(), new_state);
@@ -716,7 +700,7 @@ impl Engine for Clique {
 
 	fn genesis_epoch_data(&self, header: &Header, _call: &Call) -> Result<Vec<u8>, String> {
 		let mut state = self.new_checkpoint_state(header).expect("Unable to parse genesis data.");
-		state.calc_next_timestamp(header.timestamp(), self.period).map_err(|e| format!("{}", e))?;
+		state.calc_next_timestamp(header.timestamp(), self.period).map_err(|e| e.to_string())?;
 		self.block_state_by_hash.write().insert(header.hash(), state);
 
 		// no proof.
@@ -725,7 +709,7 @@ impl Engine for Clique {
 
 	// Our task here is to set difficulty
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
-		// TODO(https://github.com/paritytech/parity-ethereum/issues/10410): this is a horrible hack,
+		// TODO(https://github.com/openethereum/openethereum/issues/10410): this is a horrible hack,
 		// it is due to the fact that enact and miner both use OpenBlock::new() which will both call
 		// this function. more refactoring is definitely needed.
 		if header.extra_data().len() < VANITY_LENGTH + SIGNATURE_LENGTH {

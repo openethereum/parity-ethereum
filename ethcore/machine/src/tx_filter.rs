@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Smart contract based transaction filter.
 
@@ -165,7 +165,7 @@ mod test {
 	use std::sync::Arc;
 	use std::str::FromStr;
 
-	use tempdir::TempDir;
+	use tempfile::TempDir;
 	use ethereum_types::{U256, Address};
 
 	use client_traits::BlockChainClient;
@@ -190,7 +190,7 @@ mod test {
 		let spec_data = include_str!("../../res/tx_permission_tests/contract_ver_2_genesis.json");
 
 		let db = test_helpers::new_db();
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 		let spec = Spec::load(&tempdir.path(), spec_data.as_bytes()).unwrap();
 
 		let client = Client::new(
@@ -269,7 +269,7 @@ mod test {
 		let spec_data = include_str!("../../res/tx_permission_tests/contract_ver_3_genesis.json");
 
 		let db = test_helpers::new_db();
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 		let spec = Spec::load(&tempdir.path(), spec_data.as_bytes()).unwrap();
 
 		let client = Client::new(
@@ -311,7 +311,7 @@ mod test {
 		let spec_data = include_str!("../../res/tx_permission_tests/deprecated_contract_genesis.json");
 
 		let db = test_helpers::new_db();
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 		let spec = Spec::load(&tempdir.path(), spec_data.as_bytes()).unwrap();
 
 		let client = Client::new(

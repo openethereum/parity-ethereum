@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::cmp;
 use std::collections::BTreeMap;
@@ -33,11 +33,9 @@ use common_types::{
 };
 use engine::Engine;
 use ethereum_types::{H256, U256};
-use ethjson;
 use ethash::{self, quick_get_difficulty, slow_hash_block_number, EthashManager};
-use keccak_hash::{KECCAK_EMPTY_LIST_RLP};
+use keccak_hash::KECCAK_EMPTY_LIST_RLP;
 use log::trace;
-use macros::map;
 use machine::{
 	ExecutedBlock,
 	Machine,
@@ -181,7 +179,7 @@ fn verify_block_unordered(pow: &Arc<EthashManager>, header: &Header) -> Result<(
 	let seal = EthashSeal::parse_seal(header.seal())?;
 
 	let result = pow.compute_light(
-		header.number() as u64,
+		header.number(),
 		&header.bare_hash().0,
 		seal.nonce.to_low_u64_be()
 	);
@@ -195,10 +193,17 @@ fn verify_block_unordered(pow: &Arc<EthashManager>, header: &Header) -> Result<(
 	       mix = H256(result.mix_hash),
 	       res = H256(result.value));
 	if mix != seal.mix_hash {
-		return Err(From::from(BlockError::MismatchedH256SealElement(Mismatch { expected: mix, found: seal.mix_hash })));
+		return Err(From::from(BlockError::MismatchedH256SealElement(Mismatch {
+			expected: mix,
+			found: seal.mix_hash
+		})));
 	}
 	if &difficulty < header.difficulty() {
-		return Err(From::from(BlockError::InvalidProofOfWork(OutOfBounds { min: Some(header.difficulty().clone()), max: None, found: difficulty })));
+		return Err(From::from(BlockError::InvalidProofOfWork(OutOfBounds {
+			min: Some(*header.difficulty()),
+			max: None,
+			found: difficulty
+		})));
 	}
 	Ok(())
 }
@@ -232,18 +237,17 @@ impl Engine for Ethash {
 
 	/// Additional engine-specific information for the user/developer concerning `header`.
 	fn extra_info(&self, header: &Header) -> BTreeMap<String, String> {
-		match EthashSeal::parse_seal(header.seal()) {
-			Ok(seal) => map![
-				"nonce".to_owned() => format!("0x{:x}", seal.nonce),
-				"mixHash".to_owned() => format!("0x{:x}", seal.mix_hash)
-			],
-			_ => BTreeMap::default()
+		let mut engine_info = BTreeMap::new();
+		if let Ok(seal) = EthashSeal::parse_seal(header.seal()) {
+			engine_info.insert("nonce".to_string(), format!("{:#x}", seal.nonce));
+			engine_info.insert("mixHash".to_string(), format!("{:#x}", seal.mix_hash));
 		}
+		engine_info
 	}
 
 	fn maximum_uncle_count(&self, _block: BlockNumber) -> usize { 2 }
 
-	fn maximum_gas_limit(&self) -> Option<U256> { Some(0x7fff_ffff_ffff_ffffu64.into()) }
+	fn maximum_gas_limit(&self) -> Option<U256> { Some(0x7fff_ffff_ffff_ffff_u64.into()) }
 
 	/// Apply the block reward on finalisation of the block.
 	/// This assumes that all uncles are valid uncles (i.e. of at least one generation before the current).
@@ -327,7 +331,11 @@ impl Engine for Ethash {
 		// TODO: consider removing these lines.
 		let min_difficulty = self.ethash_params.minimum_difficulty;
 		if header.difficulty() < &min_difficulty {
-			return Err(From::from(BlockError::DifficultyOutOfBounds(OutOfBounds { min: Some(min_difficulty), max: None, found: header.difficulty().clone() })))
+			return Err(From::from(BlockError::DifficultyOutOfBounds(OutOfBounds {
+				min: Some(min_difficulty),
+				max: None,
+				found: *header.difficulty(),
+			})))
 		}
 
 		let difficulty = ethash::boundary_to_difficulty(&H256(quick_get_difficulty(
@@ -338,7 +346,11 @@ impl Engine for Ethash {
 		)));
 
 		if &difficulty < header.difficulty() {
-			return Err(From::from(BlockError::InvalidProofOfWork(OutOfBounds { min: Some(header.difficulty().clone()), max: None, found: difficulty })));
+			return Err(From::from(BlockError::InvalidProofOfWork(OutOfBounds {
+				min: Some(*header.difficulty()),
+				max: None,
+				found: difficulty
+			})));
 		}
 
 		Ok(())
@@ -351,13 +363,20 @@ impl Engine for Ethash {
 	fn verify_block_family(&self, header: &Header, parent: &Header) -> Result<(), Error> {
 		// we should not calculate difficulty for genesis blocks
 		if header.number() == 0 {
-			return Err(From::from(BlockError::RidiculousNumber(OutOfBounds { min: Some(1), max: None, found: header.number() })));
+			return Err(From::from(BlockError::RidiculousNumber(OutOfBounds {
+				min: Some(1),
+				max: None,
+				found: header.number()
+			})));
 		}
 
 		// Check difficulty is correct given the two timestamps.
 		let expected_difficulty = self.calculate_difficulty(header, parent);
 		if header.difficulty() != &expected_difficulty {
-			return Err(From::from(BlockError::InvalidDifficulty(Mismatch { expected: expected_difficulty, found: header.difficulty().clone() })))
+			return Err(From::from(BlockError::InvalidDifficulty(Mismatch {
+				expected: expected_difficulty,
+				found: *header.difficulty()
+			})))
 		}
 
 		Ok(())
@@ -506,12 +525,12 @@ mod tests {
 	};
 	use rlp;
 	use spec::{new_ropsten, new_mcip3_test, new_homestead_test_machine, Spec};
-	use tempdir::TempDir;
+	use tempfile::TempDir;
 
 	use super::{Ethash, EthashParams, ecip1017_eras_block_reward};
 
 	fn test_spec() -> Spec {
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 		new_ropsten(&tempdir.path())
 	}
 
@@ -780,7 +799,7 @@ mod tests {
 	fn difficulty_frontier() {
 		let machine = new_homestead_test_machine();
 		let ethparams = get_default_ethash_params();
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 		let ethash = Ethash::new(tempdir.path(), ethparams, machine, None);
 
 		let mut parent_header = Header::default();
@@ -799,7 +818,7 @@ mod tests {
 	fn difficulty_homestead() {
 		let machine = new_homestead_test_machine();
 		let ethparams = get_default_ethash_params();
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 		let ethash = Ethash::new(tempdir.path(), ethparams, machine, None);
 
 		let mut parent_header = Header::default();
@@ -821,7 +840,7 @@ mod tests {
 			ecip1010_pause_transition: 3000000,
 			..get_default_ethash_params()
 		};
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 		let ethash = Ethash::new(tempdir.path(), ethparams, machine, None);
 
 		let mut parent_header = Header::default();
@@ -856,7 +875,7 @@ mod tests {
 			ecip1010_continue_transition: 5000000,
 			..get_default_ethash_params()
 		};
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 		let ethash = Ethash::new(tempdir.path(), ethparams, machine, None);
 
 		let mut parent_header = Header::default();
@@ -903,7 +922,7 @@ mod tests {
 	fn difficulty_max_timestamp() {
 		let machine = new_homestead_test_machine();
 		let ethparams = get_default_ethash_params();
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 		let ethash = Ethash::new(tempdir.path(), ethparams, machine, None);
 
 		let mut parent_header = Header::default();
@@ -922,7 +941,7 @@ mod tests {
 	fn test_extra_info() {
 		let machine = new_homestead_test_machine();
 		let ethparams = get_default_ethash_params();
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 		let ethash = Ethash::new(tempdir.path(), ethparams, machine, None);
 		let mut header = Header::default();
 		header.set_seal(vec![rlp::encode(&H256::from_str("b251bd2e0283d0658f2cadfdc8ca619b5de94eca5742725e2e757dd13ed7503d").unwrap()), rlp::encode(&H64::zero())]);

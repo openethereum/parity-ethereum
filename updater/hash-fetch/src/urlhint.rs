@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! URLHint Contract
 
@@ -52,7 +52,7 @@ impl GithubApp {
 	pub fn url(&self) -> String {
 		// Since https fetcher doesn't support redirections we use direct link
 		// format!("https://github.com/{}/{}/archive/{}.zip", self.account, self.repo, self.commit.to_hex())
-		format!("https://codeload.github.com/{}/{}/zip/{}", self.account, self.repo, self.commit.to_hex())
+		format!("https://codeload.github.com/{}/{}/zip/{}", self.account, self.repo, self.commit.to_hex::<String>())
 	}
 
 	fn commit(bytes: &[u8]) -> Option<[u8;COMMIT_LEN]> {
@@ -313,11 +313,13 @@ pub mod tests {
 		// when
 		let res = urlhint.resolve(h256_from_short_str("test")).unwrap();
 
+		let c: Vec<u8> = "ec4c1fe06c808fe3739858c347109b1f5f1ed4b5".from_hex().unwrap();
+
 		// then
 		assert_eq!(res, Some(URLHintResult::Dapp(GithubApp {
 			account: "ethcore".into(),
 			repo: "dao.claim".into(),
-			commit: GithubApp::commit(&"ec4c1fe06c808fe3739858c347109b1f5f1ed4b5".from_hex().unwrap()).unwrap(),
+			commit: GithubApp::commit(&c).unwrap(),
 			owner: Address::from_str("deadcafebeefbeefcafedeaddeedfeedffffffff").unwrap(),
 		})))
 	}

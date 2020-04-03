@@ -1,20 +1,20 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Load chain specifications for all chains supported by the parity-ethereum client.
+//! Load chain specifications for all chains supported by OpenEthereum.
 
 macro_rules! bundle_release_spec {
 	($($path: expr => $name: ident), *) => {
@@ -129,14 +129,14 @@ mod tests {
 	use account_state::State;
 	use common_types::{view, views::BlockView};
 	use ethereum_types::U256;
-	use tempdir::TempDir;
+	use tempfile::TempDir;
 	use ethcore::test_helpers::get_temp_state_db;
 
 	use super::{new_ropsten, new_foundation};
 
 	#[test]
 	fn ensure_db_good() {
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 		let spec = new_ropsten(&tempdir.path());
 		let engine = &spec.engine;
 		let genesis_header = spec.genesis_header();
@@ -152,7 +152,7 @@ mod tests {
 
 	#[test]
 	fn ropsten() {
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 		let ropsten = new_ropsten(&tempdir.path());
 
 		assert_eq!(ropsten.state_root, "217b0bbcfb72e2d57e28f33cb361b9983513177755dc3f33ce3e7022ed62b77b".parse().unwrap());
@@ -162,7 +162,7 @@ mod tests {
 
 	#[test]
 	fn frontier() {
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 		let frontier = new_foundation(&tempdir.path());
 
 		assert_eq!(frontier.state_root, "d7f8974fb5ac78d9ac099b9ad5018bedc2ce0a72dad1827a1709da30580f0544".parse().unwrap());

@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use fixture::{Fixture, Assert, CallLocator, Source};
 use wasm::WasmInterpreter;
@@ -73,9 +73,9 @@ impl fmt::Display for Fail {
 				write!(
 					f,
 					"Expected to return result: 0x{} ({} bytes), but got 0x{} ({} bytes)",
-					expected.to_hex(),
+					expected.to_hex::<String>(),
 					expected.len(),
-					actual.to_hex(),
+					actual.to_hex::<String>(),
 					actual.len()
 				),
 
@@ -95,17 +95,17 @@ impl fmt::Display for Fail {
 				write!(
 					f,
 					"Storage key {} value mismatch, expected {}, got: {}",
-					key.as_bytes().to_vec().to_hex(),
-					expected.as_bytes().to_vec().to_hex(),
-					actual.as_bytes().to_vec().to_hex(),
+					key.as_bytes().to_hex::<String>(),
+					expected.as_bytes().to_hex::<String>(),
+					actual.as_bytes().to_hex::<String>(),
 				),
 
 			StorageMismatch { ref key, ref expected, actual: None} =>
 				write!(
 					f,
 					"No expected storage value for key {} found, expected {}",
-					key.as_bytes().to_vec().to_hex(),
-					expected.as_bytes().to_vec().to_hex(),
+					key.as_bytes().to_hex::<String>(),
+					expected.as_bytes().to_hex::<String>(),
 				),
 
 			Nonconformity(SpecNonconformity::Address) =>

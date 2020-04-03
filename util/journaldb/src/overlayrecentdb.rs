@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! `JournalDB` over in-memory overlay
 
@@ -70,6 +70,7 @@ use crate::{
 /// the removed key is not present in the history overlay.
 /// 7. Delete ancient record from memory and disk.
 
+#[derive(Clone)]
 pub struct OverlayRecentDB {
 	transaction_overlay: super::MemoryDB,
 	backing: Arc<dyn KeyValueDB>,
@@ -140,17 +141,6 @@ struct JournalEntry {
 	deletions: Vec<H256>,
 }
 
-impl Clone for OverlayRecentDB {
-	fn clone(&self) -> OverlayRecentDB {
-		OverlayRecentDB {
-			transaction_overlay: self.transaction_overlay.clone(),
-			backing: self.backing.clone(),
-			journal_overlay: self.journal_overlay.clone(),
-			column: self.column.clone(),
-		}
-	}
-}
-
 impl OverlayRecentDB {
 	/// Create a new instance.
 	pub fn new(backing: Arc<dyn KeyValueDB>, col: u32) -> OverlayRecentDB {
@@ -196,8 +186,12 @@ impl OverlayRecentDB {
 					index: 0usize,
 				};
 				while let Some(rlp_data) = db.get(col, &encode(&db_key)).expect("Low-level database error.") {
-					trace!("read_overlay: era={}, index={}", era, db_key.index);
-					let value = decode::<DatabaseValue>(&rlp_data).expect(&format!("read_overlay: Error decoding DatabaseValue era={}, index{}", era, db_key.index));
+					trace!(target: "journaldb", "read_overlay: era={}, index={}", era, db_key.index);
+					let value = decode::<DatabaseValue>(&rlp_data).unwrap_or_else(|e| {
+						panic!("read_overlay: Error decoding DatabaseValue era={}, index={}, error={}",
+							era, db_key.index, e
+						)
+					});
 					count += value.inserts.len();
 					let mut inserted_keys = Vec::new();
 					for (k, v) in value.inserts {
@@ -250,6 +244,10 @@ impl JournalDB for OverlayRecentDB {
 		Box::new(self.clone())
 	}
 
+	fn io_stats(&self) -> kvdb::IoStats {
+		self.backing.io_stats(kvdb::IoStatsKind::SincePrevious)
+	}
+
 	fn mem_used(&self) -> usize {
 		let mut ops = new_malloc_size_ops();
 		let mut mem = self.transaction_overlay.size_of(&mut ops);
@@ -270,32 +268,9 @@ impl JournalDB for OverlayRecentDB {
 		self.backing.get(self.column, &LATEST_ERA_KEY).expect("Low level database error").is_none()
 	}
 
-	fn backing(&self) -> &Arc<dyn KeyValueDB> {
-		&self.backing
-	}
-
-	fn latest_era(&self) -> Option<u64> { self.journal_overlay.read().latest_era }
-
 	fn earliest_era(&self) -> Option<u64> { self.journal_overlay.read().earliest_era }
 
-	fn state(&self, key: &H256) -> Option<Bytes> {
-		let key = to_short_key(key);
-		// Hold the read lock for shortest possible amount of time.
-		let maybe_state_data = {
-			let journal_overlay = self.journal_overlay.read();
-			journal_overlay
-				.backing_overlay
-				.get(&key, EMPTY_PREFIX)
-				.or_else(|| journal_overlay.pending_overlay.get(&key).map(|d| d.clone()))
-		};
-
-		maybe_state_data.or_else(|| {
-			let pkey = &key[..DB_PREFIX_LEN];
-			self.backing
-				.get_by_prefix(self.column, &pkey)
-				.map(|b| b.into_vec())
-		})
-	}
+	fn latest_era(&self) -> Option<u64> { self.journal_overlay.read().latest_era }
 
 	fn journal_under(&mut self, batch: &mut DBTransaction, now: u64, id: &H256) -> io::Result<u32> {
 		trace!(target: "journaldb", "entry: #{} ({})", now, id);
@@ -306,8 +281,8 @@ impl JournalDB for OverlayRecentDB {
 		journal_overlay.pending_overlay.clear();
 
 		let mut tx = self.transaction_overlay.drain();
-		let inserted_keys: Vec<_> = tx.iter().filter_map(|(k, &(_, c))| if c > 0 { Some(k.clone()) } else { None }).collect();
-		let removed_keys: Vec<_> = tx.iter().filter_map(|(k, &(_, c))| if c < 0 { Some(k.clone()) } else { None }).collect();
+		let inserted_keys: Vec<_> = tx.iter().filter_map(|(k, &(_, c))| if c > 0 { Some(*k) } else { None }).collect();
+		let removed_keys: Vec<_> = tx.iter().filter_map(|(k, &(_, c))| if c < 0 { Some(*k) } else { None }).collect();
 		let ops = inserted_keys.len() + removed_keys.len();
 
 		// Increase counter for each inserted key no matter if the block is canonical or not.
@@ -349,7 +324,10 @@ impl JournalDB for OverlayRecentDB {
 			journal_overlay.earliest_era = Some(now);
 		}
 
-		journal_overlay.journal.entry(now).or_insert_with(Vec::new).push(JournalEntry { id: id.clone(), insertions: inserted_keys, deletions: removed_keys });
+		journal_overlay.journal
+			.entry(now)
+			.or_insert_with(Vec::new)
+			.push(JournalEntry { id: *id, insertions: inserted_keys, deletions: removed_keys });
 		Ok(ops as u32)
 	}
 
@@ -365,8 +343,7 @@ impl JournalDB for OverlayRecentDB {
 			let mut canon_insertions: Vec<(H256, DBValue)> = Vec::new();
 			let mut canon_deletions: Vec<H256> = Vec::new();
 			let mut overlay_deletions: Vec<H256> = Vec::new();
-			let mut index = 0usize;
-			for mut journal in records.drain(..) {
+			for (index, mut journal) in records.drain(..).enumerate() {
 				//delete the record from the db
 				let db_key = DatabaseKey {
 					era: end_era,
@@ -379,7 +356,7 @@ impl JournalDB for OverlayRecentDB {
 						for h in &journal.insertions {
 							if let Some((d, rc)) = journal_overlay.backing_overlay.raw(&to_short_key(h), EMPTY_PREFIX) {
 								if rc > 0 {
-									canon_insertions.push((h.clone(), d.clone())); //TODO: optimize this to avoid data copy
+									canon_insertions.push((*h, d.clone())); //TODO: optimize this to avoid data copy
 								}
 							}
 						}
@@ -387,7 +364,6 @@ impl JournalDB for OverlayRecentDB {
 					}
 					overlay_deletions.append(&mut journal.insertions);
 				}
-				index += 1;
 			}
 
 			ops += canon_insertions.len();
@@ -421,10 +397,6 @@ impl JournalDB for OverlayRecentDB {
 		Ok(ops as u32)
 	}
 
-	fn flush(&self) {
-		self.journal_overlay.write().pending_overlay.clear();
-	}
-
 	fn inject(&mut self, batch: &mut DBTransaction) -> io::Result<u32> {
 		let mut ops = 0;
 		for (key, (value, rc)) in self.transaction_overlay.drain() {
@@ -446,6 +418,33 @@ impl JournalDB for OverlayRecentDB {
 		}
 
 		Ok(ops)
+	}
+
+	fn state(&self, key: &H256) -> Option<Bytes> {
+		let key = to_short_key(key);
+		// Hold the read lock for shortest possible amount of time.
+		let maybe_state_data = {
+			let journal_overlay = self.journal_overlay.read();
+			journal_overlay
+				.backing_overlay
+				.get(&key, EMPTY_PREFIX)
+				.or_else(|| journal_overlay.pending_overlay.get(&key).cloned())
+		};
+
+		maybe_state_data.or_else(|| {
+			let pkey = &key[..DB_PREFIX_LEN];
+			self.backing
+				.get_by_prefix(self.column, &pkey)
+				.map(|b| b.into_vec())
+		})
+	}
+
+	fn backing(&self) -> &Arc<dyn KeyValueDB> {
+		&self.backing
+	}
+
+	fn flush(&self) {
+		self.journal_overlay.write().pending_overlay.clear();
 	}
 
 	fn consolidate(&mut self, with: super::MemoryDB) {

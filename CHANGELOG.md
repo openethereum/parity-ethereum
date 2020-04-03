@@ -1,4 +1,4 @@
-## Parity-Ethereum [v2.7.0](https://github.com/paritytech/parity-ethereum/releases/tag/v2.7.0)
+## Parity-Ethereum [v2.7.0](https://github.com/openethereum/openethereum/releases/tag/v2.7.0)
 
 Parity Ethereum v2.7.0-stable is a minor version release of parity-ethereum. As
 of this release, parity-ethereum is switching to a single `stable` release

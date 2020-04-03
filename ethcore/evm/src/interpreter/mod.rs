@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Rust VM implementation
 
@@ -30,7 +30,6 @@ use std::convert::TryFrom;
 use hash::keccak;
 use bytes::Bytes;
 use ethereum_types::{U256, U512, H256, Address, BigEndianHash};
-
 
 use vm::{
 	self, ActionParams, ParamsType, ActionValue, ActionType, MessageCallResult,
@@ -556,11 +555,11 @@ impl<Cost: CostType> Interpreter<Cost> {
 				let contract_code = self.mem.read_slice(init_off, init_size);
 
 				let create_result = ext.create(
-					&create_gas.as_u256(), 
-					&endowment, 
-					contract_code, 
-					&self.params.code_version, 
-					address_scheme, 
+					&create_gas.as_u256(),
+					&endowment,
+					contract_code,
+					&self.params.code_version,
+					address_scheme,
 					true,
 				);
 				return match create_result {
@@ -1221,7 +1220,6 @@ fn address_to_u256(value: Address) -> U256 {
 #[cfg(test)]
 mod tests {
 	use std::sync::Arc;
-	use rustc_hex::FromHex;
 	use factory::Factory;
 	use vm::{self, Exec, ActionParams, ActionValue};
 	use vm::tests::{FakeExt, test_finalize};
@@ -1233,7 +1231,7 @@ mod tests {
 
 	#[test]
 	fn should_not_fail_on_tracing_mem() {
-		let code = "7feeffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff006000527faaffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffaa6020526000620f120660406000601773945304eb96065b2a98b57a48a06ae28d285a71b56101f4f1600055".from_hex().unwrap();
+		let code = hex!("7feeffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff006000527faaffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffaa6020526000620f120660406000601773945304eb96065b2a98b57a48a06ae28d285a71b56101f4f1600055").to_vec();
 
 		let mut params = ActionParams::default();
 		params.address = Address::from_low_u64_be(5);
@@ -1256,7 +1254,7 @@ mod tests {
 
 	#[test]
 	fn should_not_overflow_returndata() {
-		let code = "6001600160000360003e00".from_hex().unwrap();
+		let code = hex!("6001600160000360003e00").to_vec();
 
 		let mut params = ActionParams::default();
 		params.address = Address::from_low_u64_be(5);

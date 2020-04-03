@@ -1,20 +1,20 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Parity Ethereum JSON-RPC Servers (WS, HTTP, IPC).
+//! OpenEthereum JSON-RPC Servers (WS, HTTP, IPC).
 
 #![warn(missing_docs, unused_extern_crates)]
 #![cfg_attr(feature = "cargo-clippy", warn(clippy::all, clippy::pedantic))]
@@ -41,10 +41,8 @@
 extern crate futures;
 
 extern crate ansi_term;
-extern crate cid;
 extern crate itertools;
 extern crate machine;
-extern crate multihash;
 extern crate order_stat;
 extern crate parking_lot;
 extern crate rand;
@@ -88,7 +86,7 @@ extern crate account_state;
 
 extern crate stats;
 extern crate snapshot;
-extern crate tempdir;
+extern crate tempfile;
 extern crate trace;
 extern crate vm;
 
@@ -120,7 +118,7 @@ extern crate pretty_assertions;
 
 #[cfg(test)]
 #[macro_use]
-extern crate macros;
+extern crate maplit;
 
 #[cfg(test)]
 extern crate fake_fetch;

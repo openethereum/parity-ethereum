@@ -1,21 +1,21 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::{Arc, mpsc, atomic};
-use std::collections::{HashMap, BTreeMap};
+use std::collections::{BTreeSet, HashMap, BTreeMap};
 use std::io;
 use std::ops::RangeInclusive;
 use std::time::Duration;
@@ -27,10 +27,11 @@ use crate::sync_io::NetSyncIo;
 use crate::light_sync::{self, SyncInfo};
 use crate::private_tx::PrivateTxHandler;
 use crate::chain::{
+	fork_filter::ForkFilterApi,
 	sync_packet::SyncPacket::{PrivateTransactionPacket, SignedPrivateTransactionPacket},
-	ChainSyncApi, SyncState, SyncStatus as EthSyncStatus, ETH_PROTOCOL_VERSION_62,
-	ETH_PROTOCOL_VERSION_63, PAR_PROTOCOL_VERSION_1, PAR_PROTOCOL_VERSION_2,
-	PAR_PROTOCOL_VERSION_3, PAR_PROTOCOL_VERSION_4,
+	ChainSyncApi, SyncState, SyncStatus as EthSyncStatus,
+	ETH_PROTOCOL_VERSION_63, ETH_PROTOCOL_VERSION_64,
+	PAR_PROTOCOL_VERSION_1, PAR_PROTOCOL_VERSION_2, PAR_PROTOCOL_VERSION_3, PAR_PROTOCOL_VERSION_4,
 };
 
 use bytes::Bytes;
@@ -49,7 +50,6 @@ use light::net::{
 	Capabilities, Handler as LightHandler, EventContext, SampleStore,
 };
 use log::{trace, warn};
-use macros::hash_map;
 use network::{
 	client_version::ClientVersion,
 	NetworkProtocolHandler, NetworkContext, PeerId, ProtocolId,
@@ -269,6 +269,8 @@ pub struct Params {
 	pub executor: Executor,
 	/// Blockchain client.
 	pub chain: Arc<dyn BlockChainClient>,
+	/// Forks.
+	pub forks: BTreeSet<BlockNumber>,
 	/// Snapshot service.
 	pub snapshot_service: Arc<dyn SnapshotService>,
 	/// Private tx service.
@@ -349,10 +351,13 @@ impl EthSync {
 			})
 		};
 
+		let fork_filter = ForkFilterApi::new(&*params.chain, params.forks);
+
 		let (priority_tasks_tx, priority_tasks_rx) = mpsc::channel();
 		let sync = ChainSyncApi::new(
 			params.config,
 			&*params.chain,
+			fork_filter,
 			params.private_tx_handler.as_ref().cloned(),
 			priority_tasks_rx,
 		);
@@ -606,7 +611,7 @@ impl ChainNotify for EthSync {
 			_ => {},
 		}
 
-		self.network.register_protocol(self.eth_handler.clone(), self.subprotocol_name, &[ETH_PROTOCOL_VERSION_62, ETH_PROTOCOL_VERSION_63])
+		self.network.register_protocol(self.eth_handler.clone(), self.subprotocol_name, &[ETH_PROTOCOL_VERSION_63, ETH_PROTOCOL_VERSION_64])
 			.unwrap_or_else(|e| warn!("Error registering ethereum protocol: {:?}", e));
 		// register the warp sync subprotocol
 		self.network.register_protocol(self.eth_handler.clone(), WARP_SYNC_PROTOCOL_ID, &[PAR_PROTOCOL_VERSION_1, PAR_PROTOCOL_VERSION_2, PAR_PROTOCOL_VERSION_3, PAR_PROTOCOL_VERSION_4])
@@ -795,7 +800,11 @@ impl NetworkConfiguration {
 			max_peers: self.max_peers,
 			min_peers: self.min_peers,
 			max_handshakes: self.max_pending_peers,
-			reserved_protocols: hash_map![WARP_SYNC_PROTOCOL_ID => self.snapshot_peers],
+			reserved_protocols: {
+				let mut reserved = HashMap::new();
+				reserved.insert(WARP_SYNC_PROTOCOL_ID, self.snapshot_peers);
+				reserved
+			},
 			reserved_nodes: self.reserved_nodes,
 			ip_filter: self.ip_filter,
 			non_reserved_mode: if self.allow_non_reserved { NonReservedPeerMode::Accept } else { NonReservedPeerMode::Deny },

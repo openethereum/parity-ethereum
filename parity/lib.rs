@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Ethcore client application.
 #![warn(missing_docs)]
@@ -65,7 +65,6 @@ extern crate node_filter;
 extern crate parity_bytes as bytes;
 extern crate parity_crypto;
 extern crate parity_hash_fetch as hash_fetch;
-extern crate parity_ipfs_api;
 extern crate parity_local_store as local_store;
 extern crate parity_path as path;
 extern crate parity_rpc;
@@ -84,7 +83,7 @@ extern crate log as rlog;
 extern crate ethcore_accounts as accounts;
 
 #[cfg(feature = "secretstore")]
-extern crate ethcore_secretstore;
+extern crate parity_secretstore;
 
 #[cfg(feature = "secretstore")]
 extern crate ethabi;
@@ -97,7 +96,7 @@ extern crate ethcore_call_contract as call_contract;
 extern crate pretty_assertions;
 
 #[cfg(test)]
-extern crate tempdir;
+extern crate tempfile;
 
 mod account;
 mod account_utils;
@@ -106,7 +105,6 @@ mod cache;
 mod cli;
 mod configuration;
 mod export_hardcoded_sync;
-mod ipfs;
 mod deprecated;
 mod helpers;
 mod informant;
@@ -133,17 +131,10 @@ use configuration::{Cmd, Execute};
 use deprecated::find_deprecated;
 use hash::keccak_buffer;
 
-#[cfg(feature = "memory_profiling")]
-use std::alloc::System;
-
 pub use self::configuration::Configuration;
 pub use self::run::RunningClient;
 pub use parity_rpc::PubSubSession;
 pub use ethcore_logger::{Config as LoggerConfig, setup_log, RotatingLogger};
-
-#[cfg(feature = "memory_profiling")]
-#[global_allocator]
-static A: System = System;
 
 fn print_hash_of(maybe_file: Option<String>) -> Result<String, String> {
 	if let Some(file) = maybe_file {
@@ -239,7 +230,7 @@ fn execute<Cr, Rr>(
 /// binary.
 ///
 /// On error, returns what to print on stderr.
-// FIXME: totally independent logging capability, see https://github.com/paritytech/parity-ethereum/issues/10252
+// FIXME: totally independent logging capability, see https://github.com/openethereum/openethereum/issues/10252
 pub fn start<Cr, Rr>(
 	conf: Configuration,
 	logger: Arc<RotatingLogger>,

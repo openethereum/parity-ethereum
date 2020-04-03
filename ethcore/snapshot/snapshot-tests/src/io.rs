@@ -1,22 +1,22 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Tests for snapshot i/o.
 
-use tempdir::TempDir;
+use tempfile::TempDir;
 use keccak_hash::keccak;
 
 use common_types::snapshot::ManifestData;
@@ -31,7 +31,7 @@ const BLOCK_CHUNKS: &'static [&'static [u8]] = &[b"hello!", b"goodbye!", b"abcde
 
 #[test]
 fn packed_write_and_read() {
-	let tempdir = TempDir::new("").unwrap();
+	let tempdir = TempDir::new().unwrap();
 	let path = tempdir.path().join("packed");
 	let mut writer = PackedWriter::new(&path).unwrap();
 
@@ -71,7 +71,7 @@ fn packed_write_and_read() {
 
 #[test]
 fn loose_write_and_read() {
-	let tempdir = TempDir::new("").unwrap();
+	let tempdir = TempDir::new().unwrap();
 	let mut writer = LooseWriter::new(tempdir.path().into()).unwrap();
 
 	let mut state_hashes = Vec::new();

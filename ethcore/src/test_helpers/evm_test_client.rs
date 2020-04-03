@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Simple Client used for EVM tests.
 
@@ -271,12 +271,13 @@ impl<'a> EvmTestClient<'a> {
 		}
 
 		// Apply transaction
-		let result = self.state.apply_with_tracing(&env_info, self.spec.engine.machine(), &transaction, tracer, vm_tracer);
+		let trace_opts = executive::TransactOptions::new(tracer, vm_tracer);
+		let result = self.state.apply_with_tracing(&env_info, self.spec.engine.machine(), &transaction, trace_opts);
 		let scheme = CreateContractAddress::FromSenderAndNonce;
 
 		// Touch the coinbase at the end of the test to simulate
 		// miner reward.
-		// Details: https://github.com/paritytech/parity-ethereum/issues/9431
+		// Details: https://github.com/openethereum/openethereum/issues/9431
 		let schedule = self.spec.engine.machine().schedule(env_info.number);
 		self.state.add_balance(&env_info.author, &0.into(), if schedule.no_empty {
 			CleanupMode::NoEmpty
@@ -285,12 +286,13 @@ impl<'a> EvmTestClient<'a> {
 		}).ok();
 		// Touching also means that we should remove the account if it's within eip161
 		// conditions.
-		self.state.kill_garbage(
-			&vec![env_info.author].into_iter().collect(),
-			schedule.kill_empty,
-			&None,
-			false
-		).ok();
+		if schedule.kill_empty {
+			self.state.kill_garbage(
+				&vec![env_info.author].into_iter().collect(),
+				&None,
+				false
+			).ok();
+		}
 
 		self.state.commit().ok();
 

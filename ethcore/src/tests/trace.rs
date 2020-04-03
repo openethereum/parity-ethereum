@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Client tests of tracing
 
@@ -150,18 +150,16 @@ fn can_trace_block_and_uncle_reward() {
 	rolling_timestamp += 10;
 	block.set_timestamp(rolling_timestamp);
 
-	let mut n = 0;
-	for _ in 0..1 {
-		block.push_transaction(Transaction {
-			nonce: n.into(),
-			gas_price: 10000.into(),
-			gas: 100000.into(),
-			action: Action::Create,
-			data: vec![],
-			value: U256::zero(),
-		}.sign(kp.secret(), Some(spec.network_id())), None).unwrap();
-		n += 1;
-	}
+	let signed_tx = Transaction {
+		nonce: 0.into(),
+		gas_price: 10000.into(),
+		gas: 100000.into(),
+		action: Action::Create,
+		data: vec![],
+		value: U256::zero(),
+	}.sign(kp.secret(), Some(spec.network_id()));
+
+	block.push_transaction(signed_tx).unwrap();
 
 	let mut uncle = Header::new();
 	let uncle_author = Address::from_str("ef2d6d194084c2de36e0dabfce45d046b37d1106").unwrap();

@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! benchmarking for verification
 
@@ -24,7 +24,7 @@ use ethash::{EthashParams, Ethash};
 use ethereum_types::U256;
 use ethcore::test_helpers::TestBlockChainClient;
 use spec::new_constantinople_test_machine;
-use tempdir::TempDir;
+use tempfile::TempDir;
 
 use ::verification::{
 	FullFamilyParams,
@@ -72,7 +72,7 @@ fn ethash_params() -> EthashParams {
 fn build_ethash() -> Ethash {
 	let machine = new_constantinople_test_machine();
 	let ethash_params = ethash_params();
-	let cache_dir = TempDir::new("").unwrap();
+	let cache_dir = TempDir::new().unwrap();
 	Ethash::new(
 		cache_dir.path(),
 		ethash_params,
@@ -119,22 +119,8 @@ fn block_verification(c: &mut Criterion) {
 
 	// Phase 3 verification
 	let block = Unverified::from_rlp(rlp_8481476.clone()).expect(PROOF);
-	let preverified = verification::verify_block_unordered(block, &ethash, true).expect(PROOF);
+	let preverified = verification::verify_block_unordered(block, &ethash, true).expect(PROOF).0;
 	let parent = Unverified::from_rlp(rlp_8481475.clone()).expect(PROOF);
-
-	// "partial" means we skip uncle and tx verification
-	c.bench_function("verify_block_family (partial)", |b| {
-		b.iter(|| {
-			if let Err(e) = verification::verify_block_family::<TestBlockChainClient>(
-				&preverified.header,
-				&parent.header,
-				&ethash,
-				None
-			) {
-				panic!("verify_block_family (partial) ERROR: {:?}", e);
-			}
-		});
-	});
 
 	let mut block_provider = TestBlockChain::new();
 	block_provider.insert(rlp_8481476.clone()); // block to verify
@@ -142,14 +128,14 @@ fn block_verification(c: &mut Criterion) {
 	block_provider.insert(rlp_8481474.clone()); // uncle's parent
 
 	let client = TestBlockChainClient::default();
-	c.bench_function("verify_block_family (full)", |b| {
+	c.bench_function("verify_block_family", |b| {
 		b.iter(|| {
 			let full = FullFamilyParams { block: &preverified, block_provider: &block_provider, client: &client };
 			if let Err(e) = verification::verify_block_family::<TestBlockChainClient>(
 				&preverified.header,
 				&parent.header,
 				&ethash,
-				Some(full),
+				full,
 			) {
 				panic!("verify_block_family (full) ERROR: {:?}", e)
 			}

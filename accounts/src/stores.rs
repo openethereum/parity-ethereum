@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Address Book Store
 
@@ -155,12 +155,12 @@ impl<K: hash::Hash + Eq, V> DiskMap<K, V> {
 mod tests {
 	use super::{AddressBook, Address};
 	use std::collections::HashMap;
-	use tempdir::TempDir;
+	use tempfile::TempDir;
 	use crate::account_data::AccountMeta;
 
 	#[test]
 	fn should_save_and_reload_address_book() {
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 		let mut b = AddressBook::new(tempdir.path());
 		b.set_name(Address::from_low_u64_be(1), "One".to_owned());
 		b.set_meta(Address::from_low_u64_be(1), "{1:1}".to_owned());
@@ -172,7 +172,7 @@ mod tests {
 
 	#[test]
 	fn should_remove_address() {
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 		let mut b = AddressBook::new(tempdir.path());
 
 		b.set_name(Address::from_low_u64_be(1), "One".to_owned());

@@ -1,33 +1,34 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Secret store server's launcher, contains required configuration parameters and launch method
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
+
 use account_utils::AccountProvider;
 use dir::default_data_path;
 use dir::helpers::replace_home;
 use ethcore::client::Client;
 use ethcore::miner::Miner;
+use ethereum_types::Address;
 use ethkey::Password;
 use parity_crypto::publickey::{Secret, Public};
-use sync::SyncProvider;
-use ethereum_types::Address;
 use parity_runtime::Executor;
+use sync::SyncProvider;
 
 /// This node secret key.
 #[derive(Debug, PartialEq, Clone)]
@@ -123,31 +124,38 @@ mod server {
 #[cfg(feature = "secretstore")]
 mod server {
 	use std::sync::Arc;
-	use ethcore_secretstore;
 	use parity_crypto::publickey::KeyPair;
 	use ansi_term::Colour::{Red, White};
+	use ethereum_types::H256;
 	use super::{Configuration, Dependencies, NodeSecretKey, ContractAddress, Executor};
 	use super::super::TrustedClient;
 	#[cfg(feature = "accounts")]
 	use super::super::KeyStoreNodeKeyPair;
 
-	fn into_service_contract_address(address: ContractAddress) -> ethcore_secretstore::ContractAddress {
+	const SECP_TEST_MESSAGE: H256 = H256([1_u8; 32]);
+
+	/// Version of the secret store database
+	const SECRET_STORE_DB_VERSION: &str = "4";
+	/// Version file name
+	const SECRET_STORE_DB_VERSION_FILE_NAME: &str = "db_version";
+
+	fn into_service_contract_address(address: ContractAddress) -> parity_secretstore::ContractAddress {
 		match address {
-			ContractAddress::Registry => ethcore_secretstore::ContractAddress::Registry,
-			ContractAddress::Address(address) => ethcore_secretstore::ContractAddress::Address(address),
+			ContractAddress::Registry => parity_secretstore::ContractAddress::Registry,
+			ContractAddress::Address(address) => parity_secretstore::ContractAddress::Address(address),
 		}
 	}
 
 	/// Key server
 	pub struct KeyServer {
-		_key_server: Box<dyn ethcore_secretstore::KeyServer>,
+		_key_server: Box<dyn parity_secretstore::KeyServer>,
 	}
 
 	impl KeyServer {
 		/// Create new key server
 		pub fn new(mut conf: Configuration, deps: Dependencies, executor: Executor) -> Result<Self, String> {
-			let self_secret: Arc<dyn ethcore_secretstore::SigningKeyPair> = match conf.self_secret.take() {
-				Some(NodeSecretKey::Plain(secret)) => Arc::new(ethcore_secretstore::PlainNodeKeyPair::new(
+			let self_secret: Arc<dyn parity_secretstore::SigningKeyPair> = match conf.self_secret.take() {
+				Some(NodeSecretKey::Plain(secret)) => Arc::new(parity_secretstore::PlainNodeKeyPair::new(
 					KeyPair::from_secret(secret).map_err(|e| format!("invalid secret: {}", e))?)),
 				#[cfg(feature = "accounts")]
 				Some(NodeSecretKey::KeyStore(account)) => {
@@ -163,10 +171,10 @@ mod server {
 
 					// Attempt to sign in the engine signer.
 					let password = deps.accounts_passwords.iter()
-						.find(|p| deps.account_provider.sign(account.clone(), Some((*p).clone()), Default::default()).is_ok())
+						.find(|p| deps.account_provider.sign(account.clone(), Some((*p).clone()), SECP_TEST_MESSAGE).is_ok())
 						.ok_or_else(|| format!("No valid password for the secret store node account {}", account))?;
 					Arc::new(KeyStoreNodeKeyPair::new(deps.account_provider, account, password.clone())
-						.map_err(|e| format!("{}", e))?)
+						.map_err(|e| e.to_string())?)
 				},
 				None => return Err("self secret is required when using secretstore".into()),
 			};
@@ -177,8 +185,8 @@ mod server {
 			}
 
 			let key_server_name = format!("{}:{}", conf.interface, conf.port);
-			let mut cconf = ethcore_secretstore::ServiceConfiguration {
-				listener_address: if conf.http_enabled { Some(ethcore_secretstore::NodeAddress {
+			let mut cconf = parity_secretstore::ServiceConfiguration {
+				listener_address: if conf.http_enabled { Some(parity_secretstore::NodeAddress {
 					address: conf.http_interface.clone(),
 					port: conf.http_port,
 				}) } else { None },
@@ -188,12 +196,12 @@ mod server {
 				service_contract_doc_store_address: conf.service_contract_doc_store_address.map(into_service_contract_address),
 				service_contract_doc_sretr_address: conf.service_contract_doc_sretr_address.map(into_service_contract_address),
 				acl_check_contract_address: conf.acl_check_contract_address.map(into_service_contract_address),
-				cluster_config: ethcore_secretstore::ClusterConfiguration {
-					listener_address: ethcore_secretstore::NodeAddress {
+				cluster_config: parity_secretstore::ClusterConfiguration {
+					listener_address: parity_secretstore::NodeAddress {
 						address: conf.interface.clone(),
 						port: conf.port,
 					},
-					nodes: conf.nodes.into_iter().map(|(p, (ip, port))| (p, ethcore_secretstore::NodeAddress {
+					nodes: conf.nodes.into_iter().map(|(p, (ip, port))| (p, parity_secretstore::NodeAddress {
 						address: ip,
 						port: port,
 					})).collect(),
@@ -207,9 +215,16 @@ mod server {
 
 			cconf.cluster_config.nodes.insert(self_secret.public().clone(), cconf.cluster_config.listener_address.clone());
 
-			let db = ethcore_secretstore::open_secretstore_db(&conf.data_path)?;
+			// Create a file containing the version of the database of the SecretStore
+			// when no database exists yet
+			if std::fs::read_dir(&conf.data_path).map_or(false, |mut list| list.next().is_none ()) {
+				std::fs::write(std::path::Path::new(&conf.data_path).join(SECRET_STORE_DB_VERSION_FILE_NAME), SECRET_STORE_DB_VERSION)
+				.map_err(|e| format!("Error creating SecretStore database version file: {}", e))?;
+			}
+
+			let db = parity_secretstore::open_secretstore_db(&conf.data_path)?;
 			let trusted_client = TrustedClient::new(self_secret.clone(), deps.client, deps.sync, deps.miner);
-			let key_server = ethcore_secretstore::start(trusted_client, self_secret, cconf, db, executor)
+			let key_server = parity_secretstore::start(trusted_client, self_secret, cconf, db, executor)
 				.map_err(|e| format!("Error starting KeyServer {}: {}", key_server_name, e))?;
 
 			Ok(KeyServer {

@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Base data structure of this module is `Block`.
 //!
@@ -35,7 +35,7 @@ use std::{cmp, ops};
 use std::sync::Arc;
 
 use bytes::Bytes;
-use ethereum_types::{H256, U256, Address, Bloom};
+use ethereum_types::{U256, Address, Bloom};
 
 use engine::Engine;
 use trie_vm_factories::Factories;
@@ -49,7 +49,6 @@ use vm::LastHashes;
 use hash::keccak;
 use rlp::{RlpStream, Encodable, encode_list};
 use types::{
-	block::PreverifiedBlock,
 	errors::{EthcoreError as Error, BlockError},
 	transaction::{SignedTransaction, Error as TransactionError},
 	header::Header,
@@ -102,7 +101,7 @@ pub trait Drain {
 
 impl<'x> OpenBlock<'x> {
 	/// Create a new `OpenBlock` ready for transaction pushing.
-	pub fn new<'a>(
+	pub fn new(
 		engine: &'x dyn Engine,
 		factories: Factories,
 		tracing: bool,
@@ -168,7 +167,7 @@ impl<'x> OpenBlock<'x> {
 	/// Push a transaction into the block.
 	///
 	/// If valid, it will be executed, and archived together with the receipt.
-	pub fn push_transaction(&mut self, t: SignedTransaction, h: Option<H256>) -> Result<&Receipt, Error> {
+	pub fn push_transaction(&mut self, t: SignedTransaction) -> Result<&Receipt, Error> {
 		if self.block.transactions_set.contains(&t.hash()) {
 			return Err(TransactionError::AlreadyImported.into());
 		}
@@ -176,8 +175,8 @@ impl<'x> OpenBlock<'x> {
 		let env_info = self.block.env_info();
 		let outcome = self.block.state.apply(&env_info, self.engine.machine(), &t, self.block.traces.is_enabled())?;
 
-		self.block.transactions_set.insert(h.unwrap_or_else(||t.hash()));
-		self.block.transactions.push(t.into());
+		self.block.transactions_set.insert(t.hash());
+		self.block.transactions.push(t);
 		if let Tracing::Enabled(ref mut traces) = self.block.traces {
 			traces.push(outcome.trace.into());
 		}
@@ -189,7 +188,7 @@ impl<'x> OpenBlock<'x> {
 	#[cfg(not(feature = "slow-blocks"))]
 	fn push_transactions(&mut self, transactions: Vec<SignedTransaction>) -> Result<(), Error> {
 		for t in transactions {
-			self.push_transaction(t, None)?;
+			self.push_transaction(t)?;
 		}
 		Ok(())
 	}
@@ -203,13 +202,12 @@ impl<'x> OpenBlock<'x> {
 		for t in transactions {
 			let hash = t.hash();
 			let start = time::Instant::now();
-			self.push_transaction(t, None)?;
-			let took = start.elapsed();
-			let took_ms = took.as_secs() * 1000 + took.subsec_nanos() as u64 / 1000000;
-			if took > time::Duration::from_millis(slow_tx) {
-				warn!("Heavy ({} ms) transaction in block {:?}: {:?}", took_ms, self.block.header.number(), hash);
+			self.push_transaction(t)?;
+			let elapsed_millis = start.elapsed().as_millis();
+			if elapsed_millis > slow_tx {
+				warn!("Heavy ({} ms) transaction in block {:?}: {:?}", elapsed_millis, self.block.header.number(), hash);
 			}
-			debug!(target: "tx", "Transaction {:?} took: {} ms", hash, took_ms);
+			debug!(target: "tx", "Transaction {:?} took: {} ms", hash, elapsed_millis);
 		}
 
 		Ok(())
@@ -222,6 +220,10 @@ impl<'x> OpenBlock<'x> {
 		self.block.header.set_timestamp(header.timestamp());
 		self.block.header.set_uncles_hash(*header.uncles_hash());
 		self.block.header.set_transactions_root(*header.transactions_root());
+		// For Aura-based chains, the seal may contain EmptySteps which are used to bestow rewards;
+		// such rewards affect the state and the state root (see
+		// https://github.com/openethereum/openethereum/pull/11475).
+		self.block.header.set_seal(header.seal().to_vec());
 		// TODO: that's horrible. set only for backwards compatibility
 		if header.extra_data().len() > self.engine.maximum_extra_data_size() {
 			warn!("Couldn't set extradata. Ignoring.");
@@ -343,10 +345,10 @@ impl LockedBlock {
 		let expected_seal_fields = engine.seal_fields(&self.header);
 		let mut s = self;
 		if seal.len() != expected_seal_fields {
-			Err(BlockError::InvalidSealArity(Mismatch {
+			return Err(Error::Block(BlockError::InvalidSealArity(Mismatch {
 				expected: expected_seal_fields,
 				found: seal.len()
-			}))?;
+			})));
 		}
 
 		s.block.header.set_seal(seal);
@@ -361,7 +363,7 @@ impl LockedBlock {
 	/// Provide a valid seal in order to turn this into a `SealedBlock`.
 	/// This does check the validity of `seal` with the engine.
 	/// Returns the `ClosedBlock` back again if the seal is no good.
-	/// TODO(https://github.com/paritytech/parity-ethereum/issues/10407): This is currently only used in POW chain call paths, we should really merge it with seal() above.
+	/// TODO(https://github.com/openethereum/openethereum/issues/10407): This is currently only used in POW chain call paths, we should really merge it with seal() above.
 	pub fn try_seal(
 		self,
 		engine: &dyn Engine,
@@ -402,9 +404,11 @@ impl Drain for SealedBlock {
 	}
 }
 
-/// Enact the block given by block header, transactions and uncles
+/// Enact the block. Takes the block header, transactions and uncles from a
+/// `PreVerified` block and Produces a new `LockedBlock` after applying all
+/// transactions and committing the state to disk.
 pub(crate) fn enact(
-	header: Header,
+	header: &Header,
 	transactions: Vec<SignedTransaction>,
 	uncles: Vec<Header>,
 	engine: &dyn Engine,
@@ -431,7 +435,7 @@ pub(crate) fn enact(
 		last_hashes,
 		// Engine such as Clique will calculate author from extra_data.
 		// this is only important for executing contracts as the 'executive_author'.
-		engine.executive_author(&header)?,
+		engine.executive_author(header)?,
 		(3141562.into(), 31415620.into()),
 		vec![],
 		is_epoch_begin,
@@ -445,7 +449,7 @@ pub(crate) fn enact(
 				b.block.header.number(), root, env.author, author_balance);
 	}
 
-	b.populate_from(&header);
+	b.populate_from(header);
 	b.push_transactions(transactions)?;
 
 	for u in uncles {
@@ -453,32 +457,6 @@ pub(crate) fn enact(
 	}
 
 	b.close_and_lock()
-}
-
-/// Enact the block given by `block_bytes` using `engine` on the database `db` with the given `parent` block header
-pub fn enact_verified(
-	block: PreverifiedBlock,
-	engine: &dyn Engine,
-	tracing: bool,
-	db: StateDB,
-	parent: &Header,
-	last_hashes: Arc<LastHashes>,
-	factories: Factories,
-	is_epoch_begin: bool,
-) -> Result<LockedBlock, Error> {
-
-	enact(
-		block.header,
-		block.transactions,
-		block.uncles,
-		engine,
-		tracing,
-		db,
-		parent,
-		last_hashes,
-		factories,
-		is_epoch_begin,
-	)
 }
 
 #[cfg(test)]
@@ -500,7 +478,6 @@ mod tests {
 		verification::Unverified,
 	};
 	use hash_db::EMPTY_PREFIX;
-	use spec;
 
 	/// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header
 	fn enact_bytes(
@@ -554,7 +531,7 @@ mod tests {
 		b.close_and_lock()
 	}
 
-	/// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header. Seal the block aferwards
+	/// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header. Seal the block afterwards
 	fn enact_and_seal(
 		block_bytes: Vec<u8>,
 		engine: &dyn Engine,

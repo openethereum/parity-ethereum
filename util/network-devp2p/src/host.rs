@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::cmp::{max, min};
 use std::collections::{HashMap, HashSet};
@@ -267,7 +267,7 @@ pub struct Host {
 	udp_socket: Mutex<Option<UdpSocket>>,
 	tcp_listener: Mutex<TcpListener>,
 	sessions: Arc<RwLock<Slab<SharedSession>>>,
-	discovery: Mutex<Option<Discovery<'static>>>,
+	discovery: Mutex<Option<Discovery>>,
 	nodes: RwLock<NodeTable>,
 	handlers: RwLock<HashMap<ProtocolId, Arc<dyn NetworkProtocolHandler + Sync>>>,
 	timers: RwLock<HashMap<TimerToken, ProtocolTimer>>,
@@ -1270,9 +1270,9 @@ fn load_key(path: &Path) -> Option<Secret> {
 
 #[test]
 fn key_save_load() {
-	use tempdir::TempDir;
+	use tempfile::TempDir;
 
-	let tempdir = TempDir::new("").unwrap();
+	let tempdir = TempDir::new().unwrap();
 	let key = H256::random().into();
 	save_key(tempdir.path(), &key);
 	let r = load_key(tempdir.path());

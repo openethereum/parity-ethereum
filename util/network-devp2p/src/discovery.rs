@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::collections::hash_map::Entry;
@@ -121,7 +121,7 @@ enum NodeValidity {
 #[derive(Debug)]
 enum BucketError {
 	Ourselves,
-	NotInTheBucket{node_entry: NodeEntry, bucket_distance: usize},
+	NotInTheBucket { node_entry: NodeEntry, bucket_distance: usize },
 }
 
 struct PingRequest {
@@ -131,28 +131,17 @@ struct PingRequest {
 	node: NodeEntry,
 	// The hash sent in the Ping request
 	echo_hash: H256,
-	// The hash Parity used to respond with (until rev 01f825b0e1f1c4c420197b51fc801cbe89284b29)
-	#[deprecated()]
-	deprecated_echo_hash: H256,
 	reason: PingReason
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct NodeBucket {
 	nodes: VecDeque<BucketEntry>, //sorted by last active
 }
 
-impl Default for NodeBucket {
-	fn default() -> Self {
-		NodeBucket::new()
-	}
-}
-
 impl NodeBucket {
 	fn new() -> Self {
-		NodeBucket {
-			nodes: VecDeque::new()
-		}
+		Self::default()
 	}
 }
 
@@ -161,7 +150,7 @@ pub struct Datagram {
 	pub address: SocketAddr,
 }
 
-pub struct Discovery<'a> {
+pub struct Discovery {
 	id: NodeId,
 	id_hash: H256,
 	secret: Secret,
@@ -182,7 +171,7 @@ pub struct Discovery<'a> {
 	check_timestamps: bool,
 	adding_nodes: Vec<NodeEntry>,
 	ip_filter: IpFilter,
-	request_backoff: &'a [Duration],
+	request_backoff: &'static [Duration],
 }
 
 pub struct TableUpdates {
@@ -190,8 +179,8 @@ pub struct TableUpdates {
 	pub removed: HashSet<NodeId>,
 }
 
-impl<'a> Discovery<'a> {
-	pub fn new(key: &KeyPair, public: NodeEndpoint, ip_filter: IpFilter) -> Discovery<'static> {
+impl Discovery {
+	pub fn new(key: &KeyPair, public: NodeEndpoint, ip_filter: IpFilter) -> Discovery {
 		Discovery {
 			id: *key.public(),
 			id_hash: keccak(key.public()),
@@ -243,7 +232,8 @@ impl<'a> Discovery<'a> {
 		};
 		let bucket = &mut self.node_buckets[dist];
 		bucket.nodes.iter_mut().find(|n| n.address.id == e.id)
-			.map_or(Err(BucketError::NotInTheBucket{node_entry: e.clone(), bucket_distance: dist}.into()), |entry| {
+			.ok_or_else(|| BucketError::NotInTheBucket { node_entry: e.clone(), bucket_distance: dist })
+			.and_then(|entry| {
 				entry.address = e;
 				entry.last_seen = Instant::now();
 				entry.backoff_until = Instant::now();
@@ -262,23 +252,17 @@ impl<'a> Discovery<'a> {
         }.and_then(|(node_entry, bucket_distance)| {
 			trace!(target: "discovery", "Adding a new node {:?} into our bucket {}", &node_entry, bucket_distance);
 
-            let mut added = HashMap::with_capacity(1);
-            added.insert(node_entry.id, node_entry.clone());
-
-			let node_to_ping = {
-				let bucket = &mut self.node_buckets[bucket_distance];
-				bucket.nodes.push_front(BucketEntry::new(node_entry.clone()));
-				if bucket.nodes.len() > BUCKET_SIZE {
-					select_bucket_ping(bucket.nodes.iter())
-				} else {
-					None
+			let bucket = &mut self.node_buckets[bucket_distance];
+			bucket.nodes.push_front(BucketEntry::new(node_entry.clone()));
+			if bucket.nodes.len() > BUCKET_SIZE {
+				if let Some(node) = select_bucket_ping(bucket.nodes.iter()) {
+					self.try_ping(node, PingReason::Default);
 				}
-			};
-			if let Some(node) = node_to_ping {
-				self.try_ping(node, PingReason::Default);
-			};
+			}
 
             if node_entry.endpoint.is_valid_sync_node() {
+				let mut added = HashMap::with_capacity(1);
+				added.insert(node_entry.id, node_entry);
 				Some(TableUpdates { added, removed: HashSet::new() })
 			} else {
 				None
@@ -388,15 +372,13 @@ impl<'a> Discovery<'a> {
 		self.public_endpoint.to_rlp_list(&mut rlp);
 		node.endpoint.to_rlp_list(&mut rlp);
 		append_expiration(&mut rlp);
-		let old_parity_hash = keccak(rlp.as_raw());
-		let hash = self.send_packet(PACKET_PING, &node.endpoint.udp_address(), &rlp.drain())?;
+		let hash = self.send_packet(PACKET_PING, node.endpoint.udp_address(), rlp.drain())?;
 
 		self.in_flight_pings.insert(node.id, PingRequest {
 			sent_at: Instant::now(),
 			node: node.clone(),
 			echo_hash: hash,
-			deprecated_echo_hash: old_parity_hash,
-			reason: reason
+			reason,
 		});
 
 		trace!(target: "discovery", "Sent Ping to {:?} ; node_id={:#x}", &node.endpoint, node.id);
@@ -407,7 +389,7 @@ impl<'a> Discovery<'a> {
 		let mut rlp = RlpStream::new_list(2);
 		rlp.append(target);
 		append_expiration(&mut rlp);
-		self.send_packet(PACKET_FIND_NODE, &node.endpoint.udp_address(), &rlp.drain())?;
+		self.send_packet(PACKET_FIND_NODE, node.endpoint.udp_address(), rlp.drain())?;
 
 		self.in_flight_find_nodes.insert(node.id, FindNodeRequest {
 			sent_at: Instant::now(),
@@ -419,10 +401,10 @@ impl<'a> Discovery<'a> {
 		Ok(())
 	}
 
-	fn send_packet(&mut self, packet_id: u8, address: &SocketAddr, payload: &[u8]) -> Result<H256, Error> {
+	fn send_packet(&mut self, packet_id: u8, address: SocketAddr, payload: Bytes) -> Result<H256, Error> {
 		let packet = assemble_packet(packet_id, payload, &self.secret)?;
 		let hash = H256::from_slice(&packet[0..32]);
-		self.send_to(packet, address.clone());
+		self.send_to(packet, address);
 		Ok(hash)
 	}
 
@@ -498,10 +480,10 @@ impl<'a> Discovery<'a> {
 		let packet_id = signed[0];
 		let rlp = Rlp::new(&signed[1..]);
 		match packet_id {
-			PACKET_PING => self.on_ping(&rlp, &node_id, &from, hash_signed.as_bytes()),
-			PACKET_PONG => self.on_pong(&rlp, &node_id, &from),
-			PACKET_FIND_NODE => self.on_find_node(&rlp, &node_id, &from),
-			PACKET_NEIGHBOURS => self.on_neighbours(&rlp, &node_id, &from),
+			PACKET_PING => self.on_ping(&rlp, node_id, from, hash_signed.as_bytes()),
+			PACKET_PONG => self.on_pong(&rlp, node_id, from),
+			PACKET_FIND_NODE => self.on_find_node(&rlp, node_id, from),
+			PACKET_NEIGHBOURS => self.on_neighbours(&rlp, node_id, from),
 			_ => {
 				debug!(target: "discovery", "Unknown UDP packet: {}", packet_id);
 				Ok(None)
@@ -523,12 +505,12 @@ impl<'a> Discovery<'a> {
 		entry.endpoint.is_allowed(&self.ip_filter) && entry.id != self.id
 	}
 
-	fn on_ping(&mut self, rlp: &Rlp, node_id: &NodeId, from: &SocketAddr, echo_hash: &[u8]) -> Result<Option<TableUpdates>, Error> {
+	fn on_ping(&mut self, rlp: &Rlp, node_id: NodeId, from: SocketAddr, echo_hash: &[u8]) -> Result<Option<TableUpdates>, Error> {
 		trace!(target: "discovery", "Got Ping from {:?}", &from);
 		let ping_from = if let Ok(node_endpoint) = NodeEndpoint::from_rlp(&rlp.at(1)?) {
 			node_endpoint
 		} else {
-			let mut address = from.clone();
+			let mut address = from;
 			// address here is the node's tcp port. If we are unable to get the `NodeEndpoint` from the `ping_from`
 			// rlp field then this is most likely a BootNode, set the tcp port to 0 because it can not be used for syncing.
 			address.set_port(0);
@@ -542,7 +524,7 @@ impl<'a> Discovery<'a> {
 		self.check_timestamp(timestamp)?;
 		let mut response = RlpStream::new_list(3);
 		let pong_to = NodeEndpoint {
-			address: from.clone(),
+			address: from,
 			udp_port: ping_from.udp_port
 		};
 		// Here the PONG's `To` field should be the node we are
@@ -555,49 +537,36 @@ impl<'a> Discovery<'a> {
 
 		response.append(&echo_hash);
 		append_expiration(&mut response);
-		self.send_packet(PACKET_PONG, from, &response.drain())?;
+		self.send_packet(PACKET_PONG, from, response.drain())?;
 
-		let entry = NodeEntry { id: *node_id, endpoint: pong_to.clone() };
+		let entry = NodeEntry { id: node_id, endpoint: pong_to };
 		if !entry.endpoint.is_valid_discovery_node() {
 			debug!(target: "discovery", "Got bad address: {:?}", entry);
 		} else if !self.is_allowed(&entry) {
 			debug!(target: "discovery", "Address not allowed: {:?}", entry);
 		} else {
-			self.add_node(entry.clone());
+			self.add_node(entry);
 		}
 		Ok(None)
 	}
 
-	fn on_pong(&mut self, rlp: &Rlp, node_id: &NodeId, from: &SocketAddr) -> Result<Option<TableUpdates>, Error> {
+	fn on_pong(&mut self, rlp: &Rlp, node_id: NodeId, from: SocketAddr) -> Result<Option<TableUpdates>, Error> {
 		trace!(target: "discovery", "Got Pong from {:?} ; node_id={:#x}", &from, node_id);
 		let _pong_to = NodeEndpoint::from_rlp(&rlp.at(0)?)?;
 		let echo_hash: H256 = rlp.val_at(1)?;
 		let timestamp: u64 = rlp.val_at(2)?;
 		self.check_timestamp(timestamp)?;
 
-		let expected_node = match self.in_flight_pings.entry(*node_id) {
-			Entry::Occupied(entry) => {
-				let expected_node = {
-					let request = entry.get();
-					if request.echo_hash != echo_hash && request.deprecated_echo_hash != echo_hash {
-						debug!(target: "discovery", "Got unexpected Pong from {:?} ; packet_hash={:#x} ; expected_hash={:#x}", &from, request.echo_hash, echo_hash);
-						None
-					} else {
-						if request.deprecated_echo_hash == echo_hash {
-							trace!(target: "discovery", "Got Pong from an old parity-ethereum version.");
-						}
-						Some((request.node.clone(), request.reason.clone()))
-					}
-				};
-
-				if expected_node.is_some() {
-					entry.remove();
-				}
-				expected_node
-			},
-			Entry::Vacant(_) => {
+		let expected_node = match self.in_flight_pings.entry(node_id) {
+			Entry::Occupied(entry) if entry.get().echo_hash != echo_hash => {
+				debug!(target: "discovery", "Got unexpected Pong from {:?} ; packet_hash={:#x} ; expected_hash={:#x}", &from, entry.get().echo_hash, echo_hash);
 				None
 			},
+			Entry::Occupied(entry) => {
+				let request = entry.remove();
+				Some((request.node, request.reason))
+			},
+			Entry::Vacant(_) => None,
 		};
 
 		if let Some((node, ping_reason)) = expected_node {
@@ -613,7 +582,7 @@ impl<'a> Discovery<'a> {
 							debug!(target: "discovery", "Error occured when processing ping from a bucket node: {:?}", &error);
 						});
 					},
-					NodeValidity::UnknownNode | NodeValidity::ExpiredNode(NodeCategory::Observed) | NodeValidity::ValidNode(NodeCategory::Observed)=> {
+					NodeValidity::UnknownNode | NodeValidity::ExpiredNode(NodeCategory::Observed) | NodeValidity::ValidNode(NodeCategory::Observed) => {
 						trace!(target: "discovery", "Updating node {:?} in the list of other_observed_nodes", &node);
 						self.other_observed_nodes.insert(node.id, (node.endpoint, Instant::now()));
 					},
@@ -629,16 +598,16 @@ impl<'a> Discovery<'a> {
 		}
 	}
 
-	fn on_find_node(&mut self, rlp: &Rlp, node_id: &NodeId, from: &SocketAddr) -> Result<Option<TableUpdates>, Error> {
+	fn on_find_node(&mut self, rlp: &Rlp, node_id: NodeId, from: SocketAddr) -> Result<Option<TableUpdates>, Error> {
 		trace!(target: "discovery", "Got FindNode from {:?}", &from);
 		let target: NodeId = rlp.val_at(0)?;
 		let timestamp: u64 = rlp.val_at(1)?;
 		self.check_timestamp(timestamp)?;
 
 		let node = NodeEntry {
-			id: node_id.clone(),
+			id: node_id,
 			endpoint: NodeEndpoint {
-				address: *from,
+				address: from,
 				udp_port: from.port()
 			}
 		};
@@ -688,7 +657,7 @@ impl<'a> Discovery<'a> {
 		}
 		let mut packets = Discovery::prepare_neighbours_packets(&nearest);
 		for p in packets.drain(..) {
-			self.send_packet(PACKET_NEIGHBOURS, &node.endpoint.address, &p)?;
+			self.send_packet(PACKET_NEIGHBOURS, node.endpoint.address, p)?;
 		}
 		trace!(target: "discovery", "Sent {} Neighbours to {:?}", nearest.len(), &node.endpoint);
 		Ok(())
@@ -711,10 +680,10 @@ impl<'a> Discovery<'a> {
 		packets.collect()
 	}
 
-	fn on_neighbours(&mut self, rlp: &Rlp, node_id: &NodeId, from: &SocketAddr) -> Result<Option<TableUpdates>, Error> {
+	fn on_neighbours(&mut self, rlp: &Rlp, node_id: NodeId, from: SocketAddr) -> Result<Option<TableUpdates>, Error> {
 		let results_count = rlp.at(0)?.item_count()?;
 
-		let is_expected = match self.in_flight_find_nodes.entry(*node_id) {
+		let is_expected = match self.in_flight_find_nodes.entry(node_id) {
 			Entry::Occupied(mut entry) => {
 				let expected = {
 					let request = entry.get_mut();
@@ -862,11 +831,11 @@ fn append_expiration(rlp: &mut RlpStream) {
 	rlp.append(&timestamp);
 }
 
-fn assemble_packet(packet_id: u8, bytes: &[u8], secret: &Secret) -> Result<Bytes, Error> {
-	let mut packet = Bytes::with_capacity(bytes.len() + 32 + 65 + 1);
+fn assemble_packet(packet_id: u8, payload: Bytes, secret: &Secret) -> Result<Bytes, Error> {
+	let mut packet = Bytes::with_capacity(payload.len() + 32 + 65 + 1);
 	packet.resize(32 + 65, 0); // Filled in below
 	packet.push(packet_id);
-	packet.extend_from_slice(bytes);
+	packet.extend(payload);
 
 	let hash = keccak(&packet[(32 + 65)..]);
 	let signature = match sign(secret, &hash) {
@@ -899,12 +868,10 @@ mod tests {
 	use std::net::{IpAddr, Ipv4Addr};
 	use std::str::FromStr;
 
-	use rustc_hex::FromHex;
-
+	use hex_literal::hex;
 	use parity_crypto::publickey::{Generator, Random};
 
 	use crate::node_table::{Node, NodeEndpoint, NodeId};
-
 	use super::*;
 
 	#[test]
@@ -1045,7 +1012,7 @@ mod tests {
 		let key = Random.generate();
 		discovery.send_find_node(&node_entries[100], key.public()).unwrap();
 		for payload in Discovery::prepare_neighbours_packets(&node_entries[101..116]) {
-			let packet = assemble_packet(PACKET_NEIGHBOURS, &payload, &key.secret()).unwrap();
+			let packet = assemble_packet(PACKET_NEIGHBOURS, payload, &key.secret()).unwrap();
 			discovery.on_packet(&packet, from.clone()).unwrap();
 		}
 
@@ -1057,7 +1024,7 @@ mod tests {
 		// FIND_NODE does not time out because it receives k results.
 		discovery.send_find_node(&node_entries[100], key.public()).unwrap();
 		for payload in Discovery::prepare_neighbours_packets(&node_entries[101..117]) {
-			let packet = assemble_packet(PACKET_NEIGHBOURS, &payload, &key.secret()).unwrap();
+			let packet = assemble_packet(PACKET_NEIGHBOURS, payload, &key.secret()).unwrap();
 			discovery.on_packet(&packet, from.clone()).unwrap();
 		}
 
@@ -1067,8 +1034,8 @@ mod tests {
 		assert_eq!(removed, 0);
 
 		// Test bucket evictions with retries.
-		let request_backoff = [Duration::new(0, 0); 2];
-		let mut discovery = Discovery { request_backoff: &request_backoff, ..discovery };
+		const TEST_REQUEST_BACKOFF: [Duration; 2] = [Duration::from_secs(0); 2];
+		let mut discovery = Discovery { request_backoff: &TEST_REQUEST_BACKOFF, ..discovery };
 
 		for _ in 0..2 {
 			discovery.ping(&node_entries[101], PingReason::Default).unwrap();
@@ -1197,60 +1164,60 @@ mod tests {
 		discovery.check_timestamps = false;
 		let from = SocketAddr::from_str("99.99.99.99:40445").unwrap();
 
-		let packet = "\
-		e9614ccfd9fc3e74360018522d30e1419a143407ffcce748de3e22116b7e8dc92ff74788c0b6663a\
-		aa3d67d641936511c8f8d6ad8698b820a7cf9e1be7155e9a241f556658c55428ec0563514365799a\
-		4be2be5a685a80971ddcfa80cb422cdd0101ec04cb847f000001820cfa8215a8d790000000000000\
-		000000000000000000018208ae820d058443b9a3550102\
-		".from_hex().unwrap();
+		let packet = hex!("
+		e9614ccfd9fc3e74360018522d30e1419a143407ffcce748de3e22116b7e8dc92ff74788c0b6663a
+		aa3d67d641936511c8f8d6ad8698b820a7cf9e1be7155e9a241f556658c55428ec0563514365799a
+		4be2be5a685a80971ddcfa80cb422cdd0101ec04cb847f000001820cfa8215a8d790000000000000
+		000000000000000000018208ae820d058443b9a3550102
+		").to_vec();
 		let _ = discovery.on_packet(&packet, from.clone()).expect("packet to be ok");
 
-		let packet = "\
-		577be4349c4dd26768081f58de4c6f375a7a22f3f7adda654d1428637412c3d7fe917cadc56d4e5e\
-		7ffae1dbe3efffb9849feb71b262de37977e7c7a44e677295680e9e38ab26bee2fcbae207fba3ff3\
-		d74069a50b902a82c9903ed37cc993c50001f83e82022bd79020010db83c4d001500000000abcdef\
-		12820cfa8215a8d79020010db885a308d313198a2e037073488208ae82823a8443b9a355c5010203\
-		040531b9019afde696e582a78fa8d95ea13ce3297d4afb8ba6433e4154caa5ac6431af1b80ba7602\
-		3fa4090c408f6b4bc3701562c031041d4702971d102c9ab7fa5eed4cd6bab8f7af956f7d565ee191\
-		7084a95398b6a21eac920fe3dd1345ec0a7ef39367ee69ddf092cbfe5b93e5e568ebc491983c09c7\
-		6d922dc3\
-		".from_hex().unwrap();
+		let packet = hex!("
+		577be4349c4dd26768081f58de4c6f375a7a22f3f7adda654d1428637412c3d7fe917cadc56d4e5e
+		7ffae1dbe3efffb9849feb71b262de37977e7c7a44e677295680e9e38ab26bee2fcbae207fba3ff3
+		d74069a50b902a82c9903ed37cc993c50001f83e82022bd79020010db83c4d001500000000abcdef
+		12820cfa8215a8d79020010db885a308d313198a2e037073488208ae82823a8443b9a355c5010203
+		040531b9019afde696e582a78fa8d95ea13ce3297d4afb8ba6433e4154caa5ac6431af1b80ba7602
+		3fa4090c408f6b4bc3701562c031041d4702971d102c9ab7fa5eed4cd6bab8f7af956f7d565ee191
+		7084a95398b6a21eac920fe3dd1345ec0a7ef39367ee69ddf092cbfe5b93e5e568ebc491983c09c7
+		6d922dc3
+		").to_vec();
 		let _ = discovery.on_packet(&packet, from.clone()).expect("packet to be ok");
 
-		let packet = "\
-		09b2428d83348d27cdf7064ad9024f526cebc19e4958f0fdad87c15eb598dd61d08423e0bf66b206\
-		9869e1724125f820d851c136684082774f870e614d95a2855d000f05d1648b2d5945470bc187c2d2\
-		216fbe870f43ed0909009882e176a46b0102f846d79020010db885a308d313198a2e037073488208\
-		ae82823aa0fbc914b16819237dcd8801d7e53f69e9719adecb3cc0e790c57e91ca4461c9548443b9\
+		let packet = hex!("
+		09b2428d83348d27cdf7064ad9024f526cebc19e4958f0fdad87c15eb598dd61d08423e0bf66b206
+		9869e1724125f820d851c136684082774f870e614d95a2855d000f05d1648b2d5945470bc187c2d2
+		216fbe870f43ed0909009882e176a46b0102f846d79020010db885a308d313198a2e037073488208
+		ae82823aa0fbc914b16819237dcd8801d7e53f69e9719adecb3cc0e790c57e91ca4461c9548443b9
 		a355c6010203c2040506a0c969a58f6f9095004c0177a6b47f451530cab38966a25cca5cb58f0555
-		42124e\
-		".from_hex().unwrap();
+		42124e
+		").to_vec();
 		let _ = discovery.on_packet(&packet, from.clone()).expect("packet to be ok");
 
-		let packet = "\
-		c7c44041b9f7c7e41934417ebac9a8e1a4c6298f74553f2fcfdcae6ed6fe53163eb3d2b52e39fe91\
-		831b8a927bf4fc222c3902202027e5e9eb812195f95d20061ef5cd31d502e47ecb61183f74a504fe\
-		04c51e73df81f25c4d506b26db4517490103f84eb840ca634cae0d49acb401d8a4c6b6fe8c55b70d\
-		115bf400769cc1400f3258cd31387574077f301b421bc84df7266c44e9e6d569fc56be0081290476\
-		7bf5ccd1fc7f8443b9a35582999983999999280dc62cc8255c73471e0a61da0c89acdc0e035e260a\
-		dd7fc0c04ad9ebf3919644c91cb247affc82b69bd2ca235c71eab8e49737c937a2c396\
-		".from_hex().unwrap();
+		let packet = hex!("
+		c7c44041b9f7c7e41934417ebac9a8e1a4c6298f74553f2fcfdcae6ed6fe53163eb3d2b52e39fe91
+		831b8a927bf4fc222c3902202027e5e9eb812195f95d20061ef5cd31d502e47ecb61183f74a504fe
+		04c51e73df81f25c4d506b26db4517490103f84eb840ca634cae0d49acb401d8a4c6b6fe8c55b70d
+		115bf400769cc1400f3258cd31387574077f301b421bc84df7266c44e9e6d569fc56be0081290476
+		7bf5ccd1fc7f8443b9a35582999983999999280dc62cc8255c73471e0a61da0c89acdc0e035e260a
+		dd7fc0c04ad9ebf3919644c91cb247affc82b69bd2ca235c71eab8e49737c937a2c396
+		").to_vec();
 		let _ = discovery.on_packet(&packet, from.clone()).expect("packet to be ok");
 
-		let packet = "\
-		c679fc8fe0b8b12f06577f2e802d34f6fa257e6137a995f6f4cbfc9ee50ed3710faf6e66f932c4c8\
-		d81d64343f429651328758b47d3dbc02c4042f0fff6946a50f4a49037a72bb550f3a7872363a83e1\
-		b9ee6469856c24eb4ef80b7535bcf99c0004f9015bf90150f84d846321163782115c82115db84031\
-		55e1427f85f10a5c9a7755877748041af1bcd8d474ec065eb33df57a97babf54bfd2103575fa8291\
-		15d224c523596b401065a97f74010610fce76382c0bf32f84984010203040101b840312c55512422\
-		cf9b8a4097e9a6ad79402e87a15ae909a4bfefa22398f03d20951933beea1e4dfa6f968212385e82\
-		9f04c2d314fc2d4e255e0d3bc08792b069dbf8599020010db83c4d001500000000abcdef12820d05\
-		820d05b84038643200b172dcfef857492156971f0e6aa2c538d8b74010f8e140811d53b98c765dd2\
-		d96126051913f44582e8c199ad7c6d6819e9a56483f637feaac9448aacf8599020010db885a308d3\
-		13198a2e037073488203e78203e8b8408dcab8618c3253b558d459da53bd8fa68935a719aff8b811\
-		197101a4b2b47dd2d47295286fc00cc081bb542d760717d1bdd6bec2c37cd72eca367d6dd3b9df73\
-		8443b9a355010203b525a138aa34383fec3d2719a0\
-		".from_hex().unwrap();
+		let packet = hex!("
+		c679fc8fe0b8b12f06577f2e802d34f6fa257e6137a995f6f4cbfc9ee50ed3710faf6e66f932c4c8
+		d81d64343f429651328758b47d3dbc02c4042f0fff6946a50f4a49037a72bb550f3a7872363a83e1
+		b9ee6469856c24eb4ef80b7535bcf99c0004f9015bf90150f84d846321163782115c82115db84031
+		55e1427f85f10a5c9a7755877748041af1bcd8d474ec065eb33df57a97babf54bfd2103575fa8291
+		15d224c523596b401065a97f74010610fce76382c0bf32f84984010203040101b840312c55512422
+		cf9b8a4097e9a6ad79402e87a15ae909a4bfefa22398f03d20951933beea1e4dfa6f968212385e82
+		9f04c2d314fc2d4e255e0d3bc08792b069dbf8599020010db83c4d001500000000abcdef12820d05
+		820d05b84038643200b172dcfef857492156971f0e6aa2c538d8b74010f8e140811d53b98c765dd2
+		d96126051913f44582e8c199ad7c6d6819e9a56483f637feaac9448aacf8599020010db885a308d3
+		13198a2e037073488203e78203e8b8408dcab8618c3253b558d459da53bd8fa68935a719aff8b811
+		197101a4b2b47dd2d47295286fc00cc081bb542d760717d1bdd6bec2c37cd72eca367d6dd3b9df73
+		8443b9a355010203b525a138aa34383fec3d2719a0
+		").to_vec();
 		let _ = discovery.on_packet(&packet, from.clone()).expect("packet to be ok");
 	}
 
@@ -1291,7 +1258,7 @@ mod tests {
 		incorrect_pong_rlp.append(&H256::zero());
 		append_expiration(&mut incorrect_pong_rlp);
 		let incorrect_pong_data = assemble_packet(
-			PACKET_PONG, &incorrect_pong_rlp.drain(), &discovery2.secret
+			PACKET_PONG, incorrect_pong_rlp.drain(), &discovery2.secret
 		).unwrap();
 		if let Some(_) = discovery1.on_packet(&incorrect_pong_data, ep2.address.clone()).unwrap() {
 			panic!("Expected no changes to discovery1's table because pong hash is incorrect");
@@ -1320,7 +1287,7 @@ mod tests {
 		unexpected_pong_rlp.append(&H256::zero());
 		append_expiration(&mut unexpected_pong_rlp);
 		let unexpected_pong = assemble_packet(
-			PACKET_PONG, &unexpected_pong_rlp.drain(), key3.secret()
+			PACKET_PONG, unexpected_pong_rlp.drain(), key3.secret()
 		).unwrap();
 		if let Some(_) = discovery1.on_packet(&unexpected_pong, ep3.address.clone()).unwrap() {
 			panic!("Expected no changes to discovery1's table for unexpected pong");

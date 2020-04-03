@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// This file is part of Open Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::str::FromStr;
 use std::sync::Arc;
@@ -165,10 +165,10 @@ fn rpc_eth_sign_transaction() {
 	let signature = tester.accounts_provider.sign(address, None, t.hash(None)).unwrap();
 	let t = t.with_signature(signature, None);
 	let signature = t.signature();
-	let rlp = rlp::encode(&t);
+	let rlp: String = rlp::encode(&t).to_hex();
 
 	let response = r#"{"jsonrpc":"2.0","result":{"#.to_owned() +
-		r#""raw":"0x"# + &rlp.to_hex() + r#"","# +
+		r#""raw":"0x"# + &rlp + r#"","# +
 		r#""tx":{"# +
 		r#""blockHash":null,"blockNumber":null,"# +
 		&format!("\"chainId\":{},", t.chain_id().map_or("null".to_owned(), |n| format!("{}", n))) +
@@ -180,7 +180,7 @@ fn rpc_eth_sign_transaction() {
 		r#""nonce":"0x1","# +
 		&format!("\"publicKey\":\"0x{:x}\",", t.recover_public().unwrap()) +
 		&format!("\"r\":\"0x{:x}\",", U256::from(signature.r())) +
-		&format!("\"raw\":\"0x{}\",", rlp.to_hex()) +
+		&format!("\"raw\":\"0x{}\",", rlp) +
 		&format!("\"s\":\"0x{:x}\",", U256::from(signature.s())) +
 		&format!("\"standardV\":\"0x{:x}\",", U256::from(t.standard_v())) +
 		r#""to":"0xd46e8dd67c5d32be8058bb8eb970870f07244567","transactionIndex":null,"# +
@@ -210,7 +210,7 @@ fn rpc_eth_send_transaction_with_bad_to() {
 		"id": 1
 	}"#;
 
-	let response = r#"{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid params: prefix is missing."},"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid params: 0x prefix is missing."},"id":1}"#;
 
 	assert_eq!(tester.io.handle_request_sync(&request), Some(response.into()));
 }

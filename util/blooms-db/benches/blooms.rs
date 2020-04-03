@@ -1,28 +1,28 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 #[macro_use]
 extern crate criterion;
-extern crate tempdir;
+extern crate tempfile;
 extern crate blooms_db;
 extern crate ethbloom;
 
 use std::iter;
 use criterion::Criterion;
-use tempdir::TempDir;
+use tempfile::TempDir;
 use blooms_db::Database;
 use ethbloom::Bloom;
 
@@ -35,7 +35,7 @@ criterion_group!(
 criterion_main!(blooms);
 
 fn bench_blooms_filter_1_million_ok(c: &mut Criterion) {
-	let tempdir = TempDir::new("").unwrap();
+	let tempdir = TempDir::new().unwrap();
 	let database = Database::open(tempdir.path()).unwrap();
 	database.insert_blooms(999_999, iter::once(&Bloom::zero())).unwrap();
 	let bloom = Bloom::from_low_u64_be(0x001);
@@ -53,7 +53,7 @@ fn bench_blooms_filter_1_million_ok(c: &mut Criterion) {
 }
 
 fn bench_blooms_filter_1_million_miss(c: &mut Criterion) {
-	let tempdir = TempDir::new("").unwrap();
+	let tempdir = TempDir::new().unwrap();
 	let database = Database::open(tempdir.path()).unwrap();
 	database.insert_blooms(999_999, iter::once(&Bloom::zero())).unwrap();
 	let bloom = Bloom::from_low_u64_be(0x001);
@@ -72,7 +72,7 @@ fn bench_blooms_filter_1_million_miss(c: &mut Criterion) {
 }
 
 fn bench_blooms_filter_1_million_miss_and_ok(c: &mut Criterion) {
-	let tempdir = TempDir::new("").unwrap();
+	let tempdir = TempDir::new().unwrap();
 	let database = Database::open(tempdir.path()).unwrap();
 	database.insert_blooms(999_999, iter::once(&Bloom::zero())).unwrap();
 	let bloom = Bloom::from_low_u64_be(0x001);

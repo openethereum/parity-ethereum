@@ -45,10 +45,6 @@ pass = "password"
 http_port = 8082
 port = 8083
 
-[ipfs]
-enable = false
-port = 5001
-
 [mining]
 author = "0xdeadbeefcafe0000000000000000000000000001"
 engine_signer = "0xdeadbeefcafe0000000000000000000000000001"

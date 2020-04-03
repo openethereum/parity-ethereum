@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Ethash implementation
 //! See https://github.com/ethereum/wiki/wiki/Ethash
@@ -264,7 +264,7 @@ fn hash_compute(light: &Light, full_size: usize, header_hash: &H256, nonce: u64)
 			unsafe { make_const_array!(MIX_WORDS / 4, &mut buf.compress_bytes) };
 		#[cfg(target_endian = "big")]
 		{
-			compile_error!("parity-ethereum currently only supports little-endian targets");
+			compile_error!("OpenEthereum currently only supports little-endian targets");
 		}
 
 		// Compress mix
@@ -329,7 +329,7 @@ pub fn calculate_dag_item(node_index: u32, cache: &[Node]) -> Node {
 mod test {
 	use super::*;
 	use std::fs;
-	use tempdir::TempDir;
+	use tempfile::TempDir;
 
 	#[test]
 	fn test_get_cache_size() {
@@ -402,7 +402,7 @@ mod test {
 		];
 		let nonce = 0xd7b3ac70a301a249;
 
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 		// difficulty = 0x085657254bd9u64;
 		let light = NodeCacheBuilder::new(None, u64::max_value()).light(tempdir.path(), 486382);
 		let result = light_compute(&light, &hash, nonce);
@@ -412,7 +412,7 @@ mod test {
 
 	#[test]
 	fn test_drop_old_data() {
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 		let builder = NodeCacheBuilder::new(None, u64::max_value());
 		let first = builder.light(tempdir.path(), 0).to_file().unwrap().to_owned();
 

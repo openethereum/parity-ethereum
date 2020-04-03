@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! State snapshotting tests.
 
@@ -36,7 +36,7 @@ use ethereum_types::H256;
 use journaldb::{self, Algorithm};
 use kvdb_rocksdb::{Database, DatabaseConfig};
 use parking_lot::{Mutex, RwLock};
-use tempdir::TempDir;
+use tempfile::TempDir;
 
 use crate::helpers::StateProducer;
 
@@ -54,7 +54,7 @@ fn snap_and_restore() {
 		producer.tick(&mut rng, &mut old_db);
 	}
 
-	let tempdir = TempDir::new("").unwrap();
+	let tempdir = TempDir::new().unwrap();
 	let snap_file = tempdir.path().join("SNAP");
 
 	let state_root = producer.state_root();
@@ -152,7 +152,7 @@ fn get_code_from_prev_chunk() {
 	let chunk1 = make_chunk(acc.clone(), h1);
 	let chunk2 = make_chunk(acc, h2);
 
-	let tempdir = TempDir::new("").unwrap();
+	let tempdir = TempDir::new().unwrap();
 	let db_cfg = DatabaseConfig::with_columns(ethcore_db::NUM_COLUMNS);
 	let new_db = Arc::new(Database::open(&db_cfg, tempdir.path().to_str().unwrap()).unwrap());
 
@@ -181,7 +181,7 @@ fn checks_flag() {
 		producer.tick(&mut rng, &mut old_db);
 	}
 
-	let tempdir = TempDir::new("").unwrap();
+	let tempdir = TempDir::new().unwrap();
 	let snap_file = tempdir.path().join("SNAP");
 
 	let state_root = producer.state_root();
@@ -199,7 +199,7 @@ fn checks_flag() {
 		block_hash: H256::zero(),
 	}).unwrap();
 
-	let tempdir = TempDir::new("").unwrap();
+	let tempdir = TempDir::new().unwrap();
 	let db_path = tempdir.path().join("db");
 	{
 		let new_db = Arc::new(Database::open(&db_cfg, &db_path.to_string_lossy()).unwrap());

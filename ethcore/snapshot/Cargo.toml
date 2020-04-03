@@ -36,7 +36,7 @@ rand = "0.7"
 rand_xorshift = "0.2"
 parking_lot = "0.10.0"
 rlp = "0.4.2"
-rlp_derive = { path = "../../util/rlp-derive" }
+rlp-derive = "0.1"
 scopeguard = "1.0.0"
 snappy = { package = "parity-snappy", version ="0.1.0" }
 state-db = { path = "../state-db" }
@@ -53,10 +53,10 @@ ethabi-contract = "9.0.0"
 ethabi-derive = "9.0.1"
 ethcore = { path = "..", features = ["test-helpers"] }
 ethkey = { path = "../../accounts/ethkey" }
-kvdb-rocksdb = "0.5.0"
+kvdb-rocksdb = "0.6.0"
 lazy_static = { version = "1.3" }
 spec = { path = "../spec" }
-tempdir = "0.3"
+tempfile = "3.1"
 trie-standardmap = "0.15.0"
 # Note[dvdplm]: Ensure the snapshot tests are included in the dependency tree, which in turn means that
 # `cargo test --all` runs the tests.
