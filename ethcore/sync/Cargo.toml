@@ -36,6 +36,7 @@ rlp = "0.4.5"
 snapshot = { path = "../snapshot" }
 trace-time = "0.1"
 triehash-ethereum = { version = "0.2", path = "../../util/triehash-ethereum" }
+transaction-pool = "2"
 
 [dev-dependencies]
 env_logger = "0.5"

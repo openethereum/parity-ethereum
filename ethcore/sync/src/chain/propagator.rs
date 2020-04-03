@@ -29,12 +29,7 @@ use rand::RngCore;
 use rlp::{Encodable, RlpStream};
 use common_types::{blockchain_info::BlockChainInfo, transaction::SignedTransaction, BlockNumber};
 
-use super::sync_packet::SyncPacket::{
-	NewBlockHashesPacket,
-	TransactionsPacket,
-	NewBlockPacket,
-	ConsensusDataPacket,
-};
+use super::sync_packet::SyncPacket::*;
 
 use super::{
 	random,
@@ -98,9 +93,31 @@ impl SyncPropagator {
 
 	/// propagates new transactions to all peers
 	pub fn propagate_new_transactions<F: FnMut() -> bool>(sync: &mut ChainSync, io: &mut dyn SyncIo, mut should_continue: F) -> usize {
+		const NEW_POOLED_HASHES_LIMIT: usize = 4096;
+
 		// Early out if nobody to send to.
 		if sync.peers.is_empty() {
 			return 0;
+		}
+
+		// propagate just hashes to newer peers
+		trace!(target: "sync", "Sending NewPooledTransactionsHashes to {:?}", sync.peers.keys());
+		for (peer_id, peer) in &mut sync.peers {
+			let mut affected = false;
+			let mut packet = RlpStream::new();
+			packet.begin_unbounded_list();
+			if let Some(s) = &mut peer.unsent_pooled_hashes {
+				for item in s.drain().take(NEW_POOLED_HASHES_LIMIT) {
+					affected = true;
+					packet.append(&item);
+				}
+			}
+
+			if affected {
+				packet.finalize_unbounded_list();
+
+				SyncPropagator::send_packet(io, *peer_id, NewPooledTransactionHashesPacket, packet.out());
+			}
 		}
 
 		let transactions = io.chain().transactions_to_propagate();
@@ -177,6 +194,11 @@ impl SyncPropagator {
 			let stats = &mut sync.transactions_stats;
 			let peer_info = sync.peers.get_mut(&peer_id)
 				.expect("peer_id is form peers; peers is result of select_peers_for_transactions; select_peers_for_transactions selects peers from self.peers; qed");
+
+			// We do not gossip full transactions to newer peers
+			if peer_info.protocol_version >= 65 {
+				continue;
+			}
 
 			// Send all transactions, if the peer doesn't know about anything
 			if peer_info.last_sent_transactions.is_empty() {
@@ -434,10 +456,12 @@ mod tests {
 				genesis: H256::zero(),
 				network_id: 0,
 				latest_hash: client.block_hash_delta_minus(1),
+				unsent_pooled_hashes: Some(Default::default()),
 				difficulty: None,
 				asking: PeerAsking::Nothing,
 				asking_blocks: Vec::new(),
 				asking_hash: None,
+				asking_pooled_transactions: Some(Vec::new()),
 				asking_private_state: None,
 				ask_time: Instant::now(),
 				last_sent_transactions: Default::default(),

@@ -29,14 +29,7 @@ use rlp::RlpStream;
 use common_types::BlockNumber;
 
 use super::sync_packet::SyncPacket;
-use super::sync_packet::SyncPacket::{
-	GetBlockHeadersPacket,
-	GetBlockBodiesPacket,
-	GetReceiptsPacket,
-	GetSnapshotManifestPacket,
-	GetSnapshotDataPacket,
-	GetPrivateStatePacket,
-};
+use super::sync_packet::SyncPacket::*;
 
 use super::{
 	BlockSet,
@@ -85,6 +78,17 @@ impl SyncRequester {
 		rlp.append(&0u32);
 		rlp.append(&0u32);
 		SyncRequester::send_request(sync, io, peer_id, PeerAsking::ForkHeader, GetBlockHeadersPacket, rlp.out());
+	}
+
+	/// Request pooled transactions from a peer
+	pub fn request_pooled_transactions(sync: &mut ChainSync, io: &mut dyn SyncIo, peer_id: PeerId, hashes: &[H256]) {
+		trace!(target: "sync", "{} <- GetPooledTransactions: {:?}", peer_id, hashes);
+		let mut rlp = RlpStream::new_list(hashes.len());
+		for h in hashes {
+			rlp.append(h);
+		}
+
+		SyncRequester::send_request(sync, io, peer_id, PeerAsking::PooledTransactions, PooledTransactionsPacket, rlp.out())
 	}
 
 	/// Find some headers or blocks to download from a peer.
