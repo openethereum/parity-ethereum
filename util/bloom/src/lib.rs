@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::{cmp, mem, f64};
 use std::hash::{Hash, Hasher};
@@ -84,9 +84,9 @@ impl Bloom {
 		let k_num = Bloom::optimal_k_num(bitmap_bits, items_count);
 		let bitmap = BitVecJournal::new(bitmap_bits as usize);
 		Bloom {
-			bitmap: bitmap,
-			bitmap_bits: bitmap_bits,
-			k_num: k_num,
+			bitmap,
+			bitmap_bits,
+			k_num,
 		}
 	}
 
@@ -96,9 +96,9 @@ impl Bloom {
 		let bitmap_bits = (bitmap_size as u64) * 8u64;
 		let bitmap = BitVecJournal::from_parts(parts);
 		Bloom {
-			bitmap: bitmap,
-			bitmap_bits: bitmap_bits,
-			k_num: k_num,
+			bitmap,
+			bitmap_bits,
+			k_num,
 		}
 	}
 
@@ -169,15 +169,14 @@ impl Bloom {
 	{
 		let mut sip = SipHasher::new();
 		item.hash(&mut sip);
-		let hash = sip.finish();
-		hash
+		sip.finish()
 	}
 
 	fn bloom_hash(base_hash: u64, k_i: u32) -> u64 {
 		if k_i < 2 {
 			base_hash
 		} else {
-			base_hash.wrapping_add((k_i as u64).wrapping_mul(base_hash) % 0xffffffffffffffc5)
+			base_hash.wrapping_add((k_i as u64).wrapping_mul(base_hash) % 0xffff_ffff_ffff_ffc5)
 		}
 	}
 

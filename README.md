@@ -1,11 +1,19 @@
-![Parity Ethereum](docs/logo-parity-ethereum.svg)
+# OpenEthereum
 
-<h2 align="center">The Fastest and most Advanced Ethereum Client.</h2>
+Fast and feature-rich multi-network Ethereum client.
 
-<p align="center"><strong><a href="https://github.com/paritytech/parity-ethereum/releases/latest">» Download the latest release «</a></strong></p>
+[» Download the latest release «](https://github.com/openethereum/openethereum/releases/latest)
 
-<p align="center"><a href="https://gitlab.parity.io/parity/parity-ethereum/commits/master" target="_blank"><img src="https://gitlab.parity.io/parity/parity-ethereum/badges/master/build.svg" /></a>
-<a href="https://www.gnu.org/licenses/gpl-3.0.en.html" target="_blank"><img src="https://img.shields.io/badge/license-GPL%20v3-green.svg" /></a></p>
+[![GPL licensed][license-badge]][license-url]
+[![Build Status][ci-badge]][ci-url]
+[![Discord chat][chat-badge]][chat-url]
+
+[license-badge]: https://img.shields.io/badge/license-GPL_v3-green.svg
+[license-url]: LICENSE
+[ci-badge]: https://github.com/openethereum/openethereum/workflows/Build%20and%20Test%20Suite/badge.svg
+[ci-url]: https://github.com/openethereum/openethereum/actions
+[chat-badge]: https://img.shields.io/discord/669192218728202270.svg?logo=discord
+[chat-url]: https://discord.io/openethereum
 
 ## Table of Contents
 
@@ -14,19 +22,17 @@
 3. [Building](#chapter-003)<br>
   3.1 [Building Dependencies](#chapter-0031)<br>
   3.2 [Building from Source Code](#chapter-0032)<br>
-  3.3 [Simple One-Line Installer for Mac and Linux](#chapter-0033)<br>
-  3.4 [Starting Parity Ethereum](#chapter-0034)
+  3.3 [Starting OpenEthereum](#chapter-0034)
 4. [Testing](#chapter-004)
 5. [Documentation](#chapter-005)
 6. [Toolchain](#chapter-006)
-7. [Community](#chapter-007)
-8. [Contributing](#chapter-008)
-9. [License](#chapter-009)
+7. [Contributing](#chapter-008)
+8. [License](#chapter-009)
 
 
 ## 1. Description <a id="chapter-001"></a>
 
-**Built for mission-critical use**: Miners, service providers, and exchanges need fast synchronisation and maximum uptime. Parity Ethereum provides the core infrastructure essential for speedy and reliable services.
+**Built for mission-critical use**: Miners, service providers, and exchanges need fast synchronisation and maximum uptime. OpenEthereum provides the core infrastructure essential for speedy and reliable services.
 
 - Clean, modular codebase for easy customisation
 - Advanced CLI-based client
@@ -36,19 +42,19 @@
 
 ## 2. Technical Overview <a id="chapter-002"></a>
 
-Parity Ethereum's goal is to be the fastest, lightest, and most secure Ethereum client. We are developing Parity Ethereum using the sophisticated and cutting-edge **Rust programming language**. Parity Ethereum is licensed under the GPLv3 and can be used for all your Ethereum needs.
+OpenEthereum's goal is to be the fastest, lightest, and most secure Ethereum client. We are developing OpenEthereum using the **Rust programming language**. OpenEthereum is licensed under the GPLv3 and can be used for all your Ethereum needs.
 
-By default, Parity Ethereum runs a JSON-RPC HTTP server on port `:8545` and a Web-Sockets server on port `:8546`. This is fully configurable and supports a number of APIs.
+By default, OpenEthereum runs a JSON-RPC HTTP server on port `:8545` and a Web-Sockets server on port `:8546`. This is fully configurable and supports a number of APIs.
 
-If you run into problems while using Parity Ethereum, check out the [wiki for documentation](https://wiki.parity.io/), feel free to [file an issue in this repository](https://github.com/paritytech/parity-ethereum/issues/new), or hop on our [Gitter](https://gitter.im/paritytech/parity) or [Riot](https://riot.im/app/#/group/+parity:matrix.parity.io) chat room to ask a question. We are glad to help! **For security-critical issues**, please refer to the security policy outlined in [SECURITY.md](SECURITY.md).
+If you run into problems while using OpenEthereum, check out the [old wiki for documentation](https://wiki.parity.io/), feel free to [file an issue in this repository](https://github.com/openethereum/openethereum/issues/new), or hop on our [Discord](https://discord.io/openethereum) chat room to ask a question. We are glad to help!
 
-You can download Parity Ethereum's latest release at [the releases page](https://github.com/paritytech/parity-ethereum/releases) or follow the instructions below to build from source. Please, mind the [CHANGELOG.md](CHANGELOG.md) for a list of all changes between different versions.
+You can download OpenEthereum's latest release at [the releases page](https://github.com/openethereum/openethereum/releases) or follow the instructions below to build from source. Read the [CHANGELOG.md](CHANGELOG.md) for a list of all changes between different versions.
 
 ## 3. Building <a id="chapter-003"></a>
 
 ### 3.1 Build Dependencies <a id="chapter-0031"></a>
 
-Parity Ethereum requires **latest stable Rust version** to build.
+OpenEthereum requires **latest stable Rust version** to build.
 
 We recommend installing Rust through [rustup](https://www.rustup.rs/). If you don't already have `rustup`, you can install it like this:
 
@@ -57,7 +63,7 @@ We recommend installing Rust through [rustup](https://www.rustup.rs/). If you do
   $ curl https://sh.rustup.rs -sSf | sh
   ```
 
-  Parity Ethereum also requires `gcc`, `g++`, `pkg-config`, `file`, `make`, and `cmake` packages to be installed.
+  OpenEthereum also requires `clang` (>= 9.0), `clang++`, `pkg-config`, `file`, `make`, and `cmake` packages to be installed.
 
 - OSX:
   ```bash
@@ -77,14 +83,14 @@ Once you have `rustup` installed, then you need to install:
 * [Perl](https://www.perl.org)
 * [Yasm](https://yasm.tortall.net)
 
-Make sure that these binaries are in your `PATH`. After that, you should be able to build Parity Ethereum from source.
+Make sure that these binaries are in your `PATH`. After that, you should be able to build OpenEthereum from source.
 
 ### 3.2 Build from Source Code <a id="chapter-0032"></a>
 
 ```bash
-# download Parity Ethereum code
-$ git clone https://github.com/paritytech/parity-ethereum
-$ cd parity-ethereum
+# download OpenEthereum code
+$ git clone https://github.com/openethereum/openethereum
+$ cd openethereum
 
 # build in release mode
 $ cargo build --release --features final
@@ -110,32 +116,26 @@ This always compiles the latest nightly builds. If you want to build stable, do 
 $ git checkout stable
 ```
 
-### 3.3 Simple One-Line Installer for Mac and Linux <a id="chapter-0033"></a>
-
-```bash
-bash <(curl https://get.parity.io -L)
-```
-
-### 3.4 Starting Parity Ethereum <a id="chapter-0034"></a>
+### 3.3 Starting OpenEthereum <a id="chapter-0034"></a>
 
 #### Manually
 
-To start Parity Ethereum manually, just run
+To start OpenEthereum manually, just run
 
 ```bash
-$ ./target/release/parity
+$ ./target/release/openethereum
 ```
 
-so Parity Ethereum begins syncing the Ethereum blockchain.
+so OpenEthereum begins syncing the Ethereum blockchain.
 
 #### Using `systemd` service file
 
-To start Parity Ethereum as a regular user using `systemd` init:
+To start OpenEthereum as a regular user using `systemd` init:
 
-1. Copy `./scripts/parity.service` to your
+1. Copy `./scripts/openethereum.service` to your
 `systemd` user directory (usually `~/.config/systemd/user`).
-2. Copy release to bin folder, write `sudo install ./target/release/parity /usr/bin/parity`
-3. To configure Parity Ethereum, write a `/etc/parity/config.toml` config file, see [Configuring Parity Ethereum](https://paritytech.github.io/wiki/Configuring-Parity) for details.
+2. Copy release to bin folder, write `sudo install ./target/release/openethereum /usr/bin/openethereum`
+3. To configure OpenEthereum, see [our old wiki](https://paritytech.github.io/wiki/Configuring-Parity) for details.
 
 ## 4. Testing <a id="chapter-004"></a>
 
@@ -157,13 +157,11 @@ You can show your logs in the test output by passing `--nocapture` (i.e. `cargo 
 
 ## 5. Documentation <a id="chapter-005"></a>
 
-Official website: https://parity.io
+Be sure to [check out our old wiki](https://wiki.parity.io) for more information.
 
-Be sure to [check out our wiki](https://wiki.parity.io) for more information.
+### Viewing documentation for OpenEthereum packages
 
-### Viewing documentation for Parity Ethereum packages
-
-You can generate documentation for Parity Ethereum Rust packages that automatically opens in your web browser using [rustdoc with Cargo](https://doc.rust-lang.org/rustdoc/what-is-rustdoc.html#using-rustdoc-with-cargo) (of the The Rustdoc Book), by running the the following commands:
+You can generate documentation for OpenEthereum Rust packages that automatically opens in your web browser using [rustdoc with Cargo](https://doc.rust-lang.org/rustdoc/what-is-rustdoc.html#using-rustdoc-with-cargo) (of the The Rustdoc Book), by running the the following commands:
 
 * **All** packages
   ```
@@ -177,192 +175,141 @@ You can generate documentation for Parity Ethereum Rust packages that automatica
 
 Use`--document-private-items` to also view private documentation and `--no-deps` to exclude building documentation for dependencies.
 
-Replacing `<spec>` with one of the following from the details section below (i.e. `cargo doc --package parity-ethereum --open`):
+Replacing `<spec>` with one of the following from the details section below (i.e. `cargo doc --package openethereum --open`):
 
 <a id="package-list"></a>
 **Package List**
 <details><p>
 
-* Parity Ethereum (EthCore) Client Application
+* OpenEthereum Client Application
   ```bash
-  parity-ethereum
+  openethereum
   ```
-* Parity Ethereum Account Management, Key Management Tool, and Keys Generator
+* OpenEthereum Account Management, Key Management Tool, and Keys Generator
   ```bash
   ethcore-accounts, ethkey-cli, ethstore, ethstore-cli
   ```
-* Parity Chain Specification
+* OpenEthereum Chain Specification
   ```bash
   chainspec
   ```
-* Parity CLI Signer Tool & RPC Client
+* OpenEthereum CLI Signer Tool & RPC Client
   ```bash
   cli-signer parity-rpc-client
   ```
-* Parity Ethereum Ethash & ProgPoW Implementations
+* OpenEthereum Ethash & ProgPoW Implementations
   ```bash
   ethash
   ```
-* Parity (EthCore) Library
+* EthCore Library
   ```bash
   ethcore
   ```
-  * Parity Ethereum Blockchain Database, Test Generator, Configuration,
+  * OpenEthereum Blockchain Database, Test Generator, Configuration,
 Caching, Importing Blocks, and Block Information
     ```bash
     ethcore-blockchain
     ```
-  * Parity Ethereum (EthCore) Contract Calls and Blockchain Service & Registry Information
+  * OpenEthereum Contract Calls and Blockchain Service & Registry Information
     ```bash
     ethcore-call-contract
     ```
-  * Parity Ethereum (EthCore) Database Access & Utilities, Database Cache Manager
+  * OpenEthereum Database Access & Utilities, Database Cache Manager
     ```bash
     ethcore-db
     ```
-  * Parity Ethereum Virtual Machine (EVM) Rust Implementation
+  * OpenEthereum Virtual Machine (EVM) Rust Implementation
     ```bash
     evm
     ```
-  * Parity Ethereum (EthCore) Light Client Implementation
+  * OpenEthereum Light Client Implementation
     ```bash
     ethcore-light
     ```
-  * Parity Smart Contract based Node Filter, Manage Permissions of Network Connections
+  * Smart Contract based Node Filter, Manage Permissions of Network Connections
     ```bash
     node-filter
     ```
-  * Parity Private Transactions
+  * Private Transactions
     ```bash
     ethcore-private-tx
     ```
-  * Parity Ethereum (EthCore) Client & Network Service Creation & Registration with the I/O Subsystem
+  * OpenEthereum Client & Network Service Creation & Registration with the I/O Subsystem
     ```bash
     ethcore-service
     ```
-  * Parity Ethereum (EthCore) Blockchain Synchronization
+  * OpenEthereum Blockchain Synchronization
     ```bash
     ethcore-sync
     ```
-  * Parity Ethereum Common Types
+  * OpenEthereum Common Types
     ```bash
     common-types
     ```
-  * Parity Ethereum Virtual Machines (VM) Support Library
+  * OpenEthereum Virtual Machines (VM) Support Library
     ```bash
     vm
     ```
-  * Parity Ethereum WASM Interpreter
+  * OpenEthereum WASM Interpreter
     ```bash
     wasm
     ```
-  * Parity Ethereum WASM Test Runner
+  * OpenEthereum WASM Test Runner
     ```bash
     pwasm-run-test
     ```
-  * Parity EVM Implementation
+  * OpenEthereum EVM Implementation
     ```bash
     evmbin
     ```
-  * Parity Ethereum IPFS-compatible API
-    ```bash
-    parity-ipfs-api
-    ```
-  * Parity Ethereum JSON Deserialization
+  * OpenEthereum JSON Deserialization
     ```bash
     ethjson
     ```
-  * Parity Ethereum State Machine Generalization for Consensus Engines
+  * OpenEthereum State Machine Generalization for Consensus Engines
     ```bash
     parity-machine
     ```
-* Parity Ethereum (EthCore) Miner Interface
+* OpenEthereum Miner Interface
   ```bash
   ethcore-miner parity-local-store price-info ethcore-stratum using_queue
   ```
-* Parity Ethereum (EthCore) Logger Implementation
+* OpenEthereum Logger Implementation
   ```bash
   ethcore-logger
   ```
-* C bindings library for the Parity Ethereum client
-  ```bash
-  parity-clib
-  ```
-* Parity Ethereum JSON-RPC Servers
+* OpenEthereum JSON-RPC Servers
   ```bash
   parity-rpc
   ```
-* Parity Ethereum (EthCore) Secret Store
-  ```bash
-  ethcore-secretstore
-  ```
-* Parity Updater Service
+* OpenEthereum Updater Service
   ```bash
   parity-updater parity-hash-fetch
   ```
-* Parity Core Libraries (Parity Util)
+* OpenEthereum Core Libraries (`util`)
   ```bash
   ethcore-bloom-journal blooms-db dir eip-712 fake-fetch fastmap fetch ethcore-io
-  journaldb keccak-hasher len-caching-lock macros memory-cache memzero
+  journaldb keccak-hasher len-caching-lock memory-cache memzero
   migration-rocksdb ethcore-network ethcore-network-devp2p panic_hook
-  patricia-trie-ethereum registrar rlp_compress rlp_derive parity-runtime stats
+  patricia-trie-ethereum registrar rlp_compress stats
   time-utils triehash-ethereum unexpected parity-version
   ```
 
 </p></details>
 
-### Contributing to documentation for Parity Ethereum packages
-
-[Document source code](https://doc.rust-lang.org/1.9.0/book/documentation.html) for Parity Ethereum packages by annotating the source code with documentation comments.
-
-Example (generic documentation comment):
-```markdown
-/// Summary
-///
-/// Description
-///
-/// # Panics
-///
-/// # Errors
-///
-/// # Safety
-///
-/// # Examples
-///
-/// Summary of Example 1
-///
-/// ```rust
-/// // insert example 1 code here for use with documentation as tests
-/// ```
-///
-```
-
 ## 6. Toolchain <a id="chapter-006"></a>
 
-In addition to the Parity Ethereum client, there are additional tools in this repository available:
+In addition to the OpenEthereum client, there are additional tools in this repository available:
 
-- [evmbin](./evmbin) - Parity Ethereum EVM Implementation.
-- [ethstore](./accounts/ethstore) - Parity Ethereum Key Management.
-- [ethkey](./accounts/ethkey) - Parity Ethereum Keys Generator.
+- [evmbin](./evmbin) - OpenEthereum EVM Implementation.
+- [ethstore](./accounts/ethstore) - OpenEthereum Key Management.
+- [ethkey](./accounts/ethkey) - OpenEthereum Keys Generator.
 
-The following tool is available in a separate repository:
-- [ethabi](https://github.com/paritytech/ethabi) - Parity Ethereum Encoding of Function Calls. [Docs here](https://crates.io/crates/ethabi)
-- [whisper](https://github.com/paritytech/whisper) - Parity Ethereum Whisper-v2 PoC Implementation.
+The following tools are available in a separate repository:
+- [ethabi](https://github.com/openethereum/ethabi) - OpenEthereum Encoding of Function Calls. [Docs here](https://crates.io/crates/ethabi)
+- [whisper](https://github.com/openethereum/whisper) - OpenEthereum Whisper-v2 PoC Implementation.
 
-## 7. Community <a id="chapter-007"></a>
-
-### Join the chat!
-
-Questions? Get in touch with us on Gitter:
-[![Gitter: Parity](https://img.shields.io/badge/gitter-parity-4AB495.svg)](https://gitter.im/paritytech/parity)
-[![Gitter: Parity.js](https://img.shields.io/badge/gitter-parity.js-4AB495.svg)](https://gitter.im/paritytech/parity.js)
-[![Gitter: Parity/Miners](https://img.shields.io/badge/gitter-parity/miners-4AB495.svg)](https://gitter.im/paritytech/parity/miners)
-[![Gitter: Parity-PoA](https://img.shields.io/badge/gitter-parity--poa-4AB495.svg)](https://gitter.im/paritytech/parity-poa)
-
-Alternatively, join our community on Matrix:
-[![Riot: +Parity](https://img.shields.io/badge/riot-%2Bparity%3Amatrix.parity.io-orange.svg)](https://riot.im/app/#/group/+parity:matrix.parity.io)
-
-## 8. Contributing <a id="chapter-008"></a>
+## 7. Contributing <a id="chapter-007"></a>
 
 An introduction has been provided in the ["So You Want to be a Core Developer" presentation slides by Hernando Castano](http://tiny.cc/contrib-to-parity-eth). Additional guidelines are provided in [CONTRIBUTING](./.github/CONTRIBUTING.md).
 
@@ -370,6 +317,6 @@ An introduction has been provided in the ["So You Want to be a Core Developer" p
 
 [CODE_OF_CONDUCT](./.github/CODE_OF_CONDUCT.md)
 
-## 9. License <a id="chapter-009"></a>
+## 8. License <a id="chapter-008"></a>
 
 [LICENSE](./LICENSE)

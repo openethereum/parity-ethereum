@@ -10,13 +10,15 @@ RUN apk add --no-cache \
   eudev-dev \
   linux-headers \
   perl \
-  rust
+  rust \
+  clang-dev \
+  llvm-dev
 
-WORKDIR /parity
-COPY . /parity
-RUN cargo build --release --target x86_64-alpine-linux-musl --verbose
-RUN strip target/x86_64-alpine-linux-musl/release/parity
-
+WORKDIR /openethereum
+COPY . /openethereum
+ENV C=clang CXX=clang++
+RUN cargo build --release --features final --target x86_64-alpine-linux-musl --verbose
+RUN strip target/x86_64-alpine-linux-musl/release/openethereum
 
 FROM alpine:edge
 
@@ -28,16 +30,16 @@ RUN apk add --no-cache \
   eudev-libs \
   libgcc
 
-RUN addgroup -g 1000 parity \
-  && adduser -u 1000 -G parity -s /bin/sh -D parity
+RUN addgroup -g 1000 openethereum \
+  && adduser -u 1000 -G openethereum -s /bin/sh -D openethereum
 
-USER parity
+USER openethereum
 
 EXPOSE 8080 8545 8180
 
-WORKDIR /home/parity
+WORKDIR /home/openethereum
 
-RUN mkdir -p /home/parity/.local/share/io.parity.ethereum/
-COPY --chown=parity:parity --from=builder /parity/target/x86_64-alpine-linux-musl/release/parity ./
+RUN mkdir -p /home/openethereum/.local/share/io.parity.ethereum/
+COPY --chown=openethereum:openethereum --from=builder /openethereum/target/x86_64-alpine-linux-musl/release/openethereum ./
 
-ENTRYPOINT ["./parity"]
+ENTRYPOINT ["./openethereum"]

@@ -18,10 +18,13 @@ rustflags = ["-Ctarget-feature=+aes,+sse2,+ssse3"]
 
 [target.x86_64-pc-windows-msvc]
 # Enables the aes-ni instructions for RustCrypto dependency.
-# Link the C runtime statically ; https://github.com/paritytech/parity-ethereum/issues/6643
+# Link the C runtime statically ; https://github.com/openethereum/openethereum/issues/6643
 rustflags = ["-Ctarget-feature=+aes,+sse2,+ssse3", "-Ctarget-feature=+crt-static"]
 
 [target.x86_64-apple-darwin]
 # Enables the aes-ni instructions for RustCrypto dependency.
 rustflags = ["-Ctarget-feature=+aes,+sse2,+ssse3"]
 
+[target.x86_64-unknown-linux-musl]
+# Enables the aes-ni instructions for RustCrypto dependency.
+rustflags = ["-Ctarget-feature=+aes,+sse2,+ssse3"]

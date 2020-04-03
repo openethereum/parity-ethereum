@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Spec builtin deserialization.
 
@@ -139,8 +139,8 @@ pub struct PricingAt {
 
 #[cfg(test)]
 mod tests {
-	use super::{Builtin, BuiltinCompat, BTreeMap, Pricing, PricingAt, Linear, Modexp, AltBn128ConstOperations};
-	use macros::map;
+	use super::{Builtin, BuiltinCompat, Pricing, PricingAt, Linear, Modexp, AltBn128ConstOperations};
+	use maplit::btreemap;
 
 	#[test]
 	fn builtin_deserialization() {
@@ -150,7 +150,7 @@ mod tests {
 		}"#;
 		let builtin: Builtin = serde_json::from_str::<BuiltinCompat>(s).unwrap().into();
 		assert_eq!(builtin.name, "ecrecover");
-		assert_eq!(builtin.pricing, map![
+		assert_eq!(builtin.pricing, btreemap![
 			0 => PricingAt {
 				info: None,
 				price: Pricing::Linear(Linear { base: 3000, word: 0 })
@@ -174,7 +174,7 @@ mod tests {
 		}"#;
 		let builtin: Builtin = serde_json::from_str::<BuiltinCompat>(s).unwrap().into();
 		assert_eq!(builtin.name, "ecrecover");
-		assert_eq!(builtin.pricing, map![
+		assert_eq!(builtin.pricing, btreemap![
 			0 => PricingAt {
 				info: None,
 				price: Pricing::Linear(Linear { base: 3000, word: 0 })
@@ -195,7 +195,7 @@ mod tests {
 		}"#;
 		let builtin: Builtin = serde_json::from_str::<BuiltinCompat>(s).unwrap().into();
 		assert_eq!(builtin.name, "blake2_f");
-		assert_eq!(builtin.pricing, map![
+		assert_eq!(builtin.pricing, btreemap![
 			0xffffff => PricingAt {
 				info: None,
 				price: Pricing::Blake2F { gas_per_round: 123 }
@@ -215,10 +215,10 @@ mod tests {
 		}"#;
 		let builtin: Builtin = serde_json::from_str::<BuiltinCompat>(s).unwrap().into();
 		assert_eq!(builtin.name, "alt_bn128_mul");
-		assert_eq!(builtin.pricing, map![
+		assert_eq!(builtin.pricing, btreemap![
 			100500 => PricingAt {
 				info: None,
-				price: Pricing::AltBn128ConstOperations(AltBn128ConstOperations { 
+				price: Pricing::AltBn128ConstOperations(AltBn128ConstOperations {
 					price: 123,
 				}),
 			}
@@ -235,7 +235,7 @@ mod tests {
 
 		let builtin: Builtin = serde_json::from_str::<BuiltinCompat>(s).unwrap().into();
 		assert_eq!(builtin.name, "late_start");
-		assert_eq!(builtin.pricing, map![
+		assert_eq!(builtin.pricing, btreemap![
 			100_000 => PricingAt {
 				info: None,
 				price: Pricing::Modexp(Modexp { divisor: 5 })

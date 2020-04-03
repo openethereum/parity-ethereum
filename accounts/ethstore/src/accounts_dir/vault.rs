@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::{fs, io};
 use std::path::{PathBuf, Path};
@@ -278,14 +278,14 @@ fn read_vault_file<P>(vault_dir_path: P, key: Option<&VaultKey>) -> Result<Strin
 
 #[cfg(test)]
 mod test {
-	extern crate tempdir;
+	extern crate tempfile;
 
 	use std::fs;
 	use std::io::Write;
 	use std::path::PathBuf;
 	use super::VaultKey;
 	use super::{VAULT_FILE_NAME, check_vault_name, make_vault_dir_path, create_vault_file, read_vault_file, VaultDiskDirectory};
-	use self::tempdir::TempDir;
+	use self::tempfile::TempDir;
 
 	#[test]
 	fn check_vault_name_succeeds() {
@@ -324,7 +324,7 @@ mod test {
 	#[test]
 	fn create_vault_file_succeeds() {
 		// given
-		let temp_path = TempDir::new("").unwrap();
+		let temp_path = TempDir::new().unwrap();
 		let key = VaultKey::new(&"password".into(), 1024);
 		let mut vault_dir: PathBuf = temp_path.path().into();
 		vault_dir.push("vault");
@@ -343,7 +343,7 @@ mod test {
 	#[test]
 	fn read_vault_file_succeeds() {
 		// given
-		let temp_path = TempDir::new("").unwrap();
+		let temp_path = TempDir::new().unwrap();
 		let key = VaultKey::new(&"password".into(), 1024);
 		let vault_file_contents = r#"{"crypto":{"cipher":"aes-128-ctr","cipherparams":{"iv":"758696c8dc6378ab9b25bb42790da2f5"},"ciphertext":"54eb50683717d41caaeb12ea969f2c159daada5907383f26f327606a37dc7168","kdf":"pbkdf2","kdfparams":{"c":1024,"dklen":32,"prf":"hmac-sha256","salt":"3c320fa566a1a7963ac8df68a19548d27c8f40bf92ef87c84594dcd5bbc402b6"},"mac":"9e5c2314c2a0781962db85611417c614bd6756666b6b1e93840f5b6ed895f003"}}"#;
 		let dir: PathBuf = temp_path.path().into();
@@ -364,7 +364,7 @@ mod test {
 	#[test]
 	fn read_vault_file_fails() {
 		// given
-		let temp_path = TempDir::new("").unwrap();
+		let temp_path = TempDir::new().unwrap();
 		let key = VaultKey::new(&"password1".into(), 1024);
 		let dir: PathBuf = temp_path.path().into();
 		let mut vault_file_path: PathBuf = dir.clone();
@@ -393,7 +393,7 @@ mod test {
 	#[test]
 	fn vault_directory_can_be_created() {
 		// given
-		let temp_path = TempDir::new("").unwrap();
+		let temp_path = TempDir::new().unwrap();
 		let key = VaultKey::new(&"password".into(), 1024);
 		let dir: PathBuf = temp_path.path().into();
 
@@ -413,7 +413,7 @@ mod test {
 	#[test]
 	fn vault_directory_cannot_be_created_if_already_exists() {
 		// given
-		let temp_path = TempDir::new("").unwrap();
+		let temp_path = TempDir::new().unwrap();
 		let key = VaultKey::new(&"password".into(), 1024);
 		let dir: PathBuf = temp_path.path().into();
 		let mut vault_dir = dir.clone();
@@ -430,7 +430,7 @@ mod test {
 	#[test]
 	fn vault_directory_cannot_be_opened_if_not_exists() {
 		// given
-		let temp_path = TempDir::new("").unwrap();
+		let temp_path = TempDir::new().unwrap();
 		let key = VaultKey::new(&"password".into(), 1024);
 		let dir: PathBuf = temp_path.path().into();
 

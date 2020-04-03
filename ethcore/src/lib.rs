@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 #![warn(missing_docs, unused_extern_crates)]
 
@@ -63,8 +63,6 @@ extern crate vm;
 extern crate account_db;
 #[cfg(test)]
 extern crate ethcore_accounts as accounts;
-#[cfg(test)]
-extern crate stats;
 
 #[cfg(feature = "stratum")]
 extern crate ethcore_stratum;
@@ -83,9 +81,6 @@ extern crate kvdb_rocksdb;
 #[cfg(feature = "json-tests")]
 #[macro_use]
 extern crate lazy_static;
-#[cfg(any(test, feature = "json-tests"))]
-#[macro_use]
-extern crate macros;
 #[cfg(any(test, feature = "test-helpers"))]
 extern crate pod;
 #[cfg(any(test, feature = "blooms-db"))]
@@ -95,7 +90,7 @@ extern crate env_logger;
 #[cfg(test)]
 extern crate serde_json;
 #[cfg(any(test, feature = "tempdir"))]
-extern crate tempdir;
+extern crate tempfile;
 
 #[macro_use]
 extern crate log;

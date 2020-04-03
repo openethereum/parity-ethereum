@@ -1,34 +1,27 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! DB Migration module.
-
-#[macro_use]
-extern crate log;
-#[macro_use]
-extern crate macros;
-
-extern crate kvdb;
-extern crate kvdb_rocksdb;
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::{fs, io, error};
 
+use log::trace;
 use kvdb::DBTransaction;
 use kvdb_rocksdb::{CompactionProfile, Database, DatabaseConfig};
 
@@ -307,31 +300,5 @@ impl Manager {
 	/// Find all needed migrations.
 	fn migrations_from(&mut self, version: u32) -> Vec<&mut Box<dyn Migration>> {
 		self.migrations.iter_mut().filter(|m| m.version() > version).collect()
-	}
-}
-
-/// Prints a dot every `max` ticks
-pub struct Progress {
-	current: usize,
-	max: usize,
-}
-
-impl Default for Progress {
-	fn default() -> Self {
-		Progress {
-			current: 0,
-			max: 100_000,
-		}
-	}
-}
-
-impl Progress {
-	/// Tick progress meter.
-	pub fn tick(&mut self) {
-		self.current += 1;
-		if self.current == self.max {
-			self.current = 0;
-			flush!(".");
-		}
 	}
 }

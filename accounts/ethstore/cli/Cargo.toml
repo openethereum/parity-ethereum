@@ -1,5 +1,5 @@
 [package]
-description = "Parity Ethereum Key Management CLI"
+description = "OpenEthereum Key Management CLI"
 name = "ethstore-cli"
 version = "0.1.1"
 authors = ["Parity Technologies <admin@parity.io>"]
@@ -8,7 +8,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 docopt = "1.0"
 env_logger = "0.5"
 num_cpus = "1.6"
-rustc-hex = "1.0"
+rustc-hex = "2.1.0"
 serde = "1.0"
 serde_derive = "1.0"
 parking_lot = "0.10.0"
@@ -24,4 +24,4 @@ path = "src/main.rs"
 doc = false
 
 [dev-dependencies]
-tempdir = "0.3"
+tempfile = "3.1"

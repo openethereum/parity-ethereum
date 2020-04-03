@@ -1,6 +1,6 @@
 [package]
 description = "Parity custom panic hook"
-homepage = "http://parity.io"
+repository = "https://github.com/openethereum/openethereum"
 license = "GPL-3.0"
 name = "panic_hook"
 version = "0.1.0"

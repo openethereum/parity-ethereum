@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Queue-like data structure including notion of usage.
 
@@ -49,7 +49,7 @@ impl<T> UsingQueue<T> {
 	/// Return a reference to the item at the top of the queue (or `None` if the queue is empty);
 	/// it doesn't constitute noting that the item is used.
 	pub fn peek_last_ref(&self) -> Option<&T> {
-		self.pending.as_ref().or(self.in_use.last())
+		self.pending.as_ref().or_else(|| self.in_use.last())
 	}
 
 	/// Return a reference to the item at the top of the queue (or `None` if the queue is empty);
@@ -72,7 +72,7 @@ impl<T> UsingQueue<T> {
 	}
 
 	/// Is there anything in the queue currently?
-	pub fn is_in_use(&self) -> bool { self.in_use.len() > 0 }
+	pub fn is_in_use(&self) -> bool { !self.in_use.is_empty() }
 
 	/// Clears everything; the queue is entirely reset.
 	pub fn reset(&mut self) {
@@ -113,7 +113,7 @@ impl<T> UsingQueue<T> {
 				None
 			}
 		} else {
-			self.in_use.last().into_iter().filter(|x| predicate(x)).next().cloned()
+			self.in_use.last().into_iter().find(|x| predicate(x)).cloned()
 		}
 	}
 }

@@ -1,28 +1,30 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Engine-specific types.
 
 use ethereum_types::{Address, H256, H64};
 use bytes::Bytes;
-use ethjson;
 use rlp::Rlp;
 use unexpected::Mismatch;
 
-use crate::{BlockNumber, errors::{BlockError, EthcoreError}};
+use crate::{
+	BlockNumber,
+	errors::{BlockError, EthcoreError}
+};
 
 pub mod epoch;
 pub mod params;
@@ -56,20 +58,17 @@ impl EthashSeal {
 	/// Tries to parse rlp encoded bytes as an Ethash/Clique seal.
 	pub fn parse_seal<T: AsRef<[u8]>>(seal: &[T]) -> Result<Self, EthcoreError> {
 		if seal.len() != 2 {
-			return Err(BlockError::InvalidSealArity(
-				Mismatch {
-					expected: 2,
-					found: seal.len()
-				}
-			).into());
+			Err(EthcoreError::Block(BlockError::InvalidSealArity(Mismatch {
+				expected: 2,
+				found: seal.len()
+			})))
+		} else {
+			let mix_hash = Rlp::new(seal[0].as_ref()).as_val::<H256>()?;
+			let nonce = Rlp::new(seal[1].as_ref()).as_val::<H64>()?;
+			Ok(EthashSeal { mix_hash, nonce })
 		}
-
-		let mix_hash = Rlp::new(seal[0].as_ref()).as_val::<H256>()?;
-		let nonce = Rlp::new(seal[1].as_ref()).as_val::<H64>()?;
-		Ok(EthashSeal { mix_hash, nonce })
 	}
 }
-
 
 /// Seal type.
 #[derive(Debug, PartialEq, Eq)]
@@ -96,7 +95,7 @@ pub const MAX_UNCLE_AGE: u64 = 6;
 
 /// Default EIP-210 contract code.
 /// As defined in https://github.com/ethereum/EIPs/pull/210
-pub const DEFAULT_BLOCKHASH_CONTRACT: &'static [u8] = &[
+pub const DEFAULT_BLOCKHASH_CONTRACT: &[u8] = &[
 	0x73, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
 	0xff, 0xff, 0xff, 0xff, 0xfe, 0x33, 0x14, 0x15, 0x61, 0x00, 0x6a, 0x57, 0x60, 0x01, 0x43, 0x03,
 	0x60, 0x00, 0x35, 0x61, 0x01, 0x00, 0x82, 0x07, 0x55, 0x61, 0x01, 0x00, 0x81, 0x07, 0x15, 0x15,

@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
 use std::str::FromStr;
@@ -368,8 +368,8 @@ fn sign_eip191_with_validator() {
 		data: keccak("hello world").as_bytes().to_vec().into()
 	}).unwrap();
 	let result = eip191::hash_message(EIP191Version::PresignedTransaction, with_validator).unwrap();
-	let result = tester.accounts.sign(address, Some("password123".into()), result).unwrap().into_electrum();
-	let expected = r#"{"jsonrpc":"2.0","result":""#.to_owned() +  &format!("0x{}", result.to_hex()) + r#"","id":1}"#;
+	let result: String = tester.accounts.sign(address, Some("password123".into()), result).unwrap().into_electrum().to_hex();
+	let expected = r#"{"jsonrpc":"2.0","result":""#.to_owned() +  &format!("0x{}", result) + r#"","id":1}"#;
 	let response = tester.io.handle_request_sync(&request).unwrap();
 	assert_eq!(response, expected)
 }

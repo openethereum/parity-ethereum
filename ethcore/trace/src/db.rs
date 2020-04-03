@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Trace database.
 use std::collections::HashMap;
@@ -239,13 +239,15 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 			let enacted_blooms: Vec<_> = request.enacted
 				.iter()
 				// all traces are expected to be found here. That's why `expect` has been used
-				// instead of `filter_map`. If some traces haven't been found, it meens that
+				// instead of `filter_map`. If some traces haven't been found, it means that
 				// traces database is corrupted or incomplete.
-				.map(|block_hash| if block_hash == &request.block_hash {
-					request.traces.bloom()
-				} else {
-					self.traces(block_hash).expect("Traces database is incomplete.").bloom()
-				})
+				.map(|block_hash|
+					if block_hash == &request.block_hash {
+						request.traces.bloom()
+					} else {
+						self.traces(block_hash).expect("Traces database is incomplete.").bloom()
+					}
+				)
 				.collect();
 
 			self.db.trace_blooms()
@@ -298,18 +300,19 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 					let tx_hash = self.extras.transaction_hash(block_number, tx_position)
 						.expect("Expected to find transaction hash. Database is probably corrupted");
 
-					traces.into_iter()
-					.map(|trace| LocalizedTrace {
-						action: trace.action,
-						result: trace.result,
-						subtraces: trace.subtraces,
-						trace_address: trace.trace_address.into_iter().collect(),
-						transaction_number: Some(tx_position),
-						transaction_hash: Some(tx_hash.clone()),
-						block_number,
-						block_hash,
-					})
-					.collect()
+					traces
+						.into_iter()
+						.map(|trace| LocalizedTrace {
+							action: trace.action,
+							result: trace.result,
+							subtraces: trace.subtraces,
+							trace_address: trace.trace_address.into_iter().collect(),
+							transaction_number: Some(tx_position),
+							transaction_hash: Some(tx_hash.clone()),
+							block_number,
+							block_hash,
+						})
+						.collect()
 				})
 			)
 	}

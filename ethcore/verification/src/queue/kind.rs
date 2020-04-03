@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Definition of valid items for the verification queue.
 
@@ -81,7 +81,7 @@ pub mod blocks {
 
 	use engine::Engine;
 	use common_types::{
-		block::PreverifiedBlock,
+		block::{BlockRlpRepresentation, PreverifiedBlock},
 		errors::{EthcoreError as Error, BlockError},
 		verification::Unverified,
 	};
@@ -96,7 +96,7 @@ pub mod blocks {
 	impl Kind for Blocks {
 		type Input = Unverified;
 		type Unverified = Unverified;
-		type Verified = PreverifiedBlock;
+		type Verified = (PreverifiedBlock, BlockRlpRepresentation);
 
 		fn create(
 			input: Self::Input,
@@ -146,21 +146,21 @@ pub mod blocks {
 		}
 	}
 
-	impl BlockLike for PreverifiedBlock {
+	impl BlockLike for (PreverifiedBlock, BlockRlpRepresentation) {
 		fn hash(&self) -> H256 {
-			self.header.hash()
+			self.0.header.hash()
 		}
 
 		fn raw_hash(&self) -> H256 {
-			keccak_hash::keccak(&self.bytes)
+			keccak_hash::keccak(&self.1)
 		}
 
 		fn parent_hash(&self) -> H256 {
-			*self.header.parent_hash()
+			*self.0.header.parent_hash()
 		}
 
 		fn difficulty(&self) -> U256 {
-			*self.header.difficulty()
+			*self.0.header.difficulty()
 		}
 	}
 }

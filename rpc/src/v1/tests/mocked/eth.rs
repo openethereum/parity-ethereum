@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::str::FromStr;
 use std::collections::HashMap;
@@ -125,7 +125,7 @@ impl EthTester {
 #[test]
 fn rpc_eth_protocol_version() {
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_protocolVersion", "params": [], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":"63","id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"64","id":1}"#;
 
 	assert_eq!(EthTester::default().io.handle_request_sync(request), Some(response.to_owned()));
 }
@@ -564,12 +564,11 @@ fn rpc_eth_transaction_count_by_number_pending() {
 #[test]
 fn rpc_eth_pending_transaction_by_hash() {
 	use ethereum_types::H256;
-	use rlp;
 	use types::transaction::SignedTransaction;
 
 	let tester = EthTester::default();
 	{
-		let bytes = FromHex::from_hex("f85f800182520894095e7baea6a6c7c4c2dfeb977efac326af552d870a801ba048b55bfa915ac795c431978d8a6a992b628d557da5ff759b307d495a36649353a0efffd310ac743f371de3b9f7f9cb56c0b28ad43601b4ab949f53faa07bd2c804").unwrap();
+		let bytes: Vec<u8> = FromHex::from_hex("f85f800182520894095e7baea6a6c7c4c2dfeb977efac326af552d870a801ba048b55bfa915ac795c431978d8a6a992b628d557da5ff759b307d495a36649353a0efffd310ac743f371de3b9f7f9cb56c0b28ad43601b4ab949f53faa07bd2c804").unwrap();
 		let tx = rlp::decode(&bytes).expect("decoding failure");
 		let tx = SignedTransaction::new(tx).unwrap();
 		tester.miner.pending_transactions.lock().insert(H256::zero(), tx);
@@ -913,7 +912,7 @@ fn rpc_eth_send_raw_transaction() {
 	let signature = tester.accounts_provider.sign(address, None, t.hash(None)).unwrap();
 	let t = t.with_signature(signature, None);
 
-	let rlp = rlp::encode(&t).to_hex();
+	let rlp: String = rlp::encode(&t).to_hex();
 
 	let req = r#"{
 		"jsonrpc": "2.0",

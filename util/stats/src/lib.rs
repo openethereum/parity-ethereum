@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Statistical functions and helpers.
 
@@ -100,9 +100,9 @@ impl<T: Ord + Copy + ::std::fmt::Display> Histogram<T>
 {
 	// Histogram of a sorted corpus if it at least spans the buckets. Bounds are left closed.
 	fn create(corpus: &[T], bucket_number: usize) -> Option<Histogram<T>> {
-		if corpus.len() < 1 { return None; }
-		let corpus_end = corpus.last().expect("there is at least 1 element; qed").clone();
-		let corpus_start = corpus.first().expect("there is at least 1 element; qed").clone();
+		if corpus.is_empty() { return None; }
+		let corpus_end = *corpus.last().expect("there is at least 1 element; qed");
+		let corpus_start = *corpus.first().expect("there is at least 1 element; qed");
 		trace!(target: "stats", "Computing histogram from {} to {} with {} buckets.", corpus_start, corpus_end, bucket_number);
 		// Bucket needs to be at least 1 wide.
 		let bucket_size = {
@@ -126,7 +126,7 @@ impl<T: Ord + Copy + ::std::fmt::Display> Histogram<T>
 			bucket_bounds[bucket + 1] = bucket_end;
 			bucket_end = bucket_end + bucket_size;
 		}
-		Some(Histogram { bucket_bounds: bucket_bounds, counts: counts })
+		Some(Histogram { bucket_bounds, counts })
 	}
 }
 

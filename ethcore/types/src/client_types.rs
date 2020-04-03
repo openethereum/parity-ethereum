@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Client related types.
 
@@ -24,7 +24,6 @@ use std::{
 };
 
 use ethereum_types::U256;
-use crate::header::Header;
 
 /// Operating mode for the client.
 #[derive(Debug, Eq, PartialEq, Clone)]
@@ -63,14 +62,35 @@ pub struct ClientReport {
 	pub gas_processed: U256,
 	/// Memory used by state DB
 	pub state_db_mem: usize,
+	/// I/O statistics for the state DB.
+	pub io_stats: IoStats,
+}
+
+/// I/O statistics.
+#[derive(Default, Debug, Clone, Eq, PartialEq)]
+pub struct IoStats {
+	/// Number of transaction.
+	pub transactions: u64,
+	/// Number of read operations.
+	pub reads: u64,
+	/// Number of reads resulted in a read from cache.
+	pub cache_reads: u64,
+	/// Number of write operations.
+	pub writes: u64,
+	/// Number of bytes read.
+	pub bytes_read: u64,
+	/// Number of bytes read from cache.
+	pub cache_read_bytes: u64,
+	/// Number of bytes write.
+	pub bytes_written: u64,
 }
 
 impl ClientReport {
 	/// Alter internal reporting to reflect the additional `block` has been processed.
-	pub fn accrue_block(&mut self, header: &Header, transactions: usize) {
+	pub fn accrue_block(&mut self, gas_used: U256, transactions: usize) {
 		self.blocks_imported += 1;
 		self.transactions_applied += transactions;
-		self.gas_processed = self.gas_processed + *header.gas_used();
+		self.gas_processed += gas_used;
 	}
 }
 
@@ -98,4 +118,3 @@ pub enum StateResult<T> {
 	/// State is some
 	Some(T),
 }
-

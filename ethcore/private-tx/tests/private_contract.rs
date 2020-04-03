@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Contract for private transactions tests.
 
@@ -105,13 +105,13 @@ fn private_contract() {
 	query_tx.nonce = 1.into();
 	let query_tx = query_tx.sign(&key1.secret(), chain_id);
 	let result = pm.private_call(BlockId::Latest, &query_tx).unwrap();
-	assert_eq!(&result.output[..], &("0000000000000000000000000000000000000000000000000000000000000000".from_hex().unwrap()[..]));
+	assert_eq!(&result.output[..], &("0000000000000000000000000000000000000000000000000000000000000000".from_hex::<Vec<u8>>().unwrap()[..]));
 	assert_eq!(pm.get_validators(BlockId::Latest, &address).unwrap(), validators);
 
 	trace!("Modifying private state");
 	let mut private_tx = Transaction::default();
 	private_tx.action = Action::Call(address.clone());
-	private_tx.data = "bc64b76d2a00000000000000000000000000000000000000000000000000000000000000".from_hex().unwrap(); //setX(42)
+	private_tx.data = "bc64b76d2a00000000000000000000000000000000000000000000000000000000000000".from_hex::<Vec<u8>>().unwrap(); //setX(42)
 	private_tx.gas = 120000.into();
 	private_tx.nonce = 1.into();
 	let private_tx = private_tx.sign(&key1.secret(), None);
@@ -132,7 +132,7 @@ fn private_contract() {
 	query_tx.nonce = 2.into();
 	let query_tx = query_tx.sign(&key1.secret(), chain_id);
 	let result = pm.private_call(BlockId::Latest, &query_tx).unwrap();
-	assert_eq!(&result.output[..], &("2a00000000000000000000000000000000000000000000000000000000000000".from_hex().unwrap()[..]));
+	assert_eq!(&result.output[..], &("2a00000000000000000000000000000000000000000000000000000000000000".from_hex::<Vec<u8>>().unwrap()[..]));
 	assert_eq!(pm.get_validators(BlockId::Latest, &address).unwrap(), validators);
 
 	// Now try modification with just one signature
@@ -159,7 +159,7 @@ fn private_contract() {
 	query_tx.nonce = 3.into();
 	let query_tx = query_tx.sign(&key1.secret(), chain_id);
 	let result = pm.private_call(BlockId::Latest, &query_tx).unwrap();
-	assert_eq!(result.output, "2a00000000000000000000000000000000000000000000000000000000000000".from_hex().unwrap());
+	assert_eq!(result.output, "2a00000000000000000000000000000000000000000000000000000000000000".from_hex::<Vec<u8>>().unwrap());
 }
 
 #[test]
@@ -241,7 +241,7 @@ fn call_other_private_contract() {
 	trace!("Creating private contract B");
 	// Build constructor data
 	let mut deploy_data = "6060604052341561000f57600080fd5b6040516020806101c583398101604052808051906020019091905050806000806101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff1602179055505061014a8061007b6000396000f300606060405260043610610041576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff1680635197c7aa14610046575b600080fd5b341561005157600080fd5b61005961006f565b6040518082815260200191505060405180910390f35b60008060009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16630c55699c6000604051602001526040518163ffffffff167c0100000000000000000000000000000000000000000000000000000000028152600401602060405180830381600087803b15156100fe57600080fd5b6102c65a03f1151561010f57600080fd5b505050604051805190509050905600a165627a7a723058207f8994e02725b47d76ec73e5c54a338d27b306dd1c830276bff2d75fcd1a5c920029000000000000000000000000".to_string();
-	deploy_data.push_str(&address_a.as_bytes().to_vec().to_hex());
+	deploy_data.push_str(&address_a.as_bytes().to_hex::<String>());
 	let private_contract_b_test = deploy_data.from_hex().unwrap();
 	let mut private_create_tx2 = Transaction::default();
 	private_create_tx2.action = Action::Create;
@@ -283,5 +283,5 @@ fn call_other_private_contract() {
 	query_tx.nonce = 3.into();
 	let query_tx = query_tx.sign(&key1.secret(), chain_id);
 	let result = pm.private_call(BlockId::Latest, &query_tx).unwrap();
-	assert_eq!(&result.output[..], &("2a00000000000000000000000000000000000000000000000000000000000000".from_hex().unwrap()[..]));
+	assert_eq!(&result.output[..], &("2a00000000000000000000000000000000000000000000000000000000000000".from_hex::<Vec<u8>>().unwrap()[..]));
 }

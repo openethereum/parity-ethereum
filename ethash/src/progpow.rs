@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// This file is part of Open Ethereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! ProgPoW (Programmatic Proof-of-Work) is the Ethereum network's proposed new Application-Specific Integrated
 //! Circuit (ASIC) resistant Proof-of-Work mining algorithm.
@@ -420,7 +420,7 @@ pub fn generate_cdag(cache: &[Node]) -> CDag {
 
 #[cfg(test)]
 mod test {
-	use tempdir::TempDir;
+	use tempfile::TempDir;
 
 	use common_types::engines::OptimizeFor;
 	use cache::NodeCacheBuilder;
@@ -431,7 +431,7 @@ mod test {
 	use super::*;
 
 	fn h256(hex: &str) -> H256 {
-		let bytes = FromHex::from_hex(hex).unwrap();
+		let bytes: Vec<u8> = FromHex::from_hex(hex).unwrap();
 		let mut res = [0; 32];
 		res.copy_from_slice(&bytes);
 		res
@@ -440,7 +440,7 @@ mod test {
 	#[test]
 	fn test_cdag() {
 		let builder = NodeCacheBuilder::new(OptimizeFor::Memory, u64::max_value());
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 		let cache = builder.new_cache(tempdir.into_path(), 0);
 
 		let c_dag = generate_cdag(cache.as_ref());
@@ -535,7 +535,7 @@ mod test {
 	#[test]
 	fn test_progpow_hash() {
 		let builder = NodeCacheBuilder::new(OptimizeFor::Memory, u64::max_value());
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 		let cache = builder.new_cache(tempdir.into_path(), 0);
 		let c_dag = generate_cdag(cache.as_ref());
 
@@ -549,8 +549,8 @@ mod test {
 			&c_dag,
 		);
 
-		let expected_digest = FromHex::from_hex("b3bad9ca6f7c566cf0377d1f8cce29d6516a96562c122d924626281ec948ef02").unwrap();
-		let expected_result = FromHex::from_hex("f4ac202715ded4136e72887c39e63a4738331c57fd9eb79f6ec421c281aa8743").unwrap();
+		let expected_digest = hex!("b3bad9ca6f7c566cf0377d1f8cce29d6516a96562c122d924626281ec948ef02");
+		let expected_result = hex!("f4ac202715ded4136e72887c39e63a4738331c57fd9eb79f6ec421c281aa8743");
 
 		assert_eq!(
 			digest.to_vec(),
@@ -596,7 +596,7 @@ mod test {
 
 		for test in tests {
 			let builder = NodeCacheBuilder::new(OptimizeFor::Memory, u64::max_value());
-			let tempdir = TempDir::new("").unwrap();
+			let tempdir = TempDir::new().unwrap();
 			let cache = builder.new_cache(tempdir.path().to_owned(), test.block_number);
 			let c_dag = generate_cdag(cache.as_ref());
 

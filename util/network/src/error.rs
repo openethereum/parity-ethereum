@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::{error, io, net, fmt};
 use libc::{ENFILE, EMFILE};
@@ -118,10 +118,10 @@ pub enum Error {
 	#[display(fmt = "Packet is too large")]
 	OversizedPacket,
 	/// Reached system resource limits for this process
-	#[display(fmt = "Too many open files in this process. Check your resource limits and restart parity")]
+	#[display(fmt = "Too many open files in this process. Check your resource limits and restart the client.")]
 	ProcessTooManyFiles,
 	/// Reached system wide resource limits
-	#[display(fmt = "Too many open files on system. Consider closing some processes/release some file handlers or increas the system-wide resource limits and restart parity.")]
+	#[display(fmt = "Too many open files on system. Consider closing some processes/release some file handlers or increas the system-wide resource limits and restart the client.")]
 	SystemTooManyFiles,
 	/// An unknown IO error occurred.
 	#[display(fmt = "Unexpected IO error: {}", _0)]

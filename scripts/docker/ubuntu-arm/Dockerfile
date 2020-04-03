@@ -8,7 +8,7 @@ RUN apt-get -y update && \
         libc6-dev-armhf-cross wget file ca-certificates \
         binutils-arm-linux-gnueabihf cmake3 \
         && \
-    apt-get clean
+        apt-get clean
 
 # install rustup
 RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
@@ -27,19 +27,19 @@ ENV RUST_BACKTRACE 1
 # show tools
 RUN rustc -vV && cargo -V
 
-# build parity
-ADD . /build/parity
-RUN cd parity && \
+# build OpenEthereum
+ADD . /build/openethereum
+RUN cd openethereum && \
         mkdir -p .cargo && \
         echo '[target.armv7-unknown-linux-gnueabihf]\n\
         linker = "arm-linux-gnueabihf-gcc"\n'\
         >>.cargo/config && \
         cat .cargo/config && \
         cargo build --target armv7-unknown-linux-gnueabihf --release --verbose && \
-        ls /build/parity/target/armv7-unknown-linux-gnueabihf/release/parity && \
-        /usr/bin/arm-linux-gnueabihf-strip /build/parity/target/armv7-unknown-linux-gnueabihf/release/parity
+        ls /build/openethereum/target/armv7-unknown-linux-gnueabihf/release/openethereum && \
+        /usr/bin/arm-linux-gnueabihf-strip /build/openethereum/target/armv7-unknown-linux-gnueabihf/release/openethereum
 
-RUN file /build/parity/target/armv7-unknown-linux-gnueabihf/release/parity
+RUN file /build/openethereum/target/armv7-unknown-linux-gnueabihf/release/openethereum
 
 EXPOSE 8080 8545 8180
-ENTRYPOINT ["/build/parity/target/armv7-unknown-linux-gnueabihf/release/parity"]
+ENTRYPOINT ["/build/openethereum/target/armv7-unknown-linux-gnueabihf/release/openethereum"]
