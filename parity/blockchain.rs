@@ -415,7 +415,8 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 	user_defaults.fat_db = fat_db;
 	user_defaults.save(&user_defaults_path)?;
 
-	// Sometimes when importing a small number of blocks (~10) the report seems inaccurate, so we sleep a little before getting it.
+	// Sometimes when importing a small number of blocks (~10) the report seems
+	// inaccurate, so we sleep a little before getting the report.
 	std::thread::sleep(Duration::from_secs(1));
 	let report = client.report();
 	info!("Import completed in {} seconds, {} blocks, {} blk/s, {} transactions, {} tx/s, {} Mgas, {} Mgas/s, {} state DB memory",
