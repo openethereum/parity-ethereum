@@ -38,7 +38,7 @@ pub enum ForkSpec {
 	Constantinople,
 	/// Constantinople transition test-net
 	ConstantinopleFix,
-	/// Istanbul (To be announced)
+	/// Istanbul (#9,069,000, 2019-12-08)
 	Istanbul,
 	/// Byzantium transition test-net
 	EIP158ToByzantiumAt5,
@@ -48,6 +48,10 @@ pub enum ForkSpec {
 	HomesteadToDaoAt5,
 	/// EIP158/EIP161 transition test-net
 	HomesteadToEIP150At5,
+	 /// ConstantinopleFix transition test-net 
+	ByzantiumToConstantinopleFixAt5,
+	/// Istanbul transition test-net
+	ConstantinopleFixToIstanbulAt5
 }
 
 /// Spec deserialization.

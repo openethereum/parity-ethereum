@@ -148,20 +148,27 @@ mod block_tests {
 	}
 	//todo[dvdplm] do these tests match all folders in `res/` or are there tests we're missing?
 	//Issue: https://github.com/OpenEthereum/open-ethereum/issues/11085
-	declare_test!{BlockchainTests_bcBlockGasLimitTest, "BlockchainTests/bcBlockGasLimitTest"}
-	declare_test!{BlockchainTests_bcExploitTest, "BlockchainTests/bcExploitTest"}
-	declare_test!{BlockchainTests_bcForgedTest, "BlockchainTests/bcForgedTest"}
-	declare_test!{BlockchainTests_bcForkStressTest, "BlockchainTests/bcForkStressTest"}
-	declare_test!{BlockchainTests_bcGasPricerTest, "BlockchainTests/bcGasPricerTest"}
-	declare_test!{BlockchainTests_bcInvalidHeaderTest, "BlockchainTests/bcInvalidHeaderTest"}
-	declare_test!{BlockchainTests_bcMultiChainTest, "BlockchainTests/bcMultiChainTest"}
-	declare_test!{BlockchainTests_bcRandomBlockhashTest, "BlockchainTests/bcRandomBlockhashTest"}
-	declare_test!{BlockchainTests_bcStateTest, "BlockchainTests/bcStateTests"}
-	declare_test!{BlockchainTests_bcTotalDifficultyTest, "BlockchainTests/bcTotalDifficultyTest"}
-	declare_test!{BlockchainTests_bcUncleHeaderValidity, "BlockchainTests/bcUncleHeaderValidity"}
-	declare_test!{BlockchainTests_bcUncleTest, "BlockchainTests/bcUncleTest"}
-	declare_test!{BlockchainTests_bcValidBlockTest, "BlockchainTests/bcValidBlockTest"}
-	declare_test!{BlockchainTests_bcWalletTest, "BlockchainTests/bcWalletTest"}
+
+	declare_test!{BlockchainTests_InvalidBlocks_bcBlockGasLimitTest, "BlockchainTests/InvalidBlocks/bcBlockGasLimitTest/"}
+	declare_test!{BlockchainTests_InvalidBlocks_bcForgedTest, "BlockchainTests/InvalidBlocks/bcForgedTest/"}
+	declare_test!{BlockchainTests_InvalidBlocks_bcInvalidHeaderTest, "BlockchainTests/InvalidBlocks/bcInvalidHeaderTest/"}
+	declare_test!{BlockchainTests_InvalidBlocks_bcMultiChainTest, "BlockchainTests/InvalidBlocks/bcMultiChainTest/"}
+	declare_test!{BlockchainTests_InvalidBlocks_bcUncleHeaderValidity, "BlockchainTests/InvalidBlocks/bcUncleHeaderValidity/"}
+	declare_test!{BlockchainTests_InvalidBlocks_bcUncleSpecialTests, "BlockchainTests/InvalidBlocks/bcUncleSpecialTests/"}
+	declare_test!{BlockchainTests_InvalidBlocks_bcUncleTest, "BlockchainTests/InvalidBlocks/bcUncleTest/"}
+	
+	declare_test!{BlockchainTests_ValidBlocks_bcBlockGasLimitTest, "BlockchainTests/ValidBlocks/bcBlockGasLimitTest/"}
+	declare_test!{BlockchainTests_ValidBlocks_bcExploitTest, "BlockchainTests/ValidBlocks/bcExploitTest/"}
+	declare_test!{BlockchainTests_ValidBlocks_bcForkStressTest, "BlockchainTests/ValidBlocks/bcForkStressTest/"}
+	declare_test!{BlockchainTests_ValidBlocks_bcGasPricerTest, "BlockchainTests/ValidBlocks/bcGasPricerTest/"}
+	declare_test!{BlockchainTests_ValidBlocks_bcMultiChainTest, "BlockchainTests/ValidBlocks/bcMultiChainTest/"}
+	declare_test!{BlockchainTests_ValidBlocks_bcRandomBlockhashTest, "BlockchainTests/ValidBlocks/bcRandomBlockhashTest/"}
+	declare_test!{BlockchainTests_ValidBlocks_bcStateTests, "BlockchainTests/ValidBlocks/bcStateTests/"}
+	declare_test!{BlockchainTests_ValidBlocks_bcTotalDifficultyTest, "BlockchainTests/ValidBlocks/bcTotalDifficultyTest/"}
+	declare_test!{BlockchainTests_ValidBlocks_bcUncleSpecialTests, "BlockchainTests/ValidBlocks/bcUncleSpecialTests/"}
+	declare_test!{BlockchainTests_ValidBlocks_bcUncleTest, "BlockchainTests/ValidBlocks/bcUncleTest/"}
+	declare_test!{BlockchainTests_ValidBlocks_bcValidBlockTest, "BlockchainTests/ValidBlocks/bcValidBlockTest/"}
+	declare_test!{BlockchainTests_ValidBlocks_bcWalletTest, "BlockchainTests/ValidBlocks/bcWalletTest/"}
 
 	declare_test!{BlockchainTests_GeneralStateTest_stArgsZeroOneBalance, "BlockchainTests/GeneralStateTests/stArgsZeroOneBalance/"}
 	declare_test!{BlockchainTests_GeneralStateTest_stAttackTest, "BlockchainTests/GeneralStateTests/stAttackTest/"}
@@ -172,6 +179,7 @@ mod block_tests {
 	declare_test!{BlockchainTests_GeneralStateTest_stCallDelegateCodesCallCodeHomestead, "BlockchainTests/GeneralStateTests/stCallDelegateCodesCallCodeHomestead/"}
 	declare_test!{BlockchainTests_GeneralStateTest_stCallDelegateCodesHomestead, "BlockchainTests/GeneralStateTests/stCallDelegateCodesHomestead/"}
 	declare_test!{BlockchainTests_GeneralStateTest_stChangedEIP150, "BlockchainTests/GeneralStateTests/stChangedEIP150/"}
+	declare_test!{BlockchainTests_GeneralStateTest_stCopyCodeTest, "BlockchainTests/GeneralStateTests/stCodeCopyTest/"}
 	declare_test!{BlockchainTests_GeneralStateTest_stCodeSizeLimit, "BlockchainTests/GeneralStateTests/stCodeSizeLimit/"}
 	declare_test!{BlockchainTests_GeneralStateTest_stCreate2, "BlockchainTests/GeneralStateTests/stCreate2/"}
 	declare_test!{BlockchainTests_GeneralStateTest_stCreateTest, "BlockchainTests/GeneralStateTests/stCreateTest/"}
@@ -180,6 +188,7 @@ mod block_tests {
 	declare_test!{BlockchainTests_GeneralStateTest_stEIP150Specific, "BlockchainTests/GeneralStateTests/stEIP150Specific/"}
 	declare_test!{BlockchainTests_GeneralStateTest_stEIP158Specific, "BlockchainTests/GeneralStateTests/stEIP158Specific/"}
 	declare_test!{BlockchainTests_GeneralStateTest_stExample, "BlockchainTests/GeneralStateTests/stExample/"}
+	declare_test!{BlockchainTests_GeneralStateTest_stExtCodeHash, "BlockchainTests/GeneralStateTests/stExtCodeHash/"}
 	declare_test!{BlockchainTests_GeneralStateTest_stHomesteadSpecific, "BlockchainTests/GeneralStateTests/stHomesteadSpecific/"}
 	declare_test!{BlockchainTests_GeneralStateTest_stInitCodeTest, "BlockchainTests/GeneralStateTests/stInitCodeTest/"}
 	declare_test!{BlockchainTests_GeneralStateTest_stLogTests, "BlockchainTests/GeneralStateTests/stLogTests/"}
@@ -194,7 +203,7 @@ mod block_tests {
 	declare_test!{BlockchainTests_GeneralStateTest_stRandom2, "BlockchainTests/GeneralStateTests/stRandom2/"}
 	declare_test!{BlockchainTests_GeneralStateTest_stRecursiveCreate, "BlockchainTests/GeneralStateTests/stRecursiveCreate/"}
 	declare_test!{BlockchainTests_GeneralStateTest_stRefundTest, "BlockchainTests/GeneralStateTests/stRefundTest/"}
-	declare_test!{ BlockchainTests_GeneralStateTest_stReturnDataTest, "BlockchainTests/GeneralStateTests/stReturnDataTest/"}
+	declare_test!{BlockchainTests_GeneralStateTest_stReturnDataTest, "BlockchainTests/GeneralStateTests/stReturnDataTest/"}
 	// todo[dvdplm]:
 	//      "RevertPrecompiledTouch_storage" contains 4 tests, only two fails
 	//      "RevertPrecompiledTouchExactOOG" contains a ton of tests, only two fails
@@ -204,9 +213,11 @@ mod block_tests {
 	declare_test!{BlockchainTests_GeneralStateTest_stShift, "BlockchainTests/GeneralStateTests/stShift/"}
 	declare_test!{BlockchainTests_GeneralStateTest_stSolidityTest, "BlockchainTests/GeneralStateTests/stSolidityTest/"}
 	declare_test!{BlockchainTests_GeneralStateTest_stSpecialTest, "BlockchainTests/GeneralStateTests/stSpecialTest/"}
+	declare_test!{BlockchainTests_GeneralStateTest_stSStoreTest, "BlockchainTests/GeneralStateTests/stSStoreTest/"}
 	declare_test!{BlockchainTests_GeneralStateTest_stStackTests, "BlockchainTests/GeneralStateTests/stStackTests/"}
 	declare_test!{BlockchainTests_GeneralStateTest_stStaticCall, "BlockchainTests/GeneralStateTests/stStaticCall/"}
 	declare_test!{BlockchainTests_GeneralStateTest_stSystemOperationsTest, "BlockchainTests/GeneralStateTests/stSystemOperationsTest/"}
+	declare_test!{BlockchainTests_GeneralStateTest_stTimeConsuming, "BlockchainTests/GeneralStateTests/stTimeConsuming/"}
 	declare_test!{BlockchainTests_GeneralStateTest_stTransactionTest, "BlockchainTests/GeneralStateTests/stTransactionTest/"}
 	declare_test!{BlockchainTests_GeneralStateTest_stTransitionTest, "BlockchainTests/GeneralStateTests/stTransitionTest/"}
 	declare_test!{BlockchainTests_GeneralStateTest_stWalletTest, "BlockchainTests/GeneralStateTests/stWalletTest/"}
@@ -214,10 +225,12 @@ mod block_tests {
 	declare_test!{BlockchainTests_GeneralStateTest_stZeroCallsTest, "BlockchainTests/GeneralStateTests/stZeroCallsTest/"}
 	declare_test!{BlockchainTests_GeneralStateTest_stZeroKnowledge, "BlockchainTests/GeneralStateTests/stZeroKnowledge/"}
 	declare_test!{BlockchainTests_GeneralStateTest_stZeroKnowledge2, "BlockchainTests/GeneralStateTests/stZeroKnowledge2/"}
-	declare_test!{BlockchainTests_GeneralStateTest_stSStoreTest, "BlockchainTests/GeneralStateTests/stSStoreTest/"}
 
 	declare_test!{BlockchainTests_TransitionTests_bcEIP158ToByzantium, "BlockchainTests/TransitionTests/bcEIP158ToByzantium/"}
 	declare_test!{BlockchainTests_TransitionTests_bcFrontierToHomestead, "BlockchainTests/TransitionTests/bcFrontierToHomestead/"}
 	declare_test!{BlockchainTests_TransitionTests_bcHomesteadToDao, "BlockchainTests/TransitionTests/bcHomesteadToDao/"}
 	declare_test!{BlockchainTests_TransitionTests_bcHomesteadToEIP150, "BlockchainTests/TransitionTests/bcHomesteadToEIP150/"}
+	declare_test!{BlockchainTests_TransitionTests_bcByzantiumToConstantinopleFix, "BlockchainTests/TransitionTests/bcByzantiumToConstantinopleFix/"}
+
+	declare_test!{BlockchainTests_RandomStateTest391, "BlockchainTests/randomStatetest391.json"}
 }

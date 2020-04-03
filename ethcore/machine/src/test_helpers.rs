@@ -50,7 +50,7 @@ pub fn new_byzantium_test_machine() -> Machine { load_machine(include_bytes!("..
 pub fn new_constantinople_test_machine() -> Machine { load_machine(include_bytes!("../../res/ethereum/constantinople_test.json")) }
 
 /// Create a new Foundation St. Peter's (Contantinople Fix) era spec.
-pub fn new_constantinople_fix_test_machine() -> Machine { load_machine(include_bytes!("../../res/ethereum/st_peters_test.json")) }
+pub fn new_constantinople_fix_test_machine() -> Machine { load_machine(include_bytes!("../../res/ethereum/constantinople_fix_test.json")) }
 
 /// Create a new Foundation Istanbul era spec.
 pub fn new_istanbul_test_machine() -> Machine { load_machine(include_bytes!("../../res/ethereum/istanbul_test.json")) }
