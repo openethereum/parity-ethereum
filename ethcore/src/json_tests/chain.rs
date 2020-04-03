@@ -146,8 +146,6 @@ mod block_tests {
 	fn do_json_test<H: FnMut(&str, HookType)>(path: &Path, json_data: &[u8], h: &mut H) -> Vec<String> {
 		json_chain_test(path, json_data, h)
 	}
-	//todo[dvdplm] do these tests match all folders in `res/` or are there tests we're missing?
-	//Issue: https://github.com/OpenEthereum/open-ethereum/issues/11085
 
 	declare_test!{BlockchainTests_InvalidBlocks_bcBlockGasLimitTest, "BlockchainTests/InvalidBlocks/bcBlockGasLimitTest/"}
 	declare_test!{BlockchainTests_InvalidBlocks_bcForgedTest, "BlockchainTests/InvalidBlocks/bcForgedTest/"}
