@@ -166,6 +166,8 @@ impl From<DecoderError> for PacketProcessError {
 	}
 }
 
+/// Version 65 of the Ethereum protocol and number of packet IDs reserved by the protocol (packet count).
+pub const ETH_PROTOCOL_VERSION_65: (u8, u8) = (65, 0x11);
 /// Version 64 of the Ethereum protocol and number of packet IDs reserved by the protocol (packet count).
 pub const ETH_PROTOCOL_VERSION_64: (u8, u8) = (64, 0x11);
 /// Version 63 of the Ethereum protocol and number of packet IDs reserved by the protocol (packet count).
@@ -764,7 +766,7 @@ impl ChainSync {
 		let last_imported_number = self.new_blocks.last_imported_block_number();
 		SyncStatus {
 			state: self.state.clone(),
-			protocol_version: ETH_PROTOCOL_VERSION_64.0,
+			protocol_version: ETH_PROTOCOL_VERSION_65.0,
 			network_id: self.network_id,
 			start_block_number: self.starting_block,
 			last_imported_block_number: Some(last_imported_number),

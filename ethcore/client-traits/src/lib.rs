@@ -285,7 +285,10 @@ pub trait BlockChainClient:
 	fn list_storage(&self, id: BlockId, account: &Address, after: Option<&H256>, count: Option<u64>) -> Option<Vec<H256>>;
 
 	/// Get transaction with given hash.
-	fn transaction(&self, id: TransactionId) -> Option<LocalizedTransaction>;
+	fn block_transaction(&self, id: TransactionId) -> Option<LocalizedTransaction>;
+
+	/// Get pool transaction with a given hash.
+	fn queued_transaction(&self, hash: H256) -> Option<Arc<VerifiedTransaction>>;
 
 	/// Get uncle with given id.
 	fn uncle(&self, id: UncleId) -> Option<encoded::Header>;

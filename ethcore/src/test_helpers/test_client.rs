@@ -737,8 +737,11 @@ impl BlockChainClient for TestBlockChainClient {
 	fn list_storage(&self, _id: BlockId, _account: &Address, _after: Option<&H256>, _count: Option<u64>) -> Option<Vec<H256>> {
 		None
 	}
-	fn transaction(&self, _id: TransactionId) -> Option<LocalizedTransaction> {
+	fn block_transaction(&self, _id: TransactionId) -> Option<LocalizedTransaction> {
 		None	// Simple default.
+	}
+	fn queued_transaction(&self, _hash: H256) -> Option<Arc<VerifiedTransaction>> {
+		None
 	}
 
 	fn uncle(&self, _id: UncleId) -> Option<encoded::Header> {

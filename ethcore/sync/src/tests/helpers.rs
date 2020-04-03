@@ -25,7 +25,7 @@ use crate::{
 			PacketInfo,
 			SyncPacket::{self, PrivateTransactionPacket, SignedPrivateTransactionPacket}
 		},
-		ChainSync, SyncSupplier, ETH_PROTOCOL_VERSION_64, PAR_PROTOCOL_VERSION_4
+		ChainSync, SyncSupplier, ETH_PROTOCOL_VERSION_65, PAR_PROTOCOL_VERSION_4
 	},
 	private_tx::SimplePrivateTxHandler,
 	sync_io::SyncIo,
@@ -157,7 +157,7 @@ impl<'p, C> SyncIo for TestIo<'p, C> where C: FlushingBlockChainClient, C: 'p {
 	}
 
 	fn protocol_version(&self, protocol: &ProtocolId, _peer_id: PeerId) -> u8 {
-		if protocol == &WARP_SYNC_PROTOCOL_ID { PAR_PROTOCOL_VERSION_4.0 } else { ETH_PROTOCOL_VERSION_64.0 }
+		if protocol == &WARP_SYNC_PROTOCOL_ID { PAR_PROTOCOL_VERSION_4.0 } else { ETH_PROTOCOL_VERSION_65.0 }
 	}
 
 	fn is_expired(&self) -> bool {
