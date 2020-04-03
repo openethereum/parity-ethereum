@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Blockchain database.
 
@@ -1069,8 +1069,8 @@ impl BlockChain {
 	}
 
 	/// Write a pending epoch transition by block hash.
-	pub fn insert_pending_transition(&self, batch: &mut DBTransaction, hash: H256, t: PendingEpochTransition) {
-		batch.write(db::COL_EXTRA, &hash, &t);
+	pub fn insert_pending_transition(&self, batch: &mut DBTransaction, hash: &H256, t: PendingEpochTransition) {
+		batch.write(db::COL_EXTRA, hash, &t);
 	}
 
 	/// Get a pending epoch transition by block hash.
@@ -1629,7 +1629,7 @@ mod tests {
 	use parity_crypto::publickey::Secret;
 	use keccak_hash::keccak;
 	use rustc_hex::FromHex;
-	use tempdir::TempDir;
+	use tempfile::TempDir;
 	use std::str::FromStr;
 
 	struct TestBlockChainDB {
@@ -1656,8 +1656,8 @@ mod tests {
 
 	/// Creates new test instance of `BlockChainDB`
 	pub fn new_db() -> Arc<dyn BlockChainDB> {
-		let blooms_dir = TempDir::new("").unwrap();
-		let trace_blooms_dir = TempDir::new("").unwrap();
+		let blooms_dir = TempDir::new().unwrap();
+		let trace_blooms_dir = TempDir::new().unwrap();
 
 		let db = TestBlockChainDB {
 			blooms: blooms_db::Database::open(blooms_dir.path()).unwrap(),

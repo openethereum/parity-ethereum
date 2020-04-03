@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::HashSet;
 use std::iter::FromIterator;
@@ -147,7 +147,7 @@ impl Snapshot {
 	/// sometimes spills over into more than one chunk and the parts of state that are missing
 	/// pieces are held in memory while waiting for the next chunk(s) to show up. This means that
 	/// when chunks are processed out-of-order, memory usage goes up, sometimes significantly (see
-	/// e.g. https://github.com/paritytech/parity-ethereum/issues/8825).
+	/// e.g. https://github.com/openethereum/openethereum/issues/8825).
 	pub fn needed_chunk(&mut self) -> Option<H256> {
 		// Find next needed chunk: first block, then state chunks
 		let chunk = {

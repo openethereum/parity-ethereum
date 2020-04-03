@@ -4,15 +4,15 @@ FROM ubuntu:xenial
 ARG VCS_REF
 ARG BUILD_DATE
 
-LABEL io.parity.image.authors="devops-team@parity.io" \
-	io.parity.image.vendor="Parity Technologies" \
-	io.parity.image.title="parity/parity" \
-	io.parity.image.description="Parity Ethereum. The Fastest and most Advanced Ethereum Client." \
-	io.parity.image.source="https://github.com/paritytech/parity-ethereum/blob/${VCS_REF}/\
-scripts/docker/hub/Dockerfile" \
-	io.parity.image.documentation="https://wiki.parity.io/Parity-Ethereum" \
-	io.parity.image.revision="${VCS_REF}" \
-	io.parity.image.created="${BUILD_DATE}"
+LABEL openethereum.image.authors="devops-team@parity.io" \
+	openethereum.image.vendor="OpenEthereum project" \
+	openethereum.image.title="openethereum/openethereum" \
+	openethereum.image.description="Fast and feature-rich multi-network Ethereum client." \
+	openethereum.image.source="https://github.com/openethereum/openethereum/blob/${VCS_REF}/\
+	scripts/docker/hub/Dockerfile" \
+	openethereum.image.documentation="https://wiki.parity.io/Parity-Ethereum" \
+	openethereum.image.revision="${VCS_REF}" \
+	openethereum.image.created="${BUILD_DATE}"
 
 # show backtraces
 ENV RUST_BACKTRACE 1
@@ -21,28 +21,28 @@ ENV RUST_BACKTRACE 1
 RUN set -eux; \
 	apt-get update; \
 	apt-get install -y --no-install-recommends \
-		file curl jq ca-certificates; \
-# apt cleanup
+	file curl jq ca-certificates; \
+	# apt cleanup
 	apt-get autoremove -y; \
 	apt-get clean; \
-  update-ca-certificates; \
+	update-ca-certificates; \
 	rm -rf /tmp/* /var/tmp/* /var/lib/apt/lists/*; \
-# add user
-	groupadd -g 1000 parity; \
-	useradd -m -u 1000 -g parity -s /bin/sh parity
+	# add user
+	groupadd -g 1000 openethereum; \
+	useradd -m -u 1000 -g openethereum -s /bin/sh openethereum
 
-WORKDIR /home/parity
+WORKDIR /home/openethereum
 
-# add parity-ethereum binary to docker image
-COPY artifacts/x86_64-unknown-linux-gnu/parity /bin/parity
+# add openethereum binary to docker image
+COPY artifacts/x86_64-unknown-linux-gnu/openethereum /bin/openethereum
 COPY tools/check_sync.sh /check_sync.sh
 
-# switch to user parity here
-USER parity
+# switch to user openethereum here
+USER openethereum
 
 # check if executable works in this container
-RUN parity --version
+RUN openethereum --version
 
 EXPOSE 5001 8080 8082 8083 8545 8546 8180 30303/tcp 30303/udp
 
-ENTRYPOINT ["/bin/parity"]
+ENTRYPOINT ["/bin/openethereum"]

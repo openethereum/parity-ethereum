@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::io::{self, Read, Write};
 use std::path::Path;
@@ -215,7 +215,7 @@ mod tests {
 	use std::io::{Read, Write};
 	use std::{time, fs};
 	use std::cell::Cell;
-	use tempdir::TempDir;
+	use tempfile::TempDir;
 	use hash::keccak;
 
 	use ethereum_types::H256;
@@ -289,7 +289,7 @@ mod tests {
 	#[test]
 	fn should_read_old_format_from_file() {
 		// given
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 		let file_path = tempdir.path().join("file");
 		let code = "23521352asdfasdfadf";
 		{
@@ -308,7 +308,7 @@ mod tests {
 	#[test]
 	fn should_remove_old_unused_tokens() {
 		// given
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 		let file_path = tempdir.path().join("file");
 		let code1 = "11111111asdfasdf111";
 		let code2 = "22222222asdfasdf222";

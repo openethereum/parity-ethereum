@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::path::Path;
 use std::sync::Arc;
@@ -25,8 +25,7 @@ use io::IoChannel;
 use test_helpers::{self, EvmTestClient};
 use types::verification::Unverified;
 use verification::{VerifierType, queue::kind::BlockLike};
-use super::SKIP_TESTS;
-use super::HookType;
+use super::{HookType, SKIP_TESTS};
 
 #[allow(dead_code)]
 fn skip_test(name: &String) -> bool {
@@ -56,7 +55,7 @@ pub fn json_chain_test<H: FnMut(&str, HookType)>(path: &Path, json_data: &[u8], 
 			let mut fail_unless = |cond: bool| {
 				if !cond && !fail {
 					failed.push(name.clone());
-					flushln!("FAIL");
+					flushed_writeln!("FAIL");
 					fail = true;
 					true
 				} else {
@@ -64,7 +63,7 @@ pub fn json_chain_test<H: FnMut(&str, HookType)>(path: &Path, json_data: &[u8], 
 				}
 			};
 
-			flush!("   - {}...", name);
+			flushed_write!("   - {}...", name);
 
 			let spec = {
 				let mut spec = match EvmTestClient::fork_spec_from_json(&blockchain.network) {
@@ -123,9 +122,9 @@ pub fn json_chain_test<H: FnMut(&str, HookType)>(path: &Path, json_data: &[u8], 
 		}
 
 		if !fail {
-			flushln!("ok");
+			flushed_writeln!("OK");
 		} else {
-			flushln!("fail");
+			flushed_writeln!("FAILED");
 		}
 
 		start_stop_hook(&name, HookType::OnStop);
@@ -148,7 +147,7 @@ mod block_tests {
 		json_chain_test(path, json_data, h)
 	}
 	//todo[dvdplm] do these tests match all folders in `res/` or are there tests we're missing?
-	//Issue: https://github.com/paritytech/parity-ethereum/issues/11085
+	//Issue: https://github.com/openethereum/openethereum/issues/11085
 	declare_test!{BlockchainTests_bcBlockGasLimitTest, "BlockchainTests/bcBlockGasLimitTest"}
 	declare_test!{BlockchainTests_bcExploitTest, "BlockchainTests/bcExploitTest"}
 	declare_test!{BlockchainTests_bcForgedTest, "BlockchainTests/bcForgedTest"}
@@ -200,7 +199,7 @@ mod block_tests {
 	//      "RevertPrecompiledTouch_storage" contains 4 tests, only two fails
 	//      "RevertPrecompiledTouchExactOOG" contains a ton of tests, only two fails
 	//      "RevertPrecompiledTouch" has 4 tests, 2 failures
-	//  Ignored in currents.json, issue: https://github.com/paritytech/parity-ethereum/issues/11073
+	//  Ignored in currents.json, issue: https://github.com/openethereum/openethereum/issues/11073
 	declare_test!{BlockchainTests_GeneralStateTest_stRevertTest, "BlockchainTests/GeneralStateTests/stRevertTest/"}
 	declare_test!{BlockchainTests_GeneralStateTest_stShift, "BlockchainTests/GeneralStateTests/stShift/"}
 	declare_test!{BlockchainTests_GeneralStateTest_stSolidityTest, "BlockchainTests/GeneralStateTests/stSolidityTest/"}

@@ -1,24 +1,25 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::HashSet;
 use std::io::Read;
 use std::fs::{File, read_dir};
 use std::path::Path;
 use std::ffi::OsString;
+
 pub use ethereum_types::{H256, U256, Address};
 
 /// Indicate when to run the hook passed to test functions.
@@ -40,8 +41,8 @@ pub fn run_test_path<H: FnMut(&str, HookType)>(
 ) {
 	if !skip.is_empty() {
 		// todo[dvdplm] it's really annoying to have to use flushln here. Should be `info!(target:
-		// "json-tests", …)`. Issue https://github.com/paritytech/parity-ethereum/issues/11084
-		flushln!("[run_test_path] Skipping tests in {}: {:?}", path.display(), skip);
+		// "json-tests", …)`. Issue https://github.com/openethereum/openethereum/issues/11084
+		flushed_writeln!("[run_test_path] Skipping tests in {}: {:?}", path.display(), skip);
 	}
 	let mut errors = Vec::new();
 	run_test_path_inner(path, skip, runner, start_stop_hook, &mut errors);
@@ -120,64 +121,4 @@ pub fn run_test_file<H: FnMut(&str, HookType)>(
 	let results = runner(&path, &data, start_stop_hook);
 	let empty: [String; 0] = [];
 	assert_eq!(results, empty);
-}
-
-#[cfg(test)]
-macro_rules! test {
-	($name: expr, $skip: expr) => {
-		::json_tests::test_common::run_test_path(
-			::std::path::Path::new(concat!("res/ethereum/tests/", $name)),
-			&$skip,
-			do_json_test,
-			&mut |_, _| ()
-		);
-	}
-}
-
-/// Declares a test:
-///
-/// declare_test!(test_name, "path/to/folder/with/tests");
-///
-/// Declares a test but skip the named test files inside the folder (no extension):
-///
-/// declare_test!(skip => ["a-test-file", "other-test-file"], test_name, "path/to/folder/with/tests");
-///
-/// NOTE: a skipped test is considered a passing test as far as `cargo test` is concerned. Normally
-/// one test corresponds to a folder full of test files, each of which may contain many tests.
-#[macro_export]
-macro_rules! declare_test {
-	(skip => $arr: expr, $id: ident, $name: expr) => {
-		#[cfg(test)]
-		#[test]
-		#[allow(non_snake_case)]
-		fn $id() {
-			test!($name, $arr);
-		}
-	};
-	(ignore => $id: ident, $name: expr) => {
-		#[cfg(test)]
-		#[ignore]
-		#[test]
-		#[allow(non_snake_case)]
-		fn $id() {
-			test!($name, []);
-		}
-	};
-	(heavy => $id: ident, $name: expr) => {
-		#[cfg(test)]
-		#[cfg(feature = "test-heavy")]
-		#[test]
-		#[allow(non_snake_case)]
-		fn $id() {
-			test!($name, []);
-		}
-	};
-	($id: ident, $name: expr) => {
-		#[cfg(test)]
-		#[test]
-		#[allow(non_snake_case)]
-		fn $id() {
-			test!($name, []);
-		}
-	}
 }

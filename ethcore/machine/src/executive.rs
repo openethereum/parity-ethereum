@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Transaction Execution environment.
 
@@ -851,7 +851,7 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 			return Err(ExecutionError::NotEnoughBaseGas { required: base_gas_required, got: t.gas });
 		}
 
-		if !t.is_unsigned() && check_nonce && schedule.kill_dust != CleanDustMode::Off && !self.state.exists(&sender)? {
+		if check_nonce && schedule.kill_dust != CleanDustMode::Off && !self.state.exists(&sender)? {
 			return Err(ExecutionError::SenderMustExist);
 		}
 
@@ -884,10 +884,8 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 
 		let mut substate = Substate::new();
 
-		// NOTE: there can be no invalid transactions from this point.
-		if !schedule.keep_unsigned_nonce || !t.is_unsigned() {
-			self.state.inc_nonce(&sender)?;
-		}
+		self.state.inc_nonce(&sender)?;
+
 		self.state.sub_balance(
 			&sender,
 			&U256::try_from(gas_cost).expect("Total cost (value + gas_cost) is lower than max allowed balance (U256); gas_cost has to fit U256; qed"),
@@ -1177,9 +1175,17 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 		}
 
 		// perform garbage-collection
-		let min_balance = if schedule.kill_dust != CleanDustMode::Off { Some(U256::from(schedule.tx_gas).overflowing_mul(t.gas_price).0) } else { None };
-		self.state.kill_garbage(&substate.touched, schedule.kill_empty, &min_balance, schedule.kill_dust == CleanDustMode::WithCodeAndStorage)?;
-
+		if schedule.kill_empty {
+			let (min_balance, kill_contracts) = if schedule.kill_dust != CleanDustMode::Off {
+				(
+					Some(U256::from(schedule.tx_gas).overflowing_mul(t.gas_price).0),
+					schedule.kill_dust == CleanDustMode::WithCodeAndStorage,
+				)
+			} else {
+				(None, false)
+			};
+			self.state.kill_garbage(&substate.touched, &min_balance, kill_contracts)?;
+		}
 		match result {
 			Err(vm::Error::Internal(msg)) => Err(ExecutionError::Internal(msg)),
 			Err(exception) => {
@@ -1191,9 +1197,9 @@ impl<'a, B: 'a + StateBackend> Executive<'a, B> {
 					cumulative_gas_used: self.info.gas_used + t.gas,
 					logs: vec![],
 					contracts_created: vec![],
-					output: output,
-					trace: trace,
-					vm_trace: vm_trace,
+					output,
+					trace,
+					vm_trace,
 					state_diff: None,
 				})
 			},
@@ -1225,17 +1231,15 @@ mod tests {
 		collections::HashSet,
 	};
 
-	use rustc_hex::FromHex;
-	use ethereum_types::{H256, U256, U512, Address, BigEndianHash};
-
 	use account_state::CleanupMode;
 	use common_types::{
 		errors::ExecutionError,
 		transaction::{Action, Transaction},
 	};
-	use parity_crypto::publickey::{Generator, Random};
+	use ethereum_types::{H256, U256, U512, Address, BigEndianHash};
 	use evm::{Factory, evm_test, evm_test_ignore};
-	use macros::vec_into;
+	use hex_literal::hex;
+	use parity_crypto::publickey::{Generator, Random};
 	use vm::{ActionParams, ActionValue, EnvInfo, CreateContractAddress};
 	use ::trace::{
 		trace,
@@ -1312,7 +1316,7 @@ mod tests {
 		params.address = address.clone();
 		params.sender = sender.clone();
 		params.gas = U256::from(100_000);
-		params.code = Some(Arc::new("3331600055".from_hex().unwrap()));
+		params.code = Some(Arc::new(hex!("3331600055").to_vec()));
 		params.value = ActionValue::Transfer(U256::from(0x7));
 		let mut state = get_temp_state_with_factory(factory);
 		state.add_balance(&sender, &U256::from(0x100u64), CleanupMode::NoEmpty).unwrap();
@@ -1359,7 +1363,8 @@ mod tests {
 		// 60 00 - push 0
 		// f3 - return
 
-		let code = "7c601080600c6000396000f3006000355415600957005b60203560003555600052601d60036017f0600055".from_hex().unwrap();
+		let code =
+			hex!("7c601080600c6000396000f3006000355415600957005b60203560003555600052601d60036017f0600055").to_vec();
 
 		let sender = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
 		let address = contract_address(CreateContractAddress::FromSenderAndNonce, &sender, &U256::zero(), &[]).0;
@@ -1402,7 +1407,7 @@ mod tests {
 		// 61 ffff - push fff gas
 		// f1 - CALL
 
-		let code = "60006000600060006001600361fffff1".from_hex().unwrap();
+		let code = hex!("60006000600060006001600361fffff1").to_vec();
 		let sender = Address::from_str("4444444444444444444444444444444444444444").unwrap();
 		let address = Address::from_str("5555555555555555555555555555555555555555").unwrap();
 
@@ -1484,7 +1489,7 @@ mod tests {
 		// 60 00 - push 0
 		// f3 - return
 
-		let code = "7c601080600c6000396000f3006000355415600957005b60203560003555600052601d60036017f0600055".from_hex().unwrap();
+		let code = hex!("7c601080600c6000396000f3006000355415600957005b60203560003555600052601d60036017f0600055").to_vec();
 
 		let sender = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
 		let address = contract_address(CreateContractAddress::FromSenderAndNonce, &sender, &U256::zero(), &[]).0;
@@ -1553,28 +1558,28 @@ mod tests {
 			parent_step: 0,
 			code: vec![124, 96, 16, 128, 96, 12, 96, 0, 57, 96, 0, 243, 0, 96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53, 85, 96, 0, 82, 96, 29, 96, 3, 96, 23, 240, 96, 0, 85],
 			operations: vec![
-				VMOperation { pc: 0, instruction: 124, gas_cost: 3.into(), executed: Some(VMExecutedOperation { gas_used: 99997.into(), stack_push: vec_into![U256::from_dec_str("2589892687202724018173567190521546555304938078595079151649957320078677").unwrap()], mem_diff: None, store_diff: None }) },
-				VMOperation { pc: 30, instruction: 96, gas_cost: 3.into(), executed: Some(VMExecutedOperation { gas_used: 99994.into(), stack_push: vec_into![0], mem_diff: None, store_diff: None }) },
-				VMOperation { pc: 32, instruction: 82, gas_cost: 6.into(), executed: Some(VMExecutedOperation { gas_used: 99988.into(), stack_push: vec_into![], mem_diff: Some(MemoryDiff { offset: 0, data: vec![0, 0, 0, 96, 16, 128, 96, 12, 96, 0, 57, 96, 0, 243, 0, 96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53, 85] }), store_diff: None }) },
-				VMOperation { pc: 33, instruction: 96, gas_cost: 3.into(), executed: Some(VMExecutedOperation { gas_used: 99985.into(), stack_push: vec_into![29], mem_diff: None, store_diff: None }) },
-				VMOperation { pc: 35, instruction: 96, gas_cost: 3.into(), executed: Some(VMExecutedOperation { gas_used: 99982.into(), stack_push: vec_into![3], mem_diff: None, store_diff: None }) },
-				VMOperation { pc: 37, instruction: 96, gas_cost: 3.into(), executed: Some(VMExecutedOperation { gas_used: 99979.into(), stack_push: vec_into![23], mem_diff: None, store_diff: None }) },
-				VMOperation { pc: 39, instruction: 240, gas_cost: 99979.into(), executed: Some(VMExecutedOperation { gas_used: 64755.into(), stack_push: vec_into![U256::from_dec_str("1135198453258042933984631383966629874710669425204").unwrap()], mem_diff: None, store_diff: None }) },
-				VMOperation { pc: 40, instruction: 96, gas_cost: 3.into(), executed: Some(VMExecutedOperation { gas_used: 64752.into(), stack_push: vec_into![0], mem_diff: None, store_diff: None }) },
-				VMOperation { pc: 42, instruction: 85, gas_cost: 20000.into(), executed: Some(VMExecutedOperation { gas_used: 44752.into(), stack_push: vec_into![], mem_diff: None, store_diff: Some(StorageDiff { location: 0.into(), value: U256::from_dec_str("1135198453258042933984631383966629874710669425204").unwrap() }) }) }
+				VMOperation { pc: 0, instruction: 124, gas_cost: 3.into(), executed: Some(VMExecutedOperation { gas_used: 99997.into(), stack_push: vec![U256::from_dec_str("2589892687202724018173567190521546555304938078595079151649957320078677").unwrap()], mem_diff: None, store_diff: None }) },
+				VMOperation { pc: 30, instruction: 96, gas_cost: 3.into(), executed: Some(VMExecutedOperation { gas_used: 99994.into(), stack_push: vec![U256::from(0)], mem_diff: None, store_diff: None }) },
+				VMOperation { pc: 32, instruction: 82, gas_cost: 6.into(), executed: Some(VMExecutedOperation { gas_used: 99988.into(), stack_push: vec![], mem_diff: Some(MemoryDiff { offset: 0, data: vec![0, 0, 0, 96, 16, 128, 96, 12, 96, 0, 57, 96, 0, 243, 0, 96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53, 85] }), store_diff: None }) },
+				VMOperation { pc: 33, instruction: 96, gas_cost: 3.into(), executed: Some(VMExecutedOperation { gas_used: 99985.into(), stack_push: vec![U256::from(29)], mem_diff: None, store_diff: None }) },
+				VMOperation { pc: 35, instruction: 96, gas_cost: 3.into(), executed: Some(VMExecutedOperation { gas_used: 99982.into(), stack_push: vec![U256::from(3)], mem_diff: None, store_diff: None }) },
+				VMOperation { pc: 37, instruction: 96, gas_cost: 3.into(), executed: Some(VMExecutedOperation { gas_used: 99979.into(), stack_push: vec![U256::from(23)], mem_diff: None, store_diff: None }) },
+				VMOperation { pc: 39, instruction: 240, gas_cost: 99979.into(), executed: Some(VMExecutedOperation { gas_used: 64755.into(), stack_push: vec![U256::from_dec_str("1135198453258042933984631383966629874710669425204").unwrap()], mem_diff: None, store_diff: None }) },
+				VMOperation { pc: 40, instruction: 96, gas_cost: 3.into(), executed: Some(VMExecutedOperation { gas_used: 64752.into(), stack_push: vec![U256::from(0)], mem_diff: None, store_diff: None }) },
+				VMOperation { pc: 42, instruction: 85, gas_cost: 20000.into(), executed: Some(VMExecutedOperation { gas_used: 44752.into(), stack_push: vec![], mem_diff: None, store_diff: Some(StorageDiff { location: 0.into(), value: U256::from_dec_str("1135198453258042933984631383966629874710669425204").unwrap() }) }) }
 			],
 			subs: vec![
 				VMTrace {
 					parent_step: 6,
 					code: vec![96, 16, 128, 96, 12, 96, 0, 57, 96, 0, 243, 0, 96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53, 85],
 					operations: vec![
-						VMOperation { pc: 0, instruction: 96, gas_cost: 3.into(), executed: Some(VMExecutedOperation { gas_used: 67976.into(), stack_push: vec_into![16], mem_diff: None, store_diff: None }) },
-						VMOperation { pc: 2, instruction: 128, gas_cost: 3.into(), executed: Some(VMExecutedOperation { gas_used: 67973.into(), stack_push: vec_into![16, 16], mem_diff: None, store_diff: None }) },
-						VMOperation { pc: 3, instruction: 96, gas_cost: 3.into(), executed: Some(VMExecutedOperation { gas_used: 67970.into(), stack_push: vec_into![12], mem_diff: None, store_diff: None }) },
-						VMOperation { pc: 5, instruction: 96, gas_cost: 3.into(), executed: Some(VMExecutedOperation { gas_used: 67967.into(), stack_push: vec_into![0], mem_diff: None, store_diff: None }) },
-						VMOperation { pc: 7, instruction: 57, gas_cost: 9.into(), executed: Some(VMExecutedOperation { gas_used: 67958.into(), stack_push: vec_into![], mem_diff: Some(MemoryDiff { offset: 0, data: vec![96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53] }), store_diff: None }) },
-						VMOperation { pc: 8, instruction: 96, gas_cost: 3.into(), executed: Some(VMExecutedOperation { gas_used: 67955.into(), stack_push: vec_into![0], mem_diff: None, store_diff: None }) },
-						VMOperation { pc: 10, instruction: 243, gas_cost: 0.into(), executed: Some(VMExecutedOperation { gas_used: 67955.into(), stack_push: vec_into![], mem_diff: None, store_diff: None }) }
+						VMOperation { pc: 0, instruction: 96, gas_cost: 3.into(), executed: Some(VMExecutedOperation { gas_used: 67976.into(), stack_push: vec![U256::from(16)], mem_diff: None, store_diff: None }) },
+						VMOperation { pc: 2, instruction: 128, gas_cost: 3.into(), executed: Some(VMExecutedOperation { gas_used: 67973.into(), stack_push: vec![U256::from(16); 2], mem_diff: None, store_diff: None }) },
+						VMOperation { pc: 3, instruction: 96, gas_cost: 3.into(), executed: Some(VMExecutedOperation { gas_used: 67970.into(), stack_push: vec![U256::from(12)], mem_diff: None, store_diff: None }) },
+						VMOperation { pc: 5, instruction: 96, gas_cost: 3.into(), executed: Some(VMExecutedOperation { gas_used: 67967.into(), stack_push: vec![U256::from(0)], mem_diff: None, store_diff: None }) },
+						VMOperation { pc: 7, instruction: 57, gas_cost: 9.into(), executed: Some(VMExecutedOperation { gas_used: 67958.into(), stack_push: vec![], mem_diff: Some(MemoryDiff { offset: 0, data: vec![96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53] }), store_diff: None }) },
+						VMOperation { pc: 8, instruction: 96, gas_cost: 3.into(), executed: Some(VMExecutedOperation { gas_used: 67955.into(), stack_push: vec![U256::from(0)], mem_diff: None, store_diff: None }) },
+						VMOperation { pc: 10, instruction: 243, gas_cost: 0.into(), executed: Some(VMExecutedOperation { gas_used: 67955.into(), stack_push: vec![], mem_diff: None, store_diff: None }) }
 					],
 					subs: vec![]
 				}
@@ -1603,7 +1608,7 @@ mod tests {
 		// 60 00
 		// fd - revert
 
-		let code = "6460016000fd6000526005601b6017f0600055".from_hex().unwrap();
+		let code = hex!("6460016000fd6000526005601b6017f0600055").to_vec();
 
 		let sender = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
 		let address = contract_address(CreateContractAddress::FromSenderAndNonce, &sender, &U256::zero(), &[]).0;
@@ -1676,7 +1681,7 @@ mod tests {
 		// 60 00 - push 0
 		// f3 - return
 
-		let code = "601080600c6000396000f3006000355415600957005b60203560003555".from_hex().unwrap();
+		let code = hex!("601080600c6000396000f3006000355415600957005b60203560003555").to_vec();
 
 		let sender = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
 		let address = contract_address(CreateContractAddress::FromSenderAndNonce, &sender, &U256::zero(), &[]).0;
@@ -1728,13 +1733,13 @@ mod tests {
 			parent_step: 0,
 			code: vec![96, 16, 128, 96, 12, 96, 0, 57, 96, 0, 243, 0, 96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53, 85],
 			operations: vec![
-				VMOperation { pc: 0, instruction: 96, gas_cost: 3.into(), executed: Some(VMExecutedOperation { gas_used: 99997.into(), stack_push: vec_into![16], mem_diff: None, store_diff: None }) },
-				VMOperation { pc: 2, instruction: 128, gas_cost: 3.into(), executed: Some(VMExecutedOperation { gas_used: 99994.into(), stack_push: vec_into![16, 16], mem_diff: None, store_diff: None }) },
-				VMOperation { pc: 3, instruction: 96, gas_cost: 3.into(), executed: Some(VMExecutedOperation { gas_used: 99991.into(), stack_push: vec_into![12], mem_diff: None, store_diff: None }) },
-				VMOperation { pc: 5, instruction: 96, gas_cost: 3.into(), executed: Some(VMExecutedOperation { gas_used: 99988.into(), stack_push: vec_into![0], mem_diff: None, store_diff: None }) },
-				VMOperation { pc: 7, instruction: 57, gas_cost: 9.into(), executed: Some(VMExecutedOperation { gas_used: 99979.into(), stack_push: vec_into![], mem_diff: Some(MemoryDiff { offset: 0, data: vec![96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53] }), store_diff: None }) },
-				VMOperation { pc: 8, instruction: 96, gas_cost: 3.into(), executed: Some(VMExecutedOperation { gas_used: 99976.into(), stack_push: vec_into![0], mem_diff: None, store_diff: None }) },
-				VMOperation { pc: 10, instruction: 243, gas_cost: 0.into(), executed: Some(VMExecutedOperation { gas_used: 99976.into(), stack_push: vec_into![], mem_diff: None, store_diff: None }) }
+				VMOperation { pc: 0, instruction: 96, gas_cost: 3.into(), executed: Some(VMExecutedOperation { gas_used: 99997.into(), stack_push: vec![U256::from(16)], mem_diff: None, store_diff: None }) },
+				VMOperation { pc: 2, instruction: 128, gas_cost: 3.into(), executed: Some(VMExecutedOperation { gas_used: 99994.into(), stack_push: vec![U256::from(16); 2], mem_diff: None, store_diff: None }) },
+				VMOperation { pc: 3, instruction: 96, gas_cost: 3.into(), executed: Some(VMExecutedOperation { gas_used: 99991.into(), stack_push: vec![U256::from(12)], mem_diff: None, store_diff: None }) },
+				VMOperation { pc: 5, instruction: 96, gas_cost: 3.into(), executed: Some(VMExecutedOperation { gas_used: 99988.into(), stack_push: vec![U256::from(0)], mem_diff: None, store_diff: None }) },
+				VMOperation { pc: 7, instruction: 57, gas_cost: 9.into(), executed: Some(VMExecutedOperation { gas_used: 99979.into(), stack_push: vec![], mem_diff: Some(MemoryDiff { offset: 0, data: vec![96, 0, 53, 84, 21, 96, 9, 87, 0, 91, 96, 32, 53, 96, 0, 53] }), store_diff: None }) },
+				VMOperation { pc: 8, instruction: 96, gas_cost: 3.into(), executed: Some(VMExecutedOperation { gas_used: 99976.into(), stack_push: vec![U256::from(0)], mem_diff: None, store_diff: None }) },
+				VMOperation { pc: 10, instruction: 243, gas_cost: 0.into(), executed: Some(VMExecutedOperation { gas_used: 99976.into(), stack_push: vec![], mem_diff: None, store_diff: None }) }
 			],
 			subs: vec![]
 		};
@@ -1765,7 +1770,7 @@ mod tests {
 		// 60 00 - push 0
 		// f3 - return
 
-		let code = "7c601080600c6000396000f3006000355415600957005b60203560003555600052601d600360e6f0600055".from_hex().unwrap();
+		let code = hex!("7c601080600c6000396000f3006000355415600957005b60203560003555600052601d600360e6f0600055").to_vec();
 
 		let sender = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
 		let address = contract_address(CreateContractAddress::FromSenderAndNonce, &sender, &U256::zero(), &[]).0;
@@ -1818,7 +1823,7 @@ mod tests {
 		// 60 00 - push 0
 		// f3 - return
 
-		let code = "7c601080600c6000396000f3006000355415600957005b60203560003555600052601d60036017f0".from_hex().unwrap();
+		let code = hex!("7c601080600c6000396000f3006000355415600957005b60203560003555600052601d60036017f0").to_vec();
 
 		let sender = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
 		let address = contract_address(CreateContractAddress::FromSenderAndNonce, &sender, &U256::zero(), &[]).0;
@@ -1861,7 +1866,7 @@ mod tests {
 		// 58 - get PC
 		// 55 - sstore
 
-		let code_a = "6000600060006000601873945304eb96065b2a98b57a48a06ae28d285a71b56103e8f15855".from_hex().unwrap();
+		let code_a = hex!("6000600060006000601873945304eb96065b2a98b57a48a06ae28d285a71b56103e8f15855").to_vec();
 
 		// 60 00 - push 0
 		// 60 00 - push 0
@@ -1875,7 +1880,7 @@ mod tests {
 		// 01 - add
 		// 58 - get PC
 		// 55 - sstore
-		let code_b = "60006000600060006017730f572e5295c57f15886f9b263e2f6d2d6c7b5ec66101f4f16001015855".from_hex().unwrap();
+		let code_b = hex!("60006000600060006017730f572e5295c57f15886f9b263e2f6d2d6c7b5ec66101f4f16001015855").to_vec();
 
 		let address_a = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
 		let address_b = Address::from_str("945304eb96065b2a98b57a48a06ae28d285a71b5" ).unwrap();
@@ -1936,7 +1941,7 @@ mod tests {
 		// 60 01 - push 1
 		// 55 - sstore
 		let sender = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
-		let code = "600160005401600055600060006000600060003060e05a03f1600155".from_hex().unwrap();
+		let code = hex!("600160005401600055600060006000600060003060e05a03f1600155").to_vec();
 		let address = contract_address(CreateContractAddress::FromSenderAndNonce, &sender, &U256::zero(), &[]).0;
 		let mut params = ActionParams::default();
 		params.address = address.clone();
@@ -1967,7 +1972,7 @@ mod tests {
 		let t = Transaction {
 			action: Action::Create,
 			value: U256::from(17),
-			data: "3331600055".from_hex().unwrap(),
+			data: hex!("3331600055").to_vec(),
 			gas: U256::from(100_000),
 			gas_price: U256::zero(),
 			nonce: U256::zero()
@@ -2006,7 +2011,7 @@ mod tests {
 		let t = Transaction {
 			action: Action::Create,
 			value: U256::from(17),
-			data: "3331600055".from_hex().unwrap(),
+			data: hex!("3331600055").to_vec(),
 			gas: U256::from(100_000),
 			gas_price: U256::zero(),
 			nonce: U256::one()
@@ -2039,7 +2044,7 @@ mod tests {
 		let t = Transaction {
 			action: Action::Create,
 			value: U256::from(17),
-			data: "3331600055".from_hex().unwrap(),
+			data: hex!("3331600055").to_vec(),
 			gas: U256::from(80_001),
 			gas_price: U256::zero(),
 			nonce: U256::zero()
@@ -2074,7 +2079,7 @@ mod tests {
 		let t = Transaction {
 			action: Action::Create,
 			value: U256::from(18),
-			data: "3331600055".from_hex().unwrap(),
+			data: hex!("3331600055").to_vec(),
 			gas: U256::from(100_000),
 			gas_price: U256::one(),
 			nonce: U256::zero()
@@ -2103,7 +2108,7 @@ mod tests {
 
 	evm_test!{test_keccak: test_keccak_int}
 	fn test_keccak(factory: Factory) {
-		let code = "6064640fffffffff20600055".from_hex().unwrap();
+		let code = hex!("6064640fffffffff20600055").to_vec();
 
 		let sender = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
 		let address = contract_address(CreateContractAddress::FromSenderAndNonce, &sender, &U256::zero(), &[]).0;
@@ -2139,8 +2144,8 @@ mod tests {
 		let contract_address = Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap();
 		let sender = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
 		// EIP-140 test case
-		let code = "6c726576657274656420646174616000557f726576657274206d657373616765000000000000000000000000000000000000600052600e6000fd".from_hex().unwrap();
-		let returns = "726576657274206d657373616765".from_hex().unwrap();
+		let code = hex!("6c726576657274656420646174616000557f726576657274206d657373616765000000000000000000000000000000000000600052600e6000fd").to_vec();
+		let returns = hex!("726576657274206d657373616765").to_vec();
 		let mut state = get_temp_state_with_factory(factory.clone());
 		state.add_balance(&sender, &U256::from_str("152d02c7e14af68000000").unwrap(), CleanupMode::NoEmpty).unwrap();
 		state.commit().unwrap();
@@ -2180,13 +2185,13 @@ mod tests {
 
 		let mut state = get_temp_state_with_factory(factory.clone());
 		state.new_contract(&x1, U256::zero(), U256::from(1), U256::zero()).unwrap();
-		state.init_code(&x1, "600160005560006000556001600055".from_hex().unwrap()).unwrap();
+		state.init_code(&x1, hex!("600160005560006000556001600055").to_vec()).unwrap();
 		state.new_contract(&x2, U256::zero(), U256::from(1), U256::zero()).unwrap();
-		state.init_code(&x2, "600060005560016000556000600055".from_hex().unwrap()).unwrap();
+		state.init_code(&x2, hex!("600060005560016000556000600055").to_vec()).unwrap();
 		state.new_contract(&y1, U256::zero(), U256::from(1), U256::zero()).unwrap();
-		state.init_code(&y1, "600060006000600061100062fffffff4".from_hex().unwrap()).unwrap();
+		state.init_code(&y1, hex!("600060006000600061100062fffffff4").to_vec()).unwrap();
 		state.new_contract(&y2, U256::zero(), U256::from(1), U256::zero()).unwrap();
-		state.init_code(&y2, "600060006000600061100162fffffff4".from_hex().unwrap()).unwrap();
+		state.init_code(&y2, hex!("600060006000600061100162fffffff4").to_vec()).unwrap();
 
 		let info = EnvInfo::default();
 		let machine = new_constantinople_test_machine();
@@ -2197,7 +2202,7 @@ mod tests {
 		let (FinalizationResult { gas_left, .. }, refund, gas) = {
 			let gas = U256::from(0xffffffffffu64);
 			let mut params = ActionParams::default();
-			params.code = Some(Arc::new("6001600055600060006000600061200163fffffffff4".from_hex().unwrap()));
+			params.code = Some(Arc::new(hex!("6001600055600060006000600061200163fffffffff4").to_vec()));
 			params.gas = gas;
 			let mut substate = Substate::new();
 			let mut ex = Executive::new(&mut state, &info, &machine, &schedule);
@@ -2215,7 +2220,7 @@ mod tests {
 		let (FinalizationResult { gas_left, .. }, refund, gas) = {
 			let gas = U256::from(0xffffffffffu64);
 			let mut params = ActionParams::default();
-			params.code = Some(Arc::new("6001600055600060006000600061200263fffffffff4".from_hex().unwrap()));
+			params.code = Some(Arc::new(hex!("6001600055600060006000600061200263fffffffff4").to_vec()));
 			params.gas = gas;
 			let mut substate = Substate::new();
 			let mut ex = Executive::new(&mut state, &info, &machine, &schedule);
@@ -2231,9 +2236,7 @@ mod tests {
 
 	fn wasm_sample_code() -> Arc<Vec<u8>> {
 		Arc::new(
-			"0061736d01000000010d0360027f7f0060017f0060000002270303656e7603726574000003656e760673656e646572000103656e76066d656d6f727902010110030201020404017000000501000708010463616c6c00020901000ac10101be0102057f017e4100410028020441c0006b22043602042004412c6a41106a220041003602002004412c6a41086a22014200370200200441186a41106a22024100360200200441186a41086a220342003703002004420037022c2004410036021c20044100360218200441186a1001200020022802002202360200200120032903002205370200200441106a2002360200200441086a200537030020042004290318220537022c200420053703002004411410004100200441c0006a3602040b0b0a010041040b0410c00000"
-			.from_hex()
-			.unwrap()
+			hex!("0061736d01000000010d0360027f7f0060017f0060000002270303656e7603726574000003656e760673656e646572000103656e76066d656d6f727902010110030201020404017000000501000708010463616c6c00020901000ac10101be0102057f017e4100410028020441c0006b22043602042004412c6a41106a220041003602002004412c6a41086a22014200370200200441186a41106a22024100360200200441186a41086a220342003703002004420037022c2004410036021c20044100360218200441186a1001200020022802002202360200200120032903002205370200200441106a2002360200200441086a200537030020042004290318220537022c200420053703002004411410004100200441c0006a3602040b0b0a010041040b0410c00000").to_vec()
 		)
 	}
 

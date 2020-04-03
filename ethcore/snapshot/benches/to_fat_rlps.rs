@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Benchmark snapshot::account::to_fat_rlps() which is a hot call during snapshots.
 
@@ -28,12 +28,12 @@ use ethcore::test_helpers::new_temp_db;
 use ethereum_types::H256;
 use parking_lot::RwLock;
 use snapshot::test_helpers::to_fat_rlps;
-use tempdir::TempDir;
+use tempfile::TempDir;
 use ethtrie::TrieDB;
 use trie_db::Trie;
 
 fn fat_rlps(c: &mut Criterion) {
-	let tempdir = TempDir::new("").unwrap();
+	let tempdir = TempDir::new().unwrap();
 	let blockchain_db = new_temp_db(tempdir.path());
 
 	let mut state_rebuilder = snapshot::StateRebuilder::new(blockchain_db.key_value().clone(), journaldb::Algorithm::OverlayRecent);

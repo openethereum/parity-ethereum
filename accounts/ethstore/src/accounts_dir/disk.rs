@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::{fs, io};
 use std::io::Write;
@@ -351,13 +351,13 @@ fn account_filename(account: &SafeAccount) -> String {
 
 #[cfg(test)]
 mod test {
-	extern crate tempdir;
+	extern crate tempfile;
 
 	use std::{env, fs};
 	use super::{KeyDirectory, RootDiskDirectory, VaultKey};
 	use account::SafeAccount;
 	use crypto::publickey::{Random, Generator};
-	use self::tempdir::TempDir;
+	use self::tempfile::TempDir;
 
 	#[test]
 	fn should_create_new_account() {
@@ -448,7 +448,7 @@ mod test {
 	#[test]
 	fn should_list_vaults() {
 		// given
-		let temp_path = TempDir::new("").unwrap();
+		let temp_path = TempDir::new().unwrap();
 		let directory = RootDiskDirectory::create(&temp_path).unwrap();
 		let vault_provider = directory.as_vault_provider().unwrap();
 		vault_provider.create("vault1", VaultKey::new(&"password1".into(), 1)).unwrap();
@@ -463,7 +463,7 @@ mod test {
 
 	#[test]
 	fn hash_of_files() {
-		let temp_path = TempDir::new("").unwrap();
+		let temp_path = TempDir::new().unwrap();
 		let directory = RootDiskDirectory::create(&temp_path).unwrap();
 
 		let hash = directory.files_hash().expect("Files hash should be calculated ok");

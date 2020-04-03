@@ -1,20 +1,22 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Set of different helpers for client tests
+
+extern crate tempfile;
 
 mod test_client;
 mod evm_test_client;
@@ -44,7 +46,7 @@ use kvdb::KeyValueDB;
 use kvdb_rocksdb::{self, Database, DatabaseConfig};
 use parking_lot::RwLock;
 use rlp::{self, RlpStream};
-use tempdir::TempDir;
+use self::tempfile::TempDir;
 use types::{
 	chain_notify::ChainMessageType,
 	transaction::{Action, Transaction, SignedTransaction},
@@ -183,14 +185,15 @@ pub fn generate_dummy_client_with_spec_and_data<F>(
 
 		// first block we don't have any balance, so can't send any transactions.
 		for _ in 0..txs_per_block {
-			b.push_transaction(Transaction {
+			let signed_tx = Transaction {
 				nonce: n.into(),
 				gas_price: tx_gas_prices[n % tx_gas_prices.len()],
 				gas: 100000.into(),
 				action: Action::Create,
 				data: vec![],
 				value: U256::zero(),
-			}.sign(kp.secret(), Some(test_spec.chain_id())), None).unwrap();
+			}.sign(kp.secret(), Some(test_spec.chain_id()));
+			b.push_transaction(signed_tx).unwrap();
 			n += 1;
 		}
 
@@ -247,7 +250,7 @@ pub fn push_block_with_transactions(client: &Arc<Client>, transactions: &[Signed
 	b.set_timestamp(block_number * 10);
 
 	for t in transactions {
-		b.push_transaction(t.clone(), None).unwrap();
+		b.push_transaction(t.clone()).unwrap();
 	}
 	let b = b.close_and_lock().unwrap().seal(test_engine, vec![]).unwrap();
 
@@ -304,8 +307,8 @@ impl BlockChainDB for TestBlockChainDB {
 
 /// Creates new test instance of `BlockChainDB`
 pub fn new_db() -> Arc<dyn BlockChainDB> {
-	let blooms_dir = TempDir::new("").unwrap();
-	let trace_blooms_dir = TempDir::new("").unwrap();
+	let blooms_dir = TempDir::new().unwrap();
+	let trace_blooms_dir = TempDir::new().unwrap();
 
 	let db = TestBlockChainDB {
 		blooms: blooms_db::Database::open(blooms_dir.path()).unwrap(),
@@ -320,8 +323,8 @@ pub fn new_db() -> Arc<dyn BlockChainDB> {
 
 /// Creates a new temporary `BlockChainDB` on FS
 pub fn new_temp_db(tempdir: &Path) -> Arc<dyn BlockChainDB> {
-	let blooms_dir = TempDir::new("").unwrap();
-	let trace_blooms_dir = TempDir::new("").unwrap();
+	let blooms_dir = TempDir::new().unwrap();
+	let trace_blooms_dir = TempDir::new().unwrap();
 	let key_value_dir = tempdir.join("key_value");
 
 	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);

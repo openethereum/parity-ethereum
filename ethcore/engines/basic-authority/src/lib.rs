@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! A blockchain engine that supports a basic, non-BFT proof-of-authority.
 
@@ -26,9 +26,10 @@ use common_types::{
 		SealingState,
 		Seal,
 		params::CommonParams,
-		machine::{AuxiliaryData, Call},
+		machine::Call,
 	},
 	errors::{EngineError, BlockError, EthcoreError as Error},
+	receipt::Receipt,
 };
 use client_traits::EngineClient;
 use ethereum_types::{H256, H520};
@@ -75,7 +76,7 @@ fn verify_external(header: &Header, validators: &dyn ValidatorSet) -> Result<(),
 	}
 
 	match validators.contains(header.parent_hash(), &signer) {
-		false => Err(BlockError::InvalidSeal.into()),
+		false => Err(Error::Block(BlockError::InvalidSeal)),
 		true => Ok(())
 	}
 }
@@ -91,7 +92,7 @@ impl BasicAuthority {
 	/// Create a new instance of BasicAuthority engine
 	pub fn new(our_params: BasicAuthorityParams, machine: Machine) -> Self {
 		BasicAuthority {
-			machine: machine,
+			machine,
 			signer: RwLock::new(None),
 			validators: new_validator_set(our_params.validators),
 		}
@@ -142,16 +143,16 @@ impl Engine for BasicAuthority {
 	}
 
 	#[cfg(not(any(test, feature = "test-helpers")))]
-	fn signals_epoch_end(&self, _header: &Header, _auxiliary: AuxiliaryData) -> engine::EpochChange {
+	fn signals_epoch_end(&self, _header: &Header, _receipts: Option<&[Receipt]>) -> engine::EpochChange {
 		// don't bother signalling even though a contract might try.
 		engine::EpochChange::No
 	}
 
 	#[cfg(any(test, feature = "test-helpers"))]
-	fn signals_epoch_end(&self, header: &Header, auxiliary: AuxiliaryData) -> engine::EpochChange {
+	fn signals_epoch_end(&self, header: &Header, receipts: Option<&[Receipt]>) -> engine::EpochChange {
 		// in test mode, always signal even though they don't be finalized.
 		let first = header.number() == 0;
-		self.validators.signals_epoch_end(first, header, auxiliary)
+		self.validators.signals_epoch_end(first, header, receipts)
 	}
 
 	fn is_epoch_end(
@@ -229,12 +230,12 @@ mod tests {
 		header::Header,
 		engines::{Seal, SealingState}
 	};
-	use tempdir::TempDir;
+	use tempfile::TempDir;
 
 	/// Create a new test chain spec with `BasicAuthority` consensus engine.
 	fn new_test_authority() -> Spec {
 		let bytes: &[u8] = include_bytes!("../res/basic_authority.json");
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 		Spec::load(&tempdir.path(), bytes).expect("invalid chain spec")
 	}
 

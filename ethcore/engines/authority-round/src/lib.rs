@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! A blockchain engine that supports a non-instant BFT proof-of-authority.
 //!
@@ -44,12 +44,10 @@ use client_traits::{EngineClient, ForceUpdateSealing, TransactionRequest};
 use engine::{Engine, ConstructedVerifier};
 use block_gas_limit::block_gas_limit;
 use block_reward::{self, BlockRewardContract, RewardKind};
-use ethjson;
 use machine::{
 	ExecutedBlock,
 	Machine,
 };
-use macros::map;
 use keccak_hash::keccak;
 use log::{info, debug, error, trace, warn};
 use lru_cache::LruCache;
@@ -73,10 +71,11 @@ use common_types::{
 		PendingTransitionStore,
 		Seal,
 		SealingState,
-		machine::{Call, AuxiliaryData},
+		machine::Call,
 	},
 	errors::{BlockError, EthcoreError as Error, EngineError},
 	ids::BlockId,
+	receipt::Receipt,
 	snapshot::Snapshotting,
 	transaction::SignedTransaction,
 };
@@ -720,17 +719,22 @@ fn header_signature(header: &Header, empty_steps_transition: u64) -> Result<Sign
 	.as_val::<H520>().map(Into::into)
 }
 
-// extracts the raw empty steps vec from the header seal. should only be called when there are 3 fields in the seal
-// (i.e. header.number() >= self.empty_steps_transition)
-fn header_empty_steps_raw(header: &Header) -> &[u8] {
-	header.seal().get(2).expect("was checked with verify_block_basic; has 3 fields; qed")
+// Extracts the RLP bytes of the empty steps from the header seal. Returns data only when there are
+// 3 fields in the seal. (i.e. header.number() >= self.empty_steps_transition).
+fn header_empty_steps_raw(header: &Header) -> Option<&[u8]> {
+	header.seal().get(2).map(Vec::as_slice)
 }
 
-// extracts the empty steps from the header seal. should only be called when there are 3 fields in the seal
+// Extracts the empty steps from the header seal. Returns data only when there are 3 fields in the seal
 // (i.e. header.number() >= self.empty_steps_transition).
 fn header_empty_steps(header: &Header) -> Result<Vec<EmptyStep>, ::rlp::DecoderError> {
-	let empty_steps = Rlp::new(header_empty_steps_raw(header)).as_list::<SealedEmptyStep>()?;
-	Ok(empty_steps.into_iter().map(|s| EmptyStep::from_sealed(s, header.parent_hash())).collect())
+	header_empty_steps_raw(header).map_or(Ok(vec![]), |raw| {
+		let empty_steps = Rlp::new(raw).as_list::<SealedEmptyStep>()?;
+		Ok(empty_steps
+			.into_iter()
+			.map(|s| EmptyStep::from_sealed(s, header.parent_hash()))
+			.collect())
+	})
 }
 
 // gets the signers of empty step messages for the given header, does not include repeated signers
@@ -788,7 +792,7 @@ fn verify_external(header: &Header, validators: &dyn ValidatorSet, empty_steps_t
 	let correct_proposer = validators.get(header.parent_hash(), header_step as usize);
 	let is_invalid_proposer = *header.author() != correct_proposer || {
 		let empty_steps_rlp = if header.number() >= empty_steps_transition {
-			Some(header_empty_steps_raw(header))
+			header_empty_steps_raw(header)
 		} else {
 			None
 		};
@@ -871,8 +875,7 @@ impl AuthorityRound {
 			};
 			durations.push(dur_info);
 			for (time, dur) in our_params.step_durations.iter().skip(1) {
-				let (step, time) = next_step_time_duration(dur_info, *time)
-					.ok_or(BlockError::TimestampOverflow)?;
+				let (step, time) = next_step_time_duration(dur_info, *time).ok_or(BlockError::TimestampOverflow)?;
 				dur_info.transition_step = step;
 				dur_info.transition_timestamp = time;
 				dur_info.step_duration = *dur;
@@ -970,11 +973,15 @@ impl AuthorityRound {
 	/// Drops all `EmptySteps` less than or equal to the passed `step`, irregardless of the parent hash.
 	fn clear_empty_steps(&self, step: u64) {
 		let mut empty_steps = self.empty_steps.lock();
-		*empty_steps = empty_steps.split_off(&EmptyStep {
+		if empty_steps.is_empty() {
+			return;
+		}
+		let next_empty_steps = empty_steps.split_off(&EmptyStep {
 			step: step + 1,
 			parent_hash: Default::default(),
 			signature: Default::default(),
 		});
+		*empty_steps = next_empty_steps
 	}
 
 	fn store_empty_step(&self, empty_step: EmptyStep) {
@@ -1268,22 +1275,20 @@ impl Engine for AuthorityRound {
 			.map(ToString::to_string)
 			.unwrap_or_default();
 
-		let mut info = map![
-			"step".into() => step,
-			"signature".into() => signature
-		];
+		let mut info = BTreeMap::new();
+		info.insert("step".into(), step);
+		info.insert("signature".into(), signature);
 
 		if header.number() >= self.empty_steps_transition {
-			let empty_steps =
-				if let Ok(empty_steps) = header_empty_steps(header).as_ref() {
-					format!("[{}]",
-						empty_steps.iter().fold(
-							"".to_string(),
-							|acc, e| if acc.len() > 0 { acc + ","} else { acc } + &e.to_string()))
-
-				} else {
-					"".into()
-				};
+			let empty_steps = header_empty_steps(header).as_ref().map_or(String::new(), |empty_steps| {
+				format!("[{}]", empty_steps.iter().fold(String::new(), |mut acc, e| {
+					if !acc.is_empty() {
+						acc.push(',');
+					}
+					acc.push_str(&e.to_string());
+					acc
+				}))
+			});
 
 			info.insert("emptySteps".into(), empty_steps);
 		}
@@ -1590,9 +1595,11 @@ impl Engine for AuthorityRound {
 	/// Check the number of seal fields.
 	fn verify_block_basic(&self, header: &Header) -> Result<(), Error> {
 		if header.number() >= self.validate_score_transition && *header.difficulty() >= U256::from(U128::max_value()) {
-			return Err(From::from(BlockError::DifficultyOutOfBounds(
-				OutOfBounds { min: None, max: Some(U256::from(U128::max_value())), found: *header.difficulty() }
-			)));
+			return Err(Error::Block(BlockError::DifficultyOutOfBounds(OutOfBounds {
+				min: None,
+				max: Some(U256::from(U128::max_value())),
+				found: *header.difficulty()
+			})));
 		}
 
 		match verify_timestamp(&self.step.inner, header_step(header, self.empty_steps_transition)?) {
@@ -1613,7 +1620,7 @@ impl Engine for AuthorityRound {
 					self.validators.report_benign(header.author(), set_number, header.number());
 				}
 
-				Err(BlockError::InvalidSeal.into())
+				Err(Error::Block(BlockError::InvalidSeal))
 			}
 			Err(e) => Err(e.into()),
 			Ok(()) => Ok(()),
@@ -1719,9 +1726,9 @@ impl Engine for AuthorityRound {
 		if header.number() >= self.validate_score_transition {
 			let expected_difficulty = calculate_score(parent_step.into(), step.into(), empty_steps_len.into());
 			if header.difficulty() != &expected_difficulty {
-				return Err(From::from(BlockError::InvalidDifficulty(Mismatch {
+				return Err(Error::Block(BlockError::InvalidDifficulty(Mismatch {
 					expected: expected_difficulty,
-					found: header.difficulty().clone()
+					found: *header.difficulty()
 				})));
 			}
 		}
@@ -1760,11 +1767,11 @@ impl Engine for AuthorityRound {
 			.map(|set_proof| combine_proofs(0, &set_proof, &[]))
 	}
 
-	fn signals_epoch_end(&self, header: &Header, aux: AuxiliaryData) -> engine::EpochChange {
+	fn signals_epoch_end(&self, header: &Header, receipts: Option<&[Receipt]>) -> engine::EpochChange {
 		if self.immediate_transitions { return engine::EpochChange::No }
 
 		let first = header.number() == 0;
-		self.validators.signals_epoch_end(first, header, aux)
+		self.validators.signals_epoch_end(first, header, receipts)
 	}
 
 	fn is_epoch_end_light(
@@ -2546,14 +2553,15 @@ mod tests {
 
 		// step 3
 		let mut b2 = OpenBlock::new(engine, Default::default(), false, db2, &genesis_header, last_hashes.clone(), addr2, (3141562.into(), 31415620.into()), vec![], false).unwrap();
-		b2.push_transaction(Transaction {
+		let signed_tx = Transaction {
 			action: Action::Create,
 			nonce: U256::from(0),
 			gas_price: U256::from(3000),
 			gas: U256::from(53_000),
 			value: U256::from(1),
 			data: vec![],
-		}.fake_sign(addr2), None).unwrap();
+		}.fake_sign(addr2);
+		b2.push_transaction(signed_tx).unwrap();
 		let b2 = b2.close_and_lock().unwrap();
 
 		// we will now seal a block with 1tx and include the accumulated empty step message
@@ -3013,9 +3021,10 @@ mod tests {
 		let params = AuthorityRoundParams::from(deserialized.params);
 		for ((block_num1, address1), (block_num2, address2)) in
 			params.block_reward_contract_transitions.iter().zip(
-				[(0u64, BlockRewardContract::new_from_address(Address::from_str("2000000000000000000000000000000000000002").unwrap())),
-				 (7u64, BlockRewardContract::new_from_address(Address::from_str("3000000000000000000000000000000000000003").unwrap())),
-				 (42u64, BlockRewardContract::new_from_address(Address::from_str("4000000000000000000000000000000000000004").unwrap())),
+				[
+					(0u64, BlockRewardContract::new_from_address(Address::from_str("2000000000000000000000000000000000000002").unwrap())),
+					(7u64, BlockRewardContract::new_from_address(Address::from_str("3000000000000000000000000000000000000003").unwrap())),
+					(42u64, BlockRewardContract::new_from_address(Address::from_str("4000000000000000000000000000000000000004").unwrap())),
 				].iter())
 		{
 			assert_eq!(block_num1, block_num2);

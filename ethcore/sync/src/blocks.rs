@@ -1,25 +1,25 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::{HashSet, HashMap, hash_map};
 
 use bytes::Bytes;
 use ethereum_types::H256;
 use keccak_hash::{keccak, KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP};
-use log::{trace, warn};
+use log::{debug, trace, warn};
 use parity_util_mem::MallocSizeOf;
 use rlp::{Rlp, RlpStream, DecoderError};
 use triehash_ethereum::ordered_trie_root;
@@ -103,7 +103,7 @@ fn unverified_from_sync(header: SyncHeader, body: Option<SyncBody>) -> Unverifie
 		header: header.header,
 		transactions: body.transactions,
 		uncles: body.uncles,
-		bytes: stream.out().to_vec(),
+		bytes: stream.out(),
 	}
 }
 
@@ -196,11 +196,11 @@ impl BlockCollection {
 	}
 
 	/// Insert a collection of block receipts for previously downloaded headers.
-	pub fn insert_receipts(&mut self, receipts: Vec<Bytes>) -> Vec<Vec<H256>> {
+	pub fn insert_receipts(&mut self, receipts: &[&[u8]]) -> Vec<Vec<H256>> {
 		if !self.need_receipts {
 			return Vec::new();
 		}
-		receipts.into_iter()
+		receipts.iter()
 			.filter_map(|r| {
 				self.insert_receipt(r)
 					.map_err(|e| trace!(target: "sync", "Ignored invalid receipt: {:?}", e))
@@ -210,24 +210,28 @@ impl BlockCollection {
 	}
 
 	/// Returns a set of block hashes that require a body download. The returned set is marked as being downloaded.
-	pub fn needed_bodies(&mut self, count: usize, _ignore_downloading: bool) -> Vec<H256> {
+	pub fn needed_bodies(&mut self, count: usize) -> Vec<H256> {
 		if self.head.is_none() {
 			return Vec::new();
 		}
-		let mut needed_bodies: Vec<H256> = Vec::new();
+		let mut needed_bodies: Vec<H256> = Vec::with_capacity(count);
 		let mut head = self.head;
-		while head.is_some() && needed_bodies.len() < count {
-			head = self.parents.get(&head.unwrap()).cloned();
-			if let Some(head) = head {
-				match self.blocks.get(&head) {
-					Some(block) if block.body.is_none() && !self.downloading_bodies.contains(&head) => {
-						self.downloading_bodies.insert(head.clone());
-						needed_bodies.push(head.clone());
+		while needed_bodies.len() < count {
+			head = match head {
+				Some(head) => {
+					match self.blocks.get(&head) {
+						Some(block) if block.body.is_none() && !self.downloading_bodies.contains(&head) => {
+							self.downloading_bodies.insert(head.clone());
+							needed_bodies.push(head.clone());
+						}
+						_ => (),
 					}
-					_ => (),
-				}
-			}
+					self.parents.get(&head).copied()
+				},
+				None => break
+			};
 		}
+
 		for h in self.header_ids.values() {
 			if needed_bodies.len() >= count {
 				break;
@@ -241,25 +245,28 @@ impl BlockCollection {
 	}
 
 	/// Returns a set of block hashes that require a receipt download. The returned set is marked as being downloaded.
-	pub fn needed_receipts(&mut self, count: usize, _ignore_downloading: bool) -> Vec<H256> {
+	pub fn needed_receipts(&mut self, count: usize) -> Vec<H256> {
 		if self.head.is_none() || !self.need_receipts {
 			return Vec::new();
 		}
-		let mut needed_receipts: Vec<H256> = Vec::new();
+		let mut needed_receipts: Vec<H256> = Vec::with_capacity(count);
 		let mut head = self.head;
-		while head.is_some() && needed_receipts.len() < count {
-			head = self.parents.get(&head.unwrap()).cloned();
-			if let Some(head) = head {
-				match self.blocks.get(&head) {
-					Some(block) => {
-						if block.receipts.is_none() && !self.downloading_receipts.contains(&block.receipts_root) {
-							self.downloading_receipts.insert(block.receipts_root);
-							needed_receipts.push(head.clone());
+		while needed_receipts.len() < count {
+			head = match head {
+				Some(head) => {
+					match self.blocks.get(&head) {
+						Some(block) => {
+							if block.receipts.is_none() && !self.downloading_receipts.contains(&block.receipts_root) {
+								self.downloading_receipts.insert(block.receipts_root);
+								needed_receipts.push(head);
+							}
 						}
+						_ => (),
 					}
-					_ => (),
-				}
-			}
+					self.parents.get(&head).copied()
+				},
+				None => break
+			};
 		}
 		// If there are multiple blocks per receipt, only request one of them.
 		for (root, h) in self.receipt_ids.iter().map(|(root, hashes)| (root, hashes[0])) {
@@ -275,12 +282,12 @@ impl BlockCollection {
 	}
 
 	/// Returns a set of block hashes that require a header download. The returned set is marked as being downloaded.
-	pub fn needed_headers(&mut self, count: usize, ignore_downloading: bool) -> Option<(H256, usize)> {
+	pub fn needed_headers(&mut self, count: usize) -> Option<(H256, usize)> {
 		// find subchain to download
 		let mut download = None;
 		{
 			for h in &self.heads {
-				if ignore_downloading || !self.downloading_headers.contains(h) {
+				if !self.downloading_headers.contains(h) {
 					self.downloading_headers.insert(h.clone());
 					download = Some(h.clone());
 					break;
@@ -317,42 +324,40 @@ impl BlockCollection {
 			return Vec::new();
 		}
 
-		let mut drained = Vec::new();
 		let mut hashes = Vec::new();
-		{
-			let mut blocks = Vec::new();
-			let mut head = self.head;
-			while let Some(h) = head {
-				head = self.parents.get(&h).cloned();
-				if let Some(head) = head {
-					match self.blocks.remove(&head) {
-						Some(block) => {
-							if block.body.is_some() && (!self.need_receipts || block.receipts.is_some()) {
-								blocks.push(block);
-								hashes.push(head);
-								self.head = Some(head);
-							} else {
-								self.blocks.insert(head, block);
-								break;
-							}
-						},
-						_ => {
+		let mut blocks = Vec::new();
+		let mut head = self.head;
+		while let Some(h) = head {
+			head = self.parents.get(&h).copied();
+			if let Some(head) = head {
+				match self.blocks.remove(&head) {
+					Some(block) => {
+						if block.body.is_some() && (!self.need_receipts || block.receipts.is_some()) {
+							blocks.push(block);
+							hashes.push(head);
+							self.head = Some(head);
+						} else {
+							self.blocks.insert(head, block);
 							break;
-						},
-					}
+						}
+					},
+					_ => {
+						break;
+					},
 				}
-			}
-
-			for block in blocks.into_iter() {
-				let unverified = unverified_from_sync(block.header, block.body);
-				drained.push(BlockAndReceipts {
-					block: unverified,
-					receipts: block.receipts.clone(),
-				});
 			}
 		}
 
-		trace!(target: "sync", "Drained {} blocks, new head :{:?}", drained.len(), self.head);
+		let mut drained = Vec::with_capacity(blocks.len());
+		for block in blocks {
+			let unverified = unverified_from_sync(block.header, block.body);
+			drained.push(BlockAndReceipts {
+				block: unverified,
+				receipts: block.receipts,
+			});
+		}
+
+		debug!(target: "sync", "Drained {} blocks, new head :{:?}", drained.len(), self.head);
 		drained
 	}
 
@@ -409,7 +414,7 @@ impl BlockCollection {
 		}
 	}
 
-	fn insert_receipt(&mut self, r: Bytes) -> Result<Vec<H256>, network::Error> {
+	fn insert_receipt(&mut self, r: &[u8]) -> Result<Vec<H256>, network::Error> {
 		let receipt_root = {
 			let receipts = Rlp::new(&r);
 			ordered_trie_root(receipts.iter().map(|r| r.as_raw()))
@@ -422,7 +427,7 @@ impl BlockCollection {
 					match self.blocks.get_mut(&h) {
 						Some(ref mut block) => {
 							trace!(target: "sync", "Got receipt {}", h);
-							block.receipts = Some(r.clone());
+							block.receipts = Some(r.to_vec());
 						},
 						None => {
 							warn!("Got receipt with no header {}", h);
@@ -581,11 +586,11 @@ mod test {
 		bc.reset_to(heads);
 		assert!(!bc.is_empty());
 		assert_eq!(hashes[0], bc.heads[0]);
-		assert!(bc.needed_bodies(1, false).is_empty());
+		assert!(bc.needed_bodies(1).is_empty());
 		assert!(!bc.contains(&hashes[0]));
 		assert!(!bc.is_downloading(&hashes[0]));
 
-		let (h, n) = bc.needed_headers(6, false).unwrap();
+		let (h, n) = bc.needed_headers(6).unwrap();
 		assert!(bc.is_downloading(&hashes[0]));
 		assert_eq!(hashes[0], h);
 		assert_eq!(n, 6);
@@ -608,9 +613,9 @@ mod test {
 		assert!(!bc.contains(&hashes[0]));
 		assert_eq!(hashes[5], bc.head.unwrap());
 
-		let (h, _) = bc.needed_headers(6, false).unwrap();
+		let (h, _) = bc.needed_headers(6).unwrap();
 		assert_eq!(hashes[5], h);
-		let (h, _) = bc.needed_headers(6, false).unwrap();
+		let (h, _) = bc.needed_headers(6).unwrap();
 		assert_eq!(hashes[20], h);
 		bc.insert_headers(headers[10..16].into_iter().map(Clone::clone).collect());
 		assert!(bc.drain().is_empty());

@@ -1,10 +1,13 @@
 [package]
-description = "Parity Ethereum client"
-name = "parity-ethereum"
+description = "OpenEthereum"
+name = "openethereum"
 # NOTE Make sure to update util/version/Cargo.toml as well
-version = "2.8.0"
+version = "3.0.0-alpha.1"
 license = "GPL-3.0"
-authors = ["Parity Technologies <admin@parity.io>"]
+authors = [
+	"OpenEthereum developers",
+	"Parity Technologies <admin@parity.io>"
+]
 
 [dependencies]
 ansi_term = "0.11"
@@ -30,7 +33,6 @@ ethcore-logger = { path = "parity/logger" }
 ethcore-miner = { path = "miner" }
 ethcore-network = { path = "util/network" }
 ethcore-private-tx = { path = "ethcore/private-tx" }
-ethcore-secretstore = { path = "secret-store", optional = true }
 ethcore-service = { path = "ethcore/service" }
 ethcore-sync = { path = "ethcore/sync" }
 ethereum-types = "0.8.0"
@@ -42,7 +44,7 @@ journaldb = { path = "util/journaldb" }
 jsonrpc-core = "14.0.3"
 keccak-hash = "0.4.0"
 kvdb = "0.4.0"
-kvdb-rocksdb = "0.5.0"
+kvdb-rocksdb = "0.6.0"
 log = "0.4"
 migration-rocksdb = { path = "util/migration-rocksdb" }
 node-filter = { path = "ethcore/node-filter" }
@@ -53,11 +55,11 @@ parity-bytes = "0.1"
 parity-crypto = { version = "0.5.0", features = ["publickey"] }
 parity-daemonize = "0.3"
 parity-hash-fetch = { path = "updater/hash-fetch" }
-parity-ipfs-api = { path = "ipfs" }
 parity-local-store = { path = "miner/local-store" }
 parity-path = "0.1"
 parity-rpc = { path = "rpc" }
 parity-runtime = "0.1.1"
+parity-secretstore = { git = "https://github.com/paritytech/secret-store", rev = "ebe751d", optional = true }
 parity-updater = { path = "updater" }
 parity-util-mem = { version = "0.5.1", features = ["jemalloc-global"] }
 parity-version = { path = "util/version" }
@@ -66,7 +68,7 @@ regex = "1.0"
 registrar = { path = "util/registrar" }
 rlp = "0.4.0"
 rpassword = "1.0"
-rustc-hex = "1.0"
+rustc-hex = "2.1.0"
 semver = "0.9"
 serde = "1.0"
 serde_derive = "1.0"
@@ -84,7 +86,7 @@ rustc_version = "0.2"
 [dev-dependencies]
 pretty_assertions = "0.1"
 ipnetwork = "0.12.6"
-tempdir = "0.3"
+tempfile = "3.1"
 fake-fetch = { path = "util/fake-fetch" }
 
 [target.'cfg(windows)'.dependencies]
@@ -99,16 +101,9 @@ test-heavy = ["ethcore/test-heavy"]
 evm-debug = ["ethcore/evm-debug"]
 evm-debug-tests = ["ethcore/evm-debug-tests"]
 slow-blocks = ["ethcore/slow-blocks"]
-secretstore = ["ethcore-secretstore", "accounts", "ethabi", "ethcore-call-contract"]
+secretstore = ["parity-secretstore", "accounts", "ethabi", "ethcore-call-contract"]
 final = ["parity-version/final"]
 deadlock_detection = ["parking_lot/deadlock_detection"]
-# to create a memory profile (requires nightly rust), use e.g.
-# `heaptrack /path/to/parity <parity params>`,
-# to visualize a memory profile, use `heaptrack_gui`
-# or
-# `valgrind --tool=massif /path/to/parity <parity params>`
-# and `massif-visualizer` for visualization
-memory_profiling = []
 # hardcode version number 1.3.7 of parity to force an update
 # in order to manually test that parity fall-over to the local version
 # in case of invalid or deprecated command line arguments are entered
@@ -119,7 +114,7 @@ path = "parity/lib.rs"
 
 [[bin]]
 path = "parity/main.rs"
-name = "parity"
+name = "openethereum"
 
 [profile.release]
 debug = false
@@ -135,5 +130,4 @@ members = [
 	"chainspec",
 	"ethcore/wasm/run",
 	"evmbin",
-	"util/EIP-2124"
 ]

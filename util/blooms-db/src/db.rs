@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::{error, io, fmt};
 use std::path::{Path, PathBuf};
@@ -294,12 +294,12 @@ where ethbloom::BloomRef<'b>: From<B>, 'b: 'a, II: IntoIterator<Item = B, IntoIt
 #[cfg(test)]
 mod tests {
 	use ethbloom::Bloom;
-	use tempdir::TempDir;
+	use tempfile::TempDir;
 	use super::Database;
 
 	#[test]
 	fn test_database() {
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 		let mut database = Database::open(tempdir.path()).unwrap();
 		database.insert_blooms(0, vec![
 			Bloom::from_low_u64_be(0),
@@ -332,7 +332,7 @@ mod tests {
 
 	#[test]
 	fn test_database2() {
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 		let mut database = Database::open(tempdir.path()).unwrap();
 		database.insert_blooms(254, vec![
 			Bloom::from_low_u64_be(0x100),
@@ -362,7 +362,7 @@ mod tests {
 
 	#[test]
 	fn test_db_close() {
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 		let blooms = vec![
 			Bloom::from_low_u64_be(0x100),
 			Bloom::from_low_u64_be(0x01),

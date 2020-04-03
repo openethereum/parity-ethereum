@@ -1,7 +1,7 @@
 {
 	"block": [
 		{
-			"reference": "Issue https://github.com/paritytech/parity-ethereum/issues/11073 (also see https://github.com/paritytech/parity-ethereum/pull/10923)",
+			"reference": "Issue https://github.com/openethereum/openethereum/issues/11073 (also see https://github.com/openethereum/openethereum/pull/10923)",
 			"failing": "stRevertTest",
 			"subtests": [
 				"RevertPrecompiledTouch_d0g0v0_Byzantium",
@@ -24,7 +24,7 @@
 	],
 	"state": [
 		{
-			"reference": "Issue https://github.com/paritytech/parity-ethereum/issues/11078 (also see https://github.com/paritytech/parity-ethereum/pull/10923)",
+			"reference": "Issue https://github.com/openethereum/openethereum/issues/11078 (also see https://github.com/openethereum/openethereum/pull/10923)",
 			"failing": "stRevertTest",
 			"subtests": {
 				"RevertPrecompiledTouch_storage": {
@@ -34,7 +34,7 @@
 			}
 		},
 		{
-			"reference": "Issue https://github.com/paritytech/parity-ethereum/issues/11079 (also see https://github.com/paritytech/parity-ethereum/pull/10923)",
+			"reference": "Issue https://github.com/openethereum/openethereum/issues/11079 (also see https://github.com/openethereum/openethereum/pull/10923)",
 			"failing": "stRevertTest",
 			"subtests": {
 				"RevertPrecompiledTouchExactOOG": {
@@ -44,7 +44,7 @@
 			}
 		},
 		{
-			"reference": "Issue https://github.com/paritytech/parity-ethereum/issues/11080 (also see https://github.com/paritytech/parity-ethereum/pull/10923)",
+			"reference": "Issue https://github.com/openethereum/openethereum/issues/11080 (also see https://github.com/openethereum/openethereum/pull/10923)",
 			"failing": "stRevertTest",
 			"subtests": {
 				"RevertPrecompiledTouch": {

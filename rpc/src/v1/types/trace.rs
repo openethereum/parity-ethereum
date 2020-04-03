@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::BTreeMap;
 
@@ -674,8 +674,6 @@ impl From<(H256, Executed)> for TraceResultsWithTransactionHash {
 
 #[cfg(test)]
 mod tests {
-	use serde_json;
-	use std::collections::BTreeMap;
 	use v1::types::Bytes;
 	use trace::TraceError;
 	use ethereum_types::Address;
@@ -875,12 +873,12 @@ mod tests {
 
 	#[test]
 	fn test_statediff_serialize() {
-		let t = StateDiff(map![
+		let t = StateDiff(btreemap![
 			Address::from_low_u64_be(42) => AccountDiff {
 				balance: Diff::Same,
 				nonce: Diff::Born(1.into()),
 				code: Diff::Same,
-				storage: map![
+				storage: btreemap![
 					H256::from_low_u64_be(42) => Diff::Same
 				]
 			},
@@ -888,7 +886,7 @@ mod tests {
 				balance: Diff::Same,
 				nonce: Diff::Changed(ChangedType { from: 1.into(), to: 0.into() }),
 				code: Diff::Died(vec![96].into()),
-				storage: map![],
+				storage: btreemap![],
 			}
 		]);
 		let serialized = serde_json::to_string(&t).unwrap();

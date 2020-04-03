@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::cmp;
 use std::time::{Duration, Instant};
@@ -128,7 +128,7 @@ impl SyncSupplier {
 						TransactionsPacket => {
 							let res = {
 								let sync_ro = sync.read();
-								SyncHandler::on_peer_transactions(&*sync_ro, io, peer, &rlp)
+								SyncHandler::on_peer_transactions(&*sync_ro, io, peer, rlp)
 							};
 							if res.is_err() {
 								// peer sent invalid data, disconnect.
@@ -272,16 +272,19 @@ impl SyncSupplier {
 		let mut added = 0usize;
 		let mut data = Vec::new();
 		let mut total_bytes = 0;
-		let mut total_elpsd = Duration::from_secs(0);
+		let mut total_elapsed = Duration::from_secs(0);
 		for i in 0..count {
 			let hash = &r.val_at(i)?;
-			let elpsd = Instant::now();
+			let now = Instant::now();
 			let state = io.chain().state_data(hash);
 
-			total_elpsd += elpsd.elapsed();
-			if elpsd.elapsed() > MAX_NODE_DATA_SINGLE_DURATION || total_elpsd > MAX_NODE_DATA_TOTAL_DURATION {
-				warn!(target: "sync", "{} -> GetNodeData:   item {}/{} – slow state fetch for hash {:?}; took {:?}",
-					peer_id, i, count, hash, elpsd);
+			let elapsed = now.elapsed();
+			total_elapsed += elapsed;
+			if elapsed > MAX_NODE_DATA_SINGLE_DURATION || total_elapsed > MAX_NODE_DATA_TOTAL_DURATION {
+				warn!(
+					target: "sync", "{} -> GetNodeData:   item {}/{} – slow state fetch for hash {:?}; took {:?}, total {:?}",
+					peer_id, i, count, hash, elapsed, total_elapsed,
+				);
 				break;
 			}
 			if let Some(node) = state {
@@ -294,7 +297,7 @@ impl SyncSupplier {
 			}
 		}
 		trace!(target: "sync", "{} -> GetNodeData: returning {}/{} entries ({} bytes total in {:?})",
-			peer_id, added, count, total_bytes, total_elpsd);
+			peer_id, added, count, total_bytes, total_elapsed);
 		let mut rlp = RlpStream::new_list(added);
 		for d in data {
 			rlp.append(&d);

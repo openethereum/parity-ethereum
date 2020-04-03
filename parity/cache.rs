@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::cmp::max;
 
@@ -52,7 +52,9 @@ impl Default for CacheConfig {
 }
 
 impl CacheConfig {
-	/// Creates new cache config with cumulative size equal `total`.
+	/// Creates new cache config with cumulative size equal to `total`, distributed as follows: 70%
+	/// to rocksdb, 10% to the blockchain cache and 20% to the state cache. The transaction queue
+	/// cache size is set to 40Mb and the trace cache to 20Mb.
 	pub fn new_with_total_cache_size(total: u32) -> Self {
 		CacheConfig {
 			db: total * 7 / 10,
@@ -63,14 +65,14 @@ impl CacheConfig {
 		}
 	}
 
-	/// Creates new cache config with gitven details.
+	/// Creates new cache config with given details.
 	pub fn new(db: u32, blockchain: u32, queue: u32, state: u32) -> Self {
 		CacheConfig {
-			db: db,
-			blockchain: blockchain,
-			queue: queue,
+			db,
+			blockchain,
+			queue,
 			traces: DEFAULT_TRACE_CACHE_SIZE,
-			state: state,
+			state,
 		}
 	}
 

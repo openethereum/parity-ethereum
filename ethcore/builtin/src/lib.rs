@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Standard built-in contracts.
 
@@ -759,18 +759,18 @@ mod tests {
 		PricingAt, AltBn128Pairing as JsonAltBn128PairingPricing, Pricing as JsonPricing,
 	};
 	use hex_literal::hex;
-	use macros::map;
+	use maplit::btreemap;
 	use num::{BigUint, Zero, One};
 	use parity_bytes::BytesRef;
 	use super::{
-		BTreeMap, Builtin, EthereumBuiltin, FromStr, Implementation, Linear,
+		Builtin, EthereumBuiltin, FromStr, Implementation, Linear,
 		ModexpPricer, modexp as me, Pricing
 	};
 
 	#[test]
 	fn blake2f_cost() {
 		let f = Builtin {
-			pricer: map![0 => Pricing::Blake2F(123)],
+			pricer: btreemap![0 => Pricing::Blake2F(123)],
 			native: EthereumBuiltin::from_str("blake2_f").unwrap(),
 		};
 		// 5 rounds
@@ -784,7 +784,7 @@ mod tests {
 	#[test]
 	fn blake2f_cost_on_invalid_length() {
 		let f = Builtin {
-			pricer: map![0 => Pricing::Blake2F(123)],
+			pricer: btreemap![0 => Pricing::Blake2F(123)],
 			native: EthereumBuiltin::from_str("blake2_f").expect("known builtin"),
 		};
 		// invalid input (too short)
@@ -1031,7 +1031,7 @@ mod tests {
 	#[test]
 	fn modexp() {
 		let f = Builtin {
-			pricer: map![0 => Pricing::Modexp(ModexpPricer { divisor: 20 })],
+			pricer: btreemap![0 => Pricing::Modexp(ModexpPricer { divisor: 20 })],
 			native: EthereumBuiltin::from_str("modexp").unwrap(),
 		};
 
@@ -1141,7 +1141,7 @@ mod tests {
 	fn bn128_add() {
 
 		let f = Builtin {
-			pricer: map![0 => Pricing::Linear(Linear { base: 0, word: 0 })],
+			pricer: btreemap![0 => Pricing::Linear(Linear { base: 0, word: 0 })],
 			native: EthereumBuiltin::from_str("alt_bn128_add").unwrap(),
 		};
 
@@ -1199,7 +1199,7 @@ mod tests {
 	fn bn128_mul() {
 
 		let f = Builtin {
-			pricer: map![0 => Pricing::Linear(Linear { base: 0, word: 0 })],
+			pricer: btreemap![0 => Pricing::Linear(Linear { base: 0, word: 0 })],
 			native: EthereumBuiltin::from_str("alt_bn128_mul").unwrap(),
 		};
 
@@ -1238,7 +1238,7 @@ mod tests {
 
 	fn builtin_pairing() -> Builtin {
 		Builtin {
-			pricer: map![0 => Pricing::Linear(Linear { base: 0, word: 0 })],
+			pricer: btreemap![0 => Pricing::Linear(Linear { base: 0, word: 0 })],
 			native: EthereumBuiltin::from_str("alt_bn128_pairing").unwrap(),
 		}
 	}
@@ -1317,7 +1317,7 @@ mod tests {
 	fn is_active() {
 		let pricer = Pricing::Linear(Linear { base: 10, word: 20 });
 		let b = Builtin {
-			pricer: map![100_000 => pricer],
+			pricer: btreemap![100_000 => pricer],
 			native: EthereumBuiltin::from_str("identity").unwrap(),
 		};
 
@@ -1330,7 +1330,7 @@ mod tests {
 	fn from_named_linear() {
 		let pricer = Pricing::Linear(Linear { base: 10, word: 20 });
 		let b = Builtin {
-			pricer: map![0 => pricer],
+			pricer: btreemap![0 => pricer],
 			native: EthereumBuiltin::from_str("identity").unwrap(),
 		};
 
@@ -1349,7 +1349,7 @@ mod tests {
 	fn from_json() {
 		let b = Builtin::try_from(ethjson::spec::Builtin {
 			name: "identity".to_owned(),
-			pricing: map![
+			pricing: btreemap![
 				0 => PricingAt {
 					info: None,
 					price: JsonPricing::Linear(JsonLinearPricing { base: 10, word: 20 })
@@ -1372,7 +1372,7 @@ mod tests {
 	fn bn128_pairing_eip1108_transition() {
 		let b = Builtin::try_from(JsonBuiltin {
 			name: "alt_bn128_pairing".to_owned(),
-			pricing: map![
+			pricing: btreemap![
 				10 => PricingAt {
 					info: None,
 					price: JsonPricing::AltBn128Pairing(JsonAltBn128PairingPricing {
@@ -1398,7 +1398,7 @@ mod tests {
 	fn bn128_add_eip1108_transition() {
 		let b = Builtin::try_from(JsonBuiltin {
 			name: "alt_bn128_add".to_owned(),
-			pricing: map![
+			pricing: btreemap![
 				10 => PricingAt {
 					info: None,
 					price: JsonPricing::Linear(JsonLinearPricing {
@@ -1424,7 +1424,7 @@ mod tests {
 	fn bn128_mul_eip1108_transition() {
 		let b = Builtin::try_from(JsonBuiltin {
 			name: "alt_bn128_mul".to_owned(),
-			pricing: map![
+			pricing: btreemap![
 				10 => PricingAt {
 					info: None,
 					price: JsonPricing::Linear(JsonLinearPricing {
@@ -1451,7 +1451,7 @@ mod tests {
 	fn multimap_use_most_recent_on_activate() {
 		let b = Builtin::try_from(JsonBuiltin {
 			name: "alt_bn128_mul".to_owned(),
-			pricing: map![
+			pricing: btreemap![
 				10 => PricingAt {
 					info: None,
 					price: JsonPricing::Linear(JsonLinearPricing {
@@ -1489,7 +1489,7 @@ mod tests {
 	fn multimap_use_last_with_same_activate_at() {
 		let b = Builtin::try_from(JsonBuiltin {
 			name: "alt_bn128_mul".to_owned(),
-			pricing: map![
+			pricing: btreemap![
 				1 => PricingAt {
 					info: None,
 					price: JsonPricing::Linear(JsonLinearPricing {

@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Block and transaction verification functions
 //!
@@ -38,7 +38,7 @@ use common_types::{
 	header::Header,
 	errors::{EthcoreError as Error, BlockError},
 	engines::MAX_UNCLE_AGE,
-	block::PreverifiedBlock,
+	block::{BlockRlpRepresentation, PreverifiedBlock},
 	verification::Unverified,
 };
 
@@ -78,8 +78,12 @@ pub fn verify_block_basic(block: &Unverified, engine: &dyn Engine, check_seal: b
 
 /// Phase 2 verification. Perform costly checks such as transaction signatures and block nonce for ethash.
 /// Still operates on a individual block
-/// Returns a `PreverifiedBlock` structure populated with transactions
-pub fn verify_block_unordered(block: Unverified, engine: &dyn Engine, check_seal: bool) -> Result<PreverifiedBlock, Error> {
+/// Returns a `PreverifiedBlock` structure populated with transactions along with the RLP representation of the block.
+pub fn verify_block_unordered(
+	block: Unverified,
+	engine: &dyn Engine,
+	check_seal: bool,
+) -> Result<(PreverifiedBlock, BlockRlpRepresentation), Error> {
 	let header = block.header;
 	if check_seal {
 		engine.verify_block_unordered(&header)?;
@@ -107,12 +111,13 @@ pub fn verify_block_unordered(block: Unverified, engine: &dyn Engine, check_seal
 		})
 		.collect::<Result<Vec<_>, Error>>()?;
 
-	Ok(PreverifiedBlock {
-		header,
-		transactions,
-		uncles: block.uncles,
-		bytes: block.bytes,
-	})
+	Ok((PreverifiedBlock {
+			header,
+			transactions,
+			uncles: block.uncles,
+		},
+		block.bytes,
+	))
 }
 
 /// Parameters for full verification of block family
@@ -163,8 +168,8 @@ fn verify_uncles(block: &PreverifiedBlock, bc: &dyn BlockProvider, engine: &dyn 
 
 		let mut excluded = HashSet::new();
 		excluded.insert(header.hash());
-		let mut hash = header.parent_hash().clone();
-		excluded.insert(hash.clone());
+		let mut hash = *header.parent_hash();
+		excluded.insert(hash);
 		for _ in 0..MAX_UNCLE_AGE {
 			match bc.block_details(&hash) {
 				Some(details) => {
@@ -213,7 +218,7 @@ fn verify_uncles(block: &PreverifiedBlock, bc: &dyn BlockProvider, engine: &dyn 
 			// cB.p^6	-----------/  6
 			// cB.p^7	-------------/
 			// cB.p^8
-			let mut expected_uncle_parent = header.parent_hash().clone();
+			let mut expected_uncle_parent = *header.parent_hash();
 			let uncle_parent = bc.block_header_data(&uncle.parent_hash())
 				.ok_or_else(|| BlockError::UnknownUncleParent(*uncle.parent_hash()))?;
 			for _ in 0..depth {
@@ -440,7 +445,6 @@ mod tests {
 	use keccak_hash::keccak;
 	use engine::Engine;
 	use parity_crypto::publickey::{Random, Generator};
-	use spec;
 	use ethcore::test_helpers::{
 		create_test_block_with_data, create_test_block, TestBlockChainClient
 	};
@@ -449,7 +453,6 @@ mod tests {
 		errors::BlockError::*,
 		transaction::{SignedTransaction, Transaction, UnverifiedTransaction, Action},
 	};
-	use rlp;
 	use triehash::ordered_trie_root;
 	use machine::Machine;
 	use null_engine::NullEngine;
@@ -504,7 +507,6 @@ mod tests {
 			header,
 			transactions,
 			uncles: block.uncles,
-			bytes: bytes.to_vec(),
 		};
 
 		let full_params = FullFamilyParams {
@@ -650,10 +652,6 @@ mod tests {
 		let mut bad_header = good.clone();
 		bad_header.set_transactions_root(eip86_transactions_root.clone());
 		bad_header.set_uncles_hash(good_uncles_hash.clone());
-		match basic_test(&create_test_block_with_data(&bad_header, &eip86_transactions, &good_uncles), engine) {
-			Err(Error::Transaction(ref e)) if e == &parity_crypto::publickey::Error::InvalidSignature.into() => (),
-			e => panic!("Block verification failed.\nExpected: Transaction Error (Invalid Signature)\nGot: {:?}", e),
-		}
 
 		let mut header = good.clone();
 		header.set_transactions_root(good_transactions_root.clone());

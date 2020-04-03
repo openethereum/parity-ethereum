@@ -1,18 +1,18 @@
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// This file is part of Open Ethereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// Open Ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// Open Ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Ethereum-like state machine definition.
 
@@ -364,7 +364,9 @@ impl Machine {
 		Ok(())
 	}
 
-	/// Performs pre-validation of RLP decoded transaction before other processing
+	/// Performs pre-validation of RLP encoded transaction before other
+	/// processing: check length against `max_transaction_size` and decode the
+	/// RLP.
 	pub fn decode_transaction(&self, transaction: &[u8]) -> Result<UnverifiedTransaction, transaction::Error> {
 		let rlp = Rlp::new(&transaction);
 		if rlp.as_raw().len() > self.params().max_transaction_size {
@@ -407,8 +409,8 @@ fn round_block_gas_limit(gas_limit: U256, lower_limit: U256, upper_limit: U256) 
 mod tests {
 	use std::str::FromStr;
 	use common_types::header::Header;
+	use hex_literal::hex;
 	use super::*;
-	use spec;
 
 	fn get_default_ethash_extensions() -> EthashExtensions {
 		EthashExtensions {
@@ -421,21 +423,12 @@ mod tests {
 
 	#[test]
 	fn should_disallow_unsigned_transactions() {
-		let rlp = "ea80843b9aca0083015f90948921ebb5f79e9e3920abe571004d0b1d5119c154865af3107a400080038080";
-		let transaction: UnverifiedTransaction = ::rlp::decode(&::rustc_hex::FromHex::from_hex(rlp).unwrap()).unwrap();
-		let spec = spec::new_ropsten_test();
-		let ethparams = get_default_ethash_extensions();
-
-		let machine = Machine::with_ethash_extensions(
-			spec.params().clone(),
-			Default::default(),
-			ethparams,
+		let rlp = hex!("ea80843b9aca0083015f90948921ebb5f79e9e3920abe571004d0b1d5119c154865af3107a400080038080").to_vec();
+		let transaction: UnverifiedTransaction = rlp::decode(&rlp).unwrap();
+		assert_eq!(
+			transaction::Error::from(transaction.verify_unordered().unwrap_err()),
+			transaction::Error::InvalidSignature("invalid EC signature".into()),
 		);
-		let mut header = Header::new();
-		header.set_number(15);
-
-		let res = machine.verify_transaction_basic(&transaction, &header);
-		assert_eq!(res, Err(transaction::Error::InvalidSignature("invalid EC signature".into())));
 	}
 
 	#[test]

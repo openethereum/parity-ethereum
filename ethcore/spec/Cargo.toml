@@ -28,6 +28,7 @@ keccak-hash = "0.4.0"
 kvdb-memorydb = "0.4.0"
 log = "0.4.8"
 machine = { path = "../machine" }
+maplit = "1"
 null-engine = { path = "../engines/null-engine" }
 pod = { path = "../pod" }
 rlp = "0.4.2"
@@ -38,4 +39,4 @@ vm = { path = "../vm" }
 [dev-dependencies]
 ethcore = { path = "..", features = ["test-helpers"] }
 env_logger = "0.5"
-tempdir = "0.3.7"
+tempfile = "3.1"
