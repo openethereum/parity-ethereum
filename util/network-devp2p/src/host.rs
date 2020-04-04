@@ -16,11 +16,10 @@
 
 use std::cmp::{max, min};
 use std::collections::{HashMap, HashSet};
-use std::fs;
-use std::io::{self, Read, Write};
+use std::io;
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::ops::*;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
@@ -34,7 +33,6 @@ use mio::{
 	Token,
 	udp::UdpSocket
 };
-use parity_path::restrict_permissions_owner;
 use parking_lot::{Mutex, RwLock};
 use rlp::{Encodable, RlpStream};
 
@@ -50,7 +48,9 @@ use crate::{
 	connection::PAYLOAD_SOFT_LIMIT,
 	discovery::{Discovery, MAX_DATAGRAM_SIZE, NodeEntry, TableUpdates},
 	ip_utils::{map_external_address, select_public_address},
+	node_record::*,
 	node_table::*,
+	persistence::{save, load},
 	PROTOCOL_VERSION,
 	session::{Session, SessionData}
 };
@@ -218,6 +218,8 @@ impl<'s> NetworkContextTrait for NetworkContext<'s> {
 pub struct HostInfo {
 	/// Our private and public keys.
 	keys: KeyPair,
+	/// Node record.
+	enr: EnrManager,
 	/// Current network configuration
 	config: NetworkConfiguration,
 	/// Connection nonce.
@@ -285,19 +287,30 @@ impl Host {
 			Some(addr) => addr,
 		};
 
+		let mut key_created = false;
 		let keys = if let Some(ref secret) = config.use_secret {
 			KeyPair::from_secret(secret.clone())?
 		} else {
-			config.config_path.clone().and_then(|ref p| load_key(Path::new(&p)))
+			config.config_path.clone().and_then(|ref p| load(Path::new(&p)))
 				.map_or_else(|| {
+				key_created = true;
 				let key = Random.generate();
 				if let Some(path) = config.config_path.clone() {
-					save_key(Path::new(&path), key.secret());
+					save(Path::new(&path), key.secret());
 				}
 				key
 			},
 			|s| KeyPair::from_secret(s).expect("Error creating node secret key"))
 		};
+		let mut enr = None;
+		if !key_created {
+			if let Some(path) = &config.config_path {
+				if let Some(data) = load(Path::new(&path)) {
+					enr = EnrManager::load(keys.secret().clone(), data);
+				}
+			}
+		}
+		let enr = enr.unwrap_or_else(|| EnrManager::new(keys.secret().clone(), 0).expect("keys.secret() is a valid secp256k1 secret; Enr does not fail given valid secp256k1 secret; qed"));
 		let path = config.net_config_path.clone();
 		// Setup the server socket
 		let tcp_listener = TcpListener::bind(&listen_address)?;
@@ -313,6 +326,7 @@ impl Host {
 		let mut host = Host {
 			info: RwLock::new(HostInfo {
 				keys,
+				enr,
 				config,
 				nonce: H256::random(),
 				protocol_version: PROTOCOL_VERSION,
@@ -475,7 +489,11 @@ impl Host {
 			Some(addr) => NodeEndpoint { address: addr, udp_port: local_endpoint.udp_port }
 		};
 
-		self.info.write().public_endpoint = Some(public_endpoint.clone());
+		{
+			let mut info = self.info.write();
+			info.public_endpoint = Some(public_endpoint.clone());
+			info.enr.set_node_endpoint(&public_endpoint);
+		}
 
 		if let Some(url) = self.external_url() {
 			io.message(NetworkIoMessage::NetworkStarted(url)).unwrap_or_else(|e| warn!("Error sending IO notification: {:?}", e));
@@ -485,7 +503,7 @@ impl Host {
 		let discovery = {
 			let info = self.info.read();
 			if info.config.discovery_enabled && info.config.non_reserved_mode == NonReservedPeerMode::Accept {
-				Some(Discovery::new(&info.keys, public_endpoint, allow_ips))
+				Some(Discovery::new(&info.keys, public_endpoint, info.enr.as_enr().clone(), allow_ips))
 			} else { None }
 		};
 
@@ -1216,67 +1234,6 @@ impl IoHandler<NetworkIoMessage> for Host {
 			_ => warn!("Unexpected stream update")
 		}
 	}
-}
-
-fn save_key(path: &Path, key: &Secret) {
-	let mut path_buf = PathBuf::from(path);
-	if let Err(e) = fs::create_dir_all(path_buf.as_path()) {
-		warn!("Error creating key directory: {:?}", e);
-		return;
-	};
-	path_buf.push("key");
-	let path = path_buf.as_path();
-	let mut file = match fs::File::create(&path) {
-		Ok(file) => file,
-		Err(e) => {
-			warn!("Error creating key file: {:?}", e);
-			return;
-		}
-	};
-	if let Err(e) = restrict_permissions_owner(path, true, false) {
-		warn!(target: "network", "Failed to modify permissions of the file ({})", e);
-	}
-	if let Err(e) = file.write(&key.to_hex().into_bytes()) {
-		warn!("Error writing key file: {:?}", e);
-	}
-}
-
-fn load_key(path: &Path) -> Option<Secret> {
-	let mut path_buf = PathBuf::from(path);
-	path_buf.push("key");
-	let mut file = match fs::File::open(path_buf.as_path()) {
-		Ok(file) => file,
-		Err(e) => {
-			debug!("Error opening key file: {:?}", e);
-			return None;
-		}
-	};
-	let mut buf = String::new();
-	match file.read_to_string(&mut buf) {
-		Ok(_) => {},
-		Err(e) => {
-			warn!("Error reading key file: {:?}", e);
-			return None;
-		}
-	}
-	match Secret::from_str(&buf) {
-		Ok(key) => Some(key),
-		Err(e) => {
-			warn!("Error parsing key file: {:?}", e);
-			None
-		}
-	}
-}
-
-#[test]
-fn key_save_load() {
-	use tempfile::TempDir;
-
-	let tempdir = TempDir::new().unwrap();
-	let key = H256::random().into();
-	save_key(tempdir.path(), &key);
-	let r = load_key(tempdir.path());
-	assert_eq!(key, r.unwrap());
 }
 
 #[test]
