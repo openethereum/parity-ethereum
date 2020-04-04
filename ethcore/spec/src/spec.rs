@@ -51,6 +51,7 @@ use maplit::btreeset;
 use null_engine::NullEngine;
 use pod::PodState;
 use rlp::{Rlp, RlpStream};
+use serde::{Serialize, Serializer};
 use trace::{NoopTracer, NoopVMTracer};
 use trie_vm_factories::Factories;
 use vm::{EnvInfo, ActionType, ActionValue, ActionParams, ParamsType};
@@ -244,14 +245,34 @@ pub struct Spec {
 }
 
 /// Part of `Spec`. Describes the hardcoded synchronization parameters.
+#[derive(Serialize)]
 pub struct SpecHardcodedSync {
 	/// Header of the block to jump to for hardcoded sync, and total difficulty.
+	#[serde(serialize_with = "serialize_header")]
 	pub header: encoded::Header,
 	/// Total difficulty of the block to jump to.
+	#[serde(rename = "totalDifficulty", serialize_with = "serialize_total_difficulty")]
 	pub total_difficulty: U256,
 	/// List of hardcoded CHTs, in order. If `hardcoded_sync` is set, the CHTs should include the
 	/// header of `hardcoded_sync`.
+	#[serde(rename = "CHTs")]
 	pub chts: Vec<H256>,
+}
+
+fn serialize_total_difficulty<S>(total_difficulty: &U256, serializer: S) -> Result<S::Ok, S::Error>
+where
+	S: Serializer,
+{
+	let total_difficulty_str = format!("{:?}", total_difficulty);
+	serializer.serialize_str(&total_difficulty_str)
+}
+
+fn serialize_header<S>(header: &encoded::Header, serializer: S) -> Result<S::Ok, S::Error>
+where
+	S: Serializer,
+{
+	let header_str = format!("{:x}", header);
+	serializer.serialize_str(&header_str)
 }
 
 impl From<ethjson::spec::HardcodedSync> for SpecHardcodedSync {
@@ -266,12 +287,8 @@ impl From<ethjson::spec::HardcodedSync> for SpecHardcodedSync {
 
 impl fmt::Display for SpecHardcodedSync {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		writeln!(f, "{{")?;
-		writeln!(f, r#""header": "{:x}","#, self.header)?;
-		writeln!(f, r#""totalDifficulty": "{:?}""#, self.total_difficulty)?;
-		// TODO: #11415 - fix trailing comma for CHTs
-		writeln!(f, r#""CHTs": {:#?}"#, self.chts.iter().map(|x| format!("{:?}", x)).collect::<Vec<_>>())?;
-		writeln!(f, "}}")
+		let serialized = serde_json::to_string_pretty(&self).unwrap();
+		writeln!(f, "{}", serialized)
 	}
 }
 

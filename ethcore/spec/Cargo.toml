@@ -32,6 +32,8 @@ maplit = "1"
 null-engine = { path = "../engines/null-engine" }
 pod = { path = "../pod" }
 rlp = "0.4.2"
+serde = "1.0"
+serde_json = "1.0"
 trace = { path = "../trace" }
 trie-vm-factories = { path = "../trie-vm-factories" }
 vm = { path = "../vm" }

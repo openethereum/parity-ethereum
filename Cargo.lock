@@ -4820,6 +4820,8 @@ dependencies = [
  "parity-bytes",
  "pod",
  "rlp",
+ "serde",
+ "serde_json",
  "tempfile",
  "trace",
  "trie-vm-factories",
