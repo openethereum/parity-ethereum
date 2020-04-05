@@ -941,7 +941,7 @@ mod tests {
 	fn ping_queue() {
 		let key = Random.generate();
 		let ep = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40445").unwrap(), udp_port: 40445 };
-		let enr = EnrManager::new(key.secret().clone(), 0).unwrap().with_node_endpoint(&ep).into_enr();
+		let enr = EnrManager::new(None, key.secret().clone(), 0).unwrap().with_node_endpoint(&ep).into_enr();
 		let mut discovery = Discovery::new(&key, ep.clone(), enr, IpFilter::default());
 
 		for i in 1..(MAX_NODES_PING+1) {
@@ -966,7 +966,7 @@ mod tests {
 				address: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 41000 + i),
 				udp_port: 41000 + i,
 			};
-			let enr = EnrManager::new(key.secret().clone(), 0).unwrap().with_node_endpoint(&ep).into_enr();
+			let enr = EnrManager::new(None, key.secret().clone(), 0).unwrap().with_node_endpoint(&ep).into_enr();
 			Discovery::new(&key, ep, enr, IpFilter::default())
 		})
 			.collect::<Vec<_>>();
@@ -1014,7 +1014,7 @@ mod tests {
 	fn removes_expired() {
 		let key = Random.generate();
 		let ep = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40446").unwrap(), udp_port: 40447 };
-		let enr = EnrManager::new(key.secret().clone(), 0).unwrap().with_node_endpoint(&ep).into_enr();
+		let enr = EnrManager::new(None, key.secret().clone(), 0).unwrap().with_node_endpoint(&ep).into_enr();
 		let discovery = Discovery::new(&key, ep.clone(), enr, IpFilter::default());
 
 		let mut discovery = Discovery { request_backoff: &[], ..discovery };
@@ -1107,7 +1107,7 @@ mod tests {
 
 		let key = Random.generate();
 		let ep = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40447").unwrap(), udp_port: 40447 };
-		let enr = EnrManager::new(key.secret().clone(), 0).unwrap().with_node_endpoint(&ep).into_enr();
+		let enr = EnrManager::new(None, key.secret().clone(), 0).unwrap().with_node_endpoint(&ep).into_enr();
 		let mut discovery = Discovery::new(&key, ep.clone(), enr, IpFilter::default());
 
 		for _ in 0..(16 + 10) {
@@ -1165,7 +1165,7 @@ mod tests {
 		let key = Secret::from_str(secret_hex)
 			.and_then(|secret| KeyPair::from_secret(secret))
 			.unwrap();
-		let enr = EnrManager::new(key.secret().clone(), 0).unwrap().with_node_endpoint(&ep).into_enr();
+		let enr = EnrManager::new(None, key.secret().clone(), 0).unwrap().with_node_endpoint(&ep).into_enr();
 		let mut discovery = Discovery::new(&key, ep.clone(), enr, IpFilter::default());
 
 		discovery.init_node_list(node_entries.clone());
@@ -1211,7 +1211,7 @@ mod tests {
 	fn packets() {
 		let key = Random.generate();
 		let ep = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40449").unwrap(), udp_port: 40449 };
-		let enr = EnrManager::new(key.secret().clone(), 0).unwrap().with_node_endpoint(&ep).into_enr();
+		let enr = EnrManager::new(None, key.secret().clone(), 0).unwrap().with_node_endpoint(&ep).into_enr();
 		let mut discovery = Discovery::new(&key, ep.clone(), enr, IpFilter::default());
 		discovery.check_timestamps = false;
 		let from = SocketAddr::from_str("99.99.99.99:40445").unwrap();
@@ -1281,8 +1281,8 @@ mod tests {
 		let ep1 = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40344").unwrap(), udp_port: 40344 };
 		let ep2 = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40345").unwrap(), udp_port: 40345 };
 		let ep3 = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40346").unwrap(), udp_port: 40345 };
-		let enr1 = EnrManager::new(key1.secret().clone(), 0).unwrap().with_node_endpoint(&ep1).into_enr();
-		let enr2 = EnrManager::new(key2.secret().clone(), 0).unwrap().with_node_endpoint(&ep2).into_enr();
+		let enr1 = EnrManager::new(None, key1.secret().clone(), 0).unwrap().with_node_endpoint(&ep1).into_enr();
+		let enr2 = EnrManager::new(None, key2.secret().clone(), 0).unwrap().with_node_endpoint(&ep2).into_enr();
 		let mut discovery1 = Discovery::new(&key1, ep1.clone(), enr1, IpFilter::default());
 		let mut discovery2 = Discovery::new(&key2, ep2.clone(), enr2, IpFilter::default());
 

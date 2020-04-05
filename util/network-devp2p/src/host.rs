@@ -305,12 +305,14 @@ impl Host {
 		let mut enr = None;
 		if !key_created {
 			if let Some(path) = &config.config_path {
-				if let Some(data) = load(Path::new(&path)) {
-					enr = EnrManager::load(keys.secret().clone(), data);
-				}
+				enr = EnrManager::load(path.as_str(), keys.secret().clone());
 			}
 		}
-		let enr = enr.unwrap_or_else(|| EnrManager::new(keys.secret().clone(), 0).expect("keys.secret() is a valid secp256k1 secret; Enr does not fail given valid secp256k1 secret; qed"));
+		let enr = enr.unwrap_or_else(|| EnrManager::new(
+			config.config_path.as_ref().map(|v| v.into()),
+			keys.secret().clone(),
+			0)
+			.expect("keys.secret() is a valid secp256k1 secret; Enr does not fail given valid secp256k1 secret; qed"));
 		let path = config.net_config_path.clone();
 		// Setup the server socket
 		let tcp_listener = TcpListener::bind(&listen_address)?;

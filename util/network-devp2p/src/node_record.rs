@@ -1,6 +1,7 @@
 use log::*;
 use parity_crypto::publickey::Secret;
-use crate::{persistence::DiskEntity, node_table::NodeEndpoint};
+use std::path::PathBuf;
+use crate::{persistence::{save, load, DiskEntity}, node_table::NodeEndpoint};
 
 pub type Enr = enr::Enr<secp256k1::SecretKey>;
 
@@ -9,18 +10,32 @@ const ENR_VERSION: &str = "v4";
 pub struct EnrManager {
 	secret: secp256k1::SecretKey,
 	inner: Enr,
+	path: Option<PathBuf>,
 }
 
 impl EnrManager {
-    pub fn new(key: Secret, seq: u64) -> Option<Self> {
+	fn save(&mut self) {
+		if let Some(path) = &self.path {
+			save(path, &self.inner);
+		}
+	}
+
+	pub fn new(path: Option<PathBuf>, key: Secret, seq: u64) -> Option<Self> {
 		let secret = key.to_secp256k1_secret().ok()?;
 		let mut b = enr::EnrBuilder::new(ENR_VERSION);
 		b.seq(seq);
 		let inner = b.build(&secret).ok()?;
-		Some(Self { secret, inner })
+		let mut this = Self { secret, inner, path };
+		this.save();
+		Some(this)
 	}
 
-	pub fn load(key: Secret, inner: Enr) -> Option<Self> {
+	pub fn load<P>(path: P, key: Secret) -> Option<Self>
+	where
+		PathBuf: From<P>
+	{
+		let path = PathBuf::from(path);
+		let inner = load::<Enr>(&path)?;
 		let secret = key.to_secp256k1_secret().ok()?;
 		let public = secp256k1::PublicKey::from_secret_key(&secp256k1::Secp256k1::new(), &secret);
 
@@ -28,7 +43,7 @@ impl EnrManager {
 			warn!("ENR does not match the provided key");
 			return None;
 		}
-		Some(Self { secret, inner })
+		Some(Self { secret, inner, path: Some(path) })
 	}
 
 	#[cfg(test)]
@@ -45,6 +60,7 @@ impl EnrManager {
 		self.inner.set_udp(endpoint.udp_port, &self.secret).expect(ENR_PROOF);
 		// We just wrap here, unlikely to be a problem in our lifetimes unless the user sets seq high enough on purpose.
 		self.inner.set_seq(seq.wrapping_add(1), &self.secret).expect(ENR_PROOF);
+		self.save();
 	}
 
 	pub fn as_enr(&self) -> &Enr {
