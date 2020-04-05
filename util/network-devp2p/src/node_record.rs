@@ -85,3 +85,26 @@ impl DiskEntity for Enr {
 		Ok(s.parse()?)
 	}
 }
+
+#[cfg(test)]
+mod tests {
+	#[test]
+	fn save_load() {
+		use super::*;
+		use ethereum_types::H256;
+		use std::net::SocketAddr;
+		use tempfile::TempDir;
+
+		let tempdir = TempDir::new().unwrap();
+		let key = Secret::from(H256::random());
+
+		let mut enr = EnrManager::new(Some(tempdir.path().into()), key.clone(), 0).unwrap();
+		assert_eq!(*enr.as_enr(), EnrManager::load(tempdir.path(), key.clone()).unwrap().into_enr());
+		let endpoint = NodeEndpoint {
+			address: SocketAddr::from((rand::random::<[u8; 4]>(), rand::random())),
+			udp_port: rand::random(),
+		};
+		enr.set_node_endpoint(&endpoint);
+		assert_eq!(*enr.as_enr(), EnrManager::load(tempdir.path(), key).unwrap().into_enr());
+	}
+}
