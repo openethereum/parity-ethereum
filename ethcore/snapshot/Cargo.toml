@@ -14,7 +14,7 @@ harness = false
 account-db = { path = "../account-db" }
 account-state = { path = "../account-state" }
 blockchain = { package = "ethcore-blockchain", path = "../blockchain" }
-bloom-journal = { package = "ethcore-bloom-journal", path = "../../util/bloom" }
+bloom-journal = { package = "accounts-bloom", path = "../../util/bloom" }
 bytes = { package = "parity-bytes", version = "0.1.0" }
 client-traits = { path = "../client-traits" }
 common-types = { path = "../types" }

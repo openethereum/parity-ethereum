@@ -41,6 +41,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "accounts-bloom"
+version = "0.1.0"
+dependencies = [
+ "siphasher",
+]
+
+[[package]]
 name = "aes"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1300,13 +1307,6 @@ dependencies = [
  "rustc-hex 2.1.0",
  "tempfile",
  "triehash-ethereum",
-]
-
-[[package]]
-name = "ethcore-bloom-journal"
-version = "0.1.0"
-dependencies = [
- "siphasher",
 ]
 
 [[package]]
@@ -4689,6 +4689,7 @@ version = "0.1.0"
 dependencies = [
  "account-db",
  "account-state",
+ "accounts-bloom",
  "client-traits",
  "common-types",
  "criterion",
@@ -4701,7 +4702,6 @@ dependencies = [
  "ethcore",
  "ethcore-accounts",
  "ethcore-blockchain",
- "ethcore-bloom-journal",
  "ethcore-db",
  "ethcore-io",
  "ethereum-types",
@@ -4843,10 +4843,10 @@ name = "state-db"
 version = "0.1.0"
 dependencies = [
  "account-state",
+ "accounts-bloom",
  "common-types",
  "env_logger 0.5.13",
  "ethcore",
- "ethcore-bloom-journal",
  "ethcore-db",
  "ethereum-types",
  "hash-db",
