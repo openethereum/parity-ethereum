@@ -8,4 +8,4 @@ license = "GPL3"
 ethereum-types = "0.8.0"
 journaldb = { path = "../journaldb" }
 app_dirs = { git = "https://github.com/paritytech/app-dirs-rs" }
-home = "0.3"
+home = "0.5.3"
