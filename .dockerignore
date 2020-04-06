@@ -16,7 +16,7 @@ target
 # idea ide
 .idea
 
-# git stuff
-.git
+# git folder is not ignored so vergen library can get the commit hash and date for the build
+#.git
 
 ethcore/res/ethereum/tests
