@@ -8,7 +8,7 @@ edition = "2018"
 
 [dependencies]
 account-state = { path = "../account-state" }
-bloom_journal = { package = "ethcore-bloom-journal", path = "../../util/bloom" }
+bloom_journal = { package = "accounts-bloom", path = "../../util/bloom" }
 common-types = { path = "../types"}
 ethcore-db = { path = "../db" }
 ethereum-types = "0.8.0"
