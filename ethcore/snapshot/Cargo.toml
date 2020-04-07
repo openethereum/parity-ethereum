@@ -18,7 +18,7 @@ bloom-journal = { package = "accounts-bloom", path = "../../util/bloom" }
 bytes = { package = "parity-bytes", version = "0.1.0" }
 client-traits = { path = "../client-traits" }
 common-types = { path = "../types" }
-crossbeam-utils = "0.6"
+crossbeam-utils = "0.7.2"
 engine = { path = "../engine" }
 ethcore-db = { path = "../db" }
 ethcore-io = { path = "../../util/io" }

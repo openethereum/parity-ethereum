@@ -199,7 +199,8 @@ impl<Message> IoManager<Message> where Message: Send + Sync + 'static {
 		event_loop: &mut EventLoop<IoManager<Message>>,
 		handlers: Arc<RwLock<Slab<Arc<dyn IoHandler<Message>>>>>
 	) -> Result<(), IoError> {
-		let (worker, stealer) = deque::fifo();
+		let worker = deque::Worker::new_fifo();
+		let stealer = worker.stealer();
 		let num_workers = 4;
 		let work_ready_mutex =  Arc::new(Mutex::new(()));
 		let work_ready = Arc::new(Condvar::new());

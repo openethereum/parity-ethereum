@@ -15,7 +15,7 @@ required-features = ["test-helpers"]
 account-state = { path = "../account-state" }
 client-traits = { path = "../client-traits" }
 common-types = { path = "../types" }
-crossbeam-utils = "0.6"
+crossbeam-utils = "0.7.2"
 ethabi = "9.0.1"
 ethabi-contract = "9.0.0"
 ethabi-derive = "9.0.1"
