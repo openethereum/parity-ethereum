@@ -24,6 +24,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 use std::time::Duration;
+use slab::Slab;
 
 use ethereum_types::H256;
 use keccak_hash::keccak;
@@ -54,8 +55,6 @@ use crate::{
 	PROTOCOL_VERSION,
 	session::{Session, SessionData}
 };
-
-type Slab<T> = ::slab::Slab<T, usize>;
 
 const MAX_SESSIONS: usize = 2048 + MAX_HANDSHAKES;
 const MAX_HANDSHAKES: usize = 1024;
@@ -153,7 +152,7 @@ impl<'s> NetworkContextTrait for NetworkContext<'s> {
 		let session = self.resolve_session(peer);
 		if let Some(session) = session {
 			session.lock().send_packet(self.io, Some(protocol), packet_id as u8, &data)?;
-		} else  {
+		} else {
 			trace!(target: "network", "Send: Peer no longer exist")
 		}
 		Ok(())
@@ -337,7 +336,7 @@ impl Host {
 			discovery: Mutex::new(None),
 			udp_socket: Mutex::new(None),
 			tcp_listener: Mutex::new(tcp_listener),
-			sessions: Arc::new(RwLock::new(Slab::new_starting_at(FIRST_SESSION, MAX_SESSIONS))),
+			sessions: Arc::new(RwLock::new(Slab::with_capacity(MAX_SESSIONS))),
 			nodes: RwLock::new(NodeTable::new(path)),
 			handlers: RwLock::new(HashMap::new()),
 			timers: RwLock::new(HashMap::new()),
@@ -397,7 +396,7 @@ impl Host {
 				// disconnect all non-reserved peers here.
 				let reserved: HashSet<NodeId> = self.reserved_nodes.read().clone();
 				let mut to_kill = Vec::new();
-				for e in self.sessions.read().iter() {
+				for (_, e) in self.sessions.read().iter() {
 					let mut s = e.lock();
 					{
 						let id = s.id();
@@ -437,7 +436,7 @@ impl Host {
 	pub fn stop(&self, io: &IoContext<NetworkIoMessage>) {
 		self.stopping.store(true, AtomicOrdering::Release);
 		let mut to_kill = Vec::new();
-		for e in self.sessions.read().iter() {
+		for (_, e) in self.sessions.read().iter() {
 			let mut s = e.lock();
 			s.disconnect(io, DisconnectReason::ClientQuit);
 			to_kill.push(s.token());
@@ -454,7 +453,7 @@ impl Host {
 		let sessions = self.sessions.read();
 		let sessions = &*sessions;
 
-		let mut peers = Vec::with_capacity(sessions.count());
+		let mut peers = Vec::with_capacity(sessions.len());
 		for i in (0..MAX_SESSIONS).map(|x| x + FIRST_SESSION) {
 			if sessions.get(i).is_some() {
 				peers.push(i);
@@ -531,7 +530,7 @@ impl Host {
 	}
 
 	fn have_session(&self, id: &NodeId) -> bool {
-		self.sessions.read().iter().any(|e| e.lock().info.id == Some(*id))
+		self.sessions.read().iter().any(|(_, e)| e.lock().info.id == Some(*id))
 	}
 
 	// returns (handshakes, egress, ingress)
@@ -539,7 +538,7 @@ impl Host {
 		let mut handshakes = 0;
 		let mut egress = 0;
 		let mut ingress = 0;
-		for s in self.sessions.read().iter() {
+		for (_, s) in self.sessions.read().iter() {
 			match s.try_lock() {
 				Some(ref s) if s.is_ready() && s.info.originated => egress += 1,
 				Some(ref s) if s.is_ready() && !s.info.originated => ingress += 1,
@@ -550,12 +549,12 @@ impl Host {
 	}
 
 	fn connecting_to(&self, id: &NodeId) -> bool {
-		self.sessions.read().iter().any(|e| e.lock().id() == Some(id))
+		self.sessions.read().iter().any(|(_, e)| e.lock().id() == Some(id))
 	}
 
 	fn keep_alive(&self, io: &IoContext<NetworkIoMessage>) {
 		let mut to_kill = Vec::new();
-		for e in self.sessions.read().iter() {
+		for (_, e) in self.sessions.read().iter() {
 			let mut s = e.lock();
 			if !s.keep_alive(io) {
 				s.disconnect(io, DisconnectReason::PingTimeout);
@@ -672,21 +671,18 @@ impl Host {
 		let nonce = self.info.write().next_nonce();
 		let mut sessions = self.sessions.write();
 
-		let token = sessions.insert_with_opt(|token| {
-			trace!(target: "network", "{}: Initiating session {:?}", token, id);
-			match Session::new(io, socket, token, id, &nonce, &self.info.read()) {
-				Ok(s) => Some(Arc::new(Mutex::new(s))),
-				Err(e) => {
-					debug!(target: "network", "Session create error: {:?}", e);
-					None
-				}
-			}
-		});
+		let entry = sessions.vacant_entry();
+		let key = entry.key();
 
-		match token {
-			Some(t) => io.register_stream(t).map(|_| ()).map_err(Into::into),
-			None => {
-				debug!(target: "network", "Max sessions reached");
+		trace!(target: "network", "{}: Initiating session {:?}", key, id);
+
+		match Session::new(io, socket, key, id, &nonce, &self.info.read()) {
+			Ok(session) => {
+				entry.insert(Arc::new(Mutex::new(session)));
+				io.register_stream(key).map(|_| ()).map_err(Into::into)
+			},
+			Err(e) => {
+				debug!(target: "network", "Session create error: {:?}", e);
 				Ok(())
 			}
 		}
@@ -852,7 +848,7 @@ impl Host {
 
 			let handlers = self.handlers.read();
 			if !ready_data.is_empty() {
-				let duplicate = self.sessions.read().iter().any(|e| {
+				let duplicate = self.sessions.read().iter().any(|(_, e)| {
 					let session = e.lock();
 					session.token() != token && session.info.id == ready_id
 				});
@@ -959,7 +955,7 @@ impl Host {
 				if !s.expired() {
 					if s.is_ready() {
 						for (p, _) in self.handlers.read().iter() {
-							if s.have_capability(*p)  {
+							if s.have_capability(*p) {
 								to_disconnect.push(*p);
 							}
 						}
@@ -990,7 +986,7 @@ impl Host {
 		let mut to_remove: Vec<PeerId> = Vec::new();
 		{
 			let sessions = self.sessions.read();
-			for c in sessions.iter() {
+			for (_, c) in sessions.iter() {
 				let s = c.lock();
 				if let Some(id) = s.id() {
 					if node_changes.removed.contains(id) {
