@@ -1474,7 +1474,7 @@ dependencies = [
  "secp256k1",
  "serde",
  "serde_json",
- "slab 0.2.0",
+ "slab 0.4.2",
  "tempfile",
  "tiny-keccak 1.5.0",
 ]
@@ -4590,12 +4590,6 @@ name = "siphasher"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8e88f89a550c01e4cd809f3df4f52dc9e939f3273a2017eabd5c6d12fd98bb23"
-
-[[package]]
-name = "slab"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6dbdd334bd28d328dad1c41b0ea662517883d8880d8533895ef96c8003dec9c4"
 
 [[package]]
 name = "slab"
