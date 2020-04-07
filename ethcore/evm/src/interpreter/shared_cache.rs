@@ -36,9 +36,23 @@ impl MallocSizeOf for Bits {
 	}
 }
 
+/// Stub for holding JUMPDEST destinations, and Subroutine destinations.
+struct Dests {
+	/// JUMPDEST destinations.
+	pub jumpdests: Bits,
+	/// Subroutine destinations.
+	pub subdests: Bits,
+}
+
+impl MallocSizeOf for Dests {
+	fn size_of(&self, ops: &mut MallocSizeOfOps) -> usize {
+		self.jumpdests.size_of(ops) + self.subdests.size_of(ops)
+	}
+}
+
 /// Global cache for EVM interpreter
 pub struct SharedCache {
-	jump_destinations: Mutex<MemoryLruCache<H256, Bits>>,
+	jump_destinations: Mutex<MemoryLruCache<H256, Dests>>,
 }
 
 impl SharedCache {
@@ -50,25 +64,29 @@ impl SharedCache {
 		}
 	}
 
-	/// Get jump destinations bitmap for a contract.
-	pub fn jump_destinations(&self, code_hash: &Option<H256>, code: &[u8]) -> Arc<BitSet> {
+	/// Get jump destinations bitmap and sub destinations bitmap for a contract.
+	pub fn dests(&self, code_hash: &Option<H256>, code: &[u8]) -> (Arc<BitSet>, Arc<BitSet>) {
 		if let Some(ref code_hash) = code_hash {
 			if code_hash == &KECCAK_EMPTY {
-				return Self::find_jump_destinations(code);
+				return (Self::find_jump_destinations(code), Self::find_sub_destinations(code));
 			}
 
 			if let Some(d) = self.jump_destinations.lock().get_mut(code_hash) {
-				return d.0.clone();
+				return (d.jumpdests.0.clone(), d.subdests.0.clone());
 			}
 		}
 
 		let d = Self::find_jump_destinations(code);
+		let s = Self::find_sub_destinations(code);
 
 		if let Some(ref code_hash) = code_hash {
-			self.jump_destinations.lock().insert(*code_hash, Bits(d.clone()));
+			self.jump_destinations.lock().insert(*code_hash, Dests {
+				jumpdests: Bits(d.clone()),
+				subdests: Bits(s.clone()),
+			});
 		}
 
-		d
+		(d, s)
 	}
 
 	fn find_jump_destinations(code: &[u8]) -> Arc<BitSet> {
@@ -90,6 +108,27 @@ impl SharedCache {
 
 		jump_dests.shrink_to_fit();
 		Arc::new(jump_dests)
+	}
+
+	fn find_sub_destinations(code: &[u8]) -> Arc<BitSet> {
+		let mut sub_dests = BitSet::with_capacity(code.len());
+		let mut position = 0;
+
+		while position < code.len() {
+			let instruction = Instruction::from_u8(code[position]);
+
+			if let Some(instruction) = instruction {
+				if instruction == instructions::BEGINSUB {
+					sub_dests.insert(position);
+				} else if let Some(push_bytes) = instruction.push_bytes() {
+					position += push_bytes;
+				}
+			}
+			position += 1;
+		}
+
+		sub_dests.shrink_to_fit();
+		Arc::new(sub_dests)
 	}
 }
 

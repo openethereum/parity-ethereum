@@ -321,6 +321,13 @@ enum_with_from_u8! {
 		#[doc = "Makes a log entry, 4 topics."]
 		LOG4 = 0xa4,
 
+		#[doc = "Jump to a subrountine."]
+		JUMPSUB = 0xb3,
+		#[doc = "Begin a subrountine."]
+		BEGINSUB = 0xb5,
+		#[doc = "Return from a subrountine."]
+		RETURNSUB = 0xb7,
+
 		#[doc = "create a new account with associated code"]
 		CREATE = 0xf0,
 		#[doc = "message-call into an account"]
@@ -595,6 +602,9 @@ lazy_static! {
 		arr[SUICIDE as usize] = Some(InstructionInfo::new("SUICIDE", 1, 0, GasPriceTier::Special));
 		arr[CREATE2 as usize] = Some(InstructionInfo::new("CREATE2", 4, 1, GasPriceTier::Special));
 		arr[REVERT as usize] = Some(InstructionInfo::new("REVERT", 2, 0, GasPriceTier::Zero));
+		arr[BEGINSUB as usize] = Some(InstructionInfo::new("BEGINSUB", 0, 0, GasPriceTier::Base));
+		arr[JUMPSUB as usize] = Some(InstructionInfo::new("JUMPSUB", 1, 0, GasPriceTier::Low));
+		arr[RETURNSUB as usize] = Some(InstructionInfo::new("RETURNSUB", 0, 0, GasPriceTier::VeryLow));
 		arr
 	};
 }

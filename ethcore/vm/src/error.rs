@@ -48,6 +48,12 @@ pub enum Error {
 		/// Position the code tried to jump to.
 		destination: usize
 	},
+	/// `BadSubDestination` is returned when execution tried to move
+	/// to position that wasn't marked with BEGINSUB instruction
+	BadSubDestination {
+		/// Position the code tried to jump to.
+		destination: usize
+	},
 	/// `BadInstructions` is returned when given instruction is not supported
 	BadInstruction {
 		/// Unrecognized opcode
@@ -71,6 +77,12 @@ pub enum Error {
 		/// What was the stack limit
 		limit: usize
 	},
+	/// Return stack overflowed.
+	OutOfReturnStack,
+	/// Invalid subroutine target.
+	InvalidSub,
+	/// Return stack underflowed.
+	ReturnStackUnderflow,
 	/// Built-in contract failed on given input
 	BuiltIn(&'static str),
 	/// When execution tries to modify the state in static context
@@ -103,9 +115,13 @@ impl fmt::Display for Error {
 		match *self {
 			OutOfGas => write!(f, "Out of gas"),
 			BadJumpDestination { destination } => write!(f, "Bad jump destination {:x}", destination),
+			BadSubDestination { destination } => write!(f, "Bad sub destination {:x}", destination),
 			BadInstruction { instruction } => write!(f, "Bad instruction {:x}",  instruction),
 			StackUnderflow { instruction, wanted, on_stack } => write!(f, "Stack underflow {} {}/{}", instruction, wanted, on_stack),
 			OutOfStack { instruction, wanted, limit } => write!(f, "Out of stack {} {}/{}", instruction, wanted, limit),
+			OutOfReturnStack => write!(f, "Out of return stack"),
+			InvalidSub => write!(f, "Invalid subrountine target"),
+			ReturnStackUnderflow => write!(f, "Return stack underflow"),
 			BuiltIn(name) => write!(f, "Built-in failed: {}", name),
 			Internal(ref msg) => write!(f, "Internal error: {}", msg),
 			MutableCallInStaticContext => write!(f, "Mutable call in static context"),

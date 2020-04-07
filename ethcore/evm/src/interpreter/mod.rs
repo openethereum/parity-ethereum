@@ -94,6 +94,8 @@ enum InstructionResult<Gas> {
 	Ok,
 	UnusedGas(Gas),
 	JumpToPosition(U256),
+	JumpToSub(usize),
+	ReturnFromSub(usize),
 	StopExecutionNeedsReturn {
 		/// Gas left.
 		gas: Gas,
@@ -179,8 +181,11 @@ pub struct Interpreter<Cost: CostType> {
 	do_trace: bool,
 	done: bool,
 	valid_jump_destinations: Option<Arc<BitSet>>,
+	valid_sub_destinations: Option<Arc<BitSet>>,
 	gasometer: Option<Gasometer<Cost>>,
 	stack: VecStack<U256>,
+	return_stack: Vec<usize>,
+	return_stack_limit: usize,
 	resume_output_range: Option<(U256, U256)>,
 	resume_result: Option<InstructionResult<Cost>>,
 	last_stack_ret_len: usize,
@@ -271,12 +276,16 @@ impl<Cost: CostType> Interpreter<Cost> {
 		let params = InterpreterParams::from(params);
 		let informant = informant::EvmInformant::new(depth);
 		let valid_jump_destinations = None;
+		let valid_sub_destinations = None;
 		let gasometer = Cost::from_u256(params.gas).ok().map(|gas| Gasometer::<Cost>::new(gas));
 		let stack = VecStack::with_capacity(schedule.stack_limit, U256::zero());
+		let return_stack_limit = schedule.stack_limit;
+		let return_stack = Vec::with_capacity(schedule.stack_limit);
 
 		Interpreter {
-			cache, params, reader, informant,
-			valid_jump_destinations, gasometer, stack,
+			cache, params, reader, informant, return_stack,
+			valid_jump_destinations, valid_sub_destinations,
+			gasometer, stack, return_stack_limit,
 			done: false,
 			// Overridden in `step_inner` based on
 			// the result of `ext.trace_next_instruction`.
@@ -403,7 +412,12 @@ impl<Cost: CostType> Interpreter<Cost> {
 		match result {
 			InstructionResult::JumpToPosition(position) => {
 				if self.valid_jump_destinations.is_none() {
-					self.valid_jump_destinations = Some(self.cache.jump_destinations(&self.params.code_hash, &self.reader.code));
+					let (jumpdests, subdests) = self.cache.dests(
+						&self.params.code_hash,
+						&self.reader.code
+					);
+					self.valid_jump_destinations = Some(jumpdests);
+					self.valid_sub_destinations = Some(subdests);
 				}
 				let jump_destinations = self.valid_jump_destinations.as_ref().expect("jump_destinations are initialized on first jump; qed");
 				let pos = match self.verify_jump(position, jump_destinations) {
@@ -411,6 +425,25 @@ impl<Cost: CostType> Interpreter<Cost> {
 					Err(e) => return InterpreterResult::Done(Err(e))
 				};
 				self.reader.position = pos;
+			},
+			InstructionResult::JumpToSub(position) => {
+				if self.valid_jump_destinations.is_none() {
+					let (jumpdests, subdests) = self.cache.dests(
+						&self.params.code_hash,
+						&self.reader.code
+					);
+					self.valid_jump_destinations = Some(jumpdests);
+					self.valid_sub_destinations = Some(subdests);
+				}
+				let sub_destinations = self.valid_sub_destinations.as_ref().expect("sub_destinations are initialized on first jumpsub; qed");
+				let pos = match self.verify_sub(position, sub_destinations) {
+					Ok(x) => x,
+					Err(e) => return InterpreterResult::Done(Err(e)),
+				};
+				self.reader.position = pos;
+			},
+			InstructionResult::ReturnFromSub(position) => {
+				self.reader.position = position;
 			},
 			InstructionResult::StopExecutionNeedsReturn {gas, init_off, init_size, apply} => {
 				let mem = mem::replace(&mut self.mem, Vec::new());
@@ -524,6 +557,25 @@ impl<Cost: CostType> Interpreter<Cost> {
 			},
 			instructions::JUMPDEST => {
 				// ignore
+			},
+			instructions::JUMPSUB => {
+				if self.return_stack.len() >= self.return_stack_limit - 1 {
+					return Err(vm::Error::OutOfReturnStack)
+				}
+				let jump = self.stack.pop_back();
+				if jump >= U256::from(usize::max_value()) {
+					return Err(vm::Error::InvalidSub)
+				}
+				let jump = jump.as_usize();
+				self.return_stack.push(self.reader.position);
+				return Ok(InstructionResult::JumpToSub(jump))
+			},
+			instructions::BEGINSUB => {
+				// ignore
+			},
+			instructions::RETURNSUB => {
+				let pc = self.return_stack.pop().ok_or(vm::Error::ReturnStackUnderflow)?;
+				return Ok(InstructionResult::ReturnFromSub(pc))
 			},
 			instructions::CREATE | instructions::CREATE2 => {
 				let endowment = self.stack.pop_back();
@@ -1179,6 +1231,16 @@ impl<Cost: CostType> Interpreter<Cost> {
 		} else {
 			Err(vm::Error::BadJumpDestination {
 				destination: jump
+			})
+		}
+	}
+
+	fn verify_sub(&self, sub: usize, valid_sub_destinations: &BitSet) -> vm::Result<usize> {
+		if valid_sub_destinations.contains(sub) {
+			Ok(sub)
+		} else {
+			Err(vm::Error::BadSubDestination {
+				destination: sub
 			})
 		}
 	}
