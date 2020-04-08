@@ -31,8 +31,7 @@ use mio::deprecated::{EventLoop, Handler, TryRead, TryWrite};
 use mio::tcp::TcpStream;
 use parity_bytes::Bytes;
 use rlp::{Rlp, RlpStream};
-use tiny_keccak::Keccak;
-use tiny_keccak::Hasher;
+use tiny_keccak::{Keccak, Hasher};
 
 use ethcore_io::{IoContext, StreamToken};
 use network::Error;
