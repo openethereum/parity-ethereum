@@ -23,8 +23,7 @@ use bytes::Bytes;
 use jsonrpc_core::Error;
 use v1::helpers::errors;
 use v1::types::EncryptedDocumentKey;
-use tiny_keccak::Keccak;
-use tiny_keccak::Hasher;
+use tiny_keccak::{Keccak, Hasher};
 
 /// Initialization vector length.
 const INIT_VEC_LEN: usize = 16;
