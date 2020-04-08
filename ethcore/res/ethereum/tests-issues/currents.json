@@ -4,25 +4,62 @@
 			"reference": "Issue https://github.com/OpenEthereum/open-ethereum/issues/11073 (also see https://github.com/OpenEthereum/open-ethereum/pull/10923)",
 			"failing": "stRevertTest",
 			"subtests": [
-				"RevertPrecompiledTouch_d0g0v0_Byzantium",
-				"RevertPrecompiledTouch_d0g0v0_Constantinople",
-				"RevertPrecompiledTouch_d0g0v0_ConstantinopleFix",
-				"RevertPrecompiledTouch_d0g0v0_EIP158",
-				"RevertPrecompiledTouch_d3g0v0_ConstantinopleFix",
-				"RevertPrecompiledTouchCC_d0g0v0_Byzantium",
-				"RevertPrecompiledTouchCC_d0g0v0_Constantinople",
-				"RevertPrecompiledTouchCC_d0g0v0_EIP158",
-				"RevertPrecompiledTouchDC_d0g0v0_Byzantium",
-				"RevertPrecompiledTouchDC_d0g0v0_Constantinople",
-				"RevertPrecompiledTouchDC_d0g0v0_EIP158",
-				"RevertPrecompiledTouchExactOOG_d7g1v0_ConstantinopleFix",
 				"RevertPrecompiledTouchExactOOG_d31g1v0_ConstantinopleFix",
+				"RevertPrecompiledTouchExactOOG_d7g1v0_ConstantinopleFix",
+				"RevertPrecompiledTouch_storage_d0g0v0_ConstantinopleFix",
 				"RevertPrecompiledTouch_storage_d3g0v0_ConstantinopleFix",
-				"RevertPrecompiledTouch_storage_d0g0v0_ConstantinopleFix"
+				"RevertPrecompiledTouch_d0g0v0_ConstantinopleFix",
+				"RevertPrecompiledTouch_d3g0v0_ConstantinopleFix",
+				"RevertPrecompiledTouchExactOOG_d31g2v0_Istanbul",
+				"RevertPrecompiledTouchExactOOG_d7g2v0_Istanbul",
+				"RevertPrecompiledTouch_storage_d0g0v0_Istanbul",
+				"RevertPrecompiledTouch_storage_d3g0v0_Istanbul",
+				"RevertPrecompiledTouch_d0g0v0_Istanbul",
+				"RevertPrecompiledTouch_d3g0v0_Istanbul"
 			]
 		}
 	],
 	"state": [
+		{
+			"reference": "Issue https://github.com/OpenEthereum/open-ethereum/issues/11078 (also see https://github.com/OpenEthereum/open-ethereum/pull/10923)",
+			"failing": "stRevertTest",
+			"subtests": {
+				"RevertPrecompiledTouchExactOOG": {
+					"subnumbers": ["61", "64"],
+					"chain": "St. Peter's (test)"
+				}
+			}
+		},
+		{
+			"reference": "Issue https://github.com/OpenEthereum/open-ethereum/issues/11078 (also see https://github.com/OpenEthereum/open-ethereum/pull/10923)",
+			"failing": "stRevertTest",
+			"subtests": {
+				"RevertPrecompiledTouchExactOOG": {
+					"subnumbers": ["61", "64"],
+					"chain": "Constantinople (test)"
+				}
+			}
+		},
+		{
+			"reference": "Issue https://github.com/OpenEthereum/open-ethereum/issues/11078 (also see https://github.com/OpenEthereum/open-ethereum/pull/10923)",
+			"failing": "stRevertTest",
+			"subtests": {
+				"RevertPrecompiledTouchExactOOG": {
+					"subnumbers": ["93", "94"],
+					"chain": "Istambul (Test)"
+				}
+			}
+		},
+		{
+			"reference": "Issue https://github.com/OpenEthereum/open-ethereum/issues/11078 (also see https://github.com/OpenEthereum/open-ethereum/pull/10923)",
+			"failing": "stRevertTest",
+			"subtests": {
+				"RevertPrecompiledTouch_storage": {
+					"subnumbers": ["1", "2"],
+					"chain": "Istambul (Test)"
+				}
+			}
+		},
 		{
 			"reference": "Issue https://github.com/OpenEthereum/open-ethereum/issues/11078 (also see https://github.com/OpenEthereum/open-ethereum/pull/10923)",
 			"failing": "stRevertTest",
@@ -34,11 +71,161 @@
 			}
 		},
 		{
+			"reference": "Issue https://github.com/OpenEthereum/open-ethereum/issues/11078 (also see https://github.com/OpenEthereum/open-ethereum/pull/10923)",
+			"failing": "stRevertTest",
+			"subtests": {
+				"RevertPrecompiledTouch": {
+					"subnumbers": ["1", "2"],
+					"chain": "Istambul (Test)"
+				}
+			}
+		},
+		{
+			"reference": "Issue https://github.com/OpenEthereum/open-ethereum/issues/11078 (also see https://github.com/OpenEthereum/open-ethereum/pull/10923)",
+			"failing": "stRevertTest",
+			"subtests": {
+				"RevertPrecompiledTouch": {
+					"subnumbers": ["1", "2"],
+					"chain": "St. Peter's (test)"
+				}
+			}
+		}
+	],
+	"legacy_block": [
+		{
+			"reference": "Issue https://github.com/OpenEthereum/open-ethereum/issues/11073 (also see https://github.com/OpenEthereum/open-ethereum/pull/10923)",
+			"failing": "stRevertTest",
+			"subtests": [
+				"RevertPrecompiledTouch_d0g0v0_Byzantium",
+				"RevertPrecompiledTouch_d0g0v0_Constantinople",
+				"RevertPrecompiledTouch_d0g0v0_ConstantinopleFix",
+				"RevertPrecompiledTouch_d3g0v0_Byzantium",
+				"RevertPrecompiledTouch_d3g0v0_Constantinople",
+				"RevertPrecompiledTouch_d3g0v0_ConstantinopleFix",
+
+				"RevertPrecompiledTouchExactOOG_d31g1v0_Byzantium",
+				"RevertPrecompiledTouchExactOOG_d31g1v0_Constantinople",
+				"RevertPrecompiledTouchExactOOG_d31g1v0_ConstantinopleFix",
+				"RevertPrecompiledTouchExactOOG_d7g1v0_Byzantium",
+				"RevertPrecompiledTouchExactOOG_d7g1v0_Constantinople",
+				"RevertPrecompiledTouchExactOOG_d7g1v0_ConstantinopleFix",
+
+				"RevertPrecompiledTouch_storage_d3g0v0_Byzantium",
+				"RevertPrecompiledTouch_storage_d3g0v0_Constantinople",
+				"RevertPrecompiledTouch_storage_d3g0v0_ConstantinopleFix",
+				"RevertPrecompiledTouch_storage_d0g0v0_Byzantium",
+				"RevertPrecompiledTouch_storage_d0g0v0_Constantinople",
+				"RevertPrecompiledTouch_storage_d0g0v0_ConstantinopleFix"
+			]
+		}
+	],
+	"legacy_state": [
+		{
+			"reference": "Issue https://github.com/OpenEthereum/open-ethereum/issues/11078 (also see https://github.com/OpenEthereum/open-ethereum/pull/10923)",
+			"failing": "stRevertTest",
+			"subtests": {
+				"RevertPrecompiledTouch_storage": {
+					"subnumbers": ["1", "4"],
+					"chain": "Byzantium (Test)"
+				}
+			}
+		},
+		{
+			"reference": "Issue https://github.com/OpenEthereum/open-ethereum/issues/11078 (also see https://github.com/OpenEthereum/open-ethereum/pull/10923)",
+			"failing": "stRevertTest",
+			"subtests": {
+				"RevertPrecompiledTouch_storage": {
+					"subnumbers": ["1", "4"],
+					"chain": "Constantinople (test)"
+				}
+			}
+		},
+		{
+			"reference": "Issue https://github.com/OpenEthereum/open-ethereum/issues/11078 (also see https://github.com/OpenEthereum/open-ethereum/pull/10923)",
+			"failing": "stRevertTest",
+			"subtests": {
+				"RevertPrecompiledTouch_storage": {
+					"subnumbers": ["1", "4"],
+					"chain": "Constantinople (test)"
+				}
+			}
+		},
+		{
+			"reference": "Issue https://github.com/OpenEthereum/open-ethereum/issues/11078 (also see https://github.com/OpenEthereum/open-ethereum/pull/10923)",
+			"failing": "stRevertTest",
+			"subtests": {
+				"RevertPrecompiledTouch_storage": {
+					"subnumbers": ["1", "2", "4"],
+					"chain": "St. Peter's (test)"
+				}
+			}
+		},
+		{
 			"reference": "Issue https://github.com/OpenEthereum/open-ethereum/issues/11079 (also see https://github.com/OpenEthereum/open-ethereum/pull/10923)",
 			"failing": "stRevertTest",
 			"subtests": {
 				"RevertPrecompiledTouchExactOOG": {
-					"subnumbers": ["61", "64"],
+					"subnumbers": ["16","64"],
+					"chain": "Byzantium (Test)"
+				}
+			}
+		},
+		{
+			"reference": "Issue https://github.com/OpenEthereum/open-ethereum/issues/11079 (also see https://github.com/OpenEthereum/open-ethereum/pull/10923)",
+			"failing": "stRevertTest",
+			"subtests": {
+				"RevertPrecompiledTouchExactOOG": {
+					"subnumbers": ["16","64"],
+					"chain": "Constantinople (test)"
+				}
+			}
+		},
+		{
+			"reference": "Issue https://github.com/OpenEthereum/open-ethereum/issues/11079 (also see https://github.com/OpenEthereum/open-ethereum/pull/10923)",
+			"failing": "stRevertTest",
+			"subtests": {
+				"RevertPrecompiledTouchExactOOG": {
+					"subnumbers": ["1","2"],
+					"chain": "ConstantinopleFix (test)"
+				}
+			}
+		},
+		{
+			"reference": "Issue https://github.com/OpenEthereum/open-ethereum/issues/11079 (also see https://github.com/OpenEthereum/open-ethereum/pull/10923)",
+			"failing": "stRevertTest",
+			"subtests": {
+				"RevertPrecompiledTouchExactOOG": {
+					"subnumbers": ["16", "61", "64"],
+					"chain": "St. Peter's (test)"
+				}
+			}
+		},
+		{
+			"reference": "Issue https://github.com/OpenEthereum/open-ethereum/issues/11080 (also see https://github.com/OpenEthereum/open-ethereum/pull/10923)",
+			"failing": "stRevertTest",
+			"subtests": {
+				"RevertPrecompiledTouch": {
+					"subnumbers": ["1", "4"],
+					"chain": "Byzantium (Test)"
+				}
+			}
+		},
+		{
+			"reference": "Issue https://github.com/OpenEthereum/open-ethereum/issues/11080 (also see https://github.com/OpenEthereum/open-ethereum/pull/10923)",
+			"failing": "stRevertTest",
+			"subtests": {
+				"RevertPrecompiledTouch": {
+					"subnumbers": ["1", "4"],
+					"chain": "Constantinople (test)"
+				}
+			}
+		},
+		{
+			"reference": "Issue https://github.com/OpenEthereum/open-ethereum/issues/11080 (also see https://github.com/OpenEthereum/open-ethereum/pull/10923)",
+			"failing": "stRevertTest",
+			"subtests": {
+				"RevertPrecompiledTouch": {
+					"subnumbers": ["1", "2", "4"],
 					"chain": "St. Peter's (test)"
 				}
 			}
@@ -49,9 +236,10 @@
 			"subtests": {
 				"RevertPrecompiledTouch": {
 					"subnumbers": ["1", "2"],
-					"chain": "St. Peter's (test)"
+					"chain": "ConstantinopleFix (test)"
 				}
 			}
 		}
+
 	]
 }

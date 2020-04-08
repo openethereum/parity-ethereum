@@ -28,22 +28,25 @@ use verification::{VerifierType, queue::kind::BlockLike};
 use super::{HookType, SKIP_TESTS};
 
 #[allow(dead_code)]
-fn skip_test(name: &String) -> bool {
-	SKIP_TESTS
-		.block
-		.iter()
+fn skip_test(name: &String, is_legacy: bool) -> bool {
+	let skip_set = if is_legacy {
+		&SKIP_TESTS.legacy_block
+	} else {
+		&SKIP_TESTS.block
+	};
+	skip_set.iter()
 		.any(|block_test|block_test.subtests.contains(name))
 }
 
 #[allow(dead_code)]
-pub fn json_chain_test<H: FnMut(&str, HookType)>(path: &Path, json_data: &[u8], start_stop_hook: &mut H) -> Vec<String> {
+pub fn json_chain_test<H: FnMut(&str, HookType)>(path: &Path, json_data: &[u8], start_stop_hook: &mut H, is_legacy: bool) -> Vec<String> {
 	let _ = ::env_logger::try_init();
 	let tests = blockchain::Test::load(json_data)
 		.expect(&format!("Could not parse JSON chain test data from {}", path.display()));
 	let mut failed = Vec::new();
 
 	for (name, blockchain) in tests.into_iter() {
-		if skip_test(&name) {
+		if skip_test(&name,is_legacy) {
 			println!("   - {} | {:?}: SKIPPED", name, blockchain.network);
 			continue;
 		}
@@ -144,7 +147,7 @@ mod block_tests {
 	use json_tests::HookType;
 
 	fn do_json_test<H: FnMut(&str, HookType)>(path: &Path, json_data: &[u8], h: &mut H) -> Vec<String> {
-		json_chain_test(path, json_data, h)
+		json_chain_test(path, json_data, h, false)
 	}
 
 	declare_test!{BlockchainTests_InvalidBlocks_bcBlockGasLimitTest, "BlockchainTests/InvalidBlocks/bcBlockGasLimitTest/"}
@@ -231,4 +234,67 @@ mod block_tests {
 	declare_test!{BlockchainTests_TransitionTests_bcByzantiumToConstantinopleFix, "BlockchainTests/TransitionTests/bcByzantiumToConstantinopleFix/"}
 
 	declare_test!{BlockchainTests_RandomStateTest391, "BlockchainTests/randomStatetest391.json"}
+}
+
+#[cfg(test)]
+mod block_tests_legacy {
+	use std::path::Path;
+
+	use super::json_chain_test;
+	use json_tests::HookType;
+
+	fn do_json_test<H: FnMut(&str, HookType)>(path: &Path, json_data: &[u8], h: &mut H) -> Vec<String> {
+		json_chain_test(path, json_data, h,true)
+	}
+
+	declare_test!{Constantinople_BlockchainTests_GeneralStateTests_stArgsZeroOneBalance,"LegacyTests/Constantinople/BlockchainTests/GeneralStateTests/stArgsZeroOneBalance/"}
+	declare_test!{Constantinople_BlockchainTests_GeneralStateTests_stAttackTest,"LegacyTests/Constantinople/BlockchainTests/GeneralStateTests/stAttackTest/"}
+	declare_test!{Constantinople_BlockchainTests_GeneralStateTests_stBadOpcode,"LegacyTests/Constantinople/BlockchainTests/GeneralStateTests/stBadOpcode/"}
+	declare_test!{Constantinople_BlockchainTests_GeneralStateTests_stBugs,"LegacyTests/Constantinople/BlockchainTests/GeneralStateTests/stBugs/"}
+	declare_test!{Constantinople_BlockchainTests_GeneralStateTests_stCallCodes,"LegacyTests/Constantinople/BlockchainTests/GeneralStateTests/stCallCodes/"}
+	declare_test!{Constantinople_BlockchainTests_GeneralStateTests_stCallCreateCallCodeTest,"LegacyTests/Constantinople/BlockchainTests/GeneralStateTests/stCallCreateCallCodeTest/"}
+	declare_test!{Constantinople_BlockchainTests_GeneralStateTests_stCallDelegateCodesCallCodeHomestead,"LegacyTests/Constantinople/BlockchainTests/GeneralStateTests/stCallDelegateCodesCallCodeHomestead/"}
+	declare_test!{Constantinople_BlockchainTests_GeneralStateTests_stCallDelegateCodesHomestead,"LegacyTests/Constantinople/BlockchainTests/GeneralStateTests/stCallDelegateCodesHomestead/"}
+	declare_test!{Constantinople_BlockchainTests_GeneralStateTests_stChangedEIP150,"LegacyTests/Constantinople/BlockchainTests/GeneralStateTests/stChangedEIP150/"}
+	declare_test!{Constantinople_BlockchainTests_GeneralStateTests_stCodeCopyTest,"LegacyTests/Constantinople/BlockchainTests/GeneralStateTests/stCodeCopyTest/"}
+	declare_test!{Constantinople_BlockchainTests_GeneralStateTests_stCodeSizeLimit,"LegacyTests/Constantinople/BlockchainTests/GeneralStateTests/stCodeSizeLimit/"}
+	declare_test!{Constantinople_BlockchainTests_GeneralStateTests_stCreate2,"LegacyTests/Constantinople/BlockchainTests/GeneralStateTests/stCreate2/"}
+	declare_test!{Constantinople_BlockchainTests_GeneralStateTests_stCreateTest,"LegacyTests/Constantinople/BlockchainTests/GeneralStateTests/stCreateTest/"}
+	declare_test!{Constantinople_BlockchainTests_GeneralStateTests_stDelegatecallTestHomestead,"LegacyTests/Constantinople/BlockchainTests/GeneralStateTests/stDelegatecallTestHomestead/"}
+	declare_test!{Constantinople_BlockchainTests_GeneralStateTests_stEIP150singleCodeGasPrices,"LegacyTests/Constantinople/BlockchainTests/GeneralStateTests/stEIP150singleCodeGasPrices/"}
+	declare_test!{Constantinople_BlockchainTests_GeneralStateTests_stEIP150Specific,"LegacyTests/Constantinople/BlockchainTests/GeneralStateTests/stEIP150Specific/"}
+	declare_test!{Constantinople_BlockchainTests_GeneralStateTests_stEIP158Specific,"LegacyTests/Constantinople/BlockchainTests/GeneralStateTests/stEIP158Specific/"}
+	declare_test!{Constantinople_BlockchainTests_GeneralStateTests_stExample,"LegacyTests/Constantinople/BlockchainTests/GeneralStateTests/stExample/"}
+	declare_test!{Constantinople_BlockchainTests_GeneralStateTests_stExtCodeHash,"LegacyTests/Constantinople/BlockchainTests/GeneralStateTests/stExtCodeHash/"}
+	declare_test!{Constantinople_BlockchainTests_GeneralStateTests_stHomesteadSpecific,"LegacyTests/Constantinople/BlockchainTests/GeneralStateTests/stHomesteadSpecific/"}
+	declare_test!{Constantinople_BlockchainTests_GeneralStateTests_stInitCodeTest,"LegacyTests/Constantinople/BlockchainTests/GeneralStateTests/stInitCodeTest/"}
+	declare_test!{Constantinople_BlockchainTests_GeneralStateTests_stLogTests,"LegacyTests/Constantinople/BlockchainTests/GeneralStateTests/stLogTests/"}
+	declare_test!{Constantinople_BlockchainTests_GeneralStateTests_stMemExpandingEIP150Calls,"LegacyTests/Constantinople/BlockchainTests/GeneralStateTests/stMemExpandingEIP150Calls/"}
+	declare_test!{Constantinople_BlockchainTests_GeneralStateTests_stMemoryStressTest,"LegacyTests/Constantinople/BlockchainTests/GeneralStateTests/stMemoryStressTest/"}
+	declare_test!{Constantinople_BlockchainTests_GeneralStateTests_stMemoryTest,"LegacyTests/Constantinople/BlockchainTests/GeneralStateTests/stMemoryTest/"}
+	declare_test!{Constantinople_BlockchainTests_GeneralStateTests_stNonZeroCallsTest,"LegacyTests/Constantinople/BlockchainTests/GeneralStateTests/stNonZeroCallsTest/"}
+	declare_test!{Constantinople_BlockchainTests_GeneralStateTests_stPreCompiledContracts,"LegacyTests/Constantinople/BlockchainTests/GeneralStateTests/stPreCompiledContracts/"}
+	declare_test!{Constantinople_BlockchainTests_GeneralStateTests_stPreCompiledContracts2,"LegacyTests/Constantinople/BlockchainTests/GeneralStateTests/stPreCompiledContracts2/"}
+	declare_test!{Constantinople_BlockchainTests_GeneralStateTests_stQuadraticComplexityTest,"LegacyTests/Constantinople/BlockchainTests/GeneralStateTests/stQuadraticComplexityTest/"}
+	declare_test!{Constantinople_BlockchainTests_GeneralStateTests_stRandom,"LegacyTests/Constantinople/BlockchainTests/GeneralStateTests/stRandom/"}
+	declare_test!{Constantinople_BlockchainTests_GeneralStateTests_stRandom2,"LegacyTests/Constantinople/BlockchainTests/GeneralStateTests/stRandom2/"}
+	declare_test!{Constantinople_BlockchainTests_GeneralStateTests_stRecursiveCreate,"LegacyTests/Constantinople/BlockchainTests/GeneralStateTests/stRecursiveCreate/"}
+	declare_test!{Constantinople_BlockchainTests_GeneralStateTests_stRefundTest,"LegacyTests/Constantinople/BlockchainTests/GeneralStateTests/stRefundTest/"}
+	declare_test!{Constantinople_BlockchainTests_GeneralStateTests_stReturnDataTest,"LegacyTests/Constantinople/BlockchainTests/GeneralStateTests/stReturnDataTest/"}
+	declare_test!{Constantinople_BlockchainTests_GeneralStateTests_stRevertTest,"LegacyTests/Constantinople/BlockchainTests/GeneralStateTests/stRevertTest/"}
+	declare_test!{Constantinople_BlockchainTests_GeneralStateTests_stShift,"LegacyTests/Constantinople/BlockchainTests/GeneralStateTests/stShift/"}
+	declare_test!{Constantinople_BlockchainTests_GeneralStateTests_stSolidityTest,"LegacyTests/Constantinople/BlockchainTests/GeneralStateTests/stSolidityTest/"}
+	declare_test!{Constantinople_BlockchainTests_GeneralStateTests_stSpecialTest,"LegacyTests/Constantinople/BlockchainTests/GeneralStateTests/stSpecialTest/"}
+	declare_test!{Constantinople_BlockchainTests_GeneralStateTests_stSStoreTest,"LegacyTests/Constantinople/BlockchainTests/GeneralStateTests/stSStoreTest/"}
+	declare_test!{Constantinople_BlockchainTests_GeneralStateTests_stStackTests,"LegacyTests/Constantinople/BlockchainTests/GeneralStateTests/stStackTests/"}
+	declare_test!{Constantinople_BlockchainTests_GeneralStateTests_stStaticCall,"LegacyTests/Constantinople/BlockchainTests/GeneralStateTests/stStaticCall/"}
+	declare_test!{Constantinople_BlockchainTests_GeneralStateTests_stSystemOperationsTest,"LegacyTests/Constantinople/BlockchainTests/GeneralStateTests/stSystemOperationsTest/"}
+	declare_test!{Constantinople_BlockchainTests_GeneralStateTests_stTimeConsuming,"LegacyTests/Constantinople/BlockchainTests/GeneralStateTests/stTimeConsuming/"}
+	declare_test!{Constantinople_BlockchainTests_GeneralStateTests_stTransactionTest,"LegacyTests/Constantinople/BlockchainTests/GeneralStateTests/stTransactionTest/"}
+	declare_test!{Constantinople_BlockchainTests_GeneralStateTests_stTransitionTest,"LegacyTests/Constantinople/BlockchainTests/GeneralStateTests/stTransitionTest/"}
+	declare_test!{Constantinople_BlockchainTests_GeneralStateTests_stWalletTest,"LegacyTests/Constantinople/BlockchainTests/GeneralStateTests/stWalletTest/"}
+	declare_test!{Constantinople_BlockchainTests_GeneralStateTests_stZeroCallsRevert,"LegacyTests/Constantinople/BlockchainTests/GeneralStateTests/stZeroCallsRevert/"}
+	declare_test!{Constantinople_BlockchainTests_GeneralStateTests_stZeroCallsTest,"LegacyTests/Constantinople/BlockchainTests/GeneralStateTests/stZeroCallsTest/"}
+	declare_test!{Constantinople_BlockchainTests_GeneralStateTests_stZeroKnowledge,"LegacyTests/Constantinople/BlockchainTests/GeneralStateTests/stZeroKnowledge/"}
+	declare_test!{Constantinople_BlockchainTests_GeneralStateTests_stZeroKnowledge2,"LegacyTests/Constantinople/BlockchainTests/GeneralStateTests/stZeroKnowledge2/"}
 }
