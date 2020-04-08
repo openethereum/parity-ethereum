@@ -24,6 +24,7 @@ use jsonrpc_core::Error;
 use v1::helpers::errors;
 use v1::types::EncryptedDocumentKey;
 use tiny_keccak::Keccak;
+use tiny_keccak::Hasher;
 
 /// Initialization vector length.
 const INIT_VEC_LEN: usize = 16;
@@ -95,7 +96,7 @@ pub fn decrypt_document_with_shadow(decrypted_secret: Public, common_point: Publ
 
 /// Calculate Keccak(ordered servers set)
 pub fn ordered_servers_keccak(servers_set: BTreeSet<H512>) -> H256 {
-	let mut servers_set_keccak = Keccak::new_keccak256();
+	let mut servers_set_keccak = Keccak::v256();
 	for server in servers_set {
 		servers_set_keccak.update(&server.0);
 	}

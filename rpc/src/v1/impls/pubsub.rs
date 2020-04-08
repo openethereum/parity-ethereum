@@ -17,7 +17,7 @@
 //! Parity-specific PUB-SUB rpc implementation.
 
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use parking_lot::RwLock;
 
 use jsonrpc_core::{self as core, Result, MetaIoHandler};
@@ -43,12 +43,8 @@ impl<S: core::Middleware<Metadata>> PubSubClient<S> {
 		let poll_manager = Arc::new(RwLock::new(GenericPollManager::new(rpc)));
 		let pm2 = Arc::downgrade(&poll_manager);
 
-		let timer = tokio_timer::wheel()
-			.tick_duration(Duration::from_millis(500))
-			.build();
-
 		// Start ticking
-		let interval = timer.interval(Duration::from_millis(1000));
+		let interval = tokio_timer::Interval::new(Instant::now() + Duration::from_millis(500), Duration::from_millis(1000));
 		executor.spawn(interval
 			.map_err(|e| warn!("Polling timer error: {:?}", e))
 			.for_each(move |_| {

@@ -32,12 +32,12 @@ keccak-hasher = { path = "../../util/keccak-hasher" }
 kvdb = "0.4.0"
 log = "0.4.8"
 num_cpus = "1.10.1"
-rand = "0.7"
-rand_xorshift = "0.2"
+rand = "0.7.3"
+rand_xorshift = "0.2.0"
 parking_lot = "0.10.0"
 rlp = "0.4.2"
 rlp-derive = "0.1"
-scopeguard = "1.0.0"
+scopeguard = "1.1.0"
 snappy = { package = "parity-snappy", version ="0.1.0" }
 state-db = { path = "../state-db" }
 trie-db = "0.20.0"

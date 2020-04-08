@@ -32,6 +32,7 @@ use mio::tcp::TcpStream;
 use parity_bytes::Bytes;
 use rlp::{Rlp, RlpStream};
 use tiny_keccak::Keccak;
+use tiny_keccak::Hasher;
 
 use ethcore_io::{IoContext, StreamToken};
 use network::Error;
@@ -329,12 +330,12 @@ impl EncryptedConnection {
 		(&mut key_material[32..64]).copy_from_slice(key_material_keccak.as_bytes());
 		let mac_encoder_key: Secret = Secret::copy_from_slice(&key_material[32..64]).expect("can create Secret from 32 bytes; qed");
 
-		let mut egress_mac = Keccak::new_keccak256();
+		let mut egress_mac = Keccak::v256();
 		let mut mac_material = H256::from_slice(&key_material[32..64]) ^ handshake.remote_nonce;
 		egress_mac.update(mac_material.as_bytes());
 		egress_mac.update(if handshake.originated { &handshake.auth_cipher } else { &handshake.ack_cipher });
 
-		let mut ingress_mac = Keccak::new_keccak256();
+		let mut ingress_mac = Keccak::v256();
 		mac_material = H256::from_slice(&key_material[32..64]) ^ handshake.nonce;
 		ingress_mac.update(mac_material.as_bytes());
 		ingress_mac.update(if handshake.originated { &handshake.ack_cipher } else { &handshake.auth_cipher });
