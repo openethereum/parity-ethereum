@@ -59,7 +59,7 @@ parity-local-store = { path = "miner/local-store" }
 parity-path = "0.1"
 parity-rpc = { path = "rpc" }
 parity-runtime = "0.1.1"
-parity-secretstore = { git = "https://github.com/paritytech/secret-store", branch = "dp/chore/update-dependencies", optional = true }
+parity-secretstore = { git = "https://github.com/paritytech/secret-store", branch = "v1.x", optional = true }
 parity-updater = { path = "updater" }
 parity-util-mem = { version = "0.6.0", features = ["jemalloc-global"] }
 parity-version = { path = "util/version" }
