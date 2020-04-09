@@ -181,7 +181,7 @@ dependencies = [
  "derive_more",
  "engine",
  "env_logger 0.6.2",
- "ethabi 12.0.0",
+ "ethabi",
  "ethabi-contract",
  "ethabi-derive",
  "ethcore",
@@ -377,7 +377,7 @@ version = "0.1.0"
 dependencies = [
  "client-traits",
  "common-types",
- "ethabi 12.0.0",
+ "ethabi",
  "ethabi-contract",
  "ethabi-derive",
  "ethcore",
@@ -411,7 +411,7 @@ version = "0.1.0"
 dependencies = [
  "common-types",
  "engine",
- "ethabi 12.0.0",
+ "ethabi",
  "ethabi-contract",
  "ethabi-derive",
  "ethcore",
@@ -937,7 +937,7 @@ dependencies = [
 name = "eip-712"
 version = "0.1.1"
 dependencies = [
- "ethabi 12.0.0",
+ "ethabi",
  "ethereum-types 0.9.0",
  "failure",
  "indexmap",
@@ -1053,32 +1053,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "error-chain"
-version = "0.12.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d371106cc88ffdfb1eabd7111e432da544f16f3e2d7bf1dfe8bf575f1df045cd"
-dependencies = [
- "version_check",
-]
-
-[[package]]
 name = "ethabi"
-version = "9.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "965126c64662832991f5a748893577630b558e47fa94e7f35aefcd20d737cef7"
-dependencies = [
- "error-chain",
- "ethereum-types 0.8.0",
- "rustc-hex",
- "serde",
- "serde_derive",
- "serde_json",
- "tiny-keccak 1.5.0",
-]
-
-[[package]]
-name = "ethabi"
-version = "11.0.0"
+version = "12.0.0"
 dependencies = [
  "ethereum-types 0.9.0",
  "rustc-hex",
@@ -1096,15 +1072,13 @@ checksum = "cf407dce0290374bfbb1528493bc14320e663f75856b73a5b76262d8e2cec3c9"
 
 [[package]]
 name = "ethabi-derive"
-version = "9.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bd0753d4f9e1dba99450da5f2400b20527702ae8ce0309a5f7c239d305539884"
+version = "12.0.0"
 dependencies = [
- "ethabi 9.0.1",
+ "ethabi",
  "heck",
- "proc-macro2 0.4.30",
- "quote 0.6.13",
- "syn 0.15.44",
+ "proc-macro2 1.0.9",
+ "quote 1.0.3",
+ "syn 1.0.17",
 ]
 
 [[package]]
@@ -1420,7 +1394,7 @@ dependencies = [
  "ansi_term",
  "common-types",
  "env_logger 0.5.13",
- "ethabi 12.0.0",
+ "ethabi",
  "ethabi-contract",
  "ethabi-derive",
  "ethash",
@@ -1513,7 +1487,7 @@ dependencies = [
  "common-types",
  "derive_more",
  "env_logger 0.5.13",
- "ethabi 12.0.0",
+ "ethabi",
  "ethabi-contract",
  "ethabi-derive",
  "ethcore",
@@ -2790,7 +2764,7 @@ dependencies = [
  "common-types",
  "criterion",
  "crossbeam-utils",
- "ethabi 12.0.0",
+ "ethabi",
  "ethabi-contract",
  "ethabi-derive",
  "ethcore",
@@ -3033,7 +3007,7 @@ version = "1.12.0"
 dependencies = [
  "client-traits",
  "common-types",
- "ethabi 12.0.0",
+ "ethabi",
  "ethabi-contract",
  "ethabi-derive",
  "ethcore",
@@ -3190,7 +3164,7 @@ dependencies = [
  "dir",
  "docopt",
  "engine",
- "ethabi 12.0.0",
+ "ethabi",
  "ethcore",
  "ethcore-accounts",
  "ethcore-blockchain",
@@ -3338,7 +3312,7 @@ name = "parity-hash-fetch"
 version = "1.12.0"
 dependencies = [
  "common-types",
- "ethabi 12.0.0",
+ "ethabi",
  "ethabi-contract",
  "ethabi-derive",
  "ethcore-call-contract",
@@ -3537,7 +3511,7 @@ version = "1.12.0"
 dependencies = [
  "client-traits",
  "common-types",
- "ethabi 12.0.0",
+ "ethabi",
  "ethabi-contract",
  "ethabi-derive",
  "ethcore",
@@ -4254,7 +4228,7 @@ name = "registrar"
 version = "0.0.1"
 dependencies = [
  "common-types",
- "ethabi 12.0.0",
+ "ethabi",
  "ethabi-contract",
  "ethabi-derive",
  "ethcore-call-contract",
@@ -4644,7 +4618,7 @@ dependencies = [
  "crossbeam-utils",
  "engine",
  "env_logger 0.5.13",
- "ethabi 12.0.0",
+ "ethabi",
  "ethabi-contract",
  "ethabi-derive",
  "ethcore",
@@ -4692,7 +4666,7 @@ dependencies = [
  "common-types",
  "engine",
  "env_logger 0.5.13",
- "ethabi 12.0.0",
+ "ethabi",
  "ethabi-contract",
  "ethabi-derive",
  "ethcore",
@@ -5516,7 +5490,7 @@ dependencies = [
  "common-types",
  "engine",
  "env_logger 0.6.2",
- "ethabi 12.0.0",
+ "ethabi",
  "ethabi-contract",
  "ethabi-derive",
  "ethcore",
