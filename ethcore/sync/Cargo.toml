@@ -16,7 +16,7 @@ devp2p = { package = "ethcore-network-devp2p", path = "../../util/network-devp2p
 enum_primitive = "0.1.1"
 ethcore-io = { path = "../../util/io" }
 ethcore-private-tx = { path = "../private-tx" }
-ethereum-forkid = "0.1"
+ethereum-forkid = "0.2"
 ethereum-types = "0.9.0"
 fastmap = { path = "../../util/fastmap" }
 futures = "0.1"

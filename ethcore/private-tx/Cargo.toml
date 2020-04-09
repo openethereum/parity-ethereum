@@ -11,7 +11,7 @@ client-traits = { path = "../client-traits" }
 common-types = { path = "../types" }
 derive_more = "0.99"
 ethabi = "12.0"
-ethabi-contract = "9.0.0"
+ethabi-contract = "11.0"
 ethabi-derive = "12.0"
 ethcore = { path = ".." }
 ethcore-db = { path = "../db" }

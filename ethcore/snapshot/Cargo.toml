@@ -49,7 +49,7 @@ criterion = "0.3.0"
 engine = { path = "../engine", features = ["test-helpers"] }
 env_logger = "0.5"
 ethabi = "12.0"
-ethabi-contract = "9.0.0"
+ethabi-contract = "11.0"
 ethabi-derive = "12.0"
 ethcore = { path = "..", features = ["test-helpers"] }
 ethkey = { path = "../../accounts/ethkey" }

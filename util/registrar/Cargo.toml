@@ -9,6 +9,6 @@ authors = ["Parity Technologies <admin@parity.io>"]
 call-contract = { package = "ethcore-call-contract", path = "../../ethcore/call-contract" }
 ethabi = "12.0"
 ethabi-derive = "12.0"
-ethabi-contract = "9.0.0"
+ethabi-contract = "11.0"
 keccak-hash = "0.5.0"
 types = { path = "../../ethcore/types", package = "common-types" }

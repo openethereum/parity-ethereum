@@ -9,7 +9,7 @@ authors = ["Parity Technologies <admin@parity.io>"]
 client-traits = { path = "../ethcore/client-traits" }
 common-types = { path = "../ethcore/types" }
 ethabi = "12.0"
-ethabi-contract = "9.0.0"
+ethabi-contract = "11.0"
 ethabi-derive = "12.0"
 ethcore = { path = "../ethcore" }
 ethcore-sync = { path = "../ethcore/sync" }
