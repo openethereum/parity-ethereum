@@ -1055,6 +1055,7 @@ dependencies = [
 [[package]]
 name = "ethabi"
 version = "12.0.0"
+source = "git+https://github.com/openethereum/ethabi#eab4c99eef195a70cacbdb27fdfe908a944cbb3b"
 dependencies = [
  "ethereum-types 0.9.0",
  "rustc-hex",
@@ -1073,6 +1074,7 @@ checksum = "cf407dce0290374bfbb1528493bc14320e663f75856b73a5b76262d8e2cec3c9"
 [[package]]
 name = "ethabi-derive"
 version = "12.0.0"
+source = "git+https://github.com/openethereum/ethabi#eab4c99eef195a70cacbdb27fdfe908a944cbb3b"
 dependencies = [
  "ethabi",
  "heck",

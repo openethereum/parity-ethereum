@@ -135,6 +135,6 @@ members = [
 ]
 
 [patch.crates-io]
-ethabi-derive = { path = "../ethabi/derive" }
-ethabi = { path = "../ethabi/ethabi" }
+ethabi = { git = "https://github.com/openethereum/ethabi" }
+ethabi-derive = { git = "https://github.com/openethereum/ethabi" }
 
