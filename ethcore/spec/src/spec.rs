@@ -55,6 +55,7 @@ use serde::{Serialize, Serializer};
 use trace::{NoopTracer, NoopVMTracer};
 use trie_vm_factories::Factories;
 use vm::{EnvInfo, ActionType, ActionValue, ActionParams, ParamsType};
+use wasm_engine::Wasm;
 
 use crate::{
 	Genesis,
@@ -447,6 +448,7 @@ impl Spec {
 								.expect("Failed to start Clique consensus engine."),
 			ethjson::spec::Engine::AuthorityRound(authority_round) => AuthorityRound::new(authority_round.params.into(), machine)
 				.expect("Failed to start AuthorityRound consensus engine."),
+			ethjson::spec::Engine::Wasm(wasm) => Wasm::new(wasm.wat, machine).expect("Failed to start WebAssembly engine.")
 		};
 
 		// Dummy value is a filler for non-existent transitions

@@ -16,7 +16,7 @@
 
 //! Engine deserialization.
 
-use super::{Ethash, BasicAuthority, AuthorityRound, NullEngine, InstantSeal, Clique};
+use super::{Ethash, BasicAuthority, AuthorityRound, NullEngine, InstantSeal, Clique, Wasm};
 use serde::Deserialize;
 
 /// Engine deserialization.
@@ -36,7 +36,9 @@ pub enum Engine {
 	/// AuthorityRound engine.
 	AuthorityRound(AuthorityRound),
 	/// Clique engine.
-	Clique(Clique)
+	Clique(Clique),
+	/// User-provided WASM engine.
+	Wasm(Wasm)
 }
 
 #[cfg(test)]

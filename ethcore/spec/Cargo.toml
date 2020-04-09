@@ -37,6 +37,7 @@ serde_json = "1.0"
 trace = { path = "../trace" }
 trie-vm-factories = { path = "../trie-vm-factories" }
 vm = { path = "../vm" }
+wasm-engine = { path = "../engines/wasm-engine" }
 
 [dev-dependencies]
 ethcore = { path = "..", features = ["test-helpers"] }
