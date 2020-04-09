@@ -21,7 +21,7 @@ ctrlc = { version = "3.1.4", features = ["termination"] }
 dir = { path = "util/dir" }
 docopt = "1.0"
 engine = { path = "ethcore/engine" }
-ethabi = { version = "11.0.0", optional = true }
+ethabi = { version = "12.0", optional = true }
 ethcore = { path = "ethcore", features = ["parity"] }
 ethcore-accounts = { path = "accounts", optional = true }
 ethcore-blockchain = { path = "ethcore/blockchain" }
@@ -136,3 +136,4 @@ members = [
 
 [patch.crates-io]
 ethabi = { path = "../ethabi/ethabi" }
+ethabi-derive = { path = "../ethabi/derive" }

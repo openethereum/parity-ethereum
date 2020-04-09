@@ -16,8 +16,8 @@ url = { version = "2.1.1", optional = true }
 # Miner
 ansi_term = "0.11"
 common-types = { path = "../ethcore/types" }
-ethabi = "11.0.0"
-ethabi-derive = "9.0.1"
+ethabi = "12.0"
+ethabi-derive = "12.0"
 ethabi-contract = "9.0.0"
 ethcore-call-contract = { path = "../ethcore/call-contract" }
 ethereum-types = "0.9.0"
