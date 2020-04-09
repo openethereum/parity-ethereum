@@ -17,7 +17,7 @@ ethabi-contract = "9.0.0"
 ethabi-derive = "9.0.1"
 ethereum-types = "0.8.0"
 ethjson = { path = "../../../json" }
-parity-crypto = { version = "0.5.0", features = ["publickey"] }
+parity-crypto = { version = "0.6.0", features = ["publickey"] }
 engine = { path = "../../engine" }
 io = { package = "ethcore-io", path = "../../../util/io" }
 itertools = "0.8.2"
