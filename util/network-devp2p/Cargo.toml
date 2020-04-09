@@ -28,13 +28,13 @@ parity-crypto = { version = "0.5.0", features = ["publickey"] }
 parity-path = "0.1"
 parity-snappy = "0.1"
 parking_lot = "0.10.0"
-rand = "0.7"
+rand = "0.7.3"
 rlp = "0.4.0"
 secp256k1 = "0.17"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 slab = "0.4.2"
-tiny-keccak = "1.4"
+tiny-keccak = "2.0.2"
 
 [dev-dependencies]
 assert_matches = "1.2"

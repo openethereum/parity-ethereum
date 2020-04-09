@@ -44,13 +44,13 @@ pod = { path = "pod", optional = true }
 trie-db = "0.20.0"
 parity-crypto = { version = "0.5.0", features = ["publickey"], optional = true }
 patricia-trie-ethereum = { path = "../util/patricia-trie-ethereum" }
-rand = "0.7"
-rand_xorshift = "0.2"
+rand = "0.7.3"
+rand_xorshift = "0.2.0"
 rayon = "1.1"
 registrar = { path = "../util/registrar" }
 rlp = "0.4.0"
 rustc-hex = "2.1.0"
-scopeguard = "1.0.0"
+scopeguard = "1.1.0"
 serde = "1.0"
 serde_derive = "1.0"
 snapshot = { path = "snapshot" }

@@ -31,8 +31,11 @@ impl Hasher for KeccakHasher {
 	type StdHasher = PlainHasher;
 	const LENGTH: usize = 32;
 	fn hash(x: &[u8]) -> Self::Out {
+		use tiny_keccak::Hasher;
 		let mut out = [0; 32];
-		Keccak::keccak256(x, &mut out);
+		let mut keccak256 = Keccak::v256();
+		keccak256.update(x);
+		keccak256.finalize(&mut out);
 		out.into()
 	}
 }

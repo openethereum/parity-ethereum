@@ -576,7 +576,7 @@ dependencies = [
  "atty",
  "bitflags",
  "strsim 0.8.0",
- "textwrap 0.11.0",
+ "textwrap",
  "unicode-width",
  "vec_map",
 ]
@@ -1000,7 +1000,7 @@ dependencies = [
  "rand 0.7.3",
  "rlp",
  "secp256k1",
- "tiny-keccak 2.0.1",
+ "tiny-keccak 2.0.2",
  "zeroize",
 ]
 
@@ -1318,7 +1318,7 @@ dependencies = [
  "mio",
  "num_cpus",
  "parking_lot 0.10.0",
- "slab 0.4.2",
+ "slab",
  "time",
  "timer",
  "tokio",
@@ -1474,9 +1474,9 @@ dependencies = [
  "secp256k1",
  "serde",
  "serde_json",
- "slab 0.4.2",
+ "slab",
  "tempfile",
- "tiny-keccak 1.5.0",
+ "tiny-keccak 2.0.2",
 ]
 
 [[package]]
@@ -1522,7 +1522,7 @@ dependencies = [
  "spec",
  "state-db",
  "time-utils",
- "tiny-keccak 1.5.0",
+ "tiny-keccak 2.0.2",
  "trace",
  "transaction-pool",
  "trie-db",
@@ -1695,7 +1695,7 @@ dependencies = [
  "smallvec 1.2.0",
  "tempfile",
  "time",
- "tiny-keccak 1.5.0",
+ "tiny-keccak 2.0.2",
 ]
 
 [[package]]
@@ -2016,7 +2016,7 @@ dependencies = [
  "http",
  "indexmap",
  "log",
- "slab 0.4.2",
+ "slab",
  "string",
  "tokio-io",
 ]
@@ -2187,7 +2187,7 @@ dependencies = [
  "tokio-reactor",
  "tokio-tcp",
  "tokio-threadpool",
- "tokio-timer 0.2.13",
+ "tokio-timer",
  "want",
 ]
 
@@ -2512,7 +2512,7 @@ dependencies = [
  "jsonrpc-server-utils",
  "log",
  "parking_lot 0.10.0",
- "slab 0.4.2",
+ "slab",
  "ws",
 ]
 
@@ -2533,7 +2533,7 @@ dependencies = [
  "ethereum-types",
  "hash-db",
  "plain_hasher",
- "tiny-keccak 1.5.0",
+ "tiny-keccak 2.0.2",
 ]
 
 [[package]]
@@ -2910,7 +2910,7 @@ dependencies = [
  "log",
  "miow 0.2.1",
  "net2",
- "slab 0.4.2",
+ "slab",
  "winapi 0.2.8",
 ]
 
@@ -2923,7 +2923,7 @@ dependencies = [
  "lazycell",
  "log",
  "mio",
- "slab 0.4.2",
+ "slab",
 ]
 
 [[package]]
@@ -3220,7 +3220,7 @@ dependencies = [
  "spec",
  "tempfile",
  "term_size",
- "textwrap 0.9.0",
+ "textwrap",
  "toml",
  "verification",
  "winapi 0.3.8",
@@ -3287,7 +3287,7 @@ dependencies = [
  "secp256k1",
  "sha2",
  "subtle 2.2.2",
- "tiny-keccak 2.0.1",
+ "tiny-keccak 2.0.2",
  "zeroize",
 ]
 
@@ -3414,8 +3414,8 @@ dependencies = [
  "spec",
  "stats",
  "tempfile",
- "tiny-keccak 1.5.0",
- "tokio-timer 0.1.2",
+ "tiny-keccak 2.0.2",
+ "tokio-timer",
  "trace",
  "transaction-pool",
  "transient-hashmap",
@@ -4593,12 +4593,6 @@ checksum = "8e88f89a550c01e4cd809f3df4f52dc9e939f3273a2017eabd5c6d12fd98bb23"
 
 [[package]]
 name = "slab"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "17b4fcaed89ab08ef143da37bc52adbcc04d4a69014f4c1208d6b51f0c47bc23"
-
-[[package]]
-name = "slab"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c111b5bd5695e56cffe5129854aa230b39c93a305372fdbb2668ca2394eea9f8"
@@ -4928,15 +4922,6 @@ dependencies = [
 
 [[package]]
 name = "textwrap"
-version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c0b59b6b4b44d867f1370ef1bd91bfb262bf07bf0ae65c202ea2fbc16153b693"
-dependencies = [
- "unicode-width",
-]
-
-[[package]]
-name = "textwrap"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d326610f408c7a4eb6f51c37c330e496b08506c9457c9d34287ecc38809fb060"
@@ -5008,9 +4993,9 @@ dependencies = [
 
 [[package]]
 name = "tiny-keccak"
-version = "2.0.1"
+version = "2.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2953ca5148619bc99695c1274cb54c5275bbb913c6adad87e72eaf8db9787f69"
+checksum = "2c9d3793400a45f954c52e73d068316d76b6f4e36977e3fcebb13a2721e80237"
 dependencies = [
  "crunchy",
 ]
@@ -5044,7 +5029,7 @@ dependencies = [
  "tokio-sync",
  "tokio-tcp",
  "tokio-threadpool",
- "tokio-timer 0.2.13",
+ "tokio-timer",
  "tokio-udp",
  "tokio-uds",
 ]
@@ -5139,7 +5124,7 @@ dependencies = [
  "mio",
  "num_cpus",
  "parking_lot 0.9.0",
- "slab 0.4.2",
+ "slab",
  "tokio-executor",
  "tokio-io",
  "tokio-sync",
@@ -5205,18 +5190,8 @@ dependencies = [
  "lazy_static",
  "log",
  "num_cpus",
- "slab 0.4.2",
+ "slab",
  "tokio-executor",
-]
-
-[[package]]
-name = "tokio-timer"
-version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6131e780037787ff1b3f8aad9da83bca02438b72277850dd6ad0d455e0e20efc"
-dependencies = [
- "futures",
- "slab 0.3.0",
 ]
 
 [[package]]
@@ -5227,7 +5202,7 @@ checksum = "93044f2d313c95ff1cb7809ce9a7a05735b012288a888b62d4434fd58c94f296"
 dependencies = [
  "crossbeam-utils",
  "futures",
- "slab 0.4.2",
+ "slab",
  "tokio-executor",
 ]
 
@@ -5825,7 +5800,7 @@ dependencies = [
  "mio-extras",
  "rand 0.7.3",
  "sha-1",
- "slab 0.4.2",
+ "slab",
  "url 2.1.1",
 ]
 

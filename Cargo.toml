@@ -76,7 +76,7 @@ serde_json = "1.0"
 snapshot = { path = "ethcore/snapshot" }
 spec = { path = "ethcore/spec" }
 term_size = "0.3"
-textwrap = "0.9"
+textwrap = "0.11.0"
 toml = "0.5.6"
 verification = { path = "ethcore/verification" }
 
@@ -90,7 +90,7 @@ tempfile = "3.1"
 fake-fetch = { path = "util/fake-fetch" }
 
 [target.'cfg(windows)'.dependencies]
-winapi = { version = "0.3.4", features = ["winsock2", "winuser", "shellapi"] }
+winapi = { version = "0.3.8", features = ["winsock2", "winuser", "shellapi"] }
 
 [features]
 default = ["accounts"]
