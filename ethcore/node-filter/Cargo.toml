@@ -12,17 +12,17 @@ common-types = { path = "../types" }
 ethcore = { path = ".."}
 ethcore-network = { path = "../../util/network" }
 ethcore-network-devp2p = { path = "../../util/network-devp2p" }
-ethereum-types = "0.8.0"
+ethereum-types = "0.9.0"
 log = "0.4"
 parking_lot = "0.10.0"
-ethabi = "9.0.1"
+ethabi = "11.0.0"
 ethabi-derive = "9.0.1"
 ethabi-contract = "9.0.0"
 lru-cache = "0.1"
 
 [dev-dependencies]
 ethcore = { path = "..", features = ["test-helpers"] }
-kvdb-memorydb = "0.4.0"
+kvdb-memorydb = "0.5.0"
 ethcore-io = { path = "../../util/io" }
 spec = { path = "../spec" }
 tempfile = "3.1"

@@ -23,7 +23,7 @@ goerli = { forkBlock = 1561651, critical = false }
 
 [dependencies]
 parity-bytes = "0.1"
-rlp = "0.4.0"
+rlp = "0.4.5"
 target_info = "0.1"
 
 [build-dependencies]

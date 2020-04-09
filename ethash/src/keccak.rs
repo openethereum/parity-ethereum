@@ -21,17 +21,20 @@ pub type H256 = [u8; 32];
 pub mod keccak_512 {
 	use super::hash;
 
-	pub use self::hash::keccak_512_unchecked as unchecked;
+	pub use self::hash::keccak_512 as unchecked;
 
 	pub fn write(input: &[u8], output: &mut [u8]) {
 		hash::keccak_512(input, output);
 	}
 
 	pub fn inplace(input: &mut [u8]) {
+		hash::keccak_512(input, input);
+	}
+	pub fn inplace_old(input: &mut [u8]) {
 		// This is safe since `keccak_*` uses an internal buffer and copies the result to the output. This
 		// means that we can reuse the input buffer for both input and output.
 		unsafe {
-			hash::keccak_512_unchecked(input.as_mut_ptr(), input.len(), input.as_ptr(), input.len());
+			hash::keccak_512(input.as_mut_ptr(), input.len(), input.as_ptr(), input.len());
 		}
 	}
 }

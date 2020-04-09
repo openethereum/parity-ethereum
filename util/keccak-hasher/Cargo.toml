@@ -7,7 +7,7 @@ description = "Keccak-256 implementation of the Hasher trait"
 license = "GPL-3.0"
 
 [dependencies]
-ethereum-types = "0.8.0"
+ethereum-types = "0.9.0"
 tiny-keccak = "2.0.2"
 hash-db = "0.15.0"
 plain_hasher = "0.2"

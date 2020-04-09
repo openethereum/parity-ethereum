@@ -4,7 +4,7 @@
 name = "account-db"
 version = "0.1.0"
 dependencies = [
- "ethereum-types",
+ "ethereum-types 0.9.0",
  "hash-db",
  "keccak-hash",
  "keccak-hasher 0.1.1",
@@ -19,7 +19,7 @@ dependencies = [
  "account-db",
  "common-types",
  "derive_more",
- "ethereum-types",
+ "ethereum-types 0.9.0",
  "hash-db",
  "journaldb",
  "keccak-hash",
@@ -29,7 +29,7 @@ dependencies = [
  "lru-cache",
  "memory-db",
  "parity-bytes",
- "parity-util-mem",
+ "parity-util-mem 0.6.0",
  "parking_lot 0.10.0",
  "patricia-trie-ethereum",
  "pod",
@@ -181,13 +181,13 @@ dependencies = [
  "derive_more",
  "engine",
  "env_logger 0.6.2",
- "ethabi",
+ "ethabi 11.0.0",
  "ethabi-contract",
  "ethabi-derive",
  "ethcore",
  "ethcore-accounts",
  "ethcore-io",
- "ethereum-types",
+ "ethereum-types 0.9.0",
  "ethjson",
  "itertools",
  "keccak-hash",
@@ -276,7 +276,7 @@ dependencies = [
  "engine",
  "ethcore",
  "ethcore-accounts",
- "ethereum-types",
+ "ethereum-types 0.9.0",
  "ethjson",
  "keccak-hash",
  "log",
@@ -377,11 +377,11 @@ version = "0.1.0"
 dependencies = [
  "client-traits",
  "common-types",
- "ethabi",
+ "ethabi 11.0.0",
  "ethabi-contract",
  "ethabi-derive",
  "ethcore",
- "ethereum-types",
+ "ethereum-types 0.9.0",
  "log",
  "spec",
 ]
@@ -411,11 +411,11 @@ version = "0.1.0"
 dependencies = [
  "common-types",
  "engine",
- "ethabi",
+ "ethabi 11.0.0",
  "ethabi-contract",
  "ethabi-derive",
  "ethcore",
- "ethereum-types",
+ "ethereum-types 0.9.0",
  "keccak-hash",
  "machine",
  "spec",
@@ -427,7 +427,7 @@ name = "blooms-db"
 version = "0.1.0"
 dependencies = [
  "criterion",
- "ethbloom",
+ "ethbloom 0.9.0",
  "parking_lot 0.10.0",
  "tempfile",
 ]
@@ -441,7 +441,7 @@ dependencies = [
  "crunchy",
  "lazy_static",
  "rand 0.5.6",
- "rustc-hex 2.1.0",
+ "rustc-hex",
 ]
 
 [[package]]
@@ -585,7 +585,7 @@ dependencies = [
 name = "cli-signer"
 version = "1.4.0"
 dependencies = [
- "ethereum-types",
+ "ethereum-types 0.9.0",
  "futures",
  "parity-rpc",
  "parity-rpc-client",
@@ -602,7 +602,7 @@ dependencies = [
  "ethcore-call-contract",
  "ethcore-db",
  "ethcore-miner",
- "ethereum-types",
+ "ethereum-types 0.9.0",
  "kvdb",
  "parity-bytes",
  "registrar",
@@ -619,7 +619,7 @@ dependencies = [
  "common-types",
  "engine",
  "ethcore",
- "ethereum-types",
+ "ethereum-types 0.9.0",
  "ethjson",
  "keccak-hash",
  "lazy_static",
@@ -659,19 +659,19 @@ name = "common-types"
 version = "0.1.0"
 dependencies = [
  "derive_more",
- "ethbloom",
+ "ethbloom 0.9.0",
  "ethcore-io",
- "ethereum-types",
+ "ethereum-types 0.9.0",
  "ethjson",
  "keccak-hash",
  "parity-bytes",
  "parity-crypto",
  "parity-snappy",
- "parity-util-mem",
+ "parity-util-mem 0.6.0",
  "patricia-trie-ethereum",
  "rlp",
  "rlp-derive",
- "rustc-hex 2.1.0",
+ "rustc-hex",
  "unexpected",
  "vm",
 ]
@@ -901,7 +901,7 @@ name = "dir"
 version = "0.1.2"
 dependencies = [
  "app_dirs",
- "ethereum-types",
+ "ethereum-types 0.9.0",
  "home",
  "journaldb",
 ]
@@ -930,15 +930,15 @@ version = "0.1.0"
 dependencies = [
  "arrayref",
  "criterion",
- "rustc-hex 2.1.0",
+ "rustc-hex",
 ]
 
 [[package]]
 name = "eip-712"
 version = "0.1.1"
 dependencies = [
- "ethabi",
- "ethereum-types",
+ "ethabi 11.0.0",
+ "ethereum-types 0.9.0",
  "failure",
  "indexmap",
  "itertools",
@@ -946,7 +946,7 @@ dependencies = [
  "lazy_static",
  "lunarity-lexer",
  "regex",
- "rustc-hex 2.1.0",
+ "rustc-hex",
  "serde",
  "serde_derive",
  "serde_json",
@@ -978,7 +978,7 @@ dependencies = [
  "ethcore-accounts",
  "ethcore-blockchain",
  "ethcore-builtin",
- "ethereum-types",
+ "ethereum-types 0.9.0",
  "ethkey",
  "log",
  "machine",
@@ -1068,12 +1068,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "965126c64662832991f5a748893577630b558e47fa94e7f35aefcd20d737cef7"
 dependencies = [
  "error-chain",
- "ethereum-types",
- "rustc-hex 2.1.0",
+ "ethereum-types 0.8.0",
+ "rustc-hex",
  "serde",
  "serde_derive",
  "serde_json",
  "tiny-keccak 1.5.0",
+]
+
+[[package]]
+name = "ethabi"
+version = "11.0.0"
+dependencies = [
+ "ethereum-types 0.9.0",
+ "rustc-hex",
+ "serde",
+ "serde_json",
+ "tiny-keccak 1.5.0",
+ "uint",
 ]
 
 [[package]]
@@ -1088,7 +1100,7 @@ version = "9.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bd0753d4f9e1dba99450da5f2400b20527702ae8ce0309a5f7c239d305539884"
 dependencies = [
- "ethabi",
+ "ethabi 9.0.1",
  "heck",
  "proc-macro2 0.4.30",
  "quote 0.6.13",
@@ -1102,14 +1114,14 @@ dependencies = [
  "common-types",
  "criterion",
  "either",
- "ethereum-types",
+ "ethereum-types 0.9.0",
  "hex-literal",
  "keccak-hash",
  "log",
  "memmap",
  "parking_lot 0.10.0",
  "primal",
- "rustc-hex 2.1.0",
+ "rustc-hex",
  "serde_json",
  "static_assertions",
  "tempfile",
@@ -1124,7 +1136,7 @@ dependencies = [
  "engine",
  "ethash",
  "ethcore",
- "ethereum-types",
+ "ethereum-types 0.9.0",
  "ethjson",
  "keccak-hash",
  "log",
@@ -1142,10 +1154,23 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32cfe1c169414b709cf28aa30c74060bdb830a03a8ba473314d079ac79d80a5f"
 dependencies = [
  "crunchy",
- "fixed-hash",
+ "fixed-hash 0.5.2",
  "impl-rlp",
  "impl-serde 0.2.3",
  "tiny-keccak 1.5.0",
+]
+
+[[package]]
+name = "ethbloom"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9e7abcddbdd5db30aeed4deb586adc4824e6c247e2f7238d1187f752893f096b"
+dependencies = [
+ "crunchy",
+ "fixed-hash 0.6.0",
+ "impl-rlp",
+ "impl-serde 0.3.0",
+ "tiny-keccak 2.0.2",
 ]
 
 [[package]]
@@ -1171,7 +1196,7 @@ dependencies = [
  "ethcore-io",
  "ethcore-miner",
  "ethcore-stratum",
- "ethereum-types",
+ "ethereum-types 0.9.0",
  "ethjson",
  "evm",
  "executive-state",
@@ -1183,7 +1208,7 @@ dependencies = [
  "keccak-hash",
  "kvdb",
  "kvdb-memorydb",
- "kvdb-rocksdb 0.6.0",
+ "kvdb-rocksdb",
  "lazy_static",
  "log",
  "machine",
@@ -1199,7 +1224,7 @@ dependencies = [
  "rayon",
  "registrar",
  "rlp",
- "rustc-hex 2.1.0",
+ "rustc-hex",
  "scopeguard 1.1.0",
  "serde",
  "serde_derive",
@@ -1225,7 +1250,7 @@ dependencies = [
 name = "ethcore-accounts"
 version = "0.1.0"
 dependencies = [
- "ethereum-types",
+ "ethereum-types 0.9.0",
  "ethkey",
  "ethstore",
  "log",
@@ -1246,7 +1271,7 @@ dependencies = [
  "common-types",
  "env_logger 0.5.13",
  "ethcore-db",
- "ethereum-types",
+ "ethereum-types 0.9.0",
  "itertools",
  "keccak-hash",
  "kvdb",
@@ -1254,14 +1279,14 @@ dependencies = [
  "log",
  "parity-bytes",
  "parity-crypto",
- "parity-util-mem",
+ "parity-util-mem 0.6.0",
  "parking_lot 0.10.0",
  "rand 0.7.3",
  "rayon",
  "rlp",
  "rlp-derive",
  "rlp_compress",
- "rustc-hex 2.1.0",
+ "rustc-hex",
  "tempfile",
  "triehash-ethereum",
 ]
@@ -1274,7 +1299,7 @@ dependencies = [
  "byteorder",
  "common-types",
  "eip-152",
- "ethereum-types",
+ "ethereum-types 0.9.0",
  "ethjson",
  "hex-literal",
  "keccak-hash",
@@ -1290,7 +1315,7 @@ name = "ethcore-call-contract"
 version = "0.1.0"
 dependencies = [
  "common-types",
- "ethereum-types",
+ "ethereum-types 0.9.0",
  "parity-bytes",
 ]
 
@@ -1299,9 +1324,9 @@ name = "ethcore-db"
 version = "0.1.0"
 dependencies = [
  "common-types",
- "ethereum-types",
+ "ethereum-types 0.9.0",
  "kvdb",
- "parity-util-mem",
+ "parity-util-mem 0.6.0",
  "parking_lot 0.10.0",
  "rlp",
  "rlp-derive",
@@ -1339,7 +1364,7 @@ dependencies = [
  "ethcore-io",
  "ethcore-miner",
  "ethcore-network",
- "ethereum-types",
+ "ethereum-types 0.9.0",
  "executive-state",
  "failsafe",
  "fastmap",
@@ -1355,7 +1380,7 @@ dependencies = [
  "memory-cache",
  "memory-db",
  "parity-bytes",
- "parity-util-mem",
+ "parity-util-mem 0.6.0",
  "parking_lot 0.10.0",
  "patricia-trie-ethereum",
  "rand 0.7.3",
@@ -1395,12 +1420,12 @@ dependencies = [
  "ansi_term",
  "common-types",
  "env_logger 0.5.13",
- "ethabi",
+ "ethabi 11.0.0",
  "ethabi-contract",
  "ethabi-derive",
  "ethash",
  "ethcore-call-contract",
- "ethereum-types",
+ "ethereum-types 0.9.0",
  "fetch",
  "futures",
  "hyper",
@@ -1409,12 +1434,12 @@ dependencies = [
  "log",
  "parity-crypto",
  "parity-runtime",
- "parity-util-mem",
+ "parity-util-mem 0.6.0",
  "parking_lot 0.10.0",
  "price-info",
  "registrar",
  "rlp",
- "rustc-hex 2.1.0",
+ "rustc-hex",
  "serde",
  "serde_derive",
  "serde_json",
@@ -1430,7 +1455,7 @@ dependencies = [
  "assert_matches",
  "derive_more",
  "ethcore-io",
- "ethereum-types",
+ "ethereum-types 0.9.0",
  "ipnetwork",
  "lazy_static",
  "libc",
@@ -1454,7 +1479,7 @@ dependencies = [
  "env_logger 0.5.13",
  "ethcore-io",
  "ethcore-network",
- "ethereum-types",
+ "ethereum-types 0.9.0",
  "hex-literal",
  "igd",
  "ipnetwork",
@@ -1488,7 +1513,7 @@ dependencies = [
  "common-types",
  "derive_more",
  "env_logger 0.5.13",
- "ethabi",
+ "ethabi 11.0.0",
  "ethabi-contract",
  "ethabi-derive",
  "ethcore",
@@ -1496,7 +1521,7 @@ dependencies = [
  "ethcore-db",
  "ethcore-io",
  "ethcore-miner",
- "ethereum-types",
+ "ethereum-types 0.9.0",
  "ethjson",
  "fetch",
  "futures",
@@ -1509,13 +1534,13 @@ dependencies = [
  "machine",
  "parity-bytes",
  "parity-crypto",
- "parity-util-mem",
+ "parity-util-mem 0.6.0",
  "parking_lot 0.10.0",
  "patricia-trie-ethereum",
  "registrar",
  "rlp",
  "rlp-derive",
- "rustc-hex 2.1.0",
+ "rustc-hex",
  "serde",
  "serde_derive",
  "serde_json",
@@ -1543,9 +1568,9 @@ dependencies = [
  "ethcore-io",
  "ethcore-private-tx",
  "ethcore-sync",
- "ethereum-types",
+ "ethereum-types 0.9.0",
  "kvdb",
- "kvdb-rocksdb 0.6.0",
+ "kvdb-rocksdb",
  "log",
  "snapshot",
  "spec",
@@ -1558,7 +1583,7 @@ name = "ethcore-stratum"
 version = "1.12.0"
 dependencies = [
  "env_logger 0.5.13",
- "ethereum-types",
+ "ethereum-types 0.9.0",
  "jsonrpc-core",
  "jsonrpc-tcp-server",
  "keccak-hash",
@@ -1584,7 +1609,7 @@ dependencies = [
  "ethcore-network-devp2p",
  "ethcore-private-tx",
  "ethereum-forkid",
- "ethereum-types",
+ "ethereum-types 0.9.0",
  "fastmap",
  "futures",
  "indexmap",
@@ -1595,12 +1620,12 @@ dependencies = [
  "parity-bytes",
  "parity-crypto",
  "parity-runtime",
- "parity-util-mem",
+ "parity-util-mem 0.6.0",
  "parking_lot 0.10.0",
  "rand 0.7.3",
  "rand_xorshift 0.2.0",
  "rlp",
- "rustc-hex 2.1.0",
+ "rustc-hex",
  "snapshot",
  "spec",
  "trace-time",
@@ -1614,9 +1639,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2f547713a9a1e69a55529f3981dbded2c59c69629c7df795bdc7deef3375f59"
 dependencies = [
  "crc",
- "ethereum-types",
+ "ethereum-types 0.8.0",
  "maplit",
- "parity-util-mem",
+ "parity-util-mem 0.5.2",
  "rlp",
  "rlp-derive",
 ]
@@ -1627,11 +1652,25 @@ version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ba744248e3553a393143d5ebb68939fc3a4ec0c22a269682535f5ffe7fed728c"
 dependencies = [
- "ethbloom",
- "fixed-hash",
+ "ethbloom 0.8.1",
+ "fixed-hash 0.5.2",
  "impl-rlp",
  "impl-serde 0.2.3",
- "primitive-types",
+ "primitive-types 0.6.2",
+ "uint",
+]
+
+[[package]]
+name = "ethereum-types"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "964c23cdee0ca07d5be2a628b46d5c11a2134ce554a8c16d8dbc2db647e4fd4d"
+dependencies = [
+ "ethbloom 0.9.0",
+ "fixed-hash 0.6.0",
+ "impl-rlp",
+ "impl-serde 0.3.0",
+ "primitive-types 0.7.0",
  "uint",
 ]
 
@@ -1639,9 +1678,9 @@ dependencies = [
 name = "ethjson"
 version = "0.1.0"
 dependencies = [
- "ethereum-types",
+ "ethereum-types 0.9.0",
  "maplit",
- "rustc-hex 2.1.0",
+ "rustc-hex",
  "serde",
  "serde_json",
 ]
@@ -1668,7 +1707,7 @@ dependencies = [
  "panic_hook",
  "parity-crypto",
  "parity-wordlist",
- "rustc-hex 2.1.0",
+ "rustc-hex",
  "serde",
  "serde_derive",
  "threadpool",
@@ -1679,7 +1718,7 @@ name = "ethstore"
 version = "0.2.1"
 dependencies = [
  "dir",
- "ethereum-types",
+ "ethereum-types 0.9.0",
  "ethkey",
  "libc",
  "log",
@@ -1688,7 +1727,7 @@ dependencies = [
  "parity-wordlist",
  "parking_lot 0.10.0",
  "rand 0.7.3",
- "rustc-hex 2.1.0",
+ "rustc-hex",
  "serde",
  "serde_derive",
  "serde_json",
@@ -1711,7 +1750,7 @@ dependencies = [
  "panic_hook",
  "parity-crypto",
  "parking_lot 0.10.0",
- "rustc-hex 2.1.0",
+ "rustc-hex",
  "serde",
  "serde_derive",
  "tempfile",
@@ -1723,14 +1762,14 @@ version = "0.1.0"
 dependencies = [
  "bit-set",
  "criterion",
- "ethereum-types",
+ "ethereum-types 0.9.0",
  "hex-literal",
  "keccak-hash",
  "lazy_static",
  "log",
  "memory-cache",
  "parity-bytes",
- "parity-util-mem",
+ "parity-util-mem 0.6.0",
  "parking_lot 0.10.0",
  "vm",
 ]
@@ -1745,14 +1784,14 @@ dependencies = [
  "docopt",
  "env_logger 0.5.13",
  "ethcore",
- "ethereum-types",
+ "ethereum-types 0.9.0",
  "ethjson",
  "evm",
  "hex-literal",
  "panic_hook",
  "parity-bytes",
  "pod",
- "rustc-hex 2.1.0",
+ "rustc-hex",
  "serde",
  "serde_json",
  "spec",
@@ -1772,7 +1811,7 @@ dependencies = [
  "env_logger 0.5.13",
  "ethcore",
  "ethcore-db",
- "ethereum-types",
+ "ethereum-types 0.9.0",
  "evm",
  "hash-db",
  "hex-literal",
@@ -1847,7 +1886,7 @@ checksum = "e88a8acf291dafb59c2d96e8f59828f3838bb1a70398823ade51a84de6a6deed"
 name = "fastmap"
 version = "0.1.0"
 dependencies = [
- "ethereum-types",
+ "ethereum-types 0.9.0",
  "plain_hasher",
 ]
 
@@ -1881,9 +1920,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3367952ceb191f4ab95dd5685dc163ac539e36202f9fcfd0cb22f9f9c542fefc"
 dependencies = [
  "byteorder",
- "libc",
  "rand 0.7.3",
- "rustc-hex 2.1.0",
+ "rustc-hex",
+ "static_assertions",
+]
+
+[[package]]
+name = "fixed-hash"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "32529fc42e86ec06e5047092082aab9ad459b070c5d2a76b14f4f5ce70bf2e84"
+dependencies = [
+ "byteorder",
+ "rand 0.7.3",
+ "rustc-hex",
  "static_assertions",
 ]
 
@@ -2312,7 +2362,7 @@ dependencies = [
  "common-types",
  "engine",
  "ethcore",
- "ethereum-types",
+ "ethereum-types 0.9.0",
  "ethjson",
  "keccak-hash",
  "machine",
@@ -2383,7 +2433,7 @@ name = "journaldb"
 version = "0.2.0"
 dependencies = [
  "env_logger 0.5.13",
- "ethereum-types",
+ "ethereum-types 0.9.0",
  "fastmap",
  "hash-db",
  "keccak-hash",
@@ -2393,7 +2443,7 @@ dependencies = [
  "log",
  "memory-db",
  "parity-bytes",
- "parity-util-mem",
+ "parity-util-mem 0.6.0",
  "parking_lot 0.10.0",
  "rlp",
 ]
@@ -2518,19 +2568,19 @@ dependencies = [
 
 [[package]]
 name = "keccak-hash"
-version = "0.4.1"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4f0e55d8f242fdc281c21c4cd70960a25db6dd17cc6232d8b38b564b5b18c784"
+checksum = "2465949fb0e45cc91d6d65d5eb4818545d32a120aa49ac93973f5e37242bece0"
 dependencies = [
- "primitive-types",
- "tiny-keccak 1.5.0",
+ "primitive-types 0.7.0",
+ "tiny-keccak 2.0.2",
 ]
 
 [[package]]
 name = "keccak-hasher"
 version = "0.1.1"
 dependencies = [
- "ethereum-types",
+ "ethereum-types 0.9.0",
  "hash-db",
  "plain_hasher",
  "tiny-keccak 2.0.2",
@@ -2559,50 +2609,30 @@ dependencies = [
 
 [[package]]
 name = "kvdb"
-version = "0.4.0"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "03080afe6f42cd996da9f568d6add5d7fb5ee2ea7fb7802d2d2cbd836958fd87"
+checksum = "cad096c6849b2ef027fabe35c4aed356d0e3d3f586d0a8361e5e17f1e50a7ce5"
 dependencies = [
- "parity-bytes",
- "parity-util-mem",
+ "parity-util-mem 0.6.0",
  "smallvec 1.2.0",
 ]
 
 [[package]]
 name = "kvdb-memorydb"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b9355274e5a9e0a7e8ef43916950eae3949024de2a8dffe4d5a6c13974a37c8e"
-dependencies = [
- "kvdb",
- "parity-util-mem",
- "parking_lot 0.10.0",
-]
-
-[[package]]
-name = "kvdb-rocksdb"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "af36fd66ccd99f3f771ae39b75aaba28b952372b6debfb971134bf1f03466ab2"
+checksum = "4aa954d12cfac958822dfd77aab34f3eec71f103b918c4ab79ab59a36ee594ea"
 dependencies = [
- "fs-swap",
- "interleaved-ordered",
  "kvdb",
- "log",
- "num_cpus",
- "owning_ref",
- "parity-util-mem",
+ "parity-util-mem 0.6.0",
  "parking_lot 0.10.0",
- "regex",
- "rocksdb",
- "smallvec 1.2.0",
 ]
 
 [[package]]
 name = "kvdb-rocksdb"
-version = "0.6.0"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1fecd50b14a534125228d7039951f92aaff742aff151c04546347aba4d3b4fbc"
+checksum = "b3f14c3a10c8894d26175e57e9e26032e6d6c49c30cbe2468c5bf5f6b64bb0be"
 dependencies = [
  "fs-swap",
  "interleaved-ordered",
@@ -2610,7 +2640,7 @@ dependencies = [
  "log",
  "num_cpus",
  "owning_ref",
- "parity-util-mem",
+ "parity-util-mem 0.6.0",
  "parking_lot 0.10.0",
  "regex",
  "rocksdb",
@@ -2665,19 +2695,6 @@ dependencies = [
  "cc",
  "glob",
  "libc",
-]
-
-[[package]]
-name = "libsecp256k1"
-version = "0.3.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1fc1e2c808481a63dc6da2074752fdd4336a3c8fcc68b83db6f1fd5224ae7962"
-dependencies = [
- "arrayref",
- "crunchy",
- "digest",
- "rand 0.7.3",
- "subtle 2.2.2",
 ]
 
 [[package]]
@@ -2773,14 +2790,14 @@ dependencies = [
  "common-types",
  "criterion",
  "crossbeam-utils",
- "ethabi",
+ "ethabi 11.0.0",
  "ethabi-contract",
  "ethabi-derive",
  "ethcore",
  "ethcore-builtin",
  "ethcore-call-contract",
  "ethcore-io",
- "ethereum-types",
+ "ethereum-types 0.9.0",
  "ethjson",
  "evm",
  "hex-literal",
@@ -2847,19 +2864,19 @@ name = "memory-cache"
 version = "0.1.0"
 dependencies = [
  "lru-cache",
- "parity-util-mem",
+ "parity-util-mem 0.6.0",
 ]
 
 [[package]]
 name = "memory-db"
-version = "0.19.0"
+version = "0.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "198831fe8722331a395bc199a5d08efbc197497ef354cb4c77b969c02ffc0fc4"
+checksum = "f58381b20ebe2c578e75dececd9da411414903415349548ccc46aac3209cdfbc"
 dependencies = [
  "ahash",
  "hash-db",
  "hashbrown",
- "parity-util-mem",
+ "parity-util-mem 0.6.0",
 ]
 
 [[package]]
@@ -2873,7 +2890,7 @@ name = "migration-rocksdb"
 version = "0.1.0"
 dependencies = [
  "kvdb",
- "kvdb-rocksdb 0.6.0",
+ "kvdb-rocksdb",
  "log",
  "maplit",
  "tempfile",
@@ -3016,14 +3033,14 @@ version = "1.12.0"
 dependencies = [
  "client-traits",
  "common-types",
- "ethabi",
+ "ethabi 11.0.0",
  "ethabi-contract",
  "ethabi-derive",
  "ethcore",
  "ethcore-io",
  "ethcore-network",
  "ethcore-network-devp2p",
- "ethereum-types",
+ "ethereum-types 0.9.0",
  "kvdb-memorydb",
  "log",
  "lru-cache",
@@ -3049,7 +3066,7 @@ dependencies = [
  "block-reward",
  "common-types",
  "engine",
- "ethereum-types",
+ "ethereum-types 0.9.0",
  "ethjson",
  "machine",
 ]
@@ -3173,7 +3190,7 @@ dependencies = [
  "dir",
  "docopt",
  "engine",
- "ethabi",
+ "ethabi 11.0.0",
  "ethcore",
  "ethcore-accounts",
  "ethcore-blockchain",
@@ -3187,7 +3204,7 @@ dependencies = [
  "ethcore-private-tx",
  "ethcore-service",
  "ethcore-sync",
- "ethereum-types",
+ "ethereum-types 0.9.0",
  "ethkey",
  "ethstore",
  "fake-fetch",
@@ -3198,7 +3215,7 @@ dependencies = [
  "jsonrpc-core",
  "keccak-hash",
  "kvdb",
- "kvdb-rocksdb 0.6.0",
+ "kvdb-rocksdb",
  "log",
  "migration-rocksdb",
  "node-filter",
@@ -3213,9 +3230,8 @@ dependencies = [
  "parity-path",
  "parity-rpc",
  "parity-runtime",
- "parity-secretstore",
  "parity-updater",
- "parity-util-mem",
+ "parity-util-mem 0.6.0",
  "parity-version",
  "parking_lot 0.10.0",
  "pretty_assertions",
@@ -3223,7 +3239,7 @@ dependencies = [
  "registrar",
  "rlp",
  "rpassword",
- "rustc-hex 2.1.0",
+ "rustc-hex",
  "rustc_version",
  "semver",
  "serde",
@@ -3281,21 +3297,21 @@ checksum = "16b56e3a2420138bdb970f84dfb9c774aea80fa0e7371549eedec0d80c209c67"
 
 [[package]]
 name = "parity-crypto"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e4015edcfb0304c3b32f6c4ad68fb8b0a14f1d7d250bd0c6b9cd312d38038000"
+checksum = "97cb113593965e4ece813a49f8ff669728dfb4feb76af8208ea73d81d58aee42"
 dependencies = [
  "aes",
  "aes-ctr",
  "block-modes",
  "digest",
- "ethereum-types",
+ "ethereum-types 0.9.0",
  "hmac",
  "lazy_static",
  "pbkdf2",
  "rand 0.7.3",
  "ripemd160",
- "rustc-hex 2.1.0",
+ "rustc-hex",
  "scrypt",
  "secp256k1",
  "sha2",
@@ -3322,11 +3338,11 @@ name = "parity-hash-fetch"
 version = "1.12.0"
 dependencies = [
  "common-types",
- "ethabi",
+ "ethabi 11.0.0",
  "ethabi-contract",
  "ethabi-derive",
  "ethcore-call-contract",
- "ethereum-types",
+ "ethereum-types 0.9.0",
  "fake-fetch",
  "fetch",
  "futures",
@@ -3339,7 +3355,7 @@ dependencies = [
  "parking_lot 0.10.0",
  "rand 0.7.3",
  "registrar",
- "rustc-hex 2.1.0",
+ "rustc-hex",
 ]
 
 [[package]]
@@ -3388,7 +3404,7 @@ dependencies = [
  "ethcore-network",
  "ethcore-private-tx",
  "ethcore-sync",
- "ethereum-types",
+ "ethereum-types 0.9.0",
  "ethjson",
  "ethkey",
  "ethstore",
@@ -3418,7 +3434,7 @@ dependencies = [
  "rand 0.7.3",
  "rand_xorshift 0.2.0",
  "rlp",
- "rustc-hex 2.1.0",
+ "rustc-hex",
  "semver",
  "serde",
  "serde_derive",
@@ -3440,7 +3456,7 @@ dependencies = [
 name = "parity-rpc-client"
 version = "1.4.0"
 dependencies = [
- "ethereum-types",
+ "ethereum-types 0.9.0",
  "futures",
  "jsonrpc-core",
  "jsonrpc-ws-server",
@@ -3474,41 +3490,6 @@ dependencies = [
  "bitvec",
  "byte-slice-cast",
  "serde",
-]
-
-[[package]]
-name = "parity-secretstore"
-version = "1.0.0"
-source = "git+https://github.com/paritytech/secret-store?rev=ebe751d#ebe751db6af07425d2e1823ac05a84d0fafe3dad"
-dependencies = [
- "byteorder",
- "ethabi",
- "ethabi-contract",
- "ethabi-derive",
- "ethereum-types",
- "futures",
- "hyper",
- "jsonrpc-server-utils",
- "keccak-hash",
- "kvdb",
- "kvdb-rocksdb 0.5.0",
- "lazy_static",
- "libsecp256k1",
- "log",
- "parity-bytes",
- "parity-crypto",
- "parity-runtime",
- "parking_lot 0.10.0",
- "percent-encoding 2.1.0",
- "rustc-hex 1.0.0",
- "serde",
- "serde_derive",
- "serde_json",
- "tiny-keccak 1.5.0",
- "tokio",
- "tokio-io",
- "tokio-service",
- "url 2.1.1",
 ]
 
 [[package]]
@@ -3556,12 +3537,12 @@ version = "1.12.0"
 dependencies = [
  "client-traits",
  "common-types",
- "ethabi",
+ "ethabi 11.0.0",
  "ethabi-contract",
  "ethabi-derive",
  "ethcore",
  "ethcore-sync",
- "ethereum-types",
+ "ethereum-types 0.9.0",
  "keccak-hash",
  "lazy_static",
  "log",
@@ -3584,14 +3565,32 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9344bc978467339b9ae688f9dcf279d1aaa0ccfc88e9a780c729b765a82d57d5"
 dependencies = [
  "cfg-if",
- "ethereum-types",
+ "ethereum-types 0.8.0",
+ "hashbrown",
+ "impl-trait-for-tuples",
+ "lru",
+ "parity-util-mem-derive",
+ "parking_lot 0.10.0",
+ "primitive-types 0.6.2",
+ "smallvec 1.2.0",
+ "winapi 0.3.8",
+]
+
+[[package]]
+name = "parity-util-mem"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6e42755f26e5ea21a6a819d9e63cbd70713e9867a2b767ec2cc65ca7659532c5"
+dependencies = [
+ "cfg-if",
+ "ethereum-types 0.9.0",
  "hashbrown",
  "impl-trait-for-tuples",
  "jemallocator",
  "lru",
  "parity-util-mem-derive",
  "parking_lot 0.10.0",
- "primitive-types",
+ "primitive-types 0.7.0",
  "smallvec 1.2.0",
  "winapi 0.3.8",
 ]
@@ -3720,7 +3719,7 @@ version = "0.1.0"
 dependencies = [
  "criterion",
  "elastic-array",
- "ethereum-types",
+ "ethereum-types 0.9.0",
  "hash-db",
  "journaldb",
  "keccak-hash",
@@ -3800,7 +3799,7 @@ name = "pod"
 version = "0.1.0"
 dependencies = [
  "common-types",
- "ethereum-types",
+ "ethereum-types 0.9.0",
  "ethjson",
  "hash-db",
  "itertools",
@@ -3812,7 +3811,7 @@ dependencies = [
  "parity-bytes",
  "patricia-trie-ethereum",
  "rlp",
- "rustc-hex 2.1.0",
+ "rustc-hex",
  "serde",
  "trie-db",
  "triehash-ethereum",
@@ -3898,7 +3897,20 @@ version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e4336f4f5d5524fa60bcbd6fe626f9223d8142a50e7053e979acdf0da41ab975"
 dependencies = [
- "fixed-hash",
+ "fixed-hash 0.5.2",
+ "impl-codec",
+ "impl-rlp",
+ "impl-serde 0.3.0",
+ "uint",
+]
+
+[[package]]
+name = "primitive-types"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e5e4b9943a2da369aec5e96f7c10ebc74fcf434d39590d974b0a3460e6f67fbb"
+dependencies = [
+ "fixed-hash 0.6.0",
  "impl-codec",
  "impl-rlp",
  "impl-serde 0.3.0",
@@ -3944,9 +3956,9 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "env_logger 0.5.13",
- "ethereum-types",
+ "ethereum-types 0.9.0",
  "ethjson",
- "rustc-hex 2.1.0",
+ "rustc-hex",
  "serde",
  "serde_derive",
  "serde_json",
@@ -4242,7 +4254,7 @@ name = "registrar"
 version = "0.0.1"
 dependencies = [
  "common-types",
- "ethabi",
+ "ethabi 11.0.0",
  "ethabi-contract",
  "ethabi-derive",
  "ethcore-call-contract",
@@ -4290,7 +4302,7 @@ version = "0.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4a7d3f9bed94764eac15b8f14af59fac420c236adaff743b7bcc88e265cb4345"
 dependencies = [
- "rustc-hex 2.1.0",
+ "rustc-hex",
 ]
 
 [[package]]
@@ -4352,12 +4364,6 @@ name = "rustc-hash"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "08d43f7aa6b08d49f382cde6a7982047c3426db949b1424bc4b7ec9ae12c6ce2"
-
-[[package]]
-name = "rustc-hex"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0ceb8ce7a5e520de349e1fa172baeba4a9e8d5ef06c47471863530bc4972ee1e"
 
 [[package]]
 name = "rustc-hex"
@@ -4638,7 +4644,7 @@ dependencies = [
  "crossbeam-utils",
  "engine",
  "env_logger 0.5.13",
- "ethabi",
+ "ethabi 11.0.0",
  "ethabi-contract",
  "ethabi-derive",
  "ethcore",
@@ -4646,7 +4652,7 @@ dependencies = [
  "ethcore-blockchain",
  "ethcore-db",
  "ethcore-io",
- "ethereum-types",
+ "ethereum-types 0.9.0",
  "ethkey",
  "hash-db",
  "itertools",
@@ -4654,7 +4660,7 @@ dependencies = [
  "keccak-hash",
  "keccak-hasher 0.1.1",
  "kvdb",
- "kvdb-rocksdb 0.6.0",
+ "kvdb-rocksdb",
  "lazy_static",
  "log",
  "num_cpus",
@@ -4686,7 +4692,7 @@ dependencies = [
  "common-types",
  "engine",
  "env_logger 0.5.13",
- "ethabi",
+ "ethabi 11.0.0",
  "ethabi-contract",
  "ethabi-derive",
  "ethcore",
@@ -4694,13 +4700,13 @@ dependencies = [
  "ethcore-blockchain",
  "ethcore-db",
  "ethcore-io",
- "ethereum-types",
+ "ethereum-types 0.9.0",
  "hash-db",
  "journaldb",
  "keccak-hash",
  "keccak-hasher 0.1.1",
  "kvdb",
- "kvdb-rocksdb 0.6.0",
+ "kvdb-rocksdb",
  "lazy_static",
  "log",
  "parity-bytes",
@@ -4746,7 +4752,7 @@ dependencies = [
  "ethash-engine",
  "ethcore",
  "ethcore-builtin",
- "ethereum-types",
+ "ethereum-types 0.9.0",
  "ethjson",
  "evm",
  "executive-state",
@@ -4792,7 +4798,7 @@ dependencies = [
  "env_logger 0.5.13",
  "ethcore",
  "ethcore-db",
- "ethereum-types",
+ "ethereum-types 0.9.0",
  "hash-db",
  "journaldb",
  "keccak-hash",
@@ -5277,12 +5283,12 @@ dependencies = [
  "ethcore",
  "ethcore-blockchain",
  "ethcore-db",
- "ethereum-types",
+ "ethereum-types 0.9.0",
  "evm",
  "kvdb",
  "log",
  "parity-bytes",
- "parity-util-mem",
+ "parity-util-mem 0.6.0",
  "parking_lot 0.10.0",
  "rlp",
  "rlp-derive",
@@ -5324,7 +5330,7 @@ dependencies = [
  "hash-db",
  "hashbrown",
  "log",
- "rustc-hex 2.1.0",
+ "rustc-hex",
  "smallvec 1.2.0",
 ]
 
@@ -5365,7 +5371,7 @@ dependencies = [
 name = "triehash-ethereum"
 version = "0.2.0"
 dependencies = [
- "ethereum-types",
+ "ethereum-types 0.9.0",
  "keccak-hasher 0.1.1",
  "triehash",
 ]
@@ -5390,7 +5396,7 @@ checksum = "e75a4cdd7b87b28840dba13c483b9a88ee6bbf16ba5c951ee1ecfcf723078e0d"
 dependencies = [
  "byteorder",
  "crunchy",
- "rustc-hex 2.1.0",
+ "rustc-hex",
  "static_assertions",
 ]
 
@@ -5510,13 +5516,13 @@ dependencies = [
  "common-types",
  "engine",
  "env_logger 0.6.2",
- "ethabi",
+ "ethabi 11.0.0",
  "ethabi-contract",
  "ethabi-derive",
  "ethcore",
  "ethcore-accounts",
  "ethcore-call-contract",
- "ethereum-types",
+ "ethereum-types 0.9.0",
  "ethjson",
  "executive-state",
  "keccak-hash",
@@ -5527,10 +5533,10 @@ dependencies = [
  "memory-cache",
  "parity-bytes",
  "parity-crypto",
- "parity-util-mem",
+ "parity-util-mem 0.6.0",
  "parking_lot 0.10.0",
  "rlp",
- "rustc-hex 2.1.0",
+ "rustc-hex",
  "spec",
  "triehash-ethereum",
  "unexpected",
@@ -5581,7 +5587,7 @@ dependencies = [
  "ethcore-blockchain",
  "ethcore-call-contract",
  "ethcore-io",
- "ethereum-types",
+ "ethereum-types 0.9.0",
  "keccak-hash",
  "len-caching-lock",
  "log",
@@ -5590,7 +5596,7 @@ dependencies = [
  "num_cpus",
  "parity-bytes",
  "parity-crypto",
- "parity-util-mem",
+ "parity-util-mem 0.6.0",
  "parking_lot 0.10.0",
  "rlp",
  "spec",
@@ -5610,7 +5616,7 @@ checksum = "078775d0255232fb988e6fccf26ddc9d1ac274299aaedcedce21c6f72cc533ce"
 name = "vm"
 version = "0.1.0"
 dependencies = [
- "ethereum-types",
+ "ethereum-types 0.9.0",
  "ethjson",
  "keccak-hash",
  "parity-bytes",
@@ -5658,7 +5664,7 @@ version = "0.1.0"
 dependencies = [
  "byteorder",
  "env_logger 0.5.13",
- "ethereum-types",
+ "ethereum-types 0.9.0",
  "libc",
  "log",
  "parity-wasm",
