@@ -17,7 +17,7 @@ clap = "2"
 cli-signer= { path = "cli-signer" }
 client-traits = { path = "ethcore/client-traits" }
 common-types = { path = "ethcore/types" }
-ctrlc = { git = "https://github.com/paritytech/rust-ctrlc.git" }
+ctrlc = { version = "3.1.4", features = ["termination"] }
 dir = { path = "util/dir" }
 docopt = "1.0"
 engine = { path = "ethcore/engine" }

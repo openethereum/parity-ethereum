@@ -41,7 +41,6 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::{process, env};
 
 use ansi_term::Colour;
-use ctrlc::CtrlC;
 use dir::default_hypervisor_path;
 use fdlimit::raise_fd_limit;
 use ethcore_logger::setup_log;
@@ -299,7 +298,7 @@ fn main_direct(force_can_restart: bool) -> i32 {
 					}
 				});
 
-				CtrlC::set_handler({
+				ctrlc::set_handler({
 					let e = exit.clone();
 					let exiting = exiting.clone();
 					move || {
@@ -313,7 +312,7 @@ fn main_direct(force_can_restart: bool) -> i32 {
 							e.1.notify_all();
 						}
 					}
-				});
+				}).expect("Error setting Ctrl-C handler");
 
 				// so the client has started successfully
 				// if this is a daemon, detach from the parent process
