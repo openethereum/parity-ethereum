@@ -23,10 +23,10 @@ pub mod keccak_512 {
 
 	pub use self::hash::{keccak_512 as write, keccak512 as inplace};
 
-    pub unsafe fn unchecked(out: *mut u8, outlen: usize, input: *const u8, inputlen: usize) {
-        // TODO(ordian): is this UB?
-        let src = core::slice::from_raw_parts(input, inputlen);
-        let dst = core::slice::from_raw_parts_mut(out, outlen);
+	pub unsafe fn unchecked(out: *mut u8, outlen: usize, input: *const u8, inputlen: usize) {
+		// TODO(ordian): is this UB?
+		let src = core::slice::from_raw_parts(input, inputlen);
+		let dst = core::slice::from_raw_parts_mut(out, outlen);
 
 		self::hash::keccak_512(src, dst);
 	}
@@ -37,10 +37,10 @@ pub mod keccak_256 {
 
 	pub use self::hash::{keccak_256 as write, keccak256 as inplace};
 
-    pub unsafe fn unchecked(out: *mut u8, outlen: usize, input: *const u8, inputlen: usize) {
-        // TODO(ordian): is this UB?
-        let src = core::slice::from_raw_parts(input, inputlen);
-        let dst = core::slice::from_raw_parts_mut(out, outlen);
+	pub unsafe fn unchecked(out: *mut u8, outlen: usize, input: *const u8, inputlen: usize) {
+		// TODO(ordian): is this UB?
+		let src = core::slice::from_raw_parts(input, inputlen);
+		let dst = core::slice::from_raw_parts_mut(out, outlen);
 
 		self::hash::keccak_256(src, dst);
 	}

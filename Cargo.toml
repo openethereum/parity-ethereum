@@ -137,4 +137,5 @@ members = [
 [patch.crates-io]
 ethabi = { git = "https://github.com/openethereum/ethabi" }
 ethabi-derive = { git = "https://github.com/openethereum/ethabi" }
+ethereum-forkid = { git = "https://github.com/vorot93/ethereum-forkid" }
 
