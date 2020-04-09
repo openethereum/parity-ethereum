@@ -72,8 +72,7 @@ pub fn json_chain_test<H: FnMut(&str, HookType)>(path: &Path, json_data: &[u8], 
 				let mut spec = match EvmTestClient::fork_spec_from_json(&blockchain.network) {
 					Some(spec) => spec,
 					None => {
-						println!("   - {} | {:?} Ignoring tests because of missing chainspec", name, blockchain.network);
-						continue;
+						panic!("Unimplemented chainspec '{:?}' in test '{}'", blockchain.network, name);
 					}
 				};
 

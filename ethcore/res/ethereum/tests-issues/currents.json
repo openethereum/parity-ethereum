@@ -17,6 +17,36 @@
 				"RevertPrecompiledTouch_d0g0v0_Istanbul",
 				"RevertPrecompiledTouch_d3g0v0_Istanbul"
 			]
+		},
+		{
+			"reference": "Issue https://github.com/openethereum/openethereum/issues/11616",
+			"failing": "bcFrontierToHomestead",
+			"subtests": [
+				"blockChainFrontierWithLargerTDvsHomesteadBlockchain2",
+				"UncleFromFrontierInHomestead",
+				"UnclePopulation",
+				"blockChainFrontierWithLargerTDvsHomesteadBlockchain",
+				"HomesteadOverrideFrontier",
+				"CallContractThatCreateContractBeforeAndAfterSwitchover",
+				"ContractCreationFailsOnHomestead"
+			]
+		},
+		{
+			"reference": "Issue https://github.com/openethereum/openethereum/issues/11616",
+			"failing": "bcFrontierToDao",
+			"subtests": [
+				"DaoTransactions_EmptyTransactionAndForkBlocksAhead",
+				"DaoTransactions",
+				"DaoTransactions_UncleExtradata",
+				"DaoTransactions_XBlockm1"
+			]
+		},
+		{
+			"reference": "Issue https://github.com/openethereum/openethereum/issues/11616",
+			"failing": "bcHomesteadToEIP150",
+			"subtests": [
+				"EIP150Transition"
+			]
 		}
 	],
 	"state": [
