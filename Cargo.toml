@@ -131,7 +131,3 @@ members = [
 	"ethcore/wasm/run",
 	"evmbin",
 ]
-
-[patch.crates-io]
-ethabi = { git = "https://github.com/openethereum/ethabi" }
-ethabi-derive = { git = "https://github.com/openethereum/ethabi" }

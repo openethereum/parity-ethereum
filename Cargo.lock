@@ -1055,7 +1055,8 @@ dependencies = [
 [[package]]
 name = "ethabi"
 version = "12.0.0"
-source = "git+https://github.com/openethereum/ethabi#eab4c99eef195a70cacbdb27fdfe908a944cbb3b"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "052a565e3de82944527d6d10a465697e6bb92476b772ca7141080c901f6a63c6"
 dependencies = [
  "ethereum-types",
  "rustc-hex 2.1.0",
@@ -1074,7 +1075,8 @@ checksum = "88d4002f1f77d8233685dafd8589efe1c9dfa63e21ca6c11134372acc7f68032"
 [[package]]
 name = "ethabi-derive"
 version = "12.0.0"
-source = "git+https://github.com/openethereum/ethabi#eab4c99eef195a70cacbdb27fdfe908a944cbb3b"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b7c0fe66618e0cfcf111afc863e7940413f2a88240cf63b38cc61206fe7be025"
 dependencies = [
  "ethabi",
  "heck",
