@@ -2498,9 +2498,9 @@ dependencies = [
 
 [[package]]
 name = "keccak-hash"
-version = "0.5.0"
+version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2465949fb0e45cc91d6d65d5eb4818545d32a120aa49ac93973f5e37242bece0"
+checksum = "1f58a51ef3df9398cf2434bea8d4eb61fb748d0feb1571f87388579a120a4c8f"
 dependencies = [
  "primitive-types",
  "tiny-keccak 2.0.2",
