@@ -139,7 +139,7 @@ pub fn quick_get_difficulty(header_hash: &H256, nonce: u64, mix_hash: &H256, pro
 
 			let hash_len = header_hash.len();
 			buf[..hash_len].copy_from_slice(header_hash);
-            let end = hash_len + mem::size_of::<u64>();
+			let end = hash_len + mem::size_of::<u64>();
 			buf[hash_len..end].copy_from_slice(&nonce.to_ne_bytes());
 
 			keccak_512::inplace_range(&mut buf, 0..end);
@@ -204,7 +204,7 @@ fn hash_compute(light: &Light, full_size: usize, header_hash: &H256, nonce: u64)
 
 			let hash_len = header_hash.len();
 			out[..hash_len].copy_from_slice(header_hash);
-            let end = hash_len + mem::size_of::<u64>();
+			let end = hash_len + mem::size_of::<u64>();
 			out[hash_len..end].copy_from_slice(&nonce.to_ne_bytes());
 
 			// compute keccak-512 hash and replicate across mix
@@ -280,16 +280,16 @@ fn hash_compute(light: &Light, full_size: usize, header_hash: &H256, nonce: u64)
 	let mix_hash = buf.compress_bytes;
 
 	let value: H256 = {
-        let mut compress_bytes = [0u8; MIX_WORDS];
+		let mut compress_bytes = [0u8; MIX_WORDS];
 		// We can interpret the buffer as an array of `u8`s, since it's `repr(C)`.
 		let read_ptr: *const u8 = &buf as *const MixBuf as *const u8;
 		let buffer = unsafe {
-            core::slice::from_raw_parts(
-                read_ptr,
+			core::slice::from_raw_parts(
+				read_ptr,
 				buf.half_mix.bytes.len() + buf.compress_bytes.len(),
-            )
+			)
 		};
-        keccak_256::write(buffer, &mut compress_bytes);
+		keccak_256::write(buffer, &mut compress_bytes);
 		compress_bytes
 	};
 
