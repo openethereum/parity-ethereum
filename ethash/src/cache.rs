@@ -301,17 +301,23 @@ impl AsRef<[Node]> for NodeCache {
 // out. It counts as a read and causes all writes afterwards to be elided. Yes, really. I know, I
 // want to refactor this to use less `unsafe` as much as the next rustacean.
 unsafe fn initialize_memory(memory: *mut Node, num_nodes: usize, ident: &H256) {
-	let dst = memory as *mut u8;
+    // We use raw pointers here, see above
+	let dst = slice::from_raw_parts_mut(memory as *mut u8, NODE_BYTES);
 
 	debug_assert_eq!(ident.len(), 32);
-	keccak_512::unchecked(dst, NODE_BYTES, ident.as_ptr(), ident.len());
+	keccak_512::write(&ident[..], dst);
 
 	for i in 1..num_nodes {
 		// We use raw pointers here, see above
-		let dst = memory.offset(i as _) as *mut u8;
-		let src = memory.offset(i as isize - 1) as *mut u8;
-
-		keccak_512::unchecked(dst, NODE_BYTES, src, NODE_BYTES);
+		let dst = slice::from_raw_parts_mut(
+            memory.offset(i as _) as *mut u8,
+            NODE_BYTES,
+        );
+		let src = slice::from_raw_parts(
+            memory.offset(i as isize - 1) as *mut u8,
+            NODE_BYTES,
+        );
+		keccak_512::write(src, dst);
 	}
 
 	// Now this is initialized, we can treat it as a slice.
