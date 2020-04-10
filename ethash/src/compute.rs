@@ -280,7 +280,6 @@ fn hash_compute(light: &Light, full_size: usize, header_hash: &H256, nonce: u64)
 	let mix_hash = buf.compress_bytes;
 
 	let value: H256 = {
-		let mut compress_bytes = [0u8; MIX_WORDS];
 		// We can interpret the buffer as an array of `u8`s, since it's `repr(C)`.
 		let read_ptr: *const u8 = &buf as *const MixBuf as *const u8;
 		let buffer = unsafe {
@@ -289,8 +288,11 @@ fn hash_compute(light: &Light, full_size: usize, header_hash: &H256, nonce: u64)
 				buf.half_mix.bytes.len() + buf.compress_bytes.len(),
 			)
 		};
-		keccak_256::write(buffer, &mut compress_bytes);
-		compress_bytes
+		// We overwrite the buf.compress_bytes since `keccak_256` has an internal buffer and so allows
+		// overlapping arrays as input.
+		keccak_256::write(buffer, &mut buf.compress_bytes);
+
+		buf.compress_bytes
 	};
 
 	ProofOfWork { mix_hash, value }
