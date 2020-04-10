@@ -131,3 +131,14 @@ members = [
 	"ethcore/wasm/run",
 	"evmbin",
 ]
+
+[patch.crates-io]
+parity-crypto = { path = "../parity-common/parity-crypto" }
+ethereum-types = { path = "../parity-common/ethereum-types" }
+uint = { path = "../parity-common/uint" }
+fixed-hash = { path = "../parity-common/fixed-hash" }
+primitive-types = { path = "../parity-common/primitive-types" }
+rlp = { path = "../parity-common/rlp" }
+keccak-hash = { path = "../parity-common/keccak-hash" }
+parity-util-mem = { path = "../parity-common/parity-util-mem" }
+ethbloom = { path = "../parity-common/ethbloom" }
