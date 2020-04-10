@@ -21,27 +21,11 @@ pub type H256 = [u8; 32];
 pub mod keccak_512 {
 	use super::hash;
 
-	pub use self::hash::{keccak_512 as write, keccak512 as inplace};
-
-	pub unsafe fn unchecked(out: *mut u8, outlen: usize, input: *const u8, inputlen: usize) {
-		// TODO(ordian): is this UB?
-		let src = core::slice::from_raw_parts(input, inputlen);
-		let dst = core::slice::from_raw_parts_mut(out, outlen);
-
-		self::hash::keccak_512(src, dst);
-	}
+	pub use self::hash::{keccak_512 as write, keccak512 as inplace, keccak512_range as inplace_range};
 }
 
 pub mod keccak_256 {
 	use super::hash;
 
-	pub use self::hash::{keccak_256 as write, keccak256 as inplace};
-
-	pub unsafe fn unchecked(out: *mut u8, outlen: usize, input: *const u8, inputlen: usize) {
-		// TODO(ordian): is this UB?
-		let src = core::slice::from_raw_parts(input, inputlen);
-		let dst = core::slice::from_raw_parts_mut(out, outlen);
-
-		self::hash::keccak_256(src, dst);
-	}
+	pub use self::hash::{keccak_256 as write, keccak256 as inplace, keccak256_range as inplace_range};
 }
