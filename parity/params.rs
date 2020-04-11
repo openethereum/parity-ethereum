@@ -35,6 +35,7 @@ use crate::configuration;
 pub enum SpecType {
 	Foundation,
 	Classic,
+	ClassicOpposePhoenix,
 	Poanet,
 	Xdai,
 	Volta,
@@ -70,6 +71,7 @@ impl str::FromStr for SpecType {
 		let spec = match s {
 			"eth" | "ethereum"  | "foundation" | "mainnet" => SpecType::Foundation,
 			"etc" | "classic" => SpecType::Classic,
+			"classic-oppose-phoenix" | "classic-oppose-phoenix-fork" => SpecType::ClassicOpposePhoenix,
 			"poanet" | "poacore" => SpecType::Poanet,
 			"xdai" => SpecType::Xdai,
 			"volta" => SpecType::Volta,
@@ -100,6 +102,7 @@ impl fmt::Display for SpecType {
 		f.write_str(match *self {
 			SpecType::Foundation => "foundation",
 			SpecType::Classic => "classic",
+			SpecType::ClassicOpposePhoenix => "classic-oppose-phoenix",
 			SpecType::Poanet => "poanet",
 			SpecType::Xdai => "xdai",
 			SpecType::Volta => "volta",
@@ -130,6 +133,7 @@ impl SpecType {
 		match *self {
 			SpecType::Foundation => Ok(spec::new_foundation(params)),
 			SpecType::Classic => Ok(spec::new_classic(params)),
+			SpecType::ClassicOpposePhoenix => Ok(spec::new_classic_oppose_phoenix(params)),
 			SpecType::Poanet => Ok(spec::new_poanet(params)),
 			SpecType::Xdai => Ok(spec::new_xdai(params)),
 			SpecType::Volta => Ok(spec::new_volta(params)),
