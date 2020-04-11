@@ -35,31 +35,31 @@ pub fn load_machine(reader: &[u8]) -> Machine {
 }
 
 /// Create a new Foundation Frontier-era chain spec as though it never changes to Homestead.
-pub fn new_frontier_test_machine() -> Machine { load_machine(include_bytes!("../../res/ethereum/frontier_test.json")) }
+pub fn new_frontier_test_machine() -> Machine { load_machine(include_bytes!("../../res/ethereum/test-specs/frontier_test.json")) }
 
 /// Create a new Foundation Homestead-era chain spec as though it never changed from Frontier.
-pub fn new_homestead_test_machine() -> Machine { load_machine(include_bytes!("../../res/ethereum/homestead_test.json")) }
+pub fn new_homestead_test_machine() -> Machine { load_machine(include_bytes!("../../res/ethereum/test-specs/homestead_test.json")) }
 
 /// Create a new Foundation Homestead-EIP210-era chain spec as though it never changed from Homestead/Frontier.
-pub fn new_eip210_test_machine() -> Machine { load_machine(include_bytes!("../../res/ethereum/eip210_test.json")) }
+pub fn new_eip210_test_machine() -> Machine { load_machine(include_bytes!("../../res/ethereum/test-specs/eip210_test.json")) }
 
 /// Create a new Foundation Byzantium era spec.
-pub fn new_byzantium_test_machine() -> Machine { load_machine(include_bytes!("../../res/ethereum/byzantium_test.json")) }
+pub fn new_byzantium_test_machine() -> Machine { load_machine(include_bytes!("../../res/ethereum/test-specs/byzantium_test.json")) }
 
 /// Create a new Foundation Constantinople era spec.
-pub fn new_constantinople_test_machine() -> Machine { load_machine(include_bytes!("../../res/ethereum/constantinople_test.json")) }
+pub fn new_constantinople_test_machine() -> Machine { load_machine(include_bytes!("../../res/ethereum/test-specs/constantinople_test.json")) }
 
 /// Create a new Foundation St. Peter's (Contantinople Fix) era spec.
-pub fn new_constantinople_fix_test_machine() -> Machine { load_machine(include_bytes!("../../res/ethereum/st_peters_test.json")) }
+pub fn new_constantinople_fix_test_machine() -> Machine { load_machine(include_bytes!("../../res/ethereum/test-specs/st_peters_test.json")) }
 
 /// Create a new Foundation Istanbul era spec.
-pub fn new_istanbul_test_machine() -> Machine { load_machine(include_bytes!("../../res/ethereum/istanbul_test.json")) }
+pub fn new_istanbul_test_machine() -> Machine { load_machine(include_bytes!("../../res/ethereum/test-specs/istanbul_test.json")) }
 
 /// Create a new Foundation Berlin era spec.
-pub fn new_berlin_test_machine() -> Machine { load_machine(include_bytes!("../../res/ethereum/berlin_test.json")) }
+pub fn new_berlin_test_machine() -> Machine { load_machine(include_bytes!("../../res/ethereum/test-specs/berlin_test.json")) }
 
 /// Create a new Musicoin-MCIP3-era spec.
-pub fn new_mcip3_test_machine() -> Machine { load_machine(include_bytes!("../../res/ethereum/mcip3_test.json")) }
+pub fn new_mcip3_test_machine() -> Machine { load_machine(include_bytes!("../../res/ethereum/test-specs/mcip3_test.json")) }
 
 /// Create new Kovan spec with wasm activated at certain block
-pub fn new_kovan_wasm_test_machine() -> Machine { load_machine(include_bytes!("../../res/ethereum/kovan_wasm_test.json")) }
+pub fn new_kovan_wasm_test_machine() -> Machine { load_machine(include_bytes!("../../res/ethereum/test-specs/kovan_wasm_test.json")) }
