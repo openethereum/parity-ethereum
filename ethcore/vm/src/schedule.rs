@@ -53,8 +53,6 @@ pub struct Schedule {
 	pub sha3_word_gas: usize,
 	/// Gas price for loading from storage
 	pub sload_gas: usize,
-	/// Special gas price for dirty gas of SSTORE, after net gas metering.
-	pub sstore_dirty_gas: Option<usize>,
 	/// Gas price for setting new value to storage (`storage==0`, `new!=0`)
 	pub sstore_set_gas: usize,
 	/// Gas price for altering value in storage
@@ -242,7 +240,6 @@ impl Schedule {
 			sha3_gas: 30,
 			sha3_word_gas: 6,
 			sload_gas: 200,
-			sstore_dirty_gas: None,
 			sstore_set_gas: 20000,
 			sstore_reset_gas: 5000,
 			sstore_refund_gas: 15000,
@@ -321,7 +318,7 @@ impl Schedule {
 		schedule.staticcall_precompile_gas = 40; // EIPs 2046 1352
 		schedule
 	}
-	
+
 	fn new(efcd: bool, hdc: bool, tcg: usize) -> Schedule {
 		Schedule {
 			exceptional_failed_code_deposit: efcd,
@@ -341,7 +338,6 @@ impl Schedule {
 			sha3_gas: 30,
 			sha3_word_gas: 6,
 			sload_gas: 50,
-			sstore_dirty_gas: None,
 			sstore_set_gas: 20000,
 			sstore_reset_gas: 5000,
 			sstore_refund_gas: 15000,
