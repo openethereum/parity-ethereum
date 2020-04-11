@@ -93,7 +93,7 @@ bundle_release_spec! {
 	"ethereum/rinkeby" => new_rinkeby,
 	"ethereum/ropsten" => new_ropsten,
 	"ethereum/volta" => new_volta,
-	"ethereum/xdai" => new_xdai,
+	"ethereum/xdai" => new_xdai
 }
 
 bundle_test_spec! {
@@ -110,7 +110,7 @@ bundle_test_spec! {
 	"ethereum/test-specs/kovan_wasm_test" => new_kovan_wasm_test,
 	"ethereum/test-specs/mcip3_test" => new_mcip3_test,
 	"ethereum/test-specs/st_peters_test" => new_constantinople_fix_test,
-	"ethereum/test-specs/transition_test" => new_transition_test,
+	"ethereum/test-specs/transition_test" => new_transition_test
 }
 
 bundle_custom_spec! {
@@ -126,7 +126,7 @@ bundle_custom_spec! {
 	"null_morden_with_reward" => new_test_with_reward,
 	"validator_contract" => new_validator_contract,
 	"validator_multi" => new_validator_multi,
-	"validator_safe_contract" => new_validator_safe_contract,
+	"validator_safe_contract" => new_validator_safe_contract
 }
 
 bundle_test_machine! {
@@ -140,7 +140,7 @@ bundle_test_machine! {
 	"ethereum/test-specs/istanbul_test" => new_istanbul_test_machine,
 	"ethereum/test-specs/kovan_wasm_test" => new_kovan_wasm_test_machine,
 	"ethereum/test-specs/mcip3_test" => new_mcip3_test_machine,
-	"ethereum/test-specs/st_peters_test" => new_constantinople_fix_test_machine,
+	"ethereum/test-specs/st_peters_test" => new_constantinople_fix_test_machine
 }
 
 #[cfg(test)]
