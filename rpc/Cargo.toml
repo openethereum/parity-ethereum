@@ -12,8 +12,8 @@ ansi_term = "0.11"
 futures = "0.1.6"
 log = "0.4"
 order-stat = "0.1"
-rand = "0.7"
-rand_xorshift = "0.2"
+rand = "0.7.3"
+rand_xorshift = "0.2.0"
 rustc-hex = "2.1.0"
 semver = "0.9"
 serde = "1.0"
@@ -21,8 +21,8 @@ serde_derive = "1.0"
 serde_json = "1.0"
 parking_lot = "0.10.0"
 tempfile = "3.1"
-tiny-keccak = "1.4"
-tokio-timer = "0.1"
+tiny-keccak = "2.0.2"
+tokio-timer = "0.2.13"
 transient-hashmap = "0.4"
 itertools = "0.8.2"
 
@@ -45,22 +45,22 @@ ethcore-miner = { path = "../miner" }
 ethcore-network = { path = "../util/network" }
 ethcore-private-tx = { path = "../ethcore/private-tx" }
 ethcore-sync = { path = "../ethcore/sync" }
-ethereum-types = "0.8.0"
+ethereum-types = "0.9.0"
 fastmap = { path = "../util/fastmap" }
 machine = { path = "../ethcore/machine" }
 parity-bytes = "0.1"
-parity-crypto = { version = "0.5.0", features = ["publickey"] }
+parity-crypto = { version = "0.6.0", features = ["publickey"] }
 
 eip-712 = { path = "../util/EIP-712" }
 ethjson = { path = "../json" }
 ethkey = { path = "../accounts/ethkey" }
 ethstore = { path = "../accounts/ethstore" }
 fetch = { path = "../util/fetch" }
-keccak-hash = "0.4.0"
+keccak-hash = "0.5.0"
 parity-runtime = { version = "0.1.1", features = ["test-helpers"] }
 parity-updater = { path = "../updater" }
 parity-version = { path = "../util/version" }
-rlp = "0.4.0"
+rlp = "0.4.5"
 account-state = { path = "../ethcore/account-state" }
 snapshot = { path = "../ethcore/snapshot" }
 stats = { path = "../util/stats" }

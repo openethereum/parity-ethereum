@@ -13,7 +13,7 @@ hyper-rustls = "0.18"
 http = "0.1"
 log = "0.4"
 tokio = "0.1.22"
-url = "2"
+url = "2.1.1"
 bytes = "0.4"
 
 [features]

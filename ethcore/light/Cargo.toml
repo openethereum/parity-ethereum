@@ -15,42 +15,42 @@ derive_more = "0.99"
 engine = { path = "../engine" }
 ethcore-db = { path = "../db" }
 ethcore-blockchain = { path = "../blockchain" }
-ethereum-types = "0.8.0"
+ethereum-types = "0.9.0"
 executive-state = { path = "../executive-state" }
 machine = { path = "../machine" }
-memory-db = "0.19.0"
+memory-db = "0.20.0"
 trie-db = "0.20.0"
 patricia-trie-ethereum = { path = "../../util/patricia-trie-ethereum" }
 ethcore-network = { path = "../../util/network" }
 ethcore-miner = { path = "../../miner" }
 ethcore-io = { path = "../../util/io" }
 hash-db = "0.15.0"
-parity-util-mem = "0.5.1"
+parity-util-mem = "0.6.0"
 vm = { path = "../vm" }
 fastmap = { path = "../../util/fastmap" }
 failsafe = { version = "0.3.0", default-features = false, features = ["parking_lot_mutex"] }
-rlp = "0.4.0"
+rlp = "0.4.5"
 rlp-derive = "0.1"
 smallvec = "1.2.0"
 futures = "0.1"
-rand = "0.7"
+rand = "0.7.3"
 bincode = "1.1"
 serde = "1.0"
 serde_derive = "1.0"
 spec = { path = "../spec" }
 parking_lot = "0.10.0"
 stats = { path = "../../util/stats" }
-keccak-hash = "0.4.0"
+keccak-hash = "0.5.0"
 keccak-hasher = { path = "../../util/keccak-hasher" }
 triehash-ethereum = { version = "0.2",  path = "../../util/triehash-ethereum" }
-kvdb = "0.4.0"
+kvdb = "0.5.0"
 memory-cache = { path = "../../util/memory-cache" }
 journaldb = { path = "../../util/journaldb" }
 verification = { path = "../verification" }
 
 [dev-dependencies]
 ethcore = { path = "..", features = ["test-helpers"] }
-kvdb-memorydb = "0.4.0"
+kvdb-memorydb = "0.5.0"
 tempfile = "3.1"
 
 [features]

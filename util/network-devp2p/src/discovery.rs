@@ -31,6 +31,7 @@ use parity_crypto::publickey::{KeyPair, recover, Secret, sign};
 use network::Error;
 use network::IpFilter;
 
+use crate::node_record::*;
 use crate::node_table::*;
 use crate::PROTOCOL_VERSION;
 
@@ -45,6 +46,8 @@ const PACKET_PING: u8 = 1;
 const PACKET_PONG: u8 = 2;
 const PACKET_FIND_NODE: u8 = 3;
 const PACKET_NEIGHBOURS: u8 = 4;
+const PACKET_ENR_REQUEST: u8 = 5;
+const PACKET_ENR_RESPONSE: u8 = 6;
 
 const PING_TIMEOUT: Duration = Duration::from_millis(500);
 const FIND_NODE_TIMEOUT: Duration = Duration::from_secs(2);
@@ -155,6 +158,7 @@ pub struct Discovery {
 	id_hash: H256,
 	secret: Secret,
 	public_endpoint: NodeEndpoint,
+	enr: Enr,
 	discovery_initiated: bool,
 	discovery_round: Option<u16>,
 	discovery_id: NodeId,
@@ -180,11 +184,12 @@ pub struct TableUpdates {
 }
 
 impl Discovery {
-	pub fn new(key: &KeyPair, public: NodeEndpoint, ip_filter: IpFilter) -> Discovery {
+	pub fn new(key: &KeyPair, public: NodeEndpoint, enr: Enr, ip_filter: IpFilter) -> Discovery {
 		Discovery {
 			id: *key.public(),
 			id_hash: keccak(key.public()),
 			secret: key.secret().clone(),
+			enr,
 			public_endpoint: public,
 			discovery_initiated: false,
 			discovery_round: None,
@@ -372,6 +377,7 @@ impl Discovery {
 		self.public_endpoint.to_rlp_list(&mut rlp);
 		node.endpoint.to_rlp_list(&mut rlp);
 		append_expiration(&mut rlp);
+		rlp.append(&self.enr.seq());
 		let hash = self.send_packet(PACKET_PING, node.endpoint.udp_address(), rlp.drain())?;
 
 		self.in_flight_pings.insert(node.id, PingRequest {
@@ -484,6 +490,11 @@ impl Discovery {
 			PACKET_PONG => self.on_pong(&rlp, node_id, from),
 			PACKET_FIND_NODE => self.on_find_node(&rlp, node_id, from),
 			PACKET_NEIGHBOURS => self.on_neighbours(&rlp, node_id, from),
+			PACKET_ENR_REQUEST => self.on_enr_request(&rlp, node_id, from, hash_signed.as_bytes()),
+			PACKET_ENR_RESPONSE => {
+				debug!(target: "discovery", "ENR response handling is not implemented");
+				Ok(None)
+			}
 			_ => {
 				debug!(target: "discovery", "Unknown UDP packet: {}", packet_id);
 				Ok(None)
@@ -522,7 +533,12 @@ impl Discovery {
 		let ping_to = NodeEndpoint::from_rlp(&rlp.at(2)?)?;
 		let timestamp: u64 = rlp.val_at(3)?;
 		self.check_timestamp(timestamp)?;
-		let mut response = RlpStream::new_list(3);
+		let enr_seq = rlp.val_at::<u64>(4).ok();
+		let mut response = RlpStream::new_list(3 + if enr_seq.is_some() {
+			1
+		} else {
+			0
+		});
 		let pong_to = NodeEndpoint {
 			address: from,
 			udp_port: ping_from.udp_port
@@ -537,6 +553,9 @@ impl Discovery {
 
 		response.append(&echo_hash);
 		append_expiration(&mut response);
+		if enr_seq.is_some() {
+			response.append(&self.enr.seq());
+		}
 		self.send_packet(PACKET_PONG, from, response.drain())?;
 
 		let entry = NodeEntry { id: node_id, endpoint: pong_to };
@@ -556,6 +575,7 @@ impl Discovery {
 		let echo_hash: H256 = rlp.val_at(1)?;
 		let timestamp: u64 = rlp.val_at(2)?;
 		self.check_timestamp(timestamp)?;
+		// let enr_seq = rlp.val_at::<u64>(3).ok();
 
 		let expected_node = match self.in_flight_pings.entry(node_id) {
 			Entry::Occupied(entry) if entry.get().echo_hash != echo_hash => {
@@ -733,6 +753,32 @@ impl Discovery {
 		Ok(None)
 	}
 
+	fn on_enr_request(&mut self, rlp: &Rlp, node_id: NodeId, from: SocketAddr, request_hash: &[u8]) -> Result<Option<TableUpdates>, Error> {
+		let timestamp = rlp.val_at::<u64>(0)?;
+		self.check_timestamp(timestamp)?;
+
+		let node = NodeEntry {
+			id: node_id.clone(),
+			endpoint: NodeEndpoint {
+				address: from,
+				udp_port: from.port()
+			}
+		};
+
+		match self.check_validity(&node) {
+			NodeValidity::Ourselves => (), // It makes no sense to respond to the discovery request from ourselves
+			NodeValidity::ValidNode(_) => {
+				let mut response = RlpStream::new_list(2);
+				response.append(&request_hash);
+				response.append(&self.enr);
+				self.send_packet(PACKET_ENR_RESPONSE, from, response.drain())?;
+			}
+			// Make sure the request source is actually there and responds to pings before actually responding
+			invalidity_reason => self.try_ping(node, PingReason::FromDiscoveryRequest(node_id, invalidity_reason))
+		}
+		Ok(None)
+	}
+
 	fn check_expired(&mut self, time: Instant) {
 		let mut nodes_to_expire = Vec::new();
 		self.in_flight_pings.retain(|node_id, ping_request| {
@@ -895,7 +941,8 @@ mod tests {
 	fn ping_queue() {
 		let key = Random.generate();
 		let ep = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40445").unwrap(), udp_port: 40445 };
-		let mut discovery = Discovery::new(&key, ep.clone(), IpFilter::default());
+		let enr = EnrManager::new(None, key.secret().clone(), 0).unwrap().with_node_endpoint(&ep).into_enr();
+		let mut discovery = Discovery::new(&key, ep.clone(), enr, IpFilter::default());
 
 		for i in 1..(MAX_NODES_PING+1) {
 			discovery.add_node(NodeEntry { id: NodeId::random(), endpoint: ep.clone() });
@@ -919,7 +966,8 @@ mod tests {
 				address: SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 41000 + i),
 				udp_port: 41000 + i,
 			};
-			Discovery::new(&key, ep, IpFilter::default())
+			let enr = EnrManager::new(None, key.secret().clone(), 0).unwrap().with_node_endpoint(&ep).into_enr();
+			Discovery::new(&key, ep, enr, IpFilter::default())
 		})
 			.collect::<Vec<_>>();
 
@@ -966,7 +1014,8 @@ mod tests {
 	fn removes_expired() {
 		let key = Random.generate();
 		let ep = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40446").unwrap(), udp_port: 40447 };
-		let discovery = Discovery::new(&key, ep.clone(), IpFilter::default());
+		let enr = EnrManager::new(None, key.secret().clone(), 0).unwrap().with_node_endpoint(&ep).into_enr();
+		let discovery = Discovery::new(&key, ep.clone(), enr, IpFilter::default());
 
 		let mut discovery = Discovery { request_backoff: &[], ..discovery };
 
@@ -1058,7 +1107,8 @@ mod tests {
 
 		let key = Random.generate();
 		let ep = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40447").unwrap(), udp_port: 40447 };
-		let mut discovery = Discovery::new(&key, ep.clone(), IpFilter::default());
+		let enr = EnrManager::new(None, key.secret().clone(), 0).unwrap().with_node_endpoint(&ep).into_enr();
+		let mut discovery = Discovery::new(&key, ep.clone(), enr, IpFilter::default());
 
 		for _ in 0..(16 + 10) {
 			let entry = BucketEntry::new(NodeEntry { id: NodeId::zero(), endpoint: ep.clone() });
@@ -1115,7 +1165,8 @@ mod tests {
 		let key = Secret::from_str(secret_hex)
 			.and_then(|secret| KeyPair::from_secret(secret))
 			.unwrap();
-		let mut discovery = Discovery::new(&key, ep.clone(), IpFilter::default());
+		let enr = EnrManager::new(None, key.secret().clone(), 0).unwrap().with_node_endpoint(&ep).into_enr();
+		let mut discovery = Discovery::new(&key, ep.clone(), enr, IpFilter::default());
 
 		discovery.init_node_list(node_entries.clone());
 
@@ -1160,7 +1211,8 @@ mod tests {
 	fn packets() {
 		let key = Random.generate();
 		let ep = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40449").unwrap(), udp_port: 40449 };
-		let mut discovery = Discovery::new(&key, ep.clone(), IpFilter::default());
+		let enr = EnrManager::new(None, key.secret().clone(), 0).unwrap().with_node_endpoint(&ep).into_enr();
+		let mut discovery = Discovery::new(&key, ep.clone(), enr, IpFilter::default());
 		discovery.check_timestamps = false;
 		let from = SocketAddr::from_str("99.99.99.99:40445").unwrap();
 
@@ -1229,8 +1281,10 @@ mod tests {
 		let ep1 = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40344").unwrap(), udp_port: 40344 };
 		let ep2 = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40345").unwrap(), udp_port: 40345 };
 		let ep3 = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40346").unwrap(), udp_port: 40345 };
-		let mut discovery1 = Discovery::new(&key1, ep1.clone(), IpFilter::default());
-		let mut discovery2 = Discovery::new(&key2, ep2.clone(), IpFilter::default());
+		let enr1 = EnrManager::new(None, key1.secret().clone(), 0).unwrap().with_node_endpoint(&ep1).into_enr();
+		let enr2 = EnrManager::new(None, key2.secret().clone(), 0).unwrap().with_node_endpoint(&ep2).into_enr();
+		let mut discovery1 = Discovery::new(&key1, ep1.clone(), enr1, IpFilter::default());
+		let mut discovery2 = Discovery::new(&key2, ep2.clone(), enr2, IpFilter::default());
 
 		discovery1.ping(&NodeEntry { id: discovery2.id, endpoint: ep2.clone() }, PingReason::Default).unwrap();
 		let ping_data = discovery1.dequeue_send().unwrap();

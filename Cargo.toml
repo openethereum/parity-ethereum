@@ -17,11 +17,11 @@ clap = "2"
 cli-signer= { path = "cli-signer" }
 client-traits = { path = "ethcore/client-traits" }
 common-types = { path = "ethcore/types" }
-ctrlc = { git = "https://github.com/paritytech/rust-ctrlc.git" }
+ctrlc = { version = "3.1.4", features = ["termination"] }
 dir = { path = "util/dir" }
 docopt = "1.0"
 engine = { path = "ethcore/engine" }
-ethabi = { version = "9.0.1", optional = true }
+ethabi = { version = "12.0", optional = true }
 ethcore = { path = "ethcore", features = ["parity"] }
 ethcore-accounts = { path = "accounts", optional = true }
 ethcore-blockchain = { path = "ethcore/blockchain" }
@@ -35,16 +35,16 @@ ethcore-network = { path = "util/network" }
 ethcore-private-tx = { path = "ethcore/private-tx" }
 ethcore-service = { path = "ethcore/service" }
 ethcore-sync = { path = "ethcore/sync" }
-ethereum-types = "0.8.0"
+ethereum-types = "0.9.0"
 ethkey = { path = "accounts/ethkey" }
 ethstore = { path = "accounts/ethstore" }
 fdlimit = "0.1"
 futures = "0.1"
 journaldb = { path = "util/journaldb" }
 jsonrpc-core = "14.0.3"
-keccak-hash = "0.4.0"
-kvdb = "0.4.0"
-kvdb-rocksdb = "0.6.0"
+keccak-hash = "0.5.0"
+kvdb = "0.5.0"
+kvdb-rocksdb = "0.7.0"
 log = "0.4"
 migration-rocksdb = { path = "util/migration-rocksdb" }
 node-filter = { path = "ethcore/node-filter" }
@@ -52,21 +52,21 @@ num_cpus = "1.2"
 number_prefix = "0.2"
 panic_hook = { path = "util/panic-hook" }
 parity-bytes = "0.1"
-parity-crypto = { version = "0.5.0", features = ["publickey"] }
+parity-crypto = { version = "0.6.0", features = ["publickey"] }
 parity-daemonize = "0.3"
 parity-hash-fetch = { path = "updater/hash-fetch" }
 parity-local-store = { path = "miner/local-store" }
 parity-path = "0.1"
 parity-rpc = { path = "rpc" }
 parity-runtime = "0.1.1"
-parity-secretstore = { git = "https://github.com/paritytech/secret-store", rev = "ebe751d", optional = true }
+parity-secretstore = { git = "https://github.com/paritytech/secret-store", branch = "v1.x", optional = true }
 parity-updater = { path = "updater" }
-parity-util-mem = { version = "0.5.1", features = ["jemalloc-global"] }
+parity-util-mem = { version = "0.6.0", features = ["jemalloc-global"] }
 parity-version = { path = "util/version" }
 parking_lot = "0.10.0"
 regex = "1.0"
 registrar = { path = "util/registrar" }
-rlp = "0.4.0"
+rlp = "0.4.5"
 rpassword = "1.0"
 rustc-hex = "2.1.0"
 semver = "0.9"
@@ -76,7 +76,7 @@ serde_json = "1.0"
 snapshot = { path = "ethcore/snapshot" }
 spec = { path = "ethcore/spec" }
 term_size = "0.3"
-textwrap = "0.9"
+textwrap = "0.11.0"
 toml = "0.5.6"
 verification = { path = "ethcore/verification" }
 
@@ -90,7 +90,7 @@ tempfile = "3.1"
 fake-fetch = { path = "util/fake-fetch" }
 
 [target.'cfg(windows)'.dependencies]
-winapi = { version = "0.3.4", features = ["winsock2", "winuser", "shellapi"] }
+winapi = { version = "0.3.8", features = ["winsock2", "winuser", "shellapi"] }
 
 [features]
 default = ["accounts"]

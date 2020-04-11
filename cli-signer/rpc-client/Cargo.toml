@@ -7,15 +7,15 @@ version = "1.4.0"
 authors = ["Parity <admin@parity.io>"]
 
 [dependencies]
-ethereum-types = "0.8.0"
+ethereum-types = "0.9.0"
 futures = "0.1"
 log = "0.4"
 serde = "1.0"
 serde_json = "1.0"
-url = "2.1.0"
+url = "2.1.1"
 matches = "0.1"
 parking_lot = "0.10.0"
 jsonrpc-core = "14.0.3"
 jsonrpc-ws-server = "14.0.3"
 parity-rpc = { path = "../../rpc" }
-keccak-hash = "0.4.0"
+keccak-hash = "0.5.0"

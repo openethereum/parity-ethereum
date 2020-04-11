@@ -10,20 +10,20 @@ license = "GPL-3.0"
 client-traits = { path = "../../client-traits" }
 common-types = { path = "../../types" }
 engine = { path = "../../engine" }
-ethereum-types = "0.8.0"
+ethereum-types = "0.9.0"
 ethjson = { path = "../../../json" }
-parity-crypto = { version = "0.5.0", features = ["publickey"] }
+parity-crypto = { version = "0.6.0", features = ["publickey"] }
 log = "0.4.8"
 machine = { path = "../../machine" }
 parking_lot = "0.10.0"
-rlp = "0.4.2"
+rlp = "0.4.5"
 validator-set = { path = "../validator-set" }
 
 [dev-dependencies]
 accounts = { package = "ethcore-accounts", path = "../../../accounts" }
 engine = { path = "../../engine", features = ["test-helpers"] }
 ethcore = { path = "../..", features = ["test-helpers"] }
-keccak-hash = "0.4.0"
+keccak-hash = "0.5.0"
 tempfile = "3.1"
 spec = { path = "../../spec" }
 

@@ -16,15 +16,15 @@
 
 use std::cmp::{max, min};
 use std::collections::{HashMap, HashSet};
-use std::fs;
-use std::io::{self, Read, Write};
+use std::io;
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::ops::*;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 use std::time::Duration;
+use slab::Slab;
 
 use ethereum_types::H256;
 use keccak_hash::keccak;
@@ -34,7 +34,6 @@ use mio::{
 	Token,
 	udp::UdpSocket
 };
-use parity_path::restrict_permissions_owner;
 use parking_lot::{Mutex, RwLock};
 use rlp::{Encodable, RlpStream};
 
@@ -50,12 +49,12 @@ use crate::{
 	connection::PAYLOAD_SOFT_LIMIT,
 	discovery::{Discovery, MAX_DATAGRAM_SIZE, NodeEntry, TableUpdates},
 	ip_utils::{map_external_address, select_public_address},
+	node_record::*,
 	node_table::*,
+	persistence::{save, load},
 	PROTOCOL_VERSION,
 	session::{Session, SessionData}
 };
-
-type Slab<T> = ::slab::Slab<T, usize>;
 
 const MAX_SESSIONS: usize = 2048 + MAX_HANDSHAKES;
 const MAX_HANDSHAKES: usize = 1024;
@@ -153,7 +152,7 @@ impl<'s> NetworkContextTrait for NetworkContext<'s> {
 		let session = self.resolve_session(peer);
 		if let Some(session) = session {
 			session.lock().send_packet(self.io, Some(protocol), packet_id as u8, &data)?;
-		} else  {
+		} else {
 			trace!(target: "network", "Send: Peer no longer exist")
 		}
 		Ok(())
@@ -218,6 +217,8 @@ impl<'s> NetworkContextTrait for NetworkContext<'s> {
 pub struct HostInfo {
 	/// Our private and public keys.
 	keys: KeyPair,
+	/// Node record.
+	enr: EnrManager,
 	/// Current network configuration
 	config: NetworkConfiguration,
 	/// Connection nonce.
@@ -285,19 +286,32 @@ impl Host {
 			Some(addr) => addr,
 		};
 
+		let mut key_created = false;
 		let keys = if let Some(ref secret) = config.use_secret {
 			KeyPair::from_secret(secret.clone())?
 		} else {
-			config.config_path.clone().and_then(|ref p| load_key(Path::new(&p)))
+			config.config_path.clone().and_then(|ref p| load(Path::new(&p)))
 				.map_or_else(|| {
+				key_created = true;
 				let key = Random.generate();
 				if let Some(path) = config.config_path.clone() {
-					save_key(Path::new(&path), key.secret());
+					save(Path::new(&path), key.secret());
 				}
 				key
 			},
 			|s| KeyPair::from_secret(s).expect("Error creating node secret key"))
 		};
+		let mut enr = None;
+		if !key_created {
+			if let Some(path) = &config.config_path {
+				enr = EnrManager::load(path.as_str(), keys.secret().clone());
+			}
+		}
+		let enr = enr.unwrap_or_else(|| EnrManager::new(
+			config.config_path.as_ref().map(|v| v.into()),
+			keys.secret().clone(),
+			0)
+			.expect("keys.secret() is a valid secp256k1 secret; Enr does not fail given valid secp256k1 secret; qed"));
 		let path = config.net_config_path.clone();
 		// Setup the server socket
 		let tcp_listener = TcpListener::bind(&listen_address)?;
@@ -313,6 +327,7 @@ impl Host {
 		let mut host = Host {
 			info: RwLock::new(HostInfo {
 				keys,
+				enr,
 				config,
 				nonce: H256::random(),
 				protocol_version: PROTOCOL_VERSION,
@@ -323,7 +338,7 @@ impl Host {
 			discovery: Mutex::new(None),
 			udp_socket: Mutex::new(None),
 			tcp_listener: Mutex::new(tcp_listener),
-			sessions: Arc::new(RwLock::new(Slab::new_starting_at(FIRST_SESSION, MAX_SESSIONS))),
+			sessions: Arc::new(RwLock::new(Slab::with_capacity(MAX_SESSIONS))),
 			nodes: RwLock::new(NodeTable::new(path)),
 			handlers: RwLock::new(HashMap::new()),
 			timers: RwLock::new(HashMap::new()),
@@ -383,7 +398,7 @@ impl Host {
 				// disconnect all non-reserved peers here.
 				let reserved: HashSet<NodeId> = self.reserved_nodes.read().clone();
 				let mut to_kill = Vec::new();
-				for e in self.sessions.read().iter() {
+				for (_, e) in self.sessions.read().iter() {
 					let mut s = e.lock();
 					{
 						let id = s.id();
@@ -423,7 +438,7 @@ impl Host {
 	pub fn stop(&self, io: &IoContext<NetworkIoMessage>) {
 		self.stopping.store(true, AtomicOrdering::Release);
 		let mut to_kill = Vec::new();
-		for e in self.sessions.read().iter() {
+		for (_, e) in self.sessions.read().iter() {
 			let mut s = e.lock();
 			s.disconnect(io, DisconnectReason::ClientQuit);
 			to_kill.push(s.token());
@@ -440,7 +455,7 @@ impl Host {
 		let sessions = self.sessions.read();
 		let sessions = &*sessions;
 
-		let mut peers = Vec::with_capacity(sessions.count());
+		let mut peers = Vec::with_capacity(sessions.len());
 		for i in (0..MAX_SESSIONS).map(|x| x + FIRST_SESSION) {
 			if sessions.get(i).is_some() {
 				peers.push(i);
@@ -475,7 +490,11 @@ impl Host {
 			Some(addr) => NodeEndpoint { address: addr, udp_port: local_endpoint.udp_port }
 		};
 
-		self.info.write().public_endpoint = Some(public_endpoint.clone());
+		{
+			let mut info = self.info.write();
+			info.public_endpoint = Some(public_endpoint.clone());
+			info.enr.set_node_endpoint(&public_endpoint);
+		}
 
 		if let Some(url) = self.external_url() {
 			io.message(NetworkIoMessage::NetworkStarted(url)).unwrap_or_else(|e| warn!("Error sending IO notification: {:?}", e));
@@ -485,7 +504,7 @@ impl Host {
 		let discovery = {
 			let info = self.info.read();
 			if info.config.discovery_enabled && info.config.non_reserved_mode == NonReservedPeerMode::Accept {
-				Some(Discovery::new(&info.keys, public_endpoint, allow_ips))
+				Some(Discovery::new(&info.keys, public_endpoint, info.enr.as_enr().clone(), allow_ips))
 			} else { None }
 		};
 
@@ -513,7 +532,7 @@ impl Host {
 	}
 
 	fn have_session(&self, id: &NodeId) -> bool {
-		self.sessions.read().iter().any(|e| e.lock().info.id == Some(*id))
+		self.sessions.read().iter().any(|(_, e)| e.lock().info.id == Some(*id))
 	}
 
 	// returns (handshakes, egress, ingress)
@@ -521,7 +540,7 @@ impl Host {
 		let mut handshakes = 0;
 		let mut egress = 0;
 		let mut ingress = 0;
-		for s in self.sessions.read().iter() {
+		for (_, s) in self.sessions.read().iter() {
 			match s.try_lock() {
 				Some(ref s) if s.is_ready() && s.info.originated => egress += 1,
 				Some(ref s) if s.is_ready() && !s.info.originated => ingress += 1,
@@ -532,12 +551,12 @@ impl Host {
 	}
 
 	fn connecting_to(&self, id: &NodeId) -> bool {
-		self.sessions.read().iter().any(|e| e.lock().id() == Some(id))
+		self.sessions.read().iter().any(|(_, e)| e.lock().id() == Some(id))
 	}
 
 	fn keep_alive(&self, io: &IoContext<NetworkIoMessage>) {
 		let mut to_kill = Vec::new();
-		for e in self.sessions.read().iter() {
+		for (_, e) in self.sessions.read().iter() {
 			let mut s = e.lock();
 			if !s.keep_alive(io) {
 				s.disconnect(io, DisconnectReason::PingTimeout);
@@ -654,21 +673,18 @@ impl Host {
 		let nonce = self.info.write().next_nonce();
 		let mut sessions = self.sessions.write();
 
-		let token = sessions.insert_with_opt(|token| {
-			trace!(target: "network", "{}: Initiating session {:?}", token, id);
-			match Session::new(io, socket, token, id, &nonce, &self.info.read()) {
-				Ok(s) => Some(Arc::new(Mutex::new(s))),
-				Err(e) => {
-					debug!(target: "network", "Session create error: {:?}", e);
-					None
-				}
-			}
-		});
+		let entry = sessions.vacant_entry();
+		let key = entry.key();
 
-		match token {
-			Some(t) => io.register_stream(t).map(|_| ()).map_err(Into::into),
-			None => {
-				debug!(target: "network", "Max sessions reached");
+		trace!(target: "network", "{}: Initiating session {:?}", key, id);
+
+		match Session::new(io, socket, key, id, &nonce, &self.info.read()) {
+			Ok(session) => {
+				entry.insert(Arc::new(Mutex::new(session)));
+				io.register_stream(key).map(|_| ()).map_err(Into::into)
+			},
+			Err(e) => {
+				debug!(target: "network", "Session create error: {:?}", e);
 				Ok(())
 			}
 		}
@@ -834,7 +850,7 @@ impl Host {
 
 			let handlers = self.handlers.read();
 			if !ready_data.is_empty() {
-				let duplicate = self.sessions.read().iter().any(|e| {
+				let duplicate = self.sessions.read().iter().any(|(_, e)| {
 					let session = e.lock();
 					session.token() != token && session.info.id == ready_id
 				});
@@ -941,7 +957,7 @@ impl Host {
 				if !s.expired() {
 					if s.is_ready() {
 						for (p, _) in self.handlers.read().iter() {
-							if s.have_capability(*p)  {
+							if s.have_capability(*p) {
 								to_disconnect.push(*p);
 							}
 						}
@@ -972,7 +988,7 @@ impl Host {
 		let mut to_remove: Vec<PeerId> = Vec::new();
 		{
 			let sessions = self.sessions.read();
-			for c in sessions.iter() {
+			for (_, c) in sessions.iter() {
 				let s = c.lock();
 				if let Some(id) = s.id() {
 					if node_changes.removed.contains(id) {
@@ -1216,67 +1232,6 @@ impl IoHandler<NetworkIoMessage> for Host {
 			_ => warn!("Unexpected stream update")
 		}
 	}
-}
-
-fn save_key(path: &Path, key: &Secret) {
-	let mut path_buf = PathBuf::from(path);
-	if let Err(e) = fs::create_dir_all(path_buf.as_path()) {
-		warn!("Error creating key directory: {:?}", e);
-		return;
-	};
-	path_buf.push("key");
-	let path = path_buf.as_path();
-	let mut file = match fs::File::create(&path) {
-		Ok(file) => file,
-		Err(e) => {
-			warn!("Error creating key file: {:?}", e);
-			return;
-		}
-	};
-	if let Err(e) = restrict_permissions_owner(path, true, false) {
-		warn!(target: "network", "Failed to modify permissions of the file ({})", e);
-	}
-	if let Err(e) = file.write(&key.to_hex().into_bytes()) {
-		warn!("Error writing key file: {:?}", e);
-	}
-}
-
-fn load_key(path: &Path) -> Option<Secret> {
-	let mut path_buf = PathBuf::from(path);
-	path_buf.push("key");
-	let mut file = match fs::File::open(path_buf.as_path()) {
-		Ok(file) => file,
-		Err(e) => {
-			debug!("Error opening key file: {:?}", e);
-			return None;
-		}
-	};
-	let mut buf = String::new();
-	match file.read_to_string(&mut buf) {
-		Ok(_) => {},
-		Err(e) => {
-			warn!("Error reading key file: {:?}", e);
-			return None;
-		}
-	}
-	match Secret::from_str(&buf) {
-		Ok(key) => Some(key),
-		Err(e) => {
-			warn!("Error parsing key file: {:?}", e);
-			None
-		}
-	}
-}
-
-#[test]
-fn key_save_load() {
-	use tempfile::TempDir;
-
-	let tempdir = TempDir::new().unwrap();
-	let key = H256::random().into();
-	save_key(tempdir.path(), &key);
-	let r = load_key(tempdir.path());
-	assert_eq!(key, r.unwrap());
 }
 
 #[test]

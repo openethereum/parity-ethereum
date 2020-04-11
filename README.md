@@ -288,7 +288,7 @@ Caching, Importing Blocks, and Block Information
   ```
 * OpenEthereum Core Libraries (`util`)
   ```bash
-  ethcore-bloom-journal blooms-db dir eip-712 fake-fetch fastmap fetch ethcore-io
+  accounts-bloom blooms-db dir eip-712 fake-fetch fastmap fetch ethcore-io
   journaldb keccak-hasher len-caching-lock memory-cache memzero
   migration-rocksdb ethcore-network ethcore-network-devp2p panic_hook
   patricia-trie-ethereum registrar rlp_compress stats

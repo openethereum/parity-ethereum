@@ -15,7 +15,7 @@
 // along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::cmp;
-use ethereum_types::{BigEndianHash, U256};
+use ethereum_types::{BigEndianHash, U256, H160, Address};
 use super::u256_to_address;
 
 use {evm, vm};
@@ -30,6 +30,8 @@ macro_rules! overflowing {
 		v
 	}}
 }
+
+const PRECOMPILES_ADDRESS_LIMIT: Address = H160([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0xff,0xff]);
 
 enum Request<Cost: ::evm::CostType> {
 	Gas(Cost),
@@ -224,12 +226,29 @@ impl<Gas: evm::CostType> Gasometer<Gas> {
 
 				Request::GasMemProvide(gas, mem, Some(requested))
 			},
-			instructions::DELEGATECALL | instructions::STATICCALL => {
+			instructions::DELEGATECALL => {
 				let gas = Gas::from(schedule.call_gas);
 				let mem = cmp::max(
 					mem_needed(stack.peek(4), stack.peek(5))?,
 					mem_needed(stack.peek(2), stack.peek(3))?
 				);
+				let requested = *stack.peek(0);
+
+				Request::GasMemProvide(gas, mem, Some(requested))
+			},
+			instructions::STATICCALL => {				
+				let code_address = u256_to_address(stack.peek(1));
+				let gas = if code_address <= PRECOMPILES_ADDRESS_LIMIT {
+					Gas::from(schedule.staticcall_precompile_gas)
+				} else {
+					Gas::from(schedule.call_gas)
+				};
+
+				let mem = cmp::max(
+					mem_needed(stack.peek(4), stack.peek(5))?, // out_off, out_size 
+					mem_needed(stack.peek(2), stack.peek(3))?  // in_off, in_size
+				);
+
 				let requested = *stack.peek(0);
 
 				Request::GasMemProvide(gas, mem, Some(requested))
