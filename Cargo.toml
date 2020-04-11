@@ -133,12 +133,12 @@ members = [
 ]
 
 [patch.crates-io]
-parity-crypto = { path = "../parity-common/parity-crypto" }
-ethereum-types = { path = "../parity-common/ethereum-types" }
-uint = { path = "../parity-common/uint" }
-fixed-hash = { path = "../parity-common/fixed-hash" }
-primitive-types = { path = "../parity-common/primitive-types" }
-rlp = { path = "../parity-common/rlp" }
-keccak-hash = { path = "../parity-common/keccak-hash" }
-parity-util-mem = { path = "../parity-common/parity-util-mem" }
-ethbloom = { path = "../parity-common/ethbloom" }
+parity-crypto = { git = "https://github.com/paritytech/parity-common/", branch = "dp/chore/prep-parity-crypto-release-and-a-sneaky-fix" }
+ethereum-types = { git = "https://github.com/paritytech/parity-common/", branch = "dp/chore/prep-parity-crypto-release-and-a-sneaky-fix" }
+uint = { git = "https://github.com/paritytech/parity-common/", branch = "dp/chore/prep-parity-crypto-release-and-a-sneaky-fix" }
+fixed-hash = { git = "https://github.com/paritytech/parity-common/", branch = "dp/chore/prep-parity-crypto-release-and-a-sneaky-fix" }
+primitive-types = { git = "https://github.com/paritytech/parity-common/", branch = "dp/chore/prep-parity-crypto-release-and-a-sneaky-fix" }
+rlp = { git = "https://github.com/paritytech/parity-common/", branch = "dp/chore/prep-parity-crypto-release-and-a-sneaky-fix" }
+keccak-hash = { git = "https://github.com/paritytech/parity-common/", branch = "dp/chore/prep-parity-crypto-release-and-a-sneaky-fix" }
+parity-util-mem = { git = "https://github.com/paritytech/parity-common/", branch = "dp/chore/prep-parity-crypto-release-and-a-sneaky-fix" }
+ethbloom = { git = "https://github.com/paritytech/parity-common/", branch = "dp/chore/prep-parity-crypto-release-and-a-sneaky-fix" }
