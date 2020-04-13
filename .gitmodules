@@ -4,4 +4,4 @@
 	branch = develop
 [submodule "ethcore/res/wasm-tests"]
 	path = ethcore/res/wasm-tests
-	url = https://github.com/paritytech/wasm-tests
+	url = https://github.com/openethereum/wasm-tests
