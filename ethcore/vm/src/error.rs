@@ -71,6 +71,20 @@ pub enum Error {
 		/// What was the stack limit
 		limit: usize
 	},
+	/// `SubStackUnderflow` when there is not enough stack elements to execute a subroutine return
+	SubStackUnderflow {
+		/// How many stack elements was requested by instruction
+		wanted: usize,
+		/// How many elements were on stack
+		on_stack: usize
+	},
+	/// When execution would exceed defined subroutine Stack Limit
+	OutOfSubStack {
+		/// How many stack elements instruction wanted to pop
+		wanted: usize,
+		/// What was the stack limit
+		limit: usize
+	},
 	/// Built-in contract failed on given input
 	BuiltIn(&'static str),
 	/// When execution tries to modify the state in static context

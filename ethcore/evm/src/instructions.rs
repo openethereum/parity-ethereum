@@ -41,7 +41,6 @@ macro_rules! enum_with_from_u8 {
 		}
 	};
 }
-
 enum_with_from_u8! {
 	#[doc = "Virtual machine bytecode instruction."]
 	#[repr(u8)]
@@ -320,6 +319,13 @@ enum_with_from_u8! {
 		LOG3 = 0xa3,
 		#[doc = "Makes a log entry, 4 topics."]
 		LOG4 = 0xa4,
+
+		#[doc = "Marks the entry point to a subroutine."]
+		BEGINSUB = 0xb2,
+		#[doc = "Jumps to a defined BEGINSUB subroutine."]
+		JUMPSUB = 0xb3,
+		#[doc = "Returns from a subroutine."]
+		RETURNSUB = 0xb7,
 
 		#[doc = "create a new account with associated code"]
 		CREATE = 0xf0,

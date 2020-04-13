@@ -94,6 +94,7 @@ enum InstructionResult<Gas> {
 	Ok,
 	UnusedGas(Gas),
 	JumpToPosition(U256),
+	JumpToSubroutine(U256),
 	StopExecutionNeedsReturn {
 		/// Gas left.
 		gas: Gas,
@@ -181,6 +182,7 @@ pub struct Interpreter<Cost: CostType> {
 	valid_jump_destinations: Option<Arc<BitSet>>,
 	gasometer: Option<Gasometer<Cost>>,
 	stack: VecStack<U256>,
+	return_stack: Vec<usize>,
 	resume_output_range: Option<(U256, U256)>,
 	resume_result: Option<InstructionResult<Cost>>,
 	last_stack_ret_len: usize,
@@ -273,10 +275,11 @@ impl<Cost: CostType> Interpreter<Cost> {
 		let valid_jump_destinations = None;
 		let gasometer = Cost::from_u256(params.gas).ok().map(|gas| Gasometer::<Cost>::new(gas));
 		let stack = VecStack::with_capacity(schedule.stack_limit, U256::zero());
-
+		let return_stack = Vec::new();
 		Interpreter {
 			cache, params, reader, informant,
-			valid_jump_destinations, gasometer, stack,
+			valid_jump_destinations, gasometer,
+			stack, return_stack,
 			done: false,
 			// Overridden in `step_inner` based on
 			// the result of `ext.trace_next_instruction`.
@@ -403,13 +406,28 @@ impl<Cost: CostType> Interpreter<Cost> {
 		match result {
 			InstructionResult::JumpToPosition(position) => {
 				if self.valid_jump_destinations.is_none() {
-					self.valid_jump_destinations = Some(self.cache.jump_destinations(&self.params.code_hash, &self.reader.code));
+					self.valid_jump_destinations = Some(self.cache.jump_destinations(&self.params.code_hash, &self.reader.code).0);
 				}
 				let jump_destinations = self.valid_jump_destinations.as_ref().expect("jump_destinations are initialized on first jump; qed");
 				let pos = match self.verify_jump(position, jump_destinations) {
 					Ok(x) => x,
 					Err(e) => return InterpreterResult::Done(Err(e))
 				};
+				self.reader.position = pos;
+			},
+			InstructionResult::JumpToSubroutine(position) => {
+				if self.valid_subroutine_destinations.is_none() {
+					self.valid_subroutine_destinations = Some(self.cache.jump_and_sub_destinations(&self.params.code_hash, &self.reader.code).1);
+				}
+				let subroutine_destinations = self.valid_subroutine_destinations.as_ref().expect("subroutine_destinations are initialized on first jump; qed");
+				let pos = match self.verify_jump(position, subroutine_destinations) {
+					Ok(x) => x,
+					Err(e) => return InterpreterResult::Done(Err(e))
+				};
+				self.return_stack.push(self.reader.position+1);
+				self.reader.position = pos;
+			},	
+			InstructionResult::ReturnFromSubrountine(pos) => {
 				self.reader.position = pos;
 			},
 			InstructionResult::StopExecutionNeedsReturn {gas, init_off, init_size, apply} => {
@@ -524,6 +542,32 @@ impl<Cost: CostType> Interpreter<Cost> {
 			},
 			instructions::JUMPDEST => {
 				// ignore
+			},
+			instructions::BEGINSUB => {
+				// ignore
+			},
+			instructions::JUMPSUB => {
+				if self.return_stack.len() > 1023 {
+					return Err(vm::Error::OutOfSubStack {
+						wanted: 1,
+						limit: 1024,
+					});
+				}
+				let sub_destination = self.stack.pop_back();
+				return Ok(InstructionResult::JumpToSubroutine(
+					sub_destination
+				))
+			},
+			instructions::RETURNSUB => {
+				if let Some(pos) = self.return_stack.pop() {
+					return Ok(InstructionResult::ReturnToSubroutnine(pos))
+				} else {
+					return Err(vm::Error::StackSubUnderflow {
+						wanted: 1,
+						on_stack: 0,
+					});
+				}
+
 			},
 			instructions::CREATE | instructions::CREATE2 => {
 				let endowment = self.stack.pop_back();
