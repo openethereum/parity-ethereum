@@ -35,7 +35,7 @@ pub const COL_BODIES: u32 = 2;
 pub const COL_EXTRA: u32 = 3;
 /// Column for Traces
 pub const COL_TRACE: u32 = 4;
-/// Column for the empty accounts bloom filter.
+/// Column for the accounts existence bloom filter.
 /// **DEPRECATED**
 pub const COL_ACCOUNT_BLOOM: u32 = 5;
 /// Column for general information from the local node which can persist.

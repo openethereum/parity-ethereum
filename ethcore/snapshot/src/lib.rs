@@ -435,13 +435,6 @@ impl StateRebuilder {
 			}
 		}
 
-		// todo[dvdplm] double-check that this is ok to remove – where are all the above db changes written? In caller? Unsure about what `inject` actually does.
-		// let backing = self.db.backing().clone();
-		// let bloom_journal = self.bloom.drain_journal();
-		// let mut batch = backing.transaction();
-		// StateDB::commit_bloom(&mut batch, bloom_journal)?;
-		// self.db.inject(&mut batch)?;
-		// backing.write_buffered(batch);
 		Ok(())
 	}
 
