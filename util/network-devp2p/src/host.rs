@@ -709,7 +709,7 @@ impl Host {
 	}
 
 	fn session_writable(&self, token: StreamToken, io: &IoContext<NetworkIoMessage>) {
-		let session = { self.sessions.read().get(token).cloned() };
+		let session = self.sessions.read().get(token).cloned();
 
 		if let Some(session) = session {
 			let mut s = session.lock();
@@ -731,7 +731,7 @@ impl Host {
 		let mut ready_data: Vec<ProtocolId> = Vec::new();
 		let mut packet_data: Vec<(ProtocolId, PacketId, Vec<u8>)> = Vec::new();
 		let mut kill = false;
-		let session = { self.sessions.read().get(token).cloned() };
+		let session = self.sessions.read().get(token).cloned();
 		let mut ready_id = None;
 		if let Some(session) = session.clone() {
 			{
@@ -1005,14 +1005,14 @@ impl Host {
 	}
 
 	pub fn with_context<F>(&self, protocol: ProtocolId, io: &IoContext<NetworkIoMessage>, action: F) where F: FnOnce(&dyn NetworkContextTrait) {
-		let reserved = { self.reserved_nodes.read() };
+		let reserved = self.reserved_nodes.read();
 
 		let context = NetworkContext::new(io, protocol, None, self.sessions.clone(), &reserved);
 		action(&context);
 	}
 
 	pub fn with_context_eval<F, T>(&self, protocol: ProtocolId, io: &IoContext<NetworkIoMessage>, action: F) -> T where F: FnOnce(&dyn NetworkContextTrait) -> T {
-		let reserved = { self.reserved_nodes.read() };
+		let reserved = self.reserved_nodes.read();
 
 		let context = NetworkContext::new(io, protocol, None, self.sessions.clone(), &reserved);
 		action(&context)
@@ -1145,7 +1145,7 @@ impl IoHandler<NetworkIoMessage> for Host {
 				io.register_timer(handler_token, *delay).unwrap_or_else(|e| debug!("Error registering timer {}: {:?}", token, e));
 			},
 			NetworkIoMessage::Disconnect(ref peer) => {
-				let session = { self.sessions.read().get(*peer).cloned() };
+				let session = self.sessions.read().get(*peer).cloned();
 				if let Some(session) = session {
 					session.lock().disconnect(io, DisconnectReason::DisconnectRequested);
 				}
@@ -1153,7 +1153,7 @@ impl IoHandler<NetworkIoMessage> for Host {
 				self.kill_connection(*peer, io, false);
 			},
 			NetworkIoMessage::DisablePeer(ref peer) => {
-				let session = { self.sessions.read().get(*peer).cloned() };
+				let session = self.sessions.read().get(*peer).cloned();
 				if let Some(session) = session {
 					session.lock().disconnect(io, DisconnectReason::DisconnectRequested);
 					if let Some(id) = session.lock().id() {
@@ -1174,7 +1174,7 @@ impl IoHandler<NetworkIoMessage> for Host {
 	fn register_stream(&self, stream: StreamToken, reg: Token, event_loop: &mut EventLoop<IoManager<NetworkIoMessage>>) {
 		match stream {
 			FIRST_SESSION ..= LAST_SESSION => {
-				let session = { self.sessions.read().get(stream).cloned() };
+				let session = self.sessions.read().get(stream).cloned();
 				if let Some(session) = session {
 					session.lock().register_socket(reg, event_loop).expect("Error registering socket");
 				}
@@ -1211,7 +1211,7 @@ impl IoHandler<NetworkIoMessage> for Host {
 	fn update_stream(&self, stream: StreamToken, reg: Token, event_loop: &mut EventLoop<IoManager<NetworkIoMessage>>) {
 		match stream {
 			FIRST_SESSION ..= LAST_SESSION => {
-				let connection = { self.sessions.read().get(stream).cloned() };
+				let connection = self.sessions.read().get(stream).cloned();
 				if let Some(connection) = connection {
 					connection.lock().update_socket(reg, event_loop).expect("Error updating socket");
 				}
