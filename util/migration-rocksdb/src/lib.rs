@@ -21,7 +21,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::{fs, io, error};
 
-use log::trace;
+use log::{info, trace};
 use kvdb::DBTransaction;
 use kvdb_rocksdb::{CompactionProfile, Database, DatabaseConfig};
 
@@ -157,6 +157,42 @@ impl Migration for ChangeColumns {
 	fn alters_existing(&self) -> bool { false }
 	fn version(&self) -> u32 { self.version }
 	fn migrate(&mut self, _: Arc<Database>, _: &Config, _: &mut Database, _: u32) -> io::Result<()> {
+		Ok(())
+	}
+}
+
+pub struct VacuumAccountsBloom {
+	pub column_to_vacuum: u32,
+	pub columns: u32,
+	pub version: u32,
+}
+
+impl Migration for VacuumAccountsBloom {
+	fn pre_columns(&self) -> u32 { self.columns }
+	fn columns(&self) -> u32 { self.columns }
+	fn alters_existing(&self) -> bool { true }
+	fn version(&self) -> u32 { self.version }
+
+	fn migrate(&mut self, db: Arc<Database>, _config: &Config, _dest: &mut Database, col: u32) -> io::Result<()> {
+		if col != self.column_to_vacuum {
+			return Ok(())
+		}
+		let num_keys = db.num_keys(COL_ACCOUNT_BLOOM)?;
+		info!(target: "migration", "Removing accounts existence bloom ({} keys)", num_keys + 1);
+		let mut batch = DBTransaction::with_capacity(num_keys as usize);
+		const COL_ACCOUNT_BLOOM: u32 = 5;
+		const ACCOUNT_BLOOM_HASHCOUNT_KEY: &'static [u8] = b"account_hash_count";
+		for (n, (k,_)) in db.iter(COL_ACCOUNT_BLOOM).enumerate() {
+			batch.delete(COL_ACCOUNT_BLOOM, &k);
+			if n > 0 && n % 10_000 == 0 {
+				info!(target: "migration", "  Account Bloom entries queued for deletion: {}", n);
+			}
+		}
+		batch.delete(COL_ACCOUNT_BLOOM, ACCOUNT_BLOOM_HASHCOUNT_KEY);
+		let deletions = batch.ops.len();
+		db.write(batch)?;
+		db.flush()?;
+		info!(target: "migration", "Deleted {} account existence bloom items from the DB", deletions);
 		Ok(())
 	}
 }
