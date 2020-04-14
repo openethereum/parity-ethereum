@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e # fail on any error
 set -u # treat unset variables as error
-echo -e "\n*** Running \`validate_chainspecs.sh\`"
+echo -e "*** Running \`validate_chainspecs.sh\`"
 ERR=0
 time cargo build --release -p chainspec --verbose --color=always
 
