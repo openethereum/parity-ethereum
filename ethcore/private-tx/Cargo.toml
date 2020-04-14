@@ -31,7 +31,7 @@ log = "0.4"
 machine = { path = "../machine" }
 journaldb = { path = "../../util/journaldb" }
 parity-bytes = "0.1"
-parity-crypto = { version = "0.6.0", features = ["publickey"] }
+parity-crypto = { version = "0.6.1", features = ["publickey"] }
 parking_lot = "0.10.0"
 trie-db = "0.20.0"
 patricia-trie-ethereum = { path = "../../util/patricia-trie-ethereum" }
