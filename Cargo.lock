@@ -1128,7 +1128,8 @@ dependencies = [
 [[package]]
 name = "ethbloom"
 version = "0.9.0"
-source = "git+https://github.com/paritytech/parity-common/?branch=dp/chore/prep-parity-crypto-release-and-a-sneaky-fix#11896b6adc2def529a856fee601b3efc81d46da5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9e7abcddbdd5db30aeed4deb586adc4824e6c247e2f7238d1187f752893f096b"
 dependencies = [
  "crunchy",
  "fixed-hash",
@@ -1613,7 +1614,8 @@ dependencies = [
 [[package]]
 name = "ethereum-types"
 version = "0.9.0"
-source = "git+https://github.com/paritytech/parity-common/?branch=dp/chore/prep-parity-crypto-release-and-a-sneaky-fix#11896b6adc2def529a856fee601b3efc81d46da5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "964c23cdee0ca07d5be2a628b46d5c11a2134ce554a8c16d8dbc2db647e4fd4d"
 dependencies = [
  "ethbloom",
  "fixed-hash",
@@ -1865,7 +1867,8 @@ dependencies = [
 [[package]]
 name = "fixed-hash"
 version = "0.6.0"
-source = "git+https://github.com/paritytech/parity-common/?branch=dp/chore/prep-parity-crypto-release-and-a-sneaky-fix#11896b6adc2def529a856fee601b3efc81d46da5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "32529fc42e86ec06e5047092082aab9ad459b070c5d2a76b14f4f5ce70bf2e84"
 dependencies = [
  "byteorder",
  "rand 0.7.3",
@@ -2237,7 +2240,8 @@ dependencies = [
 [[package]]
 name = "impl-codec"
 version = "0.4.2"
-source = "git+https://github.com/paritytech/parity-common/?branch=dp/chore/prep-parity-crypto-release-and-a-sneaky-fix#11896b6adc2def529a856fee601b3efc81d46da5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1be51a921b067b0eaca2fad532d9400041561aa922221cc65f95a85641c6bf53"
 dependencies = [
  "parity-scale-codec",
 ]
@@ -2245,7 +2249,8 @@ dependencies = [
 [[package]]
 name = "impl-rlp"
 version = "0.2.1"
-source = "git+https://github.com/paritytech/parity-common/?branch=dp/chore/prep-parity-crypto-release-and-a-sneaky-fix#11896b6adc2def529a856fee601b3efc81d46da5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8f7a72f11830b52333f36e3b09a288333888bf54380fd0ac0790a3c31ab0f3c5"
 dependencies = [
  "rlp",
 ]
@@ -2253,7 +2258,8 @@ dependencies = [
 [[package]]
 name = "impl-serde"
 version = "0.3.0"
-source = "git+https://github.com/paritytech/parity-common/?branch=dp/chore/prep-parity-crypto-release-and-a-sneaky-fix#11896b6adc2def529a856fee601b3efc81d46da5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5bbe9ea9b182f0fb1cabbd61f4ff9b7b7b9197955e95a7e4c27de5055eb29ff8"
 dependencies = [
  "serde",
 ]
@@ -2493,7 +2499,8 @@ dependencies = [
 [[package]]
 name = "keccak-hash"
 version = "0.5.1"
-source = "git+https://github.com/paritytech/parity-common/?branch=dp/chore/prep-parity-crypto-release-and-a-sneaky-fix#11896b6adc2def529a856fee601b3efc81d46da5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1f58a51ef3df9398cf2434bea8d4eb61fb748d0feb1571f87388579a120a4c8f"
 dependencies = [
  "primitive-types",
  "tiny-keccak 2.0.2",
@@ -3235,7 +3242,8 @@ checksum = "16b56e3a2420138bdb970f84dfb9c774aea80fa0e7371549eedec0d80c209c67"
 [[package]]
 name = "parity-crypto"
 version = "0.6.1"
-source = "git+https://github.com/paritytech/parity-common/?branch=dp/chore/prep-parity-crypto-release-and-a-sneaky-fix#11896b6adc2def529a856fee601b3efc81d46da5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2b7f19c1acc7fc6c5256a2f4f0c5af022044b9bdfdd0a218ff79f8cbb29779a5"
 dependencies = [
  "aes",
  "aes-ctr",
@@ -3532,7 +3540,8 @@ dependencies = [
 [[package]]
 name = "parity-util-mem"
 version = "0.6.0"
-source = "git+https://github.com/paritytech/parity-common/?branch=dp/chore/prep-parity-crypto-release-and-a-sneaky-fix#11896b6adc2def529a856fee601b3efc81d46da5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6e42755f26e5ea21a6a819d9e63cbd70713e9867a2b767ec2cc65ca7659532c5"
 dependencies = [
  "cfg-if",
  "ethereum-types",
@@ -3550,7 +3559,8 @@ dependencies = [
 [[package]]
 name = "parity-util-mem-derive"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/parity-common/?branch=dp/chore/prep-parity-crypto-release-and-a-sneaky-fix#11896b6adc2def529a856fee601b3efc81d46da5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f557c32c6d268a07c921471619c0295f5efad3a0e76d4f97a05c091a51d110b2"
 dependencies = [
  "proc-macro2 1.0.9",
  "syn 1.0.17",
@@ -3845,7 +3855,8 @@ dependencies = [
 [[package]]
 name = "primitive-types"
 version = "0.7.0"
-source = "git+https://github.com/paritytech/parity-common/?branch=dp/chore/prep-parity-crypto-release-and-a-sneaky-fix#11896b6adc2def529a856fee601b3efc81d46da5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e5e4b9943a2da369aec5e96f7c10ebc74fcf434d39590d974b0a3460e6f67fbb"
 dependencies = [
  "fixed-hash",
  "impl-codec",
@@ -4236,7 +4247,8 @@ dependencies = [
 [[package]]
 name = "rlp"
 version = "0.4.5"
-source = "git+https://github.com/paritytech/parity-common/?branch=dp/chore/prep-parity-crypto-release-and-a-sneaky-fix#11896b6adc2def529a856fee601b3efc81d46da5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4a7d3f9bed94764eac15b8f14af59fac420c236adaff743b7bcc88e265cb4345"
 dependencies = [
  "rustc-hex 2.1.0",
 ]
@@ -5333,7 +5345,8 @@ checksum = "6d2783fe2d6b8c1101136184eb41be8b1ad379e4657050b8aaff0c79ee7575f9"
 [[package]]
 name = "uint"
 version = "0.8.2"
-source = "git+https://github.com/paritytech/parity-common/?branch=dp/chore/prep-parity-crypto-release-and-a-sneaky-fix#11896b6adc2def529a856fee601b3efc81d46da5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e75a4cdd7b87b28840dba13c483b9a88ee6bbf16ba5c951ee1ecfcf723078e0d"
 dependencies = [
  "byteorder",
  "crunchy",
