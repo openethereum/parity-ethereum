@@ -7,9 +7,9 @@ license = "GPL-3.0"
 
 [dependencies]
 log = "0.4"
-kvdb = "0.4.0"
-kvdb-rocksdb = "0.6.0"
+kvdb = "0.5.0"
+kvdb-rocksdb = "0.7.0"
 
 [dev-dependencies]
-tempdir = "0.3"
+tempfile = "3.1"
 maplit = "1.0.2"

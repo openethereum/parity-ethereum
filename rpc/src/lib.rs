@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Open Ethereum JSON-RPC Servers (WS, HTTP, IPC).
+//! OpenEthereum JSON-RPC Servers (WS, HTTP, IPC).
 
 #![warn(missing_docs, unused_extern_crates)]
 #![cfg_attr(feature = "cargo-clippy", warn(clippy::all, clippy::pedantic))]
@@ -86,7 +86,7 @@ extern crate account_state;
 
 extern crate stats;
 extern crate snapshot;
-extern crate tempdir;
+extern crate tempfile;
 extern crate trace;
 extern crate vm;
 

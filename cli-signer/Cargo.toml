@@ -1,13 +1,13 @@
 [package]
-description = "Open Ethereum CLI Signer Tool"
-repository = "https://github.com/OpenEthereum/open-ethereum"
+description = "OpenEthereum CLI Signer Tool"
+repository = "https://github.com/openethereum/openethereum"
 license = "GPL-3.0"
 name = "cli-signer"
 version = "1.4.0"
 authors = ["Parity <admin@parity.io>"]
 
 [dependencies]
-ethereum-types = "0.8.0"
+ethereum-types = "0.9.0"
 futures = "0.1"
 rpassword = "1.0"
 parity-rpc = { path = "../rpc" }

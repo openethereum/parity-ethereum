@@ -90,7 +90,7 @@ extern crate env_logger;
 #[cfg(test)]
 extern crate serde_json;
 #[cfg(any(test, feature = "tempdir"))]
-extern crate tempdir;
+extern crate tempfile;
 
 #[macro_use]
 extern crate log;

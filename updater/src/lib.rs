@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Updater for Parity executables
+//! Updater for OpenEthereum executables
 
 #![warn(missing_docs)]
 
@@ -43,7 +43,7 @@ extern crate lazy_static;
 extern crate log;
 
 #[cfg(test)]
-extern crate tempdir;
+extern crate tempfile;
 
 #[cfg(test)]
 #[macro_use]

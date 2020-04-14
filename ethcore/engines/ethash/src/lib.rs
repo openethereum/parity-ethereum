@@ -525,12 +525,12 @@ mod tests {
 	};
 	use rlp;
 	use spec::{new_ropsten, new_mcip3_test, new_homestead_test_machine, Spec};
-	use tempdir::TempDir;
+	use tempfile::TempDir;
 
 	use super::{Ethash, EthashParams, ecip1017_eras_block_reward};
 
 	fn test_spec() -> Spec {
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 		new_ropsten(&tempdir.path())
 	}
 
@@ -799,7 +799,7 @@ mod tests {
 	fn difficulty_frontier() {
 		let machine = new_homestead_test_machine();
 		let ethparams = get_default_ethash_params();
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 		let ethash = Ethash::new(tempdir.path(), ethparams, machine, None);
 
 		let mut parent_header = Header::default();
@@ -818,7 +818,7 @@ mod tests {
 	fn difficulty_homestead() {
 		let machine = new_homestead_test_machine();
 		let ethparams = get_default_ethash_params();
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 		let ethash = Ethash::new(tempdir.path(), ethparams, machine, None);
 
 		let mut parent_header = Header::default();
@@ -840,7 +840,7 @@ mod tests {
 			ecip1010_pause_transition: 3000000,
 			..get_default_ethash_params()
 		};
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 		let ethash = Ethash::new(tempdir.path(), ethparams, machine, None);
 
 		let mut parent_header = Header::default();
@@ -875,7 +875,7 @@ mod tests {
 			ecip1010_continue_transition: 5000000,
 			..get_default_ethash_params()
 		};
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 		let ethash = Ethash::new(tempdir.path(), ethparams, machine, None);
 
 		let mut parent_header = Header::default();
@@ -922,7 +922,7 @@ mod tests {
 	fn difficulty_max_timestamp() {
 		let machine = new_homestead_test_machine();
 		let ethparams = get_default_ethash_params();
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 		let ethash = Ethash::new(tempdir.path(), ethparams, machine, None);
 
 		let mut parent_header = Header::default();
@@ -941,7 +941,7 @@ mod tests {
 	fn test_extra_info() {
 		let machine = new_homestead_test_machine();
 		let ethparams = get_default_ethash_params();
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 		let ethash = Ethash::new(tempdir.path(), ethparams, machine, None);
 		let mut header = Header::default();
 		header.set_seal(vec![rlp::encode(&H256::from_str("b251bd2e0283d0658f2cadfdc8ca619b5de94eca5742725e2e757dd13ed7503d").unwrap()), rlp::encode(&H64::zero())]);

@@ -350,7 +350,7 @@ mod tests {
 	use std::fs::File;
 	use std::io::Write;
 	use std::collections::HashSet;
-	use tempdir::TempDir;
+	use tempfile::TempDir;
 	use ethereum_types::U256;
 	use ethcore::miner::PendingSet;
 	use ethkey::Password;
@@ -445,7 +445,7 @@ mod tests {
 
 	#[test]
 	fn test_password() {
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 		let path = tempdir.path().join("file");
 		let mut file = File::create(&path).unwrap();
 		file.write_all(b"a bc ").unwrap();
@@ -454,7 +454,7 @@ mod tests {
 
 	#[test]
 	fn test_password_multiline() {
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 		let path = tempdir.path().join("file");
 		let mut file = File::create(path.as_path()).unwrap();
 		file.write_all(br#"    password with trailing whitespace

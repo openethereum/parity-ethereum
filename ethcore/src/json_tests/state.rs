@@ -166,9 +166,9 @@ mod state_tests {
 	//      "RevertPrecompiledTouch" has 4 tests, 2 failures
 	//      Ignored in `currents.json`.
 	//      Issues:
-	//          https://github.com/OpenEthereum/open-ethereum/issues/11078
-	//          https://github.com/OpenEthereum/open-ethereum/issues/11079
-	//          https://github.com/OpenEthereum/open-ethereum/issues/11080
+	//          https://github.com/openethereum/openethereum/issues/11078
+	//          https://github.com/openethereum/openethereum/issues/11079
+	//          https://github.com/openethereum/openethereum/issues/11080
 	declare_test!{GeneralStateTest_stRevertTest, "GeneralStateTests/stRevertTest/"}
 	declare_test!{GeneralStateTest_stSStoreTest, "GeneralStateTests/stSStoreTest/"}
 	declare_test!{GeneralStateTest_stShift, "GeneralStateTests/stShift/"}

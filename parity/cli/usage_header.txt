@@ -1,4 +1,4 @@
-Open Ethereum Client.
+OpenEthereum Client.
     By Wood/Paronyan/Kotewicz/Drwięga/Volf/Greeff
        Habermeier/Czaban/Gotchac/Redman/Nikolsky
        Schoedon/Tang/Adolfsson/Silva/Palm/Hirsz et al.

@@ -35,10 +35,10 @@ use ethereum_types::U256;
 use executive_state::ExecutiveState;
 use spec::{new_constantinople_test_machine, new_istanbul_test_machine};
 use state_db::StateDB;
-use tempdir::TempDir;
+use tempfile::Builder;
 
 fn build_state() -> State<StateDB> {
-	let db_path = TempDir::new("execution-bench").unwrap();
+	let db_path = Builder::new().prefix("execution-bench").tempdir().unwrap();
 	let db = new_temp_db(&db_path.path());
 	let journal_db = journaldb::new(db.key_value().clone(), journaldb::Algorithm::OverlayRecent, db::COL_STATE);
 	let state_db = StateDB::new(journal_db, 25 * 1024 * 1024);

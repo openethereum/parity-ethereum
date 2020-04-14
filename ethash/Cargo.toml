@@ -1,5 +1,5 @@
 [package]
-description = "Open Ethereum Ethash & ProgPoW Implementations"
+description = "OpenEthereum Ethash & ProgPoW Implementations"
 name = "ethash"
 version = "1.12.0"
 authors = ["Parity Technologies <admin@parity.io>"]
@@ -7,8 +7,8 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [dependencies]
 common-types = { path = "../ethcore/types" }
 either = "1.0.0"
-ethereum-types = "0.8.0"
-keccak-hash = "0.4.0"
+ethereum-types = "0.9.0"
+keccak-hash = "0.5.0"
 log = "0.4"
 memmap = "0.6"
 parking_lot = "0.10.0"
@@ -20,7 +20,7 @@ criterion = "0.3"
 hex-literal = "0.2.1"
 rustc-hex = "2.1.0"
 serde_json = "1.0"
-tempdir = "0.3"
+tempfile = "3.1"
 
 [features]
 default = []

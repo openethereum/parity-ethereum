@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Load chain specifications for all chains supported by the open-ethereum client.
+//! Load chain specifications for all chains supported by OpenEthereum.
 
 macro_rules! bundle_release_spec {
 	($($path: expr => $name: ident), *) => {
@@ -91,6 +91,7 @@ bundle_test_spec! {
 	"ethereum/byzantium_test" => new_byzantium_test,
 	"ethereum/constantinople_test" => new_constantinople_test,
 	"ethereum/istanbul_test" => new_istanbul_test,
+	"ethereum/berlin_test" => new_berlin_test,
 	"ethereum/eip150_test" => new_eip150_test,
 	"ethereum/eip161_test" => new_eip161_test,
 	"ethereum/eip210_test" => new_eip210_test,
@@ -117,6 +118,7 @@ bundle_test_machine! {
 	"ethereum/byzantium_test" => new_byzantium_test_machine,
 	"ethereum/constantinople_test" => new_constantinople_test_machine,
 	"ethereum/istanbul_test" => new_istanbul_test_machine,
+	"ethereum/berlin_test" => new_berlin_test_machine,
 	"ethereum/eip210_test" => new_eip210_test_machine,
 	"ethereum/frontier_test" => new_frontier_test_machine,
 	"ethereum/homestead_test" => new_homestead_test_machine,
@@ -129,14 +131,14 @@ mod tests {
 	use account_state::State;
 	use common_types::{view, views::BlockView};
 	use ethereum_types::U256;
-	use tempdir::TempDir;
+	use tempfile::TempDir;
 	use ethcore::test_helpers::get_temp_state_db;
 
 	use super::{new_ropsten, new_foundation};
 
 	#[test]
 	fn ensure_db_good() {
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 		let spec = new_ropsten(&tempdir.path());
 		let engine = &spec.engine;
 		let genesis_header = spec.genesis_header();
@@ -152,7 +154,7 @@ mod tests {
 
 	#[test]
 	fn ropsten() {
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 		let ropsten = new_ropsten(&tempdir.path());
 
 		assert_eq!(ropsten.state_root, "217b0bbcfb72e2d57e28f33cb361b9983513177755dc3f33ce3e7022ed62b77b".parse().unwrap());
@@ -162,7 +164,7 @@ mod tests {
 
 	#[test]
 	fn frontier() {
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 		let frontier = new_foundation(&tempdir.path());
 
 		assert_eq!(frontier.state_root, "d7f8974fb5ac78d9ac099b9ad5018bedc2ce0a72dad1827a1709da30580f0544".parse().unwrap());

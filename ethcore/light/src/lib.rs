@@ -98,5 +98,5 @@ extern crate ethcore;
 #[cfg(test)]
 extern crate kvdb_memorydb;
 #[cfg(test)]
-extern crate tempdir;
+extern crate tempfile;
 extern crate journaldb;

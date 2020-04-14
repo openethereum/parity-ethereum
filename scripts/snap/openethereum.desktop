@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Encoding=UTF-8
+Name=OpenEthereum
+Comment=Fast and feature-rich multi-network Ethereum client.
+Exec=openethereum
+Icon=/usr/share/pixmaps/icon.png
+Terminal=true

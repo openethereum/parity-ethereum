@@ -7,8 +7,8 @@ set -u # treat unset variables as error
 TRACK=$(cat ./tools/TRACK)
 echo "Track is: ${TRACK}"
 VERSION=$(cat ./tools/VERSION)
-SNAP_PACKAGE="parity_"$VERSION"_"$BUILD_ARCH".snap"
-# Choose snap release channel based on Open Ethereum version track
+SNAP_PACKAGE="openethereum_"$VERSION"_"$BUILD_ARCH".snap"
+# Choose snap release channel based on OpenEthereum version track
 case ${TRACK} in
   nightly) export GRADE="devel" CHANNEL="edge";;
   stable) export GRADE="stable" CHANNEL="stable";;
@@ -38,8 +38,8 @@ cat $SNAP_PACKAGE".sha256"
 echo "__________Releasing snap package__________"
 echo "Release channel :" $CHANNEL " Branch/tag: " $CI_COMMIT_REF_NAME
 
-echo $SNAPCRAFT_LOGIN_PARITY_BASE64 | base64 --decode > snapcraft.login
+echo $SNAPCRAFT_LOGIN_OPENETHEREUM_BASE64 | base64 --decode > snapcraft.login
 snapcraft login --with snapcraft.login
 snapcraft push --release $CHANNEL $SNAP_PACKAGE
-snapcraft status parity
+snapcraft status openethereum
 snapcraft logout

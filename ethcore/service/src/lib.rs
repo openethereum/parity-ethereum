@@ -35,7 +35,7 @@ extern crate trace_time;
 #[cfg(test)]
 extern crate ethcore_db;
 #[cfg(test)]
-extern crate tempdir;
+extern crate tempfile;
 
 mod service;
 

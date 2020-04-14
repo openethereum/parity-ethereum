@@ -600,7 +600,7 @@ mod tests {
 		io.peers_info.insert(2, "Parity-Ethereum/v2.6.0/linux/rustc".to_owned());
 		// and peer#3 is Parity, accepting service transactions
 		insert_dummy_peer(&mut sync, 3, block_hash);
-		io.peers_info.insert(3, "Open-Ethereum/ABCDEFGH/v2.7.3/linux/rustc".to_owned());
+		io.peers_info.insert(3, "OpenEthereum/ABCDEFGH/v2.7.3/linux/rustc".to_owned());
 
 		// and new service transaction is propagated to peers
 		SyncPropagator::propagate_new_transactions(&mut sync, &mut io, || true);
@@ -624,7 +624,7 @@ mod tests {
 
 		// when peer#1 is Parity, accepting service transactions
 		insert_dummy_peer(&mut sync, 1, block_hash);
-		io.peers_info.insert(1, "Open-Ethereum/v2.6.0/linux/rustc".to_owned());
+		io.peers_info.insert(1, "OpenEthereum/v2.6.0/linux/rustc".to_owned());
 
 		// and service + non-service transactions are propagated to peers
 		SyncPropagator::propagate_new_transactions(&mut sync, &mut io, || true);

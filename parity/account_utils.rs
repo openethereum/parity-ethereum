@@ -36,7 +36,7 @@ mod accounts {
 	}
 
 	pub fn prepare_account_provider(_spec: &SpecType, _dirs: &Directories, _data_dir: &str, _cfg: AccountsConfig, _passwords: &[Password]) -> Result<AccountProvider, String> {
-		warn!("Note: Your instance of Open Ethereum is running without account support. Some CLI options are ignored.");
+		warn!("Note: Your instance of OpenEthereum is running without account support. Some CLI options are ignored.");
 		Ok(AccountProvider)
 	}
 
@@ -48,11 +48,11 @@ mod accounts {
 		Ok(None)
 	}
 
-	pub fn private_tx_signer(_account_provider: Arc<AccountProvider>, _passwords: &[Password]) -> Result<Arc<::ethcore_private_tx::Signer>, String> {
+	pub fn private_tx_signer(_account_provider: Arc<AccountProvider>, _passwords: &[Password]) -> Result<Arc<dyn (::ethcore_private_tx::Signer)>, String> {
 		Ok(Arc::new(::ethcore_private_tx::DummySigner))
 	}
 
-	pub fn accounts_list(_account_provider: Arc<AccountProvider>) -> Arc<Fn() -> Vec<Address> + Send + Sync> {
+	pub fn accounts_list(_account_provider: Arc<AccountProvider>) -> Arc<dyn Fn() -> Vec<Address> + Send + Sync> {
 		Arc::new(|| vec![])
 	}
 }

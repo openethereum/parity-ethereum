@@ -28,12 +28,12 @@ use ethcore::test_helpers::new_temp_db;
 use ethereum_types::H256;
 use parking_lot::RwLock;
 use snapshot::test_helpers::to_fat_rlps;
-use tempdir::TempDir;
+use tempfile::TempDir;
 use ethtrie::TrieDB;
 use trie_db::Trie;
 
 fn fat_rlps(c: &mut Criterion) {
-	let tempdir = TempDir::new("").unwrap();
+	let tempdir = TempDir::new().unwrap();
 	let blockchain_db = new_temp_db(tempdir.path());
 
 	let mut state_rebuilder = snapshot::StateRebuilder::new(blockchain_db.key_value().clone(), journaldb::Algorithm::OverlayRecent);
