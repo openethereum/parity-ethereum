@@ -349,6 +349,8 @@ impl<'a> CallCreateExecutive<'a> {
 				| Err(vm::Error::MutableCallInStaticContext)
 				| Err(vm::Error::OutOfBounds)
 				| Err(vm::Error::Reverted)
+				| Err(vm::Error::SubStackUnderflow {..})
+				| Err(vm::Error::OutOfSubStack {..})
 				| Ok(FinalizationResult { apply_state: false, .. }) => {
 					state.revert_to_checkpoint();
 			},

@@ -117,15 +117,75 @@ impl Default for SharedCache {
 #[test]
 fn test_find_jump_destinations() {
 	// given
+
+	// 0000 7F   PUSH32 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+	// 0021 7F   PUSH32 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+	// 0042 5B   JUMPDEST
+	// 0043 01   ADD
+	// 0044 60   PUSH1 0x00
+	// 0046 55   SSTORE
 	let code = hex!("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff5b01600055");
 
 	// when
-	let valid_jump_destinations = SharedCache::find_jump_and_sub_destinations(&code).jump_destination.0;
+	let cache_item = SharedCache::find_jump_and_sub_destinations(&code);
 
 	// then
+	assert!(cache_item.jump_destination.0.iter().eq(vec![66].into_iter()));
+	assert!(cache_item.sub_entrypoint.0.is_empty());
+}
+
+#[test]
+fn test_find_jump_destinations_not_in_data_segments() {
+	// given
+
+	// 0000 60 06   PUSH1 06
+	// 0002 56      JUMP
+	// 0003 50 5B   PUSH1 0x5B	
+	// 0005 56      STOP
+	// 0006 5B      JUMPDEST
+	// 0007 60 04   PUSH1 04
+	// 0009 56      JUMP	
+	let code = hex!("600656605B565B6004");
+
+	// when
+	let cache_item = SharedCache::find_jump_and_sub_destinations(&code);
 
 	// then
+	assert!(cache_item.jump_destination.0.iter().eq(vec![6].into_iter()));
+	assert!(cache_item.sub_entrypoint.0.is_empty());
+}
+
+#[test]
+fn test_find_sub_entrypoints() {
+	// given
+
+	// see https://eips.ethereum.org/EIPS/eip-2315 for diassembly
+	let code = hex!("6800000000000000000cb300b26011b3b7b2b7");
+
+	// when
+	let cache_item = SharedCache::find_jump_and_sub_destinations(&code);
 
 	// then
-	assert!(valid_jump_destinations.contains(66));
+	assert!(cache_item.jump_destination.0.is_empty());
+	assert!(cache_item.sub_entrypoint.0.iter().eq(vec![12, 17].into_iter()));
+}
+
+#[test]
+fn test_find_jump_and_sub_allowing_unknown_opcodes() {
+	// precondition
+	assert!(Instruction::from_u8(0xcc) == None);
+
+	// given
+
+	// 0000 5B   JUMPDEST       
+	// 0001 CC   ???
+	// 0002 B2   BEGINSUB
+	let code = hex!("5BCCB2");
+
+	// when
+	let cache_item = SharedCache::find_jump_and_sub_destinations(&code);
+
+	// then
+	assert!(cache_item.jump_destination.0.iter().eq(vec![0].into_iter()));
+	assert!(cache_item.sub_entrypoint.0.iter().eq(vec![2].into_iter()));
 }

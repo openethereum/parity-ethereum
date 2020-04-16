@@ -62,6 +62,8 @@ const TWO_POW_96: U256 = U256([0, 0x100000000, 0, 0]); //0x1 00000000 00000000 0
 const TWO_POW_224: U256 = U256([0, 0, 0, 0x100000000]); //0x1 00000000 00000000 00000000 00000000 00000000 00000000 00000000
 const TWO_POW_248: U256 = U256([0, 0, 0, 0x100000000000000]); //0x1 00000000 00000000 00000000 00000000 00000000 00000000 00000000 000000
 
+pub const MAX_SUB_STACK_SIZE : usize = 1024;
+
 /// Abstraction over raw vector of Bytes. Easier state management of PC.
 struct CodeReader {
 	position: ProgramCounter,
@@ -95,6 +97,7 @@ enum InstructionResult<Gas> {
 	UnusedGas(Gas),
 	JumpToPosition(U256),
 	JumpToSubroutine(U256),
+	ReturnFromSubroutine(usize),
 	StopExecutionNeedsReturn {
 		/// Gas left.
 		gas: Gas,
@@ -180,6 +183,7 @@ pub struct Interpreter<Cost: CostType> {
 	do_trace: bool,
 	done: bool,
 	valid_jump_destinations: Option<Arc<BitSet>>,
+	valid_subroutine_destinations: Option<Arc<BitSet>>,
 	gasometer: Option<Gasometer<Cost>>,
 	stack: VecStack<U256>,
 	return_stack: Vec<usize>,
@@ -273,13 +277,14 @@ impl<Cost: CostType> Interpreter<Cost> {
 		let params = InterpreterParams::from(params);
 		let informant = informant::EvmInformant::new(depth);
 		let valid_jump_destinations = None;
+		let valid_subroutine_destinations = None;
 		let gasometer = Cost::from_u256(params.gas).ok().map(|gas| Gasometer::<Cost>::new(gas));
 		let stack = VecStack::with_capacity(schedule.stack_limit, U256::zero());
-		let return_stack = Vec::new();
+		let return_stack = Vec::with_capacity(MAX_SUB_STACK_SIZE);
 		Interpreter {
 			cache, params, reader, informant,
-			valid_jump_destinations, gasometer,
-			stack, return_stack,
+			valid_jump_destinations, valid_subroutine_destinations,
+			gasometer, stack, return_stack,
 			done: false,
 			// Overridden in `step_inner` based on
 			// the result of `ext.trace_next_instruction`.
@@ -406,7 +411,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 		match result {
 			InstructionResult::JumpToPosition(position) => {
 				if self.valid_jump_destinations.is_none() {
-					self.valid_jump_destinations = Some(self.cache.jump_destinations(&self.params.code_hash, &self.reader.code).0);
+					self.valid_jump_destinations = Some(self.cache.jump_and_sub_destinations(&self.params.code_hash, &self.reader.code).0);
 				}
 				let jump_destinations = self.valid_jump_destinations.as_ref().expect("jump_destinations are initialized on first jump; qed");
 				let pos = match self.verify_jump(position, jump_destinations) {
@@ -424,10 +429,10 @@ impl<Cost: CostType> Interpreter<Cost> {
 					Ok(x) => x,
 					Err(e) => return InterpreterResult::Done(Err(e))
 				};
-				self.return_stack.push(self.reader.position+1);
+				self.return_stack.push(self.reader.position);
 				self.reader.position = pos;
 			},	
-			InstructionResult::ReturnFromSubrountine(pos) => {
+			InstructionResult::ReturnFromSubroutine(pos) => {
 				self.reader.position = pos;
 			},
 			InstructionResult::StopExecutionNeedsReturn {gas, init_off, init_size, apply} => {
@@ -547,10 +552,10 @@ impl<Cost: CostType> Interpreter<Cost> {
 				// ignore
 			},
 			instructions::JUMPSUB => {
-				if self.return_stack.len() > 1023 {
+				if self.return_stack.len() >= MAX_SUB_STACK_SIZE {
 					return Err(vm::Error::OutOfSubStack {
 						wanted: 1,
-						limit: 1024,
+						limit: MAX_SUB_STACK_SIZE,
 					});
 				}
 				let sub_destination = self.stack.pop_back();
@@ -560,9 +565,9 @@ impl<Cost: CostType> Interpreter<Cost> {
 			},
 			instructions::RETURNSUB => {
 				if let Some(pos) = self.return_stack.pop() {
-					return Ok(InstructionResult::ReturnToSubroutnine(pos))
+					return Ok(InstructionResult::ReturnFromSubroutine(pos))
 				} else {
-					return Err(vm::Error::StackSubUnderflow {
+					return Err(vm::Error::SubStackUnderflow {
 						wanted: 1,
 						on_stack: 0,
 					});
@@ -1222,7 +1227,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 			Ok(jump)
 		} else {
 			Err(vm::Error::BadJumpDestination {
-				destination: jump
+				destination: jump_u
 			})
 		}
 	}

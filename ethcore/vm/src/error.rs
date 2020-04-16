@@ -17,7 +17,7 @@
 //! VM errors module
 
 use ::{ResumeCall, ResumeCreate};
-use ethereum_types::Address;
+use ethereum_types::{Address, U256};
 use action_params::ActionParams;
 use std::fmt;
 use ethtrie;
@@ -46,7 +46,7 @@ pub enum Error {
 	/// to position that wasn't marked with JUMPDEST instruction
 	BadJumpDestination {
 		/// Position the code tried to jump to.
-		destination: usize
+		destination: U256
 	},
 	/// `BadInstructions` is returned when given instruction is not supported
 	BadInstruction {
@@ -120,6 +120,8 @@ impl fmt::Display for Error {
 			BadInstruction { instruction } => write!(f, "Bad instruction {:x}",  instruction),
 			StackUnderflow { instruction, wanted, on_stack } => write!(f, "Stack underflow {} {}/{}", instruction, wanted, on_stack),
 			OutOfStack { instruction, wanted, limit } => write!(f, "Out of stack {} {}/{}", instruction, wanted, limit),
+			SubStackUnderflow { wanted, on_stack } => write!(f, "Subroutine stack underflow {}/{}", wanted, on_stack),
+			OutOfSubStack { wanted, limit } => write!(f, "Out of subroutine stack {}/{}", wanted, limit),
 			BuiltIn(name) => write!(f, "Built-in failed: {}", name),
 			Internal(ref msg) => write!(f, "Internal error: {}", msg),
 			MutableCallInStaticContext => write!(f, "Mutable call in static context"),
