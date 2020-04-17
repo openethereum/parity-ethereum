@@ -508,7 +508,7 @@ impl BlockCollection {
 	// update subchain headers
 	fn update_heads(&mut self) {
 		let mut new_heads = Vec::new();
-		let old_subchains: HashSet<_> = { self.heads.iter().cloned().collect() };
+		let old_subchains: HashSet<_> = self.heads.iter().cloned().collect();
 		for s in self.heads.drain(..) {
 			let mut h = s.clone();
 			if !self.blocks.contains_key(&h) {

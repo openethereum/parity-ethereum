@@ -258,7 +258,7 @@ where
 {
 	const GAS_PRICE_SAMPLE_SIZE: usize = 100;
 
-	if let Some(cached) = { cache.lock().gas_price_corpus() } {
+	if let Some(cached) = cache.lock().gas_price_corpus() {
 		return Box::new(future::ok(cached))
 	}
 
