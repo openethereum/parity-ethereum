@@ -62,6 +62,8 @@ const TWO_POW_96: U256 = U256([0, 0x100000000, 0, 0]); //0x1 00000000 00000000 0
 const TWO_POW_224: U256 = U256([0, 0, 0, 0x100000000]); //0x1 00000000 00000000 00000000 00000000 00000000 00000000 00000000
 const TWO_POW_248: U256 = U256([0, 0, 0, 0x100000000000000]); //0x1 00000000 00000000 00000000 00000000 00000000 00000000 00000000 000000
 
+/// Maximal subroutine stack size as specified in
+/// https://eips.ethereum.org/EIPS/eip-2315.
 pub const MAX_SUB_STACK_SIZE : usize = 1024;
 
 /// Abstraction over raw vector of Bytes. Easier state management of PC.
