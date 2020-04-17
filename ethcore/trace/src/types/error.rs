@@ -94,7 +94,7 @@ impl fmt::Display for Error {
 			MutableCallInStaticContext => "Mutable Call In Static Context",
 			OutOfBounds => "Out of bounds",
 			Reverted => "Reverted",
-			SubStackUnderflow => "SubStack underflow",
+			SubStackUnderflow => "Subroutine stack underflow",
 			OutOfSubStack => "Out of SubStack",
 		};
 		message.fmt(f)
