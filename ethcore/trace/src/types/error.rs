@@ -95,7 +95,7 @@ impl fmt::Display for Error {
 			OutOfBounds => "Out of bounds",
 			Reverted => "Reverted",
 			SubStackUnderflow => "Subroutine stack underflow",
-			OutOfSubStack => "Out of SubStack",
+			OutOfSubStack => "Subroutine stack overflow",
 		};
 		message.fmt(f)
 	}
