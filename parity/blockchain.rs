@@ -495,7 +495,7 @@ fn start_client(
 		pruning_memory,
 		true,
 		max_round_blocks_to_import,
-		None // todo[dvdplm]
+		None
 	);
 
 	let restoration_db_handler = db::restoration_db_handler(&client_path, &client_config);
