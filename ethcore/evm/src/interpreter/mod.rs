@@ -459,15 +459,17 @@ impl<Cost: CostType> Interpreter<Cost> {
 	fn verify_instruction(&self, ext: &dyn vm::Ext, instruction: Instruction, info: &InstructionInfo) -> vm::Result<()> {
 		let schedule = ext.schedule();
 
-		if (instruction == instructions::DELEGATECALL && !schedule.have_delegate_call) ||
-			(instruction == instructions::CREATE2 && !schedule.have_create2) ||
-			(instruction == instructions::STATICCALL && !schedule.have_static_call) ||
-			((instruction == instructions::RETURNDATACOPY || instruction == instructions::RETURNDATASIZE) && !schedule.have_return_data) ||
-			(instruction == instructions::REVERT && !schedule.have_revert) ||
-			((instruction == instructions::SHL || instruction == instructions::SHR || instruction == instructions::SAR) && !schedule.have_bitwise_shifting) ||
-			(instruction == instructions::EXTCODEHASH && !schedule.have_extcodehash) ||
-			(instruction == instructions::CHAINID && !schedule.have_chain_id) ||
-			(instruction == instructions::SELFBALANCE && !schedule.have_selfbalance)
+		use instructions::*;
+		if (instruction == DELEGATECALL && !schedule.have_delegate_call) ||
+			(instruction == CREATE2 && !schedule.have_create2) ||
+			(instruction == STATICCALL && !schedule.have_static_call) ||
+			((instruction == RETURNDATACOPY || instruction == RETURNDATASIZE) && !schedule.have_return_data) ||
+			(instruction == REVERT && !schedule.have_revert) ||
+			((instruction == SHL || instruction == SHR || instruction == SAR) && !schedule.have_bitwise_shifting) ||
+			(instruction == EXTCODEHASH && !schedule.have_extcodehash) ||
+			(instruction == CHAINID && !schedule.have_chain_id) ||
+			(instruction == SELFBALANCE && !schedule.have_selfbalance) ||
+			((instruction == BEGINSUB || instruction == JUMPSUB || instruction == RETURNSUB) && !schedule.have_subs)
 		{
 			return Err(vm::Error::BadInstruction {
 				instruction: instruction as u8

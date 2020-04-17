@@ -43,7 +43,8 @@
 		"eip1706Transition": "0x0",
 		"eip1884Transition": "0x0",
 		"eip2028Transition": "0x0",
-		"eip2046Transition": "0x0"
+		"eip2046Transition": "0x0",
+		"eip2315Transition": "0x0"
 	},
 	"genesis": {
 		"seal": {
