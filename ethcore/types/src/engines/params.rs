@@ -176,7 +176,7 @@ impl CommonParams {
 		schedule.have_bitwise_shifting = block_number >= self.eip145_transition;
 		schedule.have_extcodehash = block_number >= self.eip1052_transition;
 		schedule.have_chain_id = block_number >= self.eip1344_transition;
-		schedule.have_subs = block_number >=  self.eip2315_transition;
+		schedule.have_subs = block_number >= self.eip2315_transition;
 		schedule.eip1283 =
 			(block_number >= self.eip1283_transition &&
 			 !(block_number >= self.eip1283_disable_transition)) ||
