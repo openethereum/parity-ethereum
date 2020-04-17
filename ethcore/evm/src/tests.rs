@@ -793,9 +793,9 @@ fn test_subs_simple(factory: super::Factory) {
 	let code = hex!("6004b300b2b7").to_vec();
 
 	let mut params = ActionParams::default();
-	params.gas = U256::from(12);
+	params.gas = U256::from(13);
 	params.code = Some(Arc::new(code));
-	let mut ext = FakeExt::new();
+	let mut ext = FakeExt::new_berlin();
 
 	let gas_left = {
 		let vm = factory.create(params, ext.schedule(), ext.depth());
@@ -811,9 +811,9 @@ fn test_subs_two_levels(factory: super::Factory) {
 	let code = hex!("6800000000000000000cb300b26011b3b7b2b7").to_vec();
 
 	let mut params = ActionParams::default();
-	params.gas = U256::from(24);
+	params.gas = U256::from(26);
 	params.code = Some(Arc::new(code));
-	let mut ext = FakeExt::new();
+	let mut ext = FakeExt::new_berlin();
 
 	let gas_left = {
 		let vm = factory.create(params, ext.schedule(), ext.depth());
@@ -831,7 +831,7 @@ fn test_subs_invalid_jump(factory: super::Factory) {
 	let mut params = ActionParams::default();
 	params.gas = U256::from(24);
 	params.code = Some(Arc::new(code));
-	let mut ext = FakeExt::new();
+	let mut ext = FakeExt::new_berlin();
 
 	let current = {
 		let vm = factory.create(params, ext.schedule(), ext.depth());
@@ -850,7 +850,7 @@ fn test_subs_shallow_return_stack(factory: super::Factory) {
 	let mut params = ActionParams::default();
 	params.gas = U256::from(24);
 	params.code = Some(Arc::new(code));
-	let mut ext = FakeExt::new();
+	let mut ext = FakeExt::new_berlin();
 
 	let current = {
 		let vm = factory.create(params, ext.schedule(), ext.depth());
@@ -869,14 +869,14 @@ fn test_subs_substack_limit(factory: super::Factory) {
 	let mut params = ActionParams::default();
 	params.gas = U256::from(1_000_000);
 	params.code = Some(Arc::new(code));
-	let mut ext = FakeExt::new();
+	let mut ext = FakeExt::new_berlin();
 
 	let gas_left = {
 		let vm = factory.create(params, ext.schedule(), ext.depth());
 		test_finalize(vm.exec(&mut ext).ok().unwrap()).unwrap()
 	};
 
-	assert_eq!(gas_left, U256::from(964_138));
+	assert_eq!(gas_left, U256::from(963_115));
 }
 
 evm_test!{test_subs_substack_out: test_subs_substack_out_int}
@@ -887,7 +887,7 @@ fn test_subs_substack_out(factory: super::Factory) {
 	let mut params = ActionParams::default();
 	params.gas = U256::from(1_000_000);
 	params.code = Some(Arc::new(code));
-	let mut ext = FakeExt::new();
+	let mut ext = FakeExt::new_berlin();
 
 	let current = {
 		let vm = factory.create(params, ext.schedule(), ext.depth());
@@ -903,9 +903,9 @@ fn test_subs_sub_at_end(factory: super::Factory) {
 	let code = hex!("600556b2b75b6003b3").to_vec();
 
 	let mut params = ActionParams::default();
-	params.gas = U256::from(24);
+	params.gas = U256::from(25);
 	params.code = Some(Arc::new(code));
-	let mut ext = FakeExt::new();
+	let mut ext = FakeExt::new_berlin();
 
 	let gas_left = {
 		let vm = factory.create(params, ext.schedule(), ext.depth());
