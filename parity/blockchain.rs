@@ -358,6 +358,7 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
 		cmd.pruning_memory,
 		cmd.check_seal,
 		12,
+		None,
 	);
 
 	client_config.queue.verifier_settings = cmd.verifier_settings;
@@ -494,6 +495,7 @@ fn start_client(
 		pruning_memory,
 		true,
 		max_round_blocks_to_import,
+		None // todo[dvdplm]
 	);
 
 	let restoration_db_handler = db::restoration_db_handler(&client_path, &client_config);

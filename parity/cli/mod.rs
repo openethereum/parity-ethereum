@@ -318,6 +318,10 @@ usage! {
 			"--db-path=[PATH]",
 			"Specify the database directory path",
 
+			ARG arg_sync_until: (Option<u64>) = None, or |c: &Config| c.parity.as_ref()?.sync_until.clone(),
+			"--sync-until=[NUM]",
+			"Stop syncing and enter offline mode  when the given block has been imported.",
+
 		["Convenience Options"]
 			FLAG flag_unsafe_expose: (bool) = false, or |c: &Config| c.misc.as_ref()?.unsafe_expose,
 			"--unsafe-expose",
@@ -1171,6 +1175,7 @@ struct Operating {
 	light: Option<bool>,
 	no_persistent_txqueue: Option<bool>,
 	no_hardcoded_sync: Option<bool>,
+	sync_until: Option<u64>,
 
 	#[serde(rename = "public_node")]
 	_legacy_public_node: Option<bool>,
@@ -1734,6 +1739,7 @@ mod tests {
 			flag_no_hardcoded_sync: false,
 			flag_no_persistent_txqueue: false,
 			flag_force_direct: false,
+			arg_sync_until: None,
 
 			// -- Convenience Options
 			arg_config: "$BASE/config.toml".into(),
@@ -2014,6 +2020,7 @@ mod tests {
 				light: None,
 				no_hardcoded_sync: None,
 				no_persistent_txqueue: None,
+				sync_until: None,
 				_legacy_public_node: None,
 			}),
 			account: Some(Account {
