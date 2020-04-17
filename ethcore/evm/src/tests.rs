@@ -863,6 +863,18 @@ fn test_subs_shallow_return_stack(factory: super::Factory) {
 
 evm_test!{test_subs_substack_limit: test_subs_substack_limit_int}
 fn test_subs_substack_limit(factory: super::Factory) {
+
+	//    PUSH <recursion_limit>
+	// :s BEGINSUB
+	//    DUP1
+	//    JUMPI :c
+	//    STOP
+	// :c JUMPDEST
+	//    PUSH1 1
+	//    SWAP
+	//    SUB
+	//    JUMPSUB :s
+
 	let mut code = hex!("610400b280600957005b600190036003b3").to_vec();
 	code[1..3].copy_from_slice(&(MAX_SUB_STACK_SIZE as u16).to_be_bytes()[..]);
 
