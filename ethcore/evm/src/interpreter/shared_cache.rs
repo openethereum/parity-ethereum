@@ -159,7 +159,7 @@ fn test_find_jump_destinations_not_in_data_segments() {
 fn test_find_sub_entrypoints() {
 	// given
 
-	// see https://eips.ethereum.org/EIPS/eip-2315 for diassembly
+	// see https://eips.ethereum.org/EIPS/eip-2315 for disassembly
 	let code = hex!("6800000000000000000cb300b26011b3b7b2b7");
 
 	// when
