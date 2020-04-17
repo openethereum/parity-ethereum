@@ -2020,7 +2020,7 @@ mod tests {
 				light: None,
 				no_hardcoded_sync: None,
 				no_persistent_txqueue: None,
-				sync_until: None,
+				sync_until: Some(123),
 				_legacy_public_node: None,
 			}),
 			account: Some(Account {
