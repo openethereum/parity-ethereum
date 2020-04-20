@@ -314,7 +314,7 @@ impl Importer {
 				match self.check_and_lock_block(block, client) {
 					Ok((locked_block, pending)) => {
 						if let Some(sync_until_block_nr) = client.config.sync_until {
-							if block.header.number() > sync_until_block_nr {
+							if locked_block.header.number() > sync_until_block_nr {
 								info!("Sync target reached at block: #{}. Going offline.", sync_until_block_nr);
 								client.disable();
 								break;
