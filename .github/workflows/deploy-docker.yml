@@ -3,7 +3,7 @@ name:                           Docker Image Release
 on:
   push:
     branches:
-      - stable
+      - master
     tags:
       - v*
 
