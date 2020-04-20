@@ -1230,8 +1230,9 @@ impl<Cost: CostType> Interpreter<Cost> {
 		if valid_jump_destinations.contains(jump) && U256::from(jump) == jump_u {
 			Ok(jump)
 		} else {
+			// Note: if jump > usize, BadJumpDestination value is trimmed
 			Err(vm::Error::BadJumpDestination {
-				destination: jump_u
+				destination: jump
 			})
 		}
 	}

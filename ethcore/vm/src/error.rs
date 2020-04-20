@@ -17,7 +17,7 @@
 //! VM errors module
 
 use ::{ResumeCall, ResumeCreate};
-use ethereum_types::{Address, U256};
+use ethereum_types::Address;
 use action_params::ActionParams;
 use std::fmt;
 use ethtrie;
@@ -46,7 +46,7 @@ pub enum Error {
 	/// to position that wasn't marked with JUMPDEST instruction
 	BadJumpDestination {
 		/// Position the code tried to jump to.
-		destination: U256
+		destination: usize
 	},
 	/// `BadInstructions` is returned when given instruction is not supported
 	BadInstruction {
@@ -116,7 +116,7 @@ impl fmt::Display for Error {
 		use self::Error::*;
 		match *self {
 			OutOfGas => write!(f, "Out of gas"),
-			BadJumpDestination { destination } => write!(f, "Bad jump destination {:x}", destination),
+			BadJumpDestination { destination } => write!(f, "Bad jump destination {:x} (trimmed to usize)", destination),
 			BadInstruction { instruction } => write!(f, "Bad instruction {:x}",  instruction),
 			StackUnderflow { instruction, wanted, on_stack } => write!(f, "Stack underflow {} {}/{}", instruction, wanted, on_stack),
 			OutOfStack { instruction, wanted, limit } => write!(f, "Out of stack {} {}/{}", instruction, wanted, limit),

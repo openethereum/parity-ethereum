@@ -838,7 +838,7 @@ fn test_subs_invalid_jump(factory: super::Factory) {
 		test_finalize(vm.exec(&mut ext).ok().unwrap())
 	};
 
-	let expected = Result::Err(vm::Error::BadJumpDestination{ destination: U256::from_dec_str("18446744073709551628").unwrap() });
+	let expected = Result::Err(vm::Error::BadJumpDestination{ destination: 0xc });
 	assert_eq!(current, expected);
 }
 
