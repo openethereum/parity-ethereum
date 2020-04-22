@@ -455,9 +455,8 @@ impl<C> Service<C> where C: SnapshotClient + ChainInfo {
 
 			// Writing changes to DB and logging every now and then
 			if block_number % 1_000 == 0 {
-				next_db.key_value().write_buffered(batch);
+				next_db.key_value().write(batch)?;
 				next_chain.commit();
-				next_db.key_value().flush().expect("DB flush failed.");
 				batch = DBTransaction::new();
 
 				if block_number % 10_000 == 0 {
@@ -467,9 +466,8 @@ impl<C> Service<C> where C: SnapshotClient + ChainInfo {
 		}
 
 		// Final commit to the DB
-		next_db.key_value().write_buffered(batch);
+		next_db.key_value().write(batch)?;
 		next_chain.commit();
-		next_db.key_value().flush().expect("DB flush failed.");
 
 		// Update best ancient block in the Next Chain
 		next_chain.update_best_ancient_block(&start_hash);
@@ -753,7 +751,8 @@ impl<C> Service<C> where C: SnapshotClient + ChainInfo {
 
 	/// Feed a chunk with the Restoration
 	fn feed_chunk_with_restoration(&self, restoration: &mut Option<Restoration>, hash: H256, chunk: &[u8], is_state: bool) -> Result<(), Error> {
-		let (result, db) = {
+		// todo[dvdplm] can re-work this to avoid the db clone (if it's indeed correct)
+		let result = {
 			match self.status() {
 				RestorationStatus::Inactive | RestorationStatus::Failed | RestorationStatus::Finalizing => {
 					trace!(target: "snapshot", "Tried to restore chunk {:x} while inactive, failed or finalizing", hash);
@@ -781,7 +780,6 @@ impl<C> Service<C> where C: SnapshotClient + ChainInfo {
 
 							match is_done {
 								true => {
-									db.key_value().flush()?;
 									drop(db);
 									return self.finalize_restoration(&mut *restoration);
 								},
@@ -790,13 +788,12 @@ impl<C> Service<C> where C: SnapshotClient + ChainInfo {
 						}
 						Err(e) => Err(e)
 					};
-					(res, db)
+					res
 				}
 			}
 		};
 
 		result?;
-		db.key_value().flush()?;
 		Ok(())
 	}
 

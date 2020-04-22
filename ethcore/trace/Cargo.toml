@@ -14,7 +14,7 @@ evm = { path = "../evm" }
 kvdb = "0.5.0"
 log = "0.4"
 parity-bytes = "0.1.0"
-parity-util-mem = "0.6.0"
+parity-util-mem = "0.6.1"
 parking_lot = "0.10.0"
 rlp = "0.4.5"
 rlp-derive = "0.1"

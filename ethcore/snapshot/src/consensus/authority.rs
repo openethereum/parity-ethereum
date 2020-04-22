@@ -317,7 +317,7 @@ impl Rebuilder for ChunkRebuilder {
 			let mut batch = self.db.transaction();
 			self.chain.insert_epoch_transition(&mut batch, verified.header.number(),
 				verified.epoch_transition);
-			self.db.write_buffered(batch);
+			self.db.write(batch)?;
 
 			trace!(target: "snapshot", "Verified epoch transition for epoch at block {}", verified.header.number());
 		}
@@ -346,7 +346,7 @@ impl Rebuilder for ChunkRebuilder {
 
 			let mut batch = self.db.transaction();
 			self.chain.insert_unordered_block(&mut batch, encoded::Block::new(block_data), receipts, Some(parent_td), true, false);
-			self.db.write_buffered(batch);
+			self.db.write(batch)?;
 
 			self.warp_target = Some(block.header);
 		}

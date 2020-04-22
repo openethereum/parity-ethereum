@@ -61,7 +61,7 @@ parity-rpc = { path = "rpc" }
 parity-runtime = "0.1.1"
 parity-secretstore = { git = "https://github.com/paritytech/secret-store", branch = "v1.x", optional = true }
 parity-updater = { path = "updater" }
-parity-util-mem = { version = "0.6.0", features = ["jemalloc-global"] }
+parity-util-mem = { version = "0.6.1", features = ["jemalloc-global"] }
 parity-version = { path = "util/version" }
 parking_lot = "0.10.0"
 regex = "1.0"
@@ -131,3 +131,19 @@ members = [
 	"ethcore/wasm/run",
 	"evmbin",
 ]
+
+[patch.crates-io]
+kvdb-rocksdb = { git = "https://github.com/paritytech/parity-common", branch = "ao-upgrade-rocksdb" }
+kvdb = { git = "https://github.com/paritytech/parity-common", branch = "ao-upgrade-rocksdb" }
+kvdb-memorydb = { git = "https://github.com/paritytech/parity-common", branch = "ao-upgrade-rocksdb" }
+parity-util-mem = { git = "https://github.com/paritytech/parity-common", branch = "ao-upgrade-rocksdb" }
+parity-util-mem-derive = { git = "https://github.com/paritytech/parity-common", branch = "ao-upgrade-rocksdb" }
+ethereum-types = { git = "https://github.com/paritytech/parity-common", branch = "ao-upgrade-rocksdb" }
+primitive-types = { git = "https://github.com/paritytech/parity-common", branch = "ao-upgrade-rocksdb" }
+rlp = { git = "https://github.com/paritytech/parity-common", branch = "ao-upgrade-rocksdb" }
+uint = { git = "https://github.com/paritytech/parity-common", branch = "ao-upgrade-rocksdb" }
+ethbloom = { git = "https://github.com/paritytech/parity-common", branch = "ao-upgrade-rocksdb" }
+
+# kvdb-rocksdb = { path = "../parity-common/kvdb-rocksdb" }
+# kvdb = { path = "../parity-common/kvdb" }
+# kvdb-memorydb = { path = "../parity-common/kvdb-memorydb" }

@@ -191,7 +191,6 @@ impl Migration for VacuumAccountsBloom {
 		batch.delete(COL_ACCOUNT_BLOOM, ACCOUNT_BLOOM_HASHCOUNT_KEY);
 		let deletions = batch.ops.len();
 		db.write(batch)?;
-		db.flush()?;
 		info!(target: "migration", "Deleted {} account existence bloom items from the DB", deletions);
 		Ok(())
 	}
