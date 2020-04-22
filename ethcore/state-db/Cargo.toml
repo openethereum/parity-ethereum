@@ -8,12 +8,9 @@ edition = "2018"
 
 [dependencies]
 account-state = { path = "../account-state" }
-bloom_journal = { package = "accounts-bloom", path = "../../util/bloom" }
 common-types = { path = "../types"}
-ethcore-db = { path = "../db" }
 ethereum-types = "0.9.0"
 hash-db = "0.15.0"
-keccak-hash = "0.5.0"
 keccak-hasher = { path = "../../util/keccak-hasher" }
 journaldb = { path = "../../util/journaldb" }
 kvdb = "0.5.0"

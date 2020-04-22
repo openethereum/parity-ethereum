@@ -12,9 +12,7 @@ harness = false
 
 [dependencies]
 account-db = { path = "../account-db" }
-account-state = { path = "../account-state" }
 blockchain = { package = "ethcore-blockchain", path = "../blockchain" }
-bloom-journal = { package = "accounts-bloom", path = "../../util/bloom" }
 bytes = { package = "parity-bytes", version = "0.1.0" }
 client-traits = { path = "../client-traits" }
 common-types = { path = "../types" }
@@ -39,7 +37,6 @@ rlp = "0.4.5"
 rlp-derive = "0.1"
 scopeguard = "1.1.0"
 snappy = { package = "parity-snappy", version ="0.1.0" }
-state-db = { path = "../state-db" }
 trie-db = "0.20.0"
 triehash = { package = "triehash-ethereum", version = "0.2",  path = "../../util/triehash-ethereum" }
 

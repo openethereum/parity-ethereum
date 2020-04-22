@@ -41,13 +41,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "accounts-bloom"
-version = "0.1.0"
-dependencies = [
- "siphasher",
-]
-
-[[package]]
 name = "aes"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4559,12 +4552,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7fdf1b9db47230893d76faad238fd6097fd6d6a9245cd7a4d90dbd639536bbd2"
 
 [[package]]
-name = "siphasher"
-version = "0.3.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8e88f89a550c01e4cd809f3df4f52dc9e939f3273a2017eabd5c6d12fd98bb23"
-
-[[package]]
 name = "slab"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4590,8 +4577,6 @@ name = "snapshot"
 version = "0.1.0"
 dependencies = [
  "account-db",
- "account-state",
- "accounts-bloom",
  "client-traits",
  "common-types",
  "criterion",
@@ -4629,7 +4614,6 @@ dependencies = [
  "scopeguard 1.1.0",
  "snapshot-tests",
  "spec",
- "state-db",
  "tempfile",
  "trie-db",
  "trie-standardmap",
@@ -4747,15 +4731,12 @@ name = "state-db"
 version = "0.1.0"
 dependencies = [
  "account-state",
- "accounts-bloom",
  "common-types",
  "env_logger 0.5.13",
  "ethcore",
- "ethcore-db",
  "ethereum-types",
  "hash-db",
  "journaldb",
- "keccak-hash",
  "keccak-hasher 0.1.1",
  "kvdb",
  "log",

@@ -22,32 +22,16 @@ use std::sync::Arc;
 
 use ethereum_types::{Address, H256};
 use hash_db::HashDB;
-use keccak_hash::keccak;
-use kvdb::{DBTransaction, DBValue, KeyValueDB};
+use kvdb::{DBTransaction, DBValue};
 use log::trace;
 use lru_cache::LruCache;
 use parking_lot::Mutex;
 
 use account_state::{self, Account};
-use bloom_journal::{Bloom, BloomJournal};
 use common_types::BlockNumber;
-use ethcore_db::COL_ACCOUNT_BLOOM;
 use journaldb::JournalDB;
 use keccak_hasher::KeccakHasher;
 use memory_cache::MemoryLruCache;
-
-/// Value used to initialize bloom bitmap size.
-///
-/// Bitmap size is the size in bytes (not bits) that will be allocated in memory.
-pub const ACCOUNT_BLOOM_SPACE: usize = 1048576;
-
-/// Value used to initialize bloom items count.
-///
-/// Items count is an estimation of the maximum number of items to store.
-pub const DEFAULT_ACCOUNT_PRESET: usize = 1000000;
-
-/// Key for a value storing amount of hashes
-pub const ACCOUNT_BLOOM_HASHCOUNT_KEY: &'static [u8] = b"account_hash_count";
 
 const STATE_CACHE_BLOCKS: usize = 12;
 
@@ -114,8 +98,6 @@ pub struct StateDB {
 	code_cache: Arc<Mutex<MemoryLruCache<H256, Arc<Vec<u8>>>>>,
 	/// Local dirty cache.
 	local_cache: Vec<CacheQueueItem>,
-	/// Shared account bloom. Does not handle chain reorganizations.
-	account_bloom: Arc<Mutex<Bloom>>,
 	cache_size: usize,
 	/// Hash of the block on top of which this instance was created or
 	/// `None` if cache is disabled
@@ -138,7 +120,6 @@ impl StateDB {
 	// TODO: make the cache size actually accurate by moving the account storage cache
 	// into the `AccountCache` structure as its own `LruCache<(Address, H256), H256>`.
 	pub fn new(db: Box<dyn JournalDB>, cache_size: usize) -> StateDB {
-		let bloom = Self::load_bloom(&**db.backing());
 		let acc_cache_size = cache_size * ACCOUNT_CACHE_RATIO / 100;
 		let code_cache_size = cache_size - acc_cache_size;
 		let cache_items = acc_cache_size / ::std::mem::size_of::<Option<Account>>();
@@ -151,7 +132,6 @@ impl StateDB {
 			})),
 			code_cache: Arc::new(Mutex::new(MemoryLruCache::new(code_cache_size))),
 			local_cache: Vec::new(),
-			account_bloom: Arc::new(Mutex::new(bloom)),
 			cache_size,
 			parent_hash: None,
 			commit_hash: None,
@@ -159,57 +139,8 @@ impl StateDB {
 		}
 	}
 
-	/// Loads accounts bloom from the database
-	/// This bloom is used to handle request for the non-existent account fast
-	pub fn load_bloom(db: &dyn KeyValueDB) -> Bloom {
-		let hash_count_entry = db.get(COL_ACCOUNT_BLOOM, ACCOUNT_BLOOM_HASHCOUNT_KEY)
-			.expect("Low-level database error");
-
-		let hash_count_bytes = match hash_count_entry {
-			Some(bytes) => bytes,
-			None => return Bloom::new(ACCOUNT_BLOOM_SPACE, DEFAULT_ACCOUNT_PRESET),
-		};
-
-		assert_eq!(hash_count_bytes.len(), 1);
-		let hash_count = hash_count_bytes[0];
-
-		let mut bloom_parts = vec![0u64; ACCOUNT_BLOOM_SPACE / 8];
-		for i in 0..ACCOUNT_BLOOM_SPACE / 8 {
-			let key: [u8; 8] = (i as u64).to_le_bytes();
-			bloom_parts[i] = db.get(COL_ACCOUNT_BLOOM, &key).expect("low-level database error")
-				.map(|val| {
-					assert_eq!(val.len(), 8, "low-level database error");
-					let mut buff = [0u8; 8];
-					buff.copy_from_slice(&*val);
-					u64::from_le_bytes(buff)
-				})
-				.unwrap_or(0u64);
-		}
-
-		let bloom = Bloom::from_parts(&bloom_parts, hash_count as u32);
-		trace!(target: "account_bloom", "Bloom is {:?} full, hash functions count = {:?}", bloom.saturation(), hash_count);
-		bloom
-	}
-
-	/// Commit blooms journal to the database transaction
-	pub fn commit_bloom(batch: &mut DBTransaction, journal: BloomJournal) -> io::Result<()> {
-		assert!(journal.hash_functions <= 255);
-		batch.put(COL_ACCOUNT_BLOOM, ACCOUNT_BLOOM_HASHCOUNT_KEY, &[journal.hash_functions as u8]);
-
-		for (bloom_part_index, bloom_part_value) in journal.entries {
-			let key: [u8; 8] = (bloom_part_index as u64).to_le_bytes();
-			let val: [u8; 8] = bloom_part_value.to_le_bytes();
-			batch.put(COL_ACCOUNT_BLOOM, &key, &val);
-		}
-		Ok(())
-	}
-
 	/// Journal all recent operations under the given era and ID.
 	pub fn journal_under(&mut self, batch: &mut DBTransaction, now: u64, id: &H256) -> io::Result<u32> {
-		{
-			let mut bloom_lock = self.account_bloom.lock();
-			Self::commit_bloom(batch, bloom_lock.drain_journal())?;
-		}
 		let records = self.db.journal_under(batch, now, id)?;
 		self.commit_hash = Some(id.clone());
 		self.commit_number = Some(now);
@@ -336,7 +267,6 @@ impl StateDB {
 			account_cache: self.account_cache.clone(),
 			code_cache: self.code_cache.clone(),
 			local_cache: Vec::new(),
-			account_bloom: self.account_bloom.clone(),
 			cache_size: self.cache_size,
 			parent_hash: None,
 			commit_hash: None,
@@ -351,7 +281,6 @@ impl StateDB {
 			account_cache: self.account_cache.clone(),
 			code_cache: self.code_cache.clone(),
 			local_cache: Vec::new(),
-			account_bloom: self.account_bloom.clone(),
 			cache_size: self.cache_size,
 			parent_hash: Some(parent.clone()),
 			commit_hash: None,
@@ -460,19 +389,6 @@ impl account_state::Backend for StateDB {
 		let mut cache = self.code_cache.lock();
 
 		cache.get_mut(hash).map(|code| code.clone())
-	}
-
-	fn note_non_null_account(&self, address: &Address) {
-		trace!(target: "account_bloom", "Note account bloom: {:?}", address);
-		let mut bloom = self.account_bloom.lock();
-		bloom.set(keccak(address).as_bytes());
-	}
-
-	fn is_known_null(&self, address: &Address) -> bool {
-		trace!(target: "account_bloom", "Check account bloom: {:?}", address);
-		let bloom = self.account_bloom.lock();
-		let is_null = !bloom.check(keccak(address).as_bytes());
-		is_null
 	}
 }
 

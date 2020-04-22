@@ -18,9 +18,10 @@ use std::fs;
 use std::io::{Read, Write, Error as IoError, ErrorKind};
 use std::path::{Path, PathBuf};
 use std::fmt::{Display, Formatter, Error as FmtError};
-use super::migration_rocksdb::{Manager as MigrationManager, Config as MigrationConfig, ChangeColumns};
+use super::migration_rocksdb::{Manager as MigrationManager, Config as MigrationConfig, ChangeColumns, VacuumAccountsBloom};
 use super::kvdb_rocksdb::{CompactionProfile, DatabaseConfig};
 use ethcore::client::DatabaseCompactionProfile;
+use ethcore_db::NUM_COLUMNS;
 use types::errors::EthcoreError;
 
 use super::helpers;
@@ -50,11 +51,20 @@ pub const TO_V14: ChangeColumns = ChangeColumns {
 	version: 14,
 };
 
+/// The migration from v14 to v15.
+/// Removes all entries from the COL_ACCOUNTS_BLOOM column
+/// NOTE: column 5 is still there, but has no data.
+pub const TO_V15: VacuumAccountsBloom = VacuumAccountsBloom {
+	column_to_vacuum: 5,
+	columns: NUM_COLUMNS,
+	version: 15,
+};
+
 /// Database is assumed to be at default version, when no version file is found.
 const DEFAULT_VERSION: u32 = 5;
 /// Current version of database models.
-const CURRENT_VERSION: u32 = 14;
-/// A version of database at which blooms-db was introduced
+const CURRENT_VERSION: u32 = 15;
+/// A version of database at which blooms-db was introduced for header and trace blooms.
 const BLOOMS_DB_VERSION: u32 = 13;
 /// Defines how many items are migrated to the new version of database at once.
 const BATCH_SIZE: usize = 1024;
@@ -156,6 +166,7 @@ fn consolidated_database_migrations(compaction_profile: &CompactionProfile) -> R
 	manager.add_migration(TO_V11).map_err(|_| Error::MigrationImpossible)?;
 	manager.add_migration(TO_V12).map_err(|_| Error::MigrationImpossible)?;
 	manager.add_migration(TO_V14).map_err(|_| Error::MigrationImpossible)?;
+	manager.add_migration(TO_V15).map_err(|_| Error::MigrationImpossible)?;
 	Ok(manager)
 }
 
