@@ -19,7 +19,7 @@
 use std::{cmp, convert::TryFrom, sync::Arc};
 
 use crossbeam_utils::thread;
-use ethereum_types::{H256, U256, U512, Address};
+use ethereum_types::{H160, H256, U256, U512, Address};
 use keccak_hash::keccak;
 use parity_bytes::{Bytes, BytesRef};
 use rlp::RlpStream;
@@ -61,6 +61,15 @@ const STACK_SIZE_ENTRY_OVERHEAD: usize = 100 * 1024;
 #[cfg(not(debug_assertions))]
 /// Entry stack overhead prior to execution.
 const STACK_SIZE_ENTRY_OVERHEAD: usize = 20 * 1024;
+
+#[cfg(feature = "test-helpers")]
+/// RIPEMD160 was removed in mainnet block #2686351. See security Security alert [11/24/2016].
+/// This is only applies in tests, since all precompile accounts are now non-empty in mainnet.
+const UNPRUNABLE_PRECOMPILE_ADDRESS: Option<Address> = Some(H160([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3]));
+
+#[cfg(not(feature = "test-helpers"))]
+/// EIP161 - By default all empty accounts can be prunned. 
+const UNPRUNABLE_PRECOMPILE_ADDRESS: Option<Address> = None;
 
 /// Returns new address created from address, nonce, and code hash
 pub fn contract_address(address_scheme: CreateContractAddress, sender: &Address, nonce: &U256, code: &[u8]) -> (Address, Option<H256>) {
@@ -350,6 +359,11 @@ impl<'a> CallCreateExecutive<'a> {
 				| Err(vm::Error::OutOfBounds)
 				| Err(vm::Error::Reverted)
 				| Ok(FinalizationResult { apply_state: false, .. }) => {
+					if let Some(addr) = UNPRUNABLE_PRECOMPILE_ADDRESS {
+						if un_substate.touched.contains(&addr) {
+							substate.touched.insert(addr);
+						}	
+					}
 					state.revert_to_checkpoint();
 			},
 			Ok(_) | Err(vm::Error::Internal(_)) => {
@@ -407,6 +421,8 @@ impl<'a> CallCreateExecutive<'a> {
 
 					Self::check_static_flag(&params, self.static_flag, self.is_create)?;
 					state.checkpoint();
+
+					let initial_builtin_balance = state.balance(&params.code_address)?;
 					Self::transfer_exec_balance(&params, self.schedule, state, substate)?;
 
 					let default = [];
@@ -435,9 +451,16 @@ impl<'a> CallCreateExecutive<'a> {
 							})
 						}
 					} else {
+						// EIP161 - reverted calls cancels state trie cleaning
+						if initial_builtin_balance.is_zero() {
+							let prune = UNPRUNABLE_PRECOMPILE_ADDRESS
+								.map_or(true,|addr| addr != params.code_address);
+							if prune {
+								substate.touched.remove(&params.code_address);
+							} 
+						}
 						// just drain the whole gas
 						state.revert_to_checkpoint();
-
 						Err(vm::Error::OutOfGas)
 					}
 				};
