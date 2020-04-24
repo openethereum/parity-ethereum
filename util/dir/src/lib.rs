@@ -28,7 +28,7 @@ use std::path::{PathBuf, Path};
 use ethereum_types::{H64, H256};
 use journaldb::Algorithm;
 use helpers::{replace_home, replace_home_and_local};
-use app_dirs::{AppInfo, get_app_root, AppDataType};
+use app_dirs::{AppInfo, get_app_root, data_root, AppDataType};
 // re-export platform-specific functions
 use platform::*;
 
@@ -226,16 +226,38 @@ impl DatabaseDirectories {
 	}
 }
 
+fn default_path(t: AppDataType) -> Option<PathBuf> {
+	let app_info = AppInfo { name: PRODUCT, author: AUTHOR };
+	let old_root = get_app_root(t, &app_info).ok()?;
+	if old_root.exists() {
+		return Some(old_root);
+	}
+
+	let mut root = data_root(t).ok()?;
+	root.push(if LOWERCASE { "openethereum" } else { "OpenEthereum" });
+	Some(root)
+}
+
+fn fallback_path() -> PathBuf {
+	let mut p = PathBuf::new();
+	p.push("$HOME");
+	p.push(".openethereum");
+	p
+}
+
+/// Default data path
+pub fn default_data_pathbuf() -> PathBuf {
+	default_path(AppDataType::UserData).unwrap_or_else(fallback_path)
+}
+
 /// Default data path
 pub fn default_data_path() -> String {
-	let app_info = AppInfo { name: PRODUCT, author: AUTHOR };
-	get_app_root(AppDataType::UserData, &app_info).map(|p| p.to_string_lossy().into_owned()).unwrap_or_else(|_| "$HOME/.parity".to_owned())
+	default_data_pathbuf().to_string_lossy().into_owned()
 }
 
 /// Default local path
 pub fn default_local_path() -> String {
-	let app_info = AppInfo { name: PRODUCT, author: AUTHOR };
-	get_app_root(AppDataType::UserCache, &app_info).map(|p| p.to_string_lossy().into_owned()).unwrap_or_else(|_| "$HOME/.parity".to_owned())
+	default_path(AppDataType::UserCache).unwrap_or_else(fallback_path).to_string_lossy().into_owned()
 }
 
 /// Default hypervisor path
@@ -259,28 +281,13 @@ pub fn geth(testnet: bool) -> PathBuf {
 	base
 }
 
-/// Parity path for specific chain
-pub fn parity(chain: &str) -> PathBuf {
-	let mut base = parity_base();
-	base.push(chain);
-	base
-}
-
 #[cfg(target_os = "macos")]
 mod platform {
 	use std::path::PathBuf;
+	pub const LOWERCASE: bool = false;
 	pub const AUTHOR: &str = "Parity";
 	pub const PRODUCT: &str = "io.parity.ethereum";
 	pub const PRODUCT_HYPERVISOR: &str = "io.parity.ethereum-updates";
-
-	pub fn parity_base() -> PathBuf {
-		let mut home = super::home();
-		home.push("Library");
-		home.push("Application Support");
-		home.push("io.parity.ethereum");
-		home.push("keys");
-		home
-	}
 
 	pub fn geth_base() -> PathBuf {
 		let mut home = super::home();
@@ -293,19 +300,10 @@ mod platform {
 #[cfg(windows)]
 mod platform {
 	use std::path::PathBuf;
+	pub const LOWERCASE: bool = false;
 	pub const AUTHOR: &str = "Parity";
 	pub const PRODUCT: &str = "Ethereum";
 	pub const PRODUCT_HYPERVISOR: &str = "EthereumUpdates";
-
-	pub fn parity_base() -> PathBuf {
-		let mut home = super::home();
-		home.push("AppData");
-		home.push("Roaming");
-		home.push("Parity");
-		home.push("Ethereum");
-		home.push("keys");
-		home
-	}
 
 	pub fn geth_base() -> PathBuf {
 		let mut home = super::home();
@@ -319,18 +317,10 @@ mod platform {
 #[cfg(not(any(target_os = "macos", windows)))]
 mod platform {
 	use std::path::PathBuf;
+	pub const LOWERCASE: bool = true;
 	pub const AUTHOR: &str = "parity";
 	pub const PRODUCT: &str = "io.parity.ethereum";
 	pub const PRODUCT_HYPERVISOR: &str = "io.parity.ethereum-updates";
-
-	pub fn parity_base() -> PathBuf {
-		let mut home = super::home();
-		home.push(".local");
-		home.push("share");
-		home.push("io.parity.ethereum");
-		home.push("keys");
-		home
-	}
 
 	pub fn geth_base() -> PathBuf {
 		let mut home = super::home();
