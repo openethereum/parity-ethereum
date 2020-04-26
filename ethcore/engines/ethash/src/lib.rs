@@ -89,8 +89,6 @@ pub struct EthashParams {
 	pub block_reward_contract: Option<BlockRewardContract>,
 	/// Difficulty bomb delays.
 	pub difficulty_bomb_delays: BTreeMap<BlockNumber, BlockNumber>,
-	/// Block to transition to progpow
-	pub progpow_transition: u64,
 }
 
 impl From<ethjson::spec::EthashParams> for EthashParams {
@@ -131,7 +129,6 @@ impl From<ethjson::spec::EthashParams> for EthashParams {
 				}),
 			expip2_transition: p.expip2_transition.map_or(u64::max_value(), Into::into),
 			expip2_duration_limit: p.expip2_duration_limit.map_or(30, Into::into),
-			progpow_transition: p.progpow_transition.map_or(u64::max_value(), Into::into),
 			block_reward_contract_transition: p.block_reward_contract_transition.map_or(0, Into::into),
 			block_reward_contract: match (p.block_reward_contract_code, p.block_reward_contract_address) {
 				(Some(code), _) => Some(BlockRewardContract::new_from_code(Arc::new(code.into()))),
@@ -161,15 +158,12 @@ impl Ethash {
 		machine: Machine,
 		optimize_for: T,
 	) -> Self {
-		let progpow_transition = ethash_params.progpow_transition;
-
 		Ethash {
 			ethash_params,
 			machine,
 			pow: Arc::new(EthashManager::new(
 				cache_dir.as_ref(),
 				optimize_for.into(),
-				progpow_transition
 			)),
 		}
 	}
@@ -342,7 +336,6 @@ impl Engine for Ethash {
 			&header.bare_hash().0,
 			seal.nonce.to_low_u64_be(),
 			&seal.mix_hash.0,
-			header.number() >= self.ethash_params.progpow_transition
 		)));
 
 		if &difficulty < header.difficulty() {
@@ -559,7 +552,6 @@ mod tests {
 			block_reward_contract: None,
 			block_reward_contract_transition: 0,
 			difficulty_bomb_delays: BTreeMap::new(),
-			progpow_transition: u64::max_value(),
 		}
 	}
 

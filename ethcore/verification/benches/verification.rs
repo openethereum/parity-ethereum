@@ -65,7 +65,6 @@ fn ethash_params() -> EthashParams {
 			m.insert(7280000, 2000000);
 			m
 		},
-		progpow_transition: u64::max_value()
 	}
 }
 

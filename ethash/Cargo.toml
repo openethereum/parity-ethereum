@@ -1,5 +1,5 @@
 [package]
-description = "OpenEthereum Ethash & ProgPoW Implementations"
+description = "OpenEthereum Ethash Implementation"
 name = "ethash"
 version = "1.12.0"
 authors = ["Parity Technologies <admin@parity.io>"]
@@ -28,10 +28,5 @@ bench = []
 
 [[bench]]
 name = "basic"
-harness = false
-required-features = ['bench']
-
-[[bench]]
-name = "progpow"
 harness = false
 required-features = ['bench']

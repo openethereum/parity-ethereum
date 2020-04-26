@@ -21,7 +21,6 @@
 
 use keccak::{keccak_512, keccak_256, H256};
 use cache::{NodeCache, NodeCacheBuilder};
-use progpow::{CDag, generate_cdag, progpow, keccak_f800_short, keccak_f800_long};
 use seed_compute::SeedHashCompute;
 use shared::*;
 use std::io;
@@ -41,15 +40,9 @@ pub struct ProofOfWork {
 	pub mix_hash: H256,
 }
 
-enum Algorithm {
-	Hashimoto,
-	Progpow(Box<CDag>),
-}
-
 pub struct Light {
 	block_number: u64,
 	cache: NodeCache,
-	algorithm: Algorithm,
 }
 
 /// Light cache structure
@@ -58,55 +51,27 @@ impl Light {
 		builder: &NodeCacheBuilder,
 		cache_dir: &Path,
 		block_number: u64,
-		progpow_transition: u64,
 	) -> Self {
 		let cache = builder.new_cache(cache_dir.to_path_buf(), block_number);
 
-		let algorithm = if block_number >= progpow_transition {
-			Algorithm::Progpow(Box::new(generate_cdag(cache.as_ref())))
-		} else {
-			Algorithm::Hashimoto
-		};
-
-		Light { block_number, cache, algorithm }
+		Light { block_number, cache }
 	}
 
 	/// Calculate the light boundary data
 	/// `header_hash` - The header hash to pack into the mix
 	/// `nonce` - The nonce to pack into the mix
-	pub fn compute(&self, header_hash: &H256, nonce: u64, block_number: u64) -> ProofOfWork {
-		match self.algorithm {
-			Algorithm::Progpow(ref c_dag) => {
-				let (value, mix_hash) = progpow(
-					*header_hash,
-					nonce,
-					block_number,
-					self.cache.as_ref(),
-					c_dag,
-				);
-
-				ProofOfWork { value, mix_hash }
-			},
-			Algorithm::Hashimoto => light_compute(self, header_hash, nonce),
-		}
-
+	pub fn compute(&self, header_hash: &H256, nonce: u64) -> ProofOfWork {
+		light_compute(self, header_hash, nonce)
 	}
 
 	pub fn from_file_with_builder(
 		builder: &NodeCacheBuilder,
 		cache_dir: &Path,
 		block_number: u64,
-		progpow_transition: u64,
 	) -> io::Result<Self> {
 		let cache = builder.from_file(cache_dir.to_path_buf(), block_number)?;
 
-		let algorithm = if block_number >= progpow_transition {
-			Algorithm::Progpow(Box::new(generate_cdag(cache.as_ref())))
-		} else {
-			Algorithm::Hashimoto
-		};
-
-		Ok(Light { block_number, cache, algorithm })
+		Ok(Light { block_number, cache })
 	}
 
 	pub fn to_file(&mut self) -> io::Result<&Path> {
@@ -129,28 +94,21 @@ fn fnv_hash(x: u32, y: u32) -> u32 {
 /// `nonce`            The block's nonce
 /// `mix_hash`         The mix digest hash
 /// Boundary recovered from mix hash
-pub fn quick_get_difficulty(header_hash: &H256, nonce: u64, mix_hash: &H256, progpow: bool) -> H256 {
-	unsafe {
-		if progpow {
-			let seed = keccak_f800_short(*header_hash, nonce, [0u32; 8]);
-			keccak_f800_long(*header_hash, seed, mem::transmute(*mix_hash))
-		} else {
-			let mut buf = [0u8; 64 + 32];
+pub fn quick_get_difficulty(header_hash: &H256, nonce: u64, mix_hash: &H256) -> H256 {
+	let mut buf = [0u8; 64 + 32];
 
-			let hash_len = header_hash.len();
-			buf[..hash_len].copy_from_slice(header_hash);
-			let end = hash_len + mem::size_of::<u64>();
-			buf[hash_len..end].copy_from_slice(&nonce.to_ne_bytes());
+	let hash_len = header_hash.len();
+	buf[..hash_len].copy_from_slice(header_hash);
+	let end = hash_len + mem::size_of::<u64>();
+	buf[hash_len..end].copy_from_slice(&nonce.to_ne_bytes());
 
-			keccak_512::inplace_range(&mut buf, 0..end);
-			buf[64..].copy_from_slice(mix_hash);
+	keccak_512::inplace_range(&mut buf, 0..end);
+	buf[64..].copy_from_slice(mix_hash);
 
-			let mut hash = [0u8; 32];
-			keccak_256::write(&buf, &mut hash);
+	let mut hash = [0u8; 32];
+	keccak_256::write(&buf, &mut hash);
 
-			hash
-		}
-	}
+	hash
 }
 
 /// Calculate the light client data
@@ -370,13 +328,13 @@ mod test {
 			0x4a, 0x8e, 0x95, 0x69, 0xef, 0xc7, 0xd7, 0x1b, 0x33, 0x35, 0xdf, 0x36, 0x8c, 0x9a,
 			0xe9, 0x7e, 0x53, 0x84,
 		];
-		assert_eq!(quick_get_difficulty(&hash, nonce, &mix_hash, false)[..], boundary_good[..]);
+		assert_eq!(quick_get_difficulty(&hash, nonce, &mix_hash)[..], boundary_good[..]);
 		let boundary_bad = [
 			0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x3a, 0x9b, 0x6c, 0x69, 0xbc, 0x2c, 0xe2, 0xa2,
 			0x4a, 0x8e, 0x95, 0x69, 0xef, 0xc7, 0xd7, 0x1b, 0x33, 0x35, 0xdf, 0x36, 0x8c, 0x9a,
 			0xe9, 0x7e, 0x53, 0x84,
 		];
-		assert!(quick_get_difficulty(&hash, nonce, &mix_hash, false)[..] != boundary_bad[..]);
+		assert!(quick_get_difficulty(&hash, nonce, &mix_hash)[..] != boundary_bad[..]);
 	}
 
 	#[test]
@@ -400,7 +358,7 @@ mod test {
 
 		let tempdir = TempDir::new().unwrap();
 		// difficulty = 0x085657254bd9u64;
-		let light = NodeCacheBuilder::new(None, u64::max_value()).light(tempdir.path(), 486382);
+		let light = NodeCacheBuilder::new(None).light(tempdir.path(), 486382);
 		let result = light_compute(&light, &hash, nonce);
 		assert_eq!(result.mix_hash[..], mix_hash[..]);
 		assert_eq!(result.value[..], boundary[..]);
@@ -409,7 +367,7 @@ mod test {
 	#[test]
 	fn test_drop_old_data() {
 		let tempdir = TempDir::new().unwrap();
-		let builder = NodeCacheBuilder::new(None, u64::max_value());
+		let builder = NodeCacheBuilder::new(None);
 		let first = builder.light(tempdir.path(), 0).to_file().unwrap().to_owned();
 
 		let second = builder.light(tempdir.path(), ETHASH_EPOCH_LENGTH).to_file().unwrap().to_owned();

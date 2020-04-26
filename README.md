@@ -197,7 +197,7 @@ Replacing `<spec>` with one of the following from the details section below (i.e
   ```bash
   cli-signer parity-rpc-client
   ```
-* OpenEthereum Ethash & ProgPoW Implementations
+* OpenEthereum Ethash Implementations
   ```bash
   ethash
   ```
