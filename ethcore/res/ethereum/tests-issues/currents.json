@@ -4,30 +4,30 @@
 			"reference": "Issue https://github.com/openethereum/openethereum/issues/11616",
 			"failing": "bcFrontierToHomestead",
 			"subtests": [
-				"blockChainFrontierWithLargerTDvsHomesteadBlockchain2",
-				"UncleFromFrontierInHomestead",
-				"UnclePopulation",
-				"blockChainFrontierWithLargerTDvsHomesteadBlockchain",
-				"HomesteadOverrideFrontier",
-				"CallContractThatCreateContractBeforeAndAfterSwitchover",
-				"ContractCreationFailsOnHomestead"
+				"blockChainFrontierWithLargerTDvsHomesteadBlockchain2_FrontierToHomesteadAt5",
+				"UncleFromFrontierInHomestead_FrontierToHomesteadAt5",
+				"UnclePopulation_FrontierToHomesteadAt5",
+				"blockChainFrontierWithLargerTDvsHomesteadBlockchain_FrontierToHomesteadAt5"
 			]
 		},
 		{
 			"reference": "Issue https://github.com/openethereum/openethereum/issues/11616",
-			"failing": "bcFrontierToDao",
+			"failing": "bcHomesteadToDao",
 			"subtests": [
-				"DaoTransactions_EmptyTransactionAndForkBlocksAhead",
-				"DaoTransactions",
-				"DaoTransactions_UncleExtradata",
-				"DaoTransactions_XBlockm1"
+				"DaoTransactions_HomesteadToDaoAt5",
+				"DaoTransactions_UncleExtradata_HomesteadToDaoAt5",
+				"DaoTransactions_EmptyTransactionAndForkBlocksAhead_HomesteadToDaoAt5",
+				"DaoTransactions_XBlockm1_HomesteadToDaoAt5",
+				"HomesteadOverrideFrontier_FrontierToHomesteadAt5",
+				"CallContractThatCreateContractBeforeAndAfterSwitchover_FrontierToHomesteadAt5",
+				"ContractCreationFailsOnHomestead_FrontierToHomesteadAt5"
 			]
 		},
 		{
 			"reference": "Issue https://github.com/openethereum/openethereum/issues/11616",
 			"failing": "bcHomesteadToEIP150",
 			"subtests": [
-				"EIP150Transition"
+				"EIP150Transition_HomesteadToEIP150At5"
 			]
 		}
 	],
