@@ -172,7 +172,9 @@ fn key_dir(location: &str, password: Option<Password>) -> Result<Box<dyn KeyDire
 		"geth-test" => RootDiskDirectory::create(dir::geth(true))?,
 		path if path.starts_with("parity") => {
 			let chain = path.split('-').nth(1).unwrap_or("ethereum");
-			let path = dir::parity(chain);
+			let mut path = dir::default_data_pathbuf();
+			path.push("keys");
+			path.push(chain);
 			RootDiskDirectory::create(path)?
 		},
 		path => RootDiskDirectory::create(path)?,

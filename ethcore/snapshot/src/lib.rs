@@ -435,6 +435,12 @@ impl StateRebuilder {
 			}
 		}
 
+		let backing = self.db.backing().clone();
+		let mut batch = backing.transaction();
+		// Drain the transaction overlay and put the data into the batch.
+		self.db.inject(&mut batch)?;
+		backing.write_buffered(batch);
+
 		Ok(())
 	}
 

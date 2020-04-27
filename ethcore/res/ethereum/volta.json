@@ -27,6 +27,11 @@
 		"eip145Transition": "0x0",
 		"eip1014Transition": "0x0",
 		"eip1052Transition": "0x0",
+		"eip1283Transition": "0x4ff704",
+		"eip1344Transition": "0x4ff704",
+		"eip1706Transition": "0x4ff704",
+		"eip1884Transition": "0x4ff704",
+		"eip2028Transition": "0x4ff704",
 		"registrar": "0x1204700000000000000000000000000000000006"
 	},
 	"genesis": {
@@ -39,7 +44,7 @@
 		"difficulty": "0x20000",
 		"gasLimit": "0x5B8D80"
 	},
-	"hardcodedSync":{
+	"hardcodedSync": {
 		"header": "f9022aa0e6ea64a2c18d4e60134a9b80dea17c069127e5c09ebee58b42108ad5ca2d5590a01dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d493479420df7a4e8408add37c6a5c4afc1b1509924619fea07a7c1d3a7f2277bac57f1ec76773317841e6e4df6b403ebece7d3b10be71c2d5a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421b901000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000090fffffffffffffffffffffffffffffffe83222801837a120080845d7b87ef856577632d678412b24e63b841236604d05e940c6a1edac36df951e709a650df1969e5267ee6f42d5ba22638a21a79604fddac41b5c0a88aca5a393454781eacd9caf42f7ff0b3e87fe3d58d0601",
 		"totalDifficulty": "761710168469678517616542840624753029141072284",
 		"CHTs": [
@@ -1211,8 +1216,8 @@
 					"0": {
 						"price": { "alt_bn128_const_operations": { "price": 500 }}
 					},
-					"0x7fffffffffffff": {
-						"info": "EIP 1108 transition",
+					"0x4ff704": {
+						"info": "EIP 1108 transition at block 5_240_580 (0x4ff704)",
 						"price": { "alt_bn128_const_operations": { "price": 150 }}
 					}
 				}
@@ -1226,8 +1231,8 @@
 					"0": {
 						"price": { "alt_bn128_const_operations": { "price": 40000 }}
 					},
-					"0x7fffffffffffff": {
-						"info": "EIP 1108 transition",
+					"0x4ff704": {
+						"info": "EIP 1108 transition at block 5_240_580 (0x4ff704)",
 						"price": { "alt_bn128_const_operations": { "price": 6000 }}
 					}
 				}
@@ -1241,9 +1246,20 @@
 					"0": {
 						"price": { "alt_bn128_pairing": { "base": 100000, "pair": 80000 }}
 					},
-					"0x7fffffffffffff": {
-						"info": "EIP 1108 transition",
+					"0x4ff704": {
+						"info": "EIP 1108 transition at block 5_240_580 (0x4ff704)",
 						"price": { "alt_bn128_pairing": { "base": 45000, "pair": 34000 }}
+					}
+				}
+			}
+		},
+		"0x0000000000000000000000000000000000000009": {
+			"builtin": {
+				"name": "blake2_f",
+				"activate_at": "0x4ff704",
+				"pricing": {
+					"blake2_f": {
+						"gas_per_round": 1
 					}
 				}
 			}
