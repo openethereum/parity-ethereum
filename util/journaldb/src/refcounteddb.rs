@@ -193,12 +193,13 @@ impl JournalDB for RefCountedDB {
 		Ok(r)
 	}
 
-	fn inject(&mut self, batch: &mut DBTransaction) -> io::Result<u32> {
+	fn drain_transaction_overlay(&mut self) -> io::Result<DBTransaction> {
 		self.inserts.clear();
 		for remove in self.removes.drain(..) {
 			self.forward.remove(&remove, EMPTY_PREFIX);
 		}
-		self.forward.commit_to_batch(batch)
+		let mut batch = DBTransaction::new();
+		self.forward.commit_to_batch(&mut batch).map(|_| batch)
 	}
 
 	fn consolidate(&mut self, mut with: super::MemoryDB) {
@@ -224,7 +225,7 @@ mod tests {
 	use hash_db::{HashDB, EMPTY_PREFIX};
 	use super::*;
 	use kvdb_memorydb;
-	use crate::{JournalDB, inject_batch, commit_batch};
+	use crate::{JournalDB, drain_overlay, commit_batch};
 
 	fn new_db() -> RefCountedDB {
 		let backing = Arc::new(kvdb_memorydb::create(1));
@@ -338,11 +339,11 @@ mod tests {
 	fn inject() {
 		let mut jdb = new_db();
 		let key = jdb.insert(EMPTY_PREFIX, b"dog");
-		inject_batch(&mut jdb).unwrap();
+		drain_overlay(&mut jdb).unwrap();
 
 		assert_eq!(jdb.get(&key, EMPTY_PREFIX).unwrap(), b"dog".to_vec());
 		jdb.remove(&key, EMPTY_PREFIX);
-		inject_batch(&mut jdb).unwrap();
+		drain_overlay(&mut jdb).unwrap();
 
 		assert!(jdb.get(&key, EMPTY_PREFIX).is_none());
 	}

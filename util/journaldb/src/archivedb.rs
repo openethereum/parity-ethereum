@@ -142,9 +142,8 @@ impl JournalDB for ArchiveDB {
 		Ok(0)
 	}
 
-	fn inject(&mut self, batch: &mut DBTransaction) -> io::Result<u32> {
-		let mut inserts = 0usize;
-		let mut deletes = 0usize;
+	fn drain_transaction_overlay(&mut self) -> io::Result<DBTransaction> {
+		let mut batch = DBTransaction::new();
 
 		for i in self.overlay.drain() {
 			let (key, (value, rc)) = i;
@@ -153,7 +152,6 @@ impl JournalDB for ArchiveDB {
 					return Err(error_key_already_exists(&key));
 				}
 				batch.put(self.column, key.as_bytes(), &value);
-				inserts += 1;
 			}
 			if rc < 0 {
 				assert!(rc == -1);
@@ -161,11 +159,10 @@ impl JournalDB for ArchiveDB {
 					return Err(error_negatively_reference_hash(&key));
 				}
 				batch.delete(self.column, key.as_bytes());
-				deletes += 1;
 			}
 		}
 
-		Ok((inserts + deletes) as u32)
+		Ok(batch)
 	}
 
 	fn latest_era(&self) -> Option<u64> { self.latest_era }
@@ -209,7 +206,7 @@ mod tests {
 	use hash_db::{HashDB, EMPTY_PREFIX};
 	use super::*;
 	use kvdb_memorydb;
-	use crate::{JournalDB, inject_batch, commit_batch};
+	use crate::{JournalDB, drain_overlay, commit_batch};
 
 	#[test]
 	fn insert_same_in_fork() {
@@ -463,11 +460,11 @@ mod tests {
 	fn inject() {
 		let mut jdb = ArchiveDB::new(Arc::new(kvdb_memorydb::create(1)), 0);
 		let key = jdb.insert(EMPTY_PREFIX, b"dog");
-		inject_batch(&mut jdb).unwrap();
+		drain_overlay(&mut jdb).unwrap();
 
 		assert_eq!(jdb.get(&key, EMPTY_PREFIX).unwrap(), b"dog".to_vec());
 		jdb.remove(&key, EMPTY_PREFIX);
-		inject_batch(&mut jdb).unwrap();
+		drain_overlay(&mut jdb).unwrap();
 
 		assert!(jdb.get(&key, EMPTY_PREFIX).is_none());
 	}
