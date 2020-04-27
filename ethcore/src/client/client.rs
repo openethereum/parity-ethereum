@@ -297,6 +297,12 @@ impl Importer {
 			let start = Instant::now();
 
 			for (block, block_bytes) in blocks {
+				// Some engines may change the header such that the header hash
+				// is different in the LockedBlock from what it was in the
+				// PreverifiedBlock. When committing the block we need the
+				// header from the Preverified block and not the one from the
+				// LockedBlock. See https://github.com/openethereum/openethereum/issues/11603
+				let preverified_header = block.header.clone();
 				let hash = block.header.hash();
 
 				let is_invalid = invalid_blocks.contains(block.header.parent_hash());
@@ -310,7 +316,13 @@ impl Importer {
 						imported_blocks.push(hash);
 						let transactions_len = locked_block.transactions.len();
 						let gas_used = *locked_block.header.gas_used();
-						let route = self.commit_block(locked_block, encoded::Block::new(block_bytes), pending, client);
+						let route = self.commit_block(
+							locked_block,
+							&preverified_header,
+							encoded::Block::new(block_bytes),
+							pending,
+							client
+						);
 						import_results.push(route);
 						client.report.write().accrue_block(gas_used, transactions_len);
 					}
@@ -488,6 +500,7 @@ impl Importer {
 	fn commit_block<B>(
 		&self,
 		block: B,
+		header: &Header,
 		block_data: encoded::Block,
 		pending: Option<PendingTransition>,
 		client: &Client
@@ -495,7 +508,6 @@ impl Importer {
 		where B: Drain
 	{
 		let block = block.drain();
-		let header = block.header;
 		let hash = &header.hash();
 		let number = header.number();
 		let parent = header.parent_hash();
@@ -737,8 +749,7 @@ impl Client {
 		debug!(target: "client", "Cleanup journal: DB Earliest = {:?}, Latest = {:?}", state_db.journal_db().earliest_era(), state_db.journal_db().latest_era());
 
 		let history = if config.history < MIN_HISTORY_SIZE {
-			info!(target: "client", "Ignoring pruning history parameter of {}\
-				, falling back to minimum of {}",
+			info!(target: "client", "Ignoring pruning history parameter of {} , falling back to minimum of {}",
 				config.history, MIN_HISTORY_SIZE);
 			MIN_HISTORY_SIZE
 		} else {
@@ -2413,6 +2424,7 @@ impl ImportSealedBlock for Client {
 			)?;
 			let route = self.importer.commit_block(
 				block,
+				&header,
 				encoded::Block::new(block_bytes),
 				pending,
 				self
@@ -2558,6 +2570,7 @@ impl SnapshotClient for Client {
 		let block_number = self.block_number(at).ok_or_else(|| SnapshotError::InvalidStartingBlock(at))?;
 		let earliest_era = db.earliest_era().unwrap_or(0);
 		if db.is_prunable() && earliest_era > block_number {
+			warn!(target: "snapshot", "Tried to take a snapshot at #{} but the earliest available block is #{}", block_number, earliest_era);
 			return Err(SnapshotError::OldBlockPrunedDB.into());
 		}
 

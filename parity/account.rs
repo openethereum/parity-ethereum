@@ -58,7 +58,7 @@ pub struct ImportFromGethAccounts {
 
 #[cfg(not(feature = "accounts"))]
 pub fn execute(_cmd: AccountCmd) -> Result<String, String> {
-		Err("Account management is deprecated. Please see #9997 for alternatives:\nhttps://github.com/OpenEthereum/open-ethereum/issues/9997".into())
+		Err("Account management is deprecated. Please see #9997 for alternatives:\nhttps://github.com/openethereum/openethereum/issues/9997".into())
 }
 
 #[cfg(feature = "accounts")]

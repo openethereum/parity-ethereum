@@ -165,7 +165,7 @@ mod test {
 	use std::sync::Arc;
 	use std::str::FromStr;
 
-	use tempdir::TempDir;
+	use tempfile::TempDir;
 	use ethereum_types::{U256, Address};
 
 	use client_traits::BlockChainClient;
@@ -190,7 +190,7 @@ mod test {
 		let spec_data = include_str!("../../res/tx_permission_tests/contract_ver_2_genesis.json");
 
 		let db = test_helpers::new_db();
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 		let spec = Spec::load(&tempdir.path(), spec_data.as_bytes()).unwrap();
 
 		let client = Client::new(
@@ -269,7 +269,7 @@ mod test {
 		let spec_data = include_str!("../../res/tx_permission_tests/contract_ver_3_genesis.json");
 
 		let db = test_helpers::new_db();
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 		let spec = Spec::load(&tempdir.path(), spec_data.as_bytes()).unwrap();
 
 		let client = Client::new(
@@ -311,7 +311,7 @@ mod test {
 		let spec_data = include_str!("../../res/tx_permission_tests/deprecated_contract_genesis.json");
 
 		let db = test_helpers::new_db();
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 		let spec = Spec::load(&tempdir.path(), spec_data.as_bytes()).unwrap();
 
 		let client = Client::new(

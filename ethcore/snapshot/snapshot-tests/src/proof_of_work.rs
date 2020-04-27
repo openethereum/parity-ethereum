@@ -17,7 +17,7 @@
 //! PoW block chunker and rebuilder tests.
 
 use std::sync::atomic::AtomicBool;
-use tempdir::TempDir;
+use tempfile::TempDir;
 use common_types::{
 	errors::{EthcoreError as Error, SnapshotError},
 	engines::ForkChoice,
@@ -47,7 +47,7 @@ fn chunk_and_restore(amount: u64) {
 	let genesis = genesis.last();
 
 	let engine = spec::new_test().engine;
-	let tempdir = TempDir::new("").unwrap();
+	let tempdir = TempDir::new().unwrap();
 	let snapshot_path = tempdir.path().join("SNAP");
 
 	let old_db = test_helpers::new_db();

@@ -1,28 +1,28 @@
 [package]
-description = "Open Ethereum Key Management"
+description = "OpenEthereum Key Management"
 name = "ethstore"
 version = "0.2.1"
 authors = ["Parity Technologies <admin@parity.io>"]
-repository = "https://github.com/OpenEthereum/open-ethereum"
+repository = "https://github.com/openethereum/openethereum"
 
 [dependencies]
 log = "0.4"
 libc = "0.2"
-rand = "0.7"
+rand = "0.7.3"
 ethkey = { path = "../ethkey" }
 serde = "1.0"
 serde_json = "1.0"
 serde_derive = "1.0"
 rustc-hex = "2.1.0"
-tiny-keccak = "1.4"
+tiny-keccak = "2.0.2"
 time = "0.1.34"
 parking_lot = "0.10.0"
-parity-crypto = { version = "0.5.0", features = ["publickey"] }
-ethereum-types = "0.8.0"
+parity-crypto = { version = "0.6.1", features = ["publickey"] }
+ethereum-types = "0.9.0"
 dir = { path = "../../util/dir" }
 smallvec = "1.2.0"
 parity-wordlist = "1.3.1"
-tempdir = "0.3"
+tempfile = "3.1"
 
 [dev-dependencies]
 matches = "0.1"

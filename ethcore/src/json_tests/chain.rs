@@ -73,7 +73,7 @@ fn check_poststate(client: &Arc<Client>, test_name: &str, post_state: State) -> 
 		}
 
 		if let Some(expected_code) = expected.code {
-			let expected_code : String = expected_code.as_ref().to_hex();
+			let expected_code : String = expected_code.to_hex();
 			let current_code = match client.code(&address.into(),StateOrBlock::Block(BlockId::Latest)) {
 				StateResult::Some(Some(code)) => code.to_hex(), 
 				_ => "".to_string(),
@@ -297,11 +297,6 @@ mod block_tests {
 	declare_test!{BlockchainTests_GeneralStateTest_stRecursiveCreate, "BlockchainTests/GeneralStateTests/stRecursiveCreate/"}
 	declare_test!{BlockchainTests_GeneralStateTest_stRefundTest, "BlockchainTests/GeneralStateTests/stRefundTest/"}
 	declare_test!{BlockchainTests_GeneralStateTest_stReturnDataTest, "BlockchainTests/GeneralStateTests/stReturnDataTest/"}
-	// todo[dvdplm]:
-	//      "RevertPrecompiledTouch_storage" contains 4 tests, only two fails
-	//      "RevertPrecompiledTouchExactOOG" contains a ton of tests, only two fails
-	//      "RevertPrecompiledTouch" has 4 tests, 2 failures
-	//  Ignored in currents.json, issue: https://github.com/OpenEthereum/open-ethereum/issues/11073
 	declare_test!{BlockchainTests_GeneralStateTest_stRevertTest, "BlockchainTests/GeneralStateTests/stRevertTest/"}
 	declare_test!{BlockchainTests_GeneralStateTest_stShift, "BlockchainTests/GeneralStateTests/stShift/"}
 	declare_test!{BlockchainTests_GeneralStateTest_stSolidityTest, "BlockchainTests/GeneralStateTests/stSolidityTest/"}

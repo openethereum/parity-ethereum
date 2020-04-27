@@ -62,13 +62,6 @@ pub trait Backend: Send {
 
 	/// Get cached code based on hash.
 	fn get_cached_code(&self, hash: &H256) -> Option<Arc<Vec<u8>>>;
-
-	/// Note that an account with the given address is non-null.
-	fn note_non_null_account(&self, address: &Address);
-
-	/// Check whether an account is known to be empty. Returns true if known to be
-	/// empty, false otherwise.
-	fn is_known_null(&self, address: &Address) -> bool;
 }
 
 /// A raw backend used to check proofs of execution.
@@ -126,8 +119,6 @@ impl Backend for ProofCheck {
 		None
 	}
 	fn get_cached_code(&self, _hash: &H256) -> Option<Arc<Vec<u8>>> { None }
-	fn note_non_null_account(&self, _address: &Address) {}
-	fn is_known_null(&self, _address: &Address) -> bool { false }
 }
 
 /// Proving state backend.
@@ -195,8 +186,6 @@ impl<H: AsHashDB<KeccakHasher, DBValue> + Send + Sync> Backend for Proving<H> {
 	}
 
 	fn get_cached_code(&self, _: &H256) -> Option<Arc<Vec<u8>>> { None }
-	fn note_non_null_account(&self, _: &Address) { }
-	fn is_known_null(&self, _: &Address) -> bool { false }
 }
 
 impl<H: AsHashDB<KeccakHasher, DBValue>> Proving<H> {
@@ -253,6 +242,4 @@ impl<H: AsHashDB<KeccakHasher, DBValue> + Send + Sync> Backend for Basic<H> {
 	}
 
 	fn get_cached_code(&self, _: &H256) -> Option<Arc<Vec<u8>>> { None }
-	fn note_non_null_account(&self, _: &Address) { }
-	fn is_known_null(&self, _: &Address) -> bool { false }
 }

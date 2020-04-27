@@ -138,12 +138,12 @@ impl<'a> Iterator for FileIterator<'a> {
 #[cfg(test)]
 mod tests {
 	use ethbloom::Bloom;
-	use tempdir::TempDir;
+	use tempfile::TempDir;
 	use super::File;
 
 	#[test]
 	fn test_file() {
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 		let mut file = File::open(tempdir.path().join("file")).unwrap();
 		file.accrue_bloom(0, &Bloom::from_low_u64_be(1)).unwrap();
 		file.flush().unwrap();

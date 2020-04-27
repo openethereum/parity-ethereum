@@ -25,7 +25,7 @@
 //! structures from that crate.
 //!
 //! NOTE If you can specify your data type in the same crate as your trait, please do that.
-//! Don't treat this crate as a bag for any types that we use in Open Ethereum.
+//! Don't treat this crate as a bag for any types that we use in OpenEthereum.
 //! This one is reserved for types that are shared heavily (like transactions),
 //! historically this contains types extracted from `ethcore` crate, if possible
 //! we should try to dissolve that crate in favour of more fine-grained crates,

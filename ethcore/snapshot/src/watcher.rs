@@ -115,6 +115,9 @@ impl ChainNotify for Watcher {
 			// frequency of snapshots and ensures more snapshots are produced from similar points in
 			// the chain.
 			.filter(|num| num % self.period == 0 )
+			.inspect(|num| {
+				trace!(target: "snapshot_sync", "Candidate for taking a snapshot: #{}", num);
+			})
 			// Pick newest of the candidates: this is where we want to snapshot from.
 			.fold(0, ::std::cmp::max);
 

@@ -5,7 +5,7 @@ on:
     branches:
       - stable
     tags:
-      - v2*
+      - v*
 
 jobs:
   build:
@@ -21,9 +21,11 @@ jobs:
     runs-on:                    ${{ matrix.platform }}
     steps:
       - name:                   Checkout sources
-        uses:                   actions/checkout@v2
-        with:
-          fetch-depth:          50
+        uses:                   actions/checkout@master
+      # https://github.com/actions/cache/issues/133
+      - name:                   Fixup the owner of ~/.cargo/
+        if:                     matrix.platform == 'ubuntu-16.04'
+        run:                    sudo chown -R $(whoami):$(id -ng) ~/.cargo/
       - name:                   Install toolchain
         uses:                   actions-rs/toolchain@v1
         with:

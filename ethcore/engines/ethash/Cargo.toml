@@ -11,16 +11,16 @@ block-reward = { path = "../../block-reward" }
 common-types = { path = "../../types" }
 engine = { path = "../../engine" }
 ethash= { path = "../../../ethash" }
-ethereum-types = "0.8.0"
+ethereum-types = "0.9.0"
 ethjson = { path = "../../../json" }
-keccak-hash = "0.4.0"
+keccak-hash = "0.5.0"
 log = "0.4.8"
 machine = { path = "../../machine" }
 unexpected = { path = "../../../util/unexpected" }
 
 [dev-dependencies]
 ethcore = { path = "../..", features = ["test-helpers"] }
-keccak-hash = "0.4.0"
-rlp = "0.4.2"
+keccak-hash = "0.5.0"
+rlp = "0.4.5"
 spec = { path = "../../spec" }
-tempdir = "0.3"
+tempfile = "3.1"

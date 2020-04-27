@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Open Ethereum database access utilities.
+//! OpenEthereum database access utilities.
 
 #![warn(missing_docs)]
 

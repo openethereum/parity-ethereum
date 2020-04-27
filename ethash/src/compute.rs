@@ -139,13 +139,14 @@ pub fn quick_get_difficulty(header_hash: &H256, nonce: u64, mix_hash: &H256, pro
 
 			let hash_len = header_hash.len();
 			buf[..hash_len].copy_from_slice(header_hash);
-			buf[hash_len..hash_len + mem::size_of::<u64>()].copy_from_slice(&nonce.to_ne_bytes());
+			let end = hash_len + mem::size_of::<u64>();
+			buf[hash_len..end].copy_from_slice(&nonce.to_ne_bytes());
 
-			keccak_512::unchecked(buf.as_mut_ptr(), 64, buf.as_ptr(), 40);
+			keccak_512::inplace_range(&mut buf, 0..end);
 			buf[64..].copy_from_slice(mix_hash);
 
 			let mut hash = [0u8; 32];
-			keccak_256::unchecked(hash.as_mut_ptr(), hash.len(), buf.as_ptr(), buf.len());
+			keccak_256::write(&buf, &mut hash);
 
 			hash
 		}
@@ -197,21 +198,17 @@ fn hash_compute(light: &Light, full_size: usize, header_hash: &H256, nonce: u64)
 	// improvements, since I can't imagine that 3-5% of our runtime is taken up by catting two
 	// arrays together.
 	let mut buf: MixBuf = MixBuf {
-		half_mix: unsafe {
+		half_mix: {
 			// Pack `header_hash` and `nonce` together
 			let mut out = [0u8; NODE_BYTES];
 
 			let hash_len = header_hash.len();
 			out[..hash_len].copy_from_slice(header_hash);
-			out[hash_len..hash_len + mem::size_of::<u64>()].copy_from_slice(&nonce.to_ne_bytes());
+			let end = hash_len + mem::size_of::<u64>();
+			out[hash_len..end].copy_from_slice(&nonce.to_ne_bytes());
 
 			// compute keccak-512 hash and replicate across mix
-			keccak_512::unchecked(
-				out.as_mut_ptr(),
-				NODE_BYTES,
-				out.as_ptr(),
-				header_hash.len() + mem::size_of::<u64>(),
-			);
+			keccak_512::inplace_range(&mut out, 0..end);
 
 			Node { bytes: out }
 		},
@@ -264,7 +261,7 @@ fn hash_compute(light: &Light, full_size: usize, header_hash: &H256, nonce: u64)
 			unsafe { make_const_array!(MIX_WORDS / 4, &mut buf.compress_bytes) };
 		#[cfg(target_endian = "big")]
 		{
-			compile_error!("open-ethereum currently only supports little-endian targets");
+			compile_error!("OpenEthereum currently only supports little-endian targets");
 		}
 
 		// Compress mix
@@ -285,21 +282,20 @@ fn hash_compute(light: &Light, full_size: usize, header_hash: &H256, nonce: u64)
 	let value: H256 = {
 		// We can interpret the buffer as an array of `u8`s, since it's `repr(C)`.
 		let read_ptr: *const u8 = &buf as *const MixBuf as *const u8;
-		// We overwrite the second half since `keccak_256` has an internal buffer and so allows
-		// overlapping arrays as input.
-		let write_ptr: *mut u8 = &mut buf.compress_bytes as *mut [u8; 32] as *mut u8;
-		unsafe {
-			keccak_256::unchecked(
-				write_ptr,
-				buf.compress_bytes.len(),
+		let buffer = unsafe {
+			core::slice::from_raw_parts(
 				read_ptr,
 				buf.half_mix.bytes.len() + buf.compress_bytes.len(),
-			);
-		}
+			)
+		};
+		// We overwrite the buf.compress_bytes since `keccak_256` has an internal buffer and so allows
+		// overlapping arrays as input.
+		keccak_256::write(buffer, &mut buf.compress_bytes);
+
 		buf.compress_bytes
 	};
 
-	ProofOfWork { mix_hash: mix_hash, value: value }
+	ProofOfWork { mix_hash, value }
 }
 
 pub fn calculate_dag_item(node_index: u32, cache: &[Node]) -> Node {
@@ -329,7 +325,7 @@ pub fn calculate_dag_item(node_index: u32, cache: &[Node]) -> Node {
 mod test {
 	use super::*;
 	use std::fs;
-	use tempdir::TempDir;
+	use tempfile::TempDir;
 
 	#[test]
 	fn test_get_cache_size() {
@@ -402,7 +398,7 @@ mod test {
 		];
 		let nonce = 0xd7b3ac70a301a249;
 
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 		// difficulty = 0x085657254bd9u64;
 		let light = NodeCacheBuilder::new(None, u64::max_value()).light(tempdir.path(), 486382);
 		let result = light_compute(&light, &hash, nonce);
@@ -412,7 +408,7 @@ mod test {
 
 	#[test]
 	fn test_drop_old_data() {
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 		let builder = NodeCacheBuilder::new(None, u64::max_value());
 		let first = builder.light(tempdir.path(), 0).to_file().unwrap().to_owned();
 

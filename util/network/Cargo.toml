@@ -1,6 +1,6 @@
 [package]
 description = "Ethcore network library"
-repository = "https://github.com/OpenEthereum/open-ethereum"
+repository = "https://github.com/openethereum/openethereum"
 license = "GPL-3.0"
 name = "ethcore-network"
 version = "1.12.0"
@@ -8,12 +8,12 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 derive_more = "0.99"
-parity-crypto = { version = "0.5.0", features = ["publickey"] }
+parity-crypto = { version = "0.6.1", features = ["publickey"] }
 ethcore-io = { path = "../io" }
-ethereum-types = "0.8.0"
+ethereum-types = "0.9.0"
 ipnetwork = "0.12.6"
 lazy_static = "1.0"
-rlp = "0.4.0"
+rlp = "0.4.5"
 libc = "0.2"
 parity-snappy = "0.1"
 semver = {version="0.9.0", features=["serde"]}

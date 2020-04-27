@@ -294,12 +294,12 @@ where ethbloom::BloomRef<'b>: From<B>, 'b: 'a, II: IntoIterator<Item = B, IntoIt
 #[cfg(test)]
 mod tests {
 	use ethbloom::Bloom;
-	use tempdir::TempDir;
+	use tempfile::TempDir;
 	use super::Database;
 
 	#[test]
 	fn test_database() {
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 		let mut database = Database::open(tempdir.path()).unwrap();
 		database.insert_blooms(0, vec![
 			Bloom::from_low_u64_be(0),
@@ -332,7 +332,7 @@ mod tests {
 
 	#[test]
 	fn test_database2() {
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 		let mut database = Database::open(tempdir.path()).unwrap();
 		database.insert_blooms(254, vec![
 			Bloom::from_low_u64_be(0x100),
@@ -362,7 +362,7 @@ mod tests {
 
 	#[test]
 	fn test_db_close() {
-		let tempdir = TempDir::new("").unwrap();
+		let tempdir = TempDir::new().unwrap();
 		let blooms = vec![
 			Bloom::from_low_u64_be(0x100),
 			Bloom::from_low_u64_be(0x01),

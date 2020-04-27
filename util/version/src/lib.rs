@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Parity version specific information.
+//! OpenEthereum version specific information.
 
 extern crate target_info;
 extern crate parity_bytes as bytes;
@@ -45,7 +45,7 @@ pub fn platform() -> String {
 pub fn version() -> String {
 	let commit_date = format!("{}", env!("VERGEN_COMMIT_DATE")).replace("-", "");
 	format!(
-		"Open-Ethereum/v{}-{}-{}-{}/{}/rustc{}",
+		"OpenEthereum/v{}-{}-{}-{}/{}/rustc{}",
 		env!("CARGO_PKG_VERSION"),
 		THIS_TRACK,
 		env!("VERGEN_SHA_SHORT"),
@@ -63,7 +63,7 @@ pub fn version_data() -> Bytes {
 		(env!("CARGO_PKG_VERSION_MINOR").parse::<u32>().expect("Environment variables are known to be valid; qed") << 8) +
 		env!("CARGO_PKG_VERSION_PATCH").parse::<u32>().expect("Environment variables are known to be valid; qed");
 	s.append(&v);
-	s.append(&"Open-Ethereum");
+	s.append(&"OpenEthereum");
 	s.append(&generated::rustc_version());
 	s.append(&&Target::os()[0..2]);
 	s.out()

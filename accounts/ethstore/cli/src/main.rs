@@ -43,7 +43,7 @@ use ethstore::{EthStore, SimpleSecretStore, SecretStore, import_accounts, Presal
 mod crack;
 
 pub const USAGE: &'static str = r#"
-Open Ethereum key management tool.
+OpenEthereum key management tool.
   Copyright 2015-2020 Parity Technologies (UK) Ltd.
 
 Usage:
@@ -172,7 +172,9 @@ fn key_dir(location: &str, password: Option<Password>) -> Result<Box<dyn KeyDire
 		"geth-test" => RootDiskDirectory::create(dir::geth(true))?,
 		path if path.starts_with("parity") => {
 			let chain = path.split('-').nth(1).unwrap_or("ethereum");
-			let path = dir::parity(chain);
+			let mut path = dir::default_data_pathbuf();
+			path.push("keys");
+			path.push(chain);
 			RootDiskDirectory::create(path)?
 		},
 		path => RootDiskDirectory::create(path)?,

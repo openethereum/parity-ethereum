@@ -19,7 +19,7 @@ extern crate migration_rocksdb;
 extern crate ethcore_blockchain;
 
 #[cfg(test)]
-extern crate tempdir;
+extern crate tempfile;
 
 use std::{io, fs};
 use std::sync::Arc;
@@ -41,7 +41,9 @@ pub use self::migration::migrate;
 
 struct AppDB {
 	key_value: Arc<dyn KeyValueDB>,
+	// Header bloom
 	blooms: blooms_db::Database,
+	// Trace bloom
 	trace_blooms: blooms_db::Database,
 }
 

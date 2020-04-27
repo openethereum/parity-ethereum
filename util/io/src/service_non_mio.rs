@@ -227,7 +227,8 @@ impl<Message> Clone for WorkTask<Message> where Message: Send + Sized {
 impl<Message> IoService<Message> where Message: Send + Sync + 'static {
 	/// Starts IO event loop
 	pub fn start() -> Result<IoService<Message>, IoError> {
-		let (tx, rx) = deque::fifo();
+		let tx = deque::Worker::new_fifo();
+		let rx = tx.stealer();
 
 		let shared = Arc::new(Shared {
 			handlers: RwLock::new(Slab::with_capacity(MAX_HANDLERS)),
@@ -317,8 +318,8 @@ fn do_work<Message>(shared: &Arc<Shared<Message>>, rx: deque::Stealer<WorkTask<M
 		match rx.steal() {
 			deque::Steal::Retry => continue,
 			deque::Steal::Empty => thread::park(),
-			deque::Steal::Data(WorkTask::Shutdown) => break,
-			deque::Steal::Data(WorkTask::UserMessage(message)) => {
+			deque::Steal::Success(WorkTask::Shutdown) => break,
+			deque::Steal::Success(WorkTask::UserMessage(message)) => {
 				for id in 0 .. MAX_HANDLERS {
 					if let Some(handler) = shared.handlers.read().get(id) {
 						let ctxt = IoContext { handler: id, shared: shared.clone() };
@@ -326,7 +327,7 @@ fn do_work<Message>(shared: &Arc<Shared<Message>>, rx: deque::Stealer<WorkTask<M
 					}
 				}
 			},
-			deque::Steal::Data(WorkTask::TimerTrigger { handler_id, token }) => {
+			deque::Steal::Success(WorkTask::TimerTrigger { handler_id, token }) => {
 				if let Some(handler) = shared.handlers.read().get(handler_id) {
 					let ctxt = IoContext { handler: handler_id, shared: shared.clone() };
 					handler.timeout(&ctxt, token);

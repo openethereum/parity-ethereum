@@ -14,22 +14,22 @@
 // You should have received a copy of the GNU General Public License
 // along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Parity EVM Interpreter Binary.
+//! OpenEthereum EVM Interpreter Binary.
 //!
 //! ## Overview
 //!
-//! The Parity EVM interpreter binary is a tool in the Parity
-//! Ethereum toolchain. It is an EVM implementation for Open Ethereum that
+//! The OpenEthereum EVM interpreter binary is a tool in the OpenEthereum
+//! toolchain. It is an EVM implementation for OpenEthereum that
 //! is used to run a standalone version of the EVM interpreter.
 //!
 //! ## Usage
 //!
-//! The evmbin tool is not distributed with regular Open Ethereum releases
+//! The evmbin tool is not distributed with regular OpenEthereum releases
 //! so you need to build it from source and run it like so:
 //!
 //! ```bash
 //! cargo build -p evmbin --release
-//! ./target/release/parity-evm --help
+//! ./target/release/openethereum-evm --help
 //! ```
 
 #![warn(missing_docs)]
@@ -53,15 +53,15 @@ mod display;
 use crate::info::{Informant, TxInput};
 
 const USAGE: &'static str = r#"
-EVM implementation for Parity.
+EVM implementation for OpenEthereum.
   Copyright 2015-2020 Parity Technologies (UK) Ltd.
 
 Usage:
-    parity-evm state-test <file> [--chain CHAIN --only NAME --json --std-json --std-dump-json --std-out-only --std-err-only]
-    parity-evm stats [options]
-    parity-evm stats-jsontests-vm <file>
-    parity-evm [options]
-    parity-evm [-h | --help]
+    openethereum-evm state-test <file> [--chain CHAIN --only NAME --json --std-json --std-dump-json --std-out-only --std-err-only]
+    openethereum-evm stats [options]
+    openethereum-evm stats-jsontests-vm <file>
+    openethereum-evm [options]
+    openethereum-evm [-h | --help]
 
 Commands:
     state-test         Run a state test on a provided state test JSON file.
@@ -473,7 +473,7 @@ mod tests {
 	#[test]
 	fn should_parse_all_the_options() {
 		let args = run(&[
-			"parity-evm",
+			"openethereum-evm",
 			"--code", "05",
 			"--to", "0000000000000000000000000000000000000004",
 			"--from", "0000000000000000000000000000000000000003",
@@ -505,7 +505,7 @@ mod tests {
 	#[test]
 	fn should_parse_state_test_command() {
 		let args = run(&[
-			"parity-evm",
+			"openethereum-evm",
 			"state-test",
 			"./file.json",
 			"--chain", "homestead",
@@ -532,7 +532,7 @@ mod tests {
 	#[should_panic]
 	fn should_not_parse_only_flag_without_state_test() {
 		let _ = run(&[
-			"parity-evm",
+			"openethereum-evm",
 			"./file.json",
 			"--chain", "homestead",
 			"--only=add11",
@@ -544,7 +544,7 @@ mod tests {
 	#[should_panic]
 	fn should_not_parse_only_flag_with_stats() {
 		let _ = run(&[
-			"parity-evm",
+			"openethereum-evm",
 			"stats",
 			"./file.json",
 			"--chain", "homestead",
@@ -626,7 +626,7 @@ mod tests {
 	#[test]
 	fn should_error_out_of_gas() {
 		let args = run(&[
-			"parity-evm",
+			"openethereum-evm",
 			"stats",
 			"--to", "0000000000000000000000000000000000000004",
 			"--from", "0000000000000000000000000000000000000003",
@@ -651,7 +651,7 @@ mod tests {
 	#[test]
 	fn should_not_error_out_of_gas() {
 		let args = run(&[
-			"parity-evm",
+			"openethereum-evm",
 			"stats",
 			"--to", "0000000000000000000000000000000000000004",
 			"--from", "0000000000000000000000000000000000000003",

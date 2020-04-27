@@ -111,6 +111,7 @@ impl<'a> EvmTestClient<'a> {
 			ForkSpec::ConstantinopleFix => Some(spec::new_constantinople_fix_test()),
 			ForkSpec::Istanbul => Some(spec::new_istanbul_test()),
 			ForkSpec::EIP158ToByzantiumAt5 => Some(spec::new_eip158_to_byzantiumat5_test()),
+			ForkSpec::Berlin => Some(spec::new_berlin_test()),
 			ForkSpec::FrontierToHomesteadAt5 | ForkSpec::HomesteadToDaoAt5 | ForkSpec::HomesteadToEIP150At5 => None,
 			ForkSpec::ByzantiumToConstantinopleFixAt5 => Some(spec::new_byzantium_to_constantinoplefixat5_test()), 
 			ForkSpec::ConstantinopleFixToIstanbulAt5 => None,
@@ -279,7 +280,7 @@ impl<'a> EvmTestClient<'a> {
 
 		// Touch the coinbase at the end of the test to simulate
 		// miner reward.
-		// Details: https://github.com/OpenEthereum/open-ethereum/issues/9431
+		// Details: https://github.com/openethereum/openethereum/issues/9431
 		let schedule = self.spec.engine.machine().schedule(env_info.number);
 		self.state.add_balance(&env_info.author, &0.into(), if schedule.no_empty {
 			CleanupMode::NoEmpty
