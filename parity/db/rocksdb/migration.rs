@@ -186,7 +186,10 @@ fn migrate_database(version: u32, db_path: &Path, mut migrations: MigrationManag
 
 	// completely in-place migration leads to the paths being equal.
 	// in that case, no need to shuffle directories.
-	if temp_path == db_path { return Ok(()) }
+	if temp_path == db_path {
+		trace!(target: "migrate", "In-place migration ran; leaving old database in place.");
+		return Ok(())
+	}
 
 	// create backup
 	fs::rename(&db_path, &backup_path)?;
