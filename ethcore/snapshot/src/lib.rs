@@ -439,8 +439,7 @@ impl StateRebuilder {
 		let mut batch = backing.transaction();
 		// Drain the transaction overlay and put the data into the batch.
 		self.db.inject(&mut batch)?;
-		backing.write_buffered(batch);
-
+		backing.write(batch)?;
 		Ok(())
 	}
 
