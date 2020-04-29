@@ -127,11 +127,13 @@ impl<T: SimpleMigration> Migration for T {
 
 	fn migrate(&mut self, source: Arc<Database>, config: &Config, dest: Option<&mut Database>, col: u32) -> io::Result<()> {
 		let migration_needed = col == SimpleMigration::migrated_column_index(self);
-		if dest.is_none() {
-			warn!(target: "migration", "No destination db provided. No changes made.");
-			return Ok(())
-		}
-		let dest = dest.expect("Just checked for None above; qed");
+		let dest = match dest {
+			None => {
+				warn!(target: "migration", "No destination db provided. No changes made.");
+				return Ok(());
+			}
+			Some(dest) => dest,
+		};
 		let mut batch = Batch::new(config, col);
 
 		for (key, value) in source.iter(col) {
