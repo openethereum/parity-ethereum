@@ -19,7 +19,7 @@
 use std::{cmp, convert::TryFrom, sync::Arc};
 
 use crossbeam_utils::thread;
-use ethereum_types::{H160, H256, U256, U512, Address};
+use ethereum_types::{H256, U256, U512, Address};
 use keccak_hash::keccak;
 use parity_bytes::{Bytes, BytesRef};
 use rlp::RlpStream;
@@ -65,7 +65,7 @@ const STACK_SIZE_ENTRY_OVERHEAD: usize = 20 * 1024;
 #[cfg(feature = "test-helpers")]
 /// RIPEMD160 was removed in mainnet block #2686351. See security Security alert [11/24/2016].
 /// This is only applies in tests, since all precompile accounts are now non-empty in mainnet.
-const UNPRUNABLE_PRECOMPILE_ADDRESS: Option<Address> = Some(H160([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3]));
+const UNPRUNABLE_PRECOMPILE_ADDRESS: Option<Address> = Some(ethereum_types::H160([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3]));
 
 #[cfg(not(feature = "test-helpers"))]
 /// EIP161 - By default all empty accounts can be prunned. 
