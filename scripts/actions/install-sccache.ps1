@@ -1,6 +1,7 @@
 #!/usr/bin/env pwsh
 $os=$args[0]
 echo "::set-env name=SCCACHE_CACHE_SIZE::1G"
+set SCCACHE_CACHE_SIZE="1G"
 echo "::set-env name=SCCACHE_IDLE_TIMEOUT::0"
 $version="0.2.12"
 echo "Current OS:" $os
