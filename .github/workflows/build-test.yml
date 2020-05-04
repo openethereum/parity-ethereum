@@ -9,6 +9,9 @@ on:
 jobs:
   build-tests:
     name:                       Test and Build
+    env:
+      SCCACHE_CACHE_SIZE:       "1G"
+      SCCACHE_IDLE_TIMEOUT:     0
     strategy:
       matrix:
         platform:

@@ -10,6 +10,9 @@ on:
 jobs:
   build:
     name:                       Build Release
+    env:
+      SCCACHE_CACHE_SIZE:       "1G"
+      SCCACHE_IDLE_TIMEOUT:     0
     strategy:
       matrix:
         platform:
