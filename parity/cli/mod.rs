@@ -320,7 +320,7 @@ usage! {
 
 			ARG arg_sync_until: (Option<u64>) = None, or |c: &Config| c.parity.as_ref()?.sync_until.clone(),
 			"--sync-until=[NUM]",
-			"Stop syncing and enter offline mode when the given block has been imported.",
+			"Sync until the given block has been imported, then enter offline mode. Intended for debug/benchmarking only.",
 
 		["Convenience Options"]
 			FLAG flag_unsafe_expose: (bool) = false, or |c: &Config| c.misc.as_ref()?.unsafe_expose,
