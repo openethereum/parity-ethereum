@@ -86,7 +86,7 @@ fn check_poststate(client: &Arc<Client>, test_name: &str, post_state: State) -> 
 		}
 
 		if let Some(expected_storage) = expected.storage {
-			for (uint_position,uint_expected_value) in expected_storage.iter() {
+			for (uint_position, uint_expected_value) in expected_storage.iter() {
 				
 				let mut position = H256::default();
 				uint_position.0.to_big_endian(position.as_fixed_bytes_mut());
