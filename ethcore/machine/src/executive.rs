@@ -454,7 +454,7 @@ impl<'a> CallCreateExecutive<'a> {
 						// EIP161 - reverted calls cancels state trie cleaning
 						if initial_builtin_balance.is_zero() {
 							let prune = UNPRUNABLE_PRECOMPILE_ADDRESS
-								.map_or(true,|addr| addr != params.code_address);
+								.map_or(true, |addr| addr != params.code_address);
 							if prune {
 								substate.touched.remove(&params.code_address);
 							} 
