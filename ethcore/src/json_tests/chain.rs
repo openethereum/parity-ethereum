@@ -44,7 +44,7 @@ fn skip_test(name: &String, is_legacy: bool) -> bool {
 		&SKIP_TESTS.block
 	};
 	skip_set.iter()
-		.any(|block_test|block_test.subtests.contains(name))
+		.any(|block_test| block_test.subtests.contains(name))
 }
 
 fn check_poststate(client: &Arc<Client>, test_name: &str, post_state: State) -> bool {
