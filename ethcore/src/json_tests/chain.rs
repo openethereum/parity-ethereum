@@ -323,6 +323,7 @@ mod block_tests {
 	declare_test!{BlockchainTests_RandomStateTest391, "BlockchainTests/randomStatetest391.json"}
 }
 
+/// Legacy tests, still keeping it to check if there is any regression in blocks < Instambul HF
 #[cfg(test)]
 mod block_tests_legacy {
 	use std::path::Path;

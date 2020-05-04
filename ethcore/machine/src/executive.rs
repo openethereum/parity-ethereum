@@ -62,12 +62,12 @@ const STACK_SIZE_ENTRY_OVERHEAD: usize = 100 * 1024;
 /// Entry stack overhead prior to execution.
 const STACK_SIZE_ENTRY_OVERHEAD: usize = 20 * 1024;
 
-#[cfg(feature = "test-helpers")]
+#[cfg(any(test, feature = "test-helpers"))]
 /// RIPEMD160 was removed in mainnet block #2686351. See security Security alert [11/24/2016].
 /// This is only applies in tests, since all precompile accounts are now non-empty in mainnet.
 const UNPRUNABLE_PRECOMPILE_ADDRESS: Option<Address> = Some(ethereum_types::H160([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3]));
 
-#[cfg(not(feature = "test-helpers"))]
+#[cfg(not(any(test, feature = "test-helpers")))]
 /// EIP161 - By default all empty accounts can be prunned. 
 const UNPRUNABLE_PRECOMPILE_ADDRESS: Option<Address> = None;
 

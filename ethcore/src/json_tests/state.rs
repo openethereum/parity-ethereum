@@ -166,15 +166,6 @@ mod state_tests {
 	declare_test!{GeneralStateTest_stRecursiveCreate, "GeneralStateTests/stRecursiveCreate/"}
 	declare_test!{GeneralStateTest_stRefundTest, "GeneralStateTests/stRefundTest/"}
 	declare_test!{GeneralStateTest_stReturnDataTest, "GeneralStateTests/stReturnDataTest/"}
-	// todo[dvdplm]:
-	//      "RevertPrecompiledTouch_storage" contains 4 tests, only two fails
-	//      "RevertPrecompiledTouchExactOOG" contains a ton of tests, only two fails
-	//      "RevertPrecompiledTouch" has 4 tests, 2 failures
-	//      Ignored in `currents.json`.
-	//      Issues:
-	//          https://github.com/openethereum/openethereum/issues/11078
-	//          https://github.com/openethereum/openethereum/issues/11079
-	//          https://github.com/openethereum/openethereum/issues/11080
 	declare_test!{GeneralStateTest_stRevertTest, "GeneralStateTests/stRevertTest/"}
 	declare_test!{GeneralStateTest_stSelfBalance, "GeneralStateTests/stSelfBalance/"}
 	declare_test!{GeneralStateTest_stShift, "GeneralStateTests/stShift/"}
@@ -192,15 +183,10 @@ mod state_tests {
 	declare_test!{GeneralStateTest_stZeroCallsRevert, "GeneralStateTests/stZeroCallsRevert/"}
 	declare_test!{GeneralStateTest_stZeroCallsTest, "GeneralStateTests/stZeroCallsTest/"}
 	declare_test!{GeneralStateTest_stZeroKnowledge, "GeneralStateTests/stZeroKnowledge/"}
-
-	// Attempts to send a transaction that requires more than current balance:
-	// Tx:
-	// https://github.com/ethereum/tests/blob/726b161ba8a739691006cc1ba080672bb50a9d49/GeneralStateTests/stZeroKnowledge2/ecmul_0-3_5616_28000_96.json#L170
-	// Balance:
-	// https://github.com/ethereum/tests/blob/726b161ba8a739691006cc1ba080672bb50a9d49/GeneralStateTests/stZeroKnowledge2/ecmul_0-3_5616_28000_96.json#L126
 	declare_test!{GeneralStateTest_stZeroKnowledge2, "GeneralStateTests/stZeroKnowledge2/"}
 }
 
+/// Legacy tests, still keeping it to check if there is any regression in blocks < Instambul HF
 #[cfg(test)]
 mod legacy_state_tests {
 	use std::path::Path;

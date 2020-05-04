@@ -1,5 +1,5 @@
 {
-	"name": "Transition consensus test spec template",
+	"name": "EIP158 to byzantium (test)",
 	"engine": {
 		"Ethash": {
 			"params": {
