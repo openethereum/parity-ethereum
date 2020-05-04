@@ -1,7 +1,5 @@
 #!/usr/bin/env pwsh
 $os=$args[0]
-$SCCACHE_CACHE_SIZE="1G"
-$SCCACHE_IDLE_TIMEOUT=0
 $version="0.2.12"
 echo "Current OS:" $os
 switch ($os){

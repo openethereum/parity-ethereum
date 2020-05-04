@@ -11,6 +11,7 @@ RUN apk add --no-cache \
   linux-headers \
   perl \
   rust \
+  git \
   clang-dev \
   llvm-dev
 

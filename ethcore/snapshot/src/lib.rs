@@ -435,6 +435,8 @@ impl StateRebuilder {
 			}
 		}
 
+		let batch = self.db.drain_transaction_overlay()?;
+		self.db.backing().write(batch)?;
 		Ok(())
 	}
 

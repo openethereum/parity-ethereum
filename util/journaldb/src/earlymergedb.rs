@@ -474,11 +474,9 @@ impl JournalDB for EarlyMergeDB {
 		Ok(0)
 	}
 
-	fn inject(&mut self, batch: &mut DBTransaction) -> io::Result<u32> {
-		let mut ops = 0;
+	fn drain_transaction_overlay(&mut self) -> io::Result<DBTransaction> {
+		let mut batch = DBTransaction::new();
 		for (key, (value, rc)) in self.overlay.drain() {
-			if rc != 0 { ops += 1 }
-
 			match rc {
 				0 => {}
 				1 => {
@@ -497,7 +495,7 @@ impl JournalDB for EarlyMergeDB {
 			}
 		}
 
-		Ok(ops)
+		Ok(batch)
 	}
 
 	fn consolidate(&mut self, with: super::MemoryDB) {
@@ -529,7 +527,7 @@ mod tests {
 	use hash_db::{HashDB, EMPTY_PREFIX};
 	use super::*;
 	use kvdb_memorydb;
-	use crate::{inject_batch, commit_batch};
+	use crate::{drain_overlay, commit_batch};
 
 	#[test]
 	fn insert_same_in_fork() {
@@ -1050,11 +1048,11 @@ mod tests {
 	fn inject() {
 		let mut jdb = new_db();
 		let key = jdb.insert(EMPTY_PREFIX, b"dog");
-		inject_batch(&mut jdb).unwrap();
+		drain_overlay(&mut jdb).unwrap();
 
 		assert_eq!(jdb.get(&key, EMPTY_PREFIX).unwrap(), b"dog".to_vec());
 		jdb.remove(&key, EMPTY_PREFIX);
-		inject_batch(&mut jdb).unwrap();
+		drain_overlay(&mut jdb).unwrap();
 
 		assert!(jdb.get(&key, EMPTY_PREFIX).is_none());
 	}
