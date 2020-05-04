@@ -10,6 +10,9 @@ jobs:
   check:
     name:                       Check
     runs-on:                    ubuntu-16.04
+    env:
+      SCCACHE_CACHE_SIZE:       "1G"
+      SCCACHE_IDLE_TIMEOUT:     0    
     steps:
       - name:                   Checkout sources
         uses:                   actions/checkout@master
