@@ -925,6 +925,7 @@ pub fn execute<Cr, Rr>(
 		Rr: Fn() + 'static + Send
 {
 	if cmd.light {
+		warn!("Light client is deprecated and may be removed in a future release. Please see #11681 for details:\nhttps://github.com/openethereum/openethereum/issues/11681");
 		execute_light_impl(cmd, logger, on_client_rq)
 	} else {
 		execute_impl(cmd, logger, on_client_rq, on_updater_rq)
