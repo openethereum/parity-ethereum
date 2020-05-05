@@ -133,17 +133,13 @@ members = [
 ]
 
 [patch.crates-io]
-kvdb-rocksdb = { git = "https://github.com/paritytech/parity-common", branch = "ao-upgrade-rocksdb" }
-kvdb = { git = "https://github.com/paritytech/parity-common", branch = "ao-upgrade-rocksdb" }
-kvdb-memorydb = { git = "https://github.com/paritytech/parity-common", branch = "ao-upgrade-rocksdb" }
-parity-util-mem = { git = "https://github.com/paritytech/parity-common", branch = "ao-upgrade-rocksdb" }
-parity-util-mem-derive = { git = "https://github.com/paritytech/parity-common", branch = "ao-upgrade-rocksdb" }
-ethereum-types = { git = "https://github.com/paritytech/parity-common", branch = "ao-upgrade-rocksdb" }
-primitive-types = { git = "https://github.com/paritytech/parity-common", branch = "ao-upgrade-rocksdb" }
-rlp = { git = "https://github.com/paritytech/parity-common", branch = "ao-upgrade-rocksdb" }
-uint = { git = "https://github.com/paritytech/parity-common", branch = "ao-upgrade-rocksdb" }
-ethbloom = { git = "https://github.com/paritytech/parity-common", branch = "ao-upgrade-rocksdb" }
-
-# kvdb-rocksdb = { path = "../parity-common/kvdb-rocksdb" }
-# kvdb = { path = "../parity-common/kvdb" }
-# kvdb-memorydb = { path = "../parity-common/kvdb-memorydb" }
+kvdb-rocksdb = { git = "https://github.com/paritytech/parity-common" }
+kvdb = { git = "https://github.com/paritytech/parity-common" }
+kvdb-memorydb = { git = "https://github.com/paritytech/parity-common" }
+parity-util-mem = { git = "https://github.com/paritytech/parity-common" }
+parity-util-mem-derive = { git = "https://github.com/paritytech/parity-common" }
+ethereum-types = { git = "https://github.com/paritytech/parity-common" }
+primitive-types = { git = "https://github.com/paritytech/parity-common" }
+rlp = { git = "https://github.com/paritytech/parity-common" }
+uint = { git = "https://github.com/paritytech/parity-common" }
+ethbloom = { git = "https://github.com/paritytech/parity-common" }

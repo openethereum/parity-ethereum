@@ -1120,8 +1120,8 @@ dependencies = [
 
 [[package]]
 name = "ethbloom"
-version = "0.9.0"
-source = "git+https://github.com/paritytech/parity-common?branch=ao-upgrade-rocksdb#36f799f03f1660388b09dc41241e85780695cb23"
+version = "0.9.1"
+source = "git+https://github.com/paritytech/parity-common#371f17fe26cad6dc8f9cce04a779d5a4a21c8319"
 dependencies = [
  "crunchy",
  "fixed-hash",
@@ -1605,8 +1605,8 @@ dependencies = [
 
 [[package]]
 name = "ethereum-types"
-version = "0.9.0"
-source = "git+https://github.com/paritytech/parity-common?branch=ao-upgrade-rocksdb#36f799f03f1660388b09dc41241e85780695cb23"
+version = "0.9.1"
+source = "git+https://github.com/paritytech/parity-common#371f17fe26cad6dc8f9cce04a779d5a4a21c8319"
 dependencies = [
  "ethbloom",
  "fixed-hash",
@@ -1857,8 +1857,8 @@ dependencies = [
 
 [[package]]
 name = "fixed-hash"
-version = "0.6.0"
-source = "git+https://github.com/paritytech/parity-common?branch=ao-upgrade-rocksdb#36f799f03f1660388b09dc41241e85780695cb23"
+version = "0.6.1"
+source = "git+https://github.com/paritytech/parity-common#371f17fe26cad6dc8f9cce04a779d5a4a21c8319"
 dependencies = [
  "byteorder",
  "rand 0.7.3",
@@ -2230,7 +2230,7 @@ dependencies = [
 [[package]]
 name = "impl-codec"
 version = "0.4.2"
-source = "git+https://github.com/paritytech/parity-common?branch=ao-upgrade-rocksdb#36f799f03f1660388b09dc41241e85780695cb23"
+source = "git+https://github.com/paritytech/parity-common#371f17fe26cad6dc8f9cce04a779d5a4a21c8319"
 dependencies = [
  "parity-scale-codec",
 ]
@@ -2238,7 +2238,7 @@ dependencies = [
 [[package]]
 name = "impl-rlp"
 version = "0.2.1"
-source = "git+https://github.com/paritytech/parity-common?branch=ao-upgrade-rocksdb#36f799f03f1660388b09dc41241e85780695cb23"
+source = "git+https://github.com/paritytech/parity-common#371f17fe26cad6dc8f9cce04a779d5a4a21c8319"
 dependencies = [
  "rlp",
 ]
@@ -2246,7 +2246,7 @@ dependencies = [
 [[package]]
 name = "impl-serde"
 version = "0.3.0"
-source = "git+https://github.com/paritytech/parity-common?branch=ao-upgrade-rocksdb#36f799f03f1660388b09dc41241e85780695cb23"
+source = "git+https://github.com/paritytech/parity-common#371f17fe26cad6dc8f9cce04a779d5a4a21c8319"
 dependencies = [
  "serde",
 ]
@@ -2521,7 +2521,7 @@ dependencies = [
 [[package]]
 name = "kvdb"
 version = "0.5.0"
-source = "git+https://github.com/paritytech/parity-common?branch=ao-upgrade-rocksdb#36f799f03f1660388b09dc41241e85780695cb23"
+source = "git+https://github.com/paritytech/parity-common#371f17fe26cad6dc8f9cce04a779d5a4a21c8319"
 dependencies = [
  "parity-util-mem",
  "smallvec 1.2.0",
@@ -2530,7 +2530,7 @@ dependencies = [
 [[package]]
 name = "kvdb-memorydb"
 version = "0.5.0"
-source = "git+https://github.com/paritytech/parity-common?branch=ao-upgrade-rocksdb#36f799f03f1660388b09dc41241e85780695cb23"
+source = "git+https://github.com/paritytech/parity-common#371f17fe26cad6dc8f9cce04a779d5a4a21c8319"
 dependencies = [
  "kvdb",
  "parity-util-mem",
@@ -2540,7 +2540,7 @@ dependencies = [
 [[package]]
 name = "kvdb-rocksdb"
 version = "0.7.0"
-source = "git+https://github.com/paritytech/parity-common?branch=ao-upgrade-rocksdb#36f799f03f1660388b09dc41241e85780695cb23"
+source = "git+https://github.com/paritytech/parity-common#371f17fe26cad6dc8f9cce04a779d5a4a21c8319"
 dependencies = [
  "fs-swap",
  "kvdb",
@@ -3517,7 +3517,7 @@ dependencies = [
 [[package]]
 name = "parity-util-mem"
 version = "0.6.1"
-source = "git+https://github.com/paritytech/parity-common?branch=ao-upgrade-rocksdb#36f799f03f1660388b09dc41241e85780695cb23"
+source = "git+https://github.com/paritytech/parity-common#371f17fe26cad6dc8f9cce04a779d5a4a21c8319"
 dependencies = [
  "cfg-if",
  "ethereum-types",
@@ -3535,7 +3535,7 @@ dependencies = [
 [[package]]
 name = "parity-util-mem-derive"
 version = "0.1.0"
-source = "git+https://github.com/paritytech/parity-common?branch=ao-upgrade-rocksdb#36f799f03f1660388b09dc41241e85780695cb23"
+source = "git+https://github.com/paritytech/parity-common#371f17fe26cad6dc8f9cce04a779d5a4a21c8319"
 dependencies = [
  "proc-macro2 1.0.9",
  "syn 1.0.17",
@@ -3829,8 +3829,8 @@ dependencies = [
 
 [[package]]
 name = "primitive-types"
-version = "0.7.0"
-source = "git+https://github.com/paritytech/parity-common?branch=ao-upgrade-rocksdb#36f799f03f1660388b09dc41241e85780695cb23"
+version = "0.7.1"
+source = "git+https://github.com/paritytech/parity-common#371f17fe26cad6dc8f9cce04a779d5a4a21c8319"
 dependencies = [
  "fixed-hash",
  "impl-codec",
@@ -4221,7 +4221,7 @@ dependencies = [
 [[package]]
 name = "rlp"
 version = "0.4.5"
-source = "git+https://github.com/paritytech/parity-common?branch=ao-upgrade-rocksdb#36f799f03f1660388b09dc41241e85780695cb23"
+source = "git+https://github.com/paritytech/parity-common#371f17fe26cad6dc8f9cce04a779d5a4a21c8319"
 dependencies = [
  "rustc-hex 2.1.0",
 ]
@@ -5305,8 +5305,8 @@ checksum = "6d2783fe2d6b8c1101136184eb41be8b1ad379e4657050b8aaff0c79ee7575f9"
 
 [[package]]
 name = "uint"
-version = "0.8.2"
-source = "git+https://github.com/paritytech/parity-common?branch=ao-upgrade-rocksdb#36f799f03f1660388b09dc41241e85780695cb23"
+version = "0.8.3"
+source = "git+https://github.com/paritytech/parity-common#371f17fe26cad6dc8f9cce04a779d5a4a21c8319"
 dependencies = [
  "byteorder",
  "crunchy",
