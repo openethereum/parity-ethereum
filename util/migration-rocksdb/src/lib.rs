@@ -21,7 +21,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::{fs, io, error};
 
-use log::{info, trace};
+use log::{info, trace, warn};
 use kvdb::DBTransaction;
 use kvdb_rocksdb::{CompactionProfile, Database, DatabaseConfig};
 
@@ -97,10 +97,12 @@ pub trait Migration {
 	/// Whether this migration alters any existing columns.
 	/// if not, then column families will simply be added and `migrate` will never be called.
 	fn alters_existing(&self) -> bool { true }
+	/// Whether this migration deletes data in any of the existing columns.
+	fn deletes_existing(&self) -> bool { false }
 	/// Version of the database after the migration.
 	fn version(&self) -> u32;
 	/// Migrate a source to a destination.
-	fn migrate(&mut self, source: Arc<Database>, config: &Config, destination: &mut Database, col: u32) -> io::Result<()>;
+	fn migrate(&mut self, source: Arc<Database>, config: &Config, destination: Option<&mut Database>, col: u32) -> io::Result<()>;
 }
 
 /// A simple migration over key-value pairs of a single column.
@@ -123,8 +125,15 @@ impl<T: SimpleMigration> Migration for T {
 
 	fn version(&self) -> u32 { SimpleMigration::version(self) }
 
-	fn migrate(&mut self, source: Arc<Database>, config: &Config, dest: &mut Database, col: u32) -> io::Result<()> {
+	fn migrate(&mut self, source: Arc<Database>, config: &Config, dest: Option<&mut Database>, col: u32) -> io::Result<()> {
 		let migration_needed = col == SimpleMigration::migrated_column_index(self);
+		let dest = match dest {
+			None => {
+				warn!(target: "migration", "No destination db provided. No changes made.");
+				return Ok(());
+			}
+			Some(dest) => dest,
+		};
 		let mut batch = Batch::new(config, col);
 
 		for (key, value) in source.iter(col) {
@@ -156,7 +165,7 @@ impl Migration for ChangeColumns {
 	fn columns(&self) -> u32 { self.post_columns }
 	fn alters_existing(&self) -> bool { false }
 	fn version(&self) -> u32 { self.version }
-	fn migrate(&mut self, _: Arc<Database>, _: &Config, _: &mut Database, _: u32) -> io::Result<()> {
+	fn migrate(&mut self, _: Arc<Database>, _: &Config, _: Option<&mut Database>, _: u32) -> io::Result<()> {
 		Ok(())
 	}
 }
@@ -170,10 +179,11 @@ pub struct VacuumAccountsBloom {
 impl Migration for VacuumAccountsBloom {
 	fn pre_columns(&self) -> u32 { self.columns }
 	fn columns(&self) -> u32 { self.columns }
-	fn alters_existing(&self) -> bool { true }
+	fn alters_existing(&self) -> bool { false }
+	fn deletes_existing(&self) -> bool { true }
 	fn version(&self) -> u32 { self.version }
 
-	fn migrate(&mut self, db: Arc<Database>, _config: &Config, _dest: &mut Database, col: u32) -> io::Result<()> {
+	fn migrate(&mut self, db: Arc<Database>, _config: &Config, _dest: Option<&mut Database>, col: u32) -> io::Result<()> {
 		if col != self.column_to_vacuum {
 			return Ok(())
 		}
@@ -299,7 +309,7 @@ impl Manager {
 				let mut new_db = Database::open(&db_config, temp_path_str)?;
 
 				for col in 0..current_columns {
-					migration.migrate(cur_db.clone(), &config, &mut new_db, col)?
+					migration.migrate(cur_db.clone(), &config, Some(&mut new_db), col)?
 				}
 
 				// next iteration, we will migrate from this db into the other temp.
@@ -308,6 +318,11 @@ impl Manager {
 
 				// remove the other temporary migration database.
 				let _ = fs::remove_dir_all(temp_idx.path(&db_root));
+			} else if migration.deletes_existing() {
+				// Migration deletes data in an existing column.
+				for col in 0..db_config.columns {
+					migration.migrate(cur_db.clone(), &config, None, col)?
+				}
 			} else {
 				// migrations which simply add or remove column families.
 				// we can do this in-place.
@@ -321,6 +336,8 @@ impl Manager {
 				}
 			}
 		}
+		// If `temp_path` is different from `old_path` we will shuffle database
+		// directories and delete the old paths.
 		Ok(temp_path)
 	}
 

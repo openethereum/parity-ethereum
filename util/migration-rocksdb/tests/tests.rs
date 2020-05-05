@@ -90,7 +90,8 @@ impl Migration for AddsColumn {
 	fn pre_columns(&self) -> u32 { 1 }
 	fn columns(&self) -> u32 { 1 }
 	fn version(&self) -> u32 { 1 }
-	fn migrate(&mut self, source: Arc<Database>, config: &Config, dest: &mut Database, col: u32) -> io::Result<()> {
+	fn migrate(&mut self, source: Arc<Database>, config: &Config, dest: Option<&mut Database>, col: u32) -> io::Result<()> {
+		let dest = dest.expect("migrate is called with a database");
 		let mut batch = Batch::new(config, col);
 
 		for (key, value) in source.iter(col) {
