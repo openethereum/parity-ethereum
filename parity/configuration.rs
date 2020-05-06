@@ -21,7 +21,7 @@ use std::path::PathBuf;
 use std::collections::{HashSet, BTreeMap};
 use std::iter::FromIterator;
 use std::cmp;
-use cli::{Args, ArgsError};
+use cli::args::{Args, ArgsError};
 use hash::keccak;
 use ethereum_types::{U256, H256, Address};
 use parity_version::{version_data, version};
@@ -37,7 +37,7 @@ use verification::queue::VerifierSettings;
 use rpc::{IpcConfiguration, HttpConfiguration, WsConfiguration};
 use parity_rpc::NetworkSettings;
 use cache::CacheConfig;
-use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, geth_ipc_path, parity_ipc_path, to_bootnodes, to_addresses, to_address, to_queue_strategy, to_queue_penalization};
+use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, parity_ipc_path, to_bootnodes, to_addresses, to_address, to_queue_strategy, to_queue_penalization};
 use dir::helpers::{replace_home, replace_home_and_local};
 use params::{ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras, SpecType};
 use ethcore_logger::Config as LogConfig;
@@ -50,7 +50,7 @@ use types::data_format::DataFormat;
 use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, KillBlockchain, ExportState, ResetBlockchain};
 use export_hardcoded_sync::ExportHsyncCmd;
 use presale::ImportWallet;
-use account::{AccountCmd, NewAccount, ListAccounts, ImportAccounts, ImportFromGethAccounts};
+use account::{AccountCmd, NewAccount, ListAccounts, ImportAccounts};
 use snapshot_cmd::{self, SnapshotCommand};
 use network::{IpFilter, NatType};
 
@@ -61,7 +61,7 @@ pub const ETHERSCAN_ETH_PRICE_ENDPOINT: &str = "https://api.etherscan.io/api?mod
 #[derive(Debug, PartialEq)]
 pub enum Cmd {
 	Run(RunCmd),
-	Version,
+	// Version, // NOTE: this is automatically handled by structopt
 	Account(AccountCmd),
 	ImportPresaleWallet(ImportWallet),
 	Blockchain(BlockchainCmd),
@@ -86,6 +86,7 @@ pub enum Cmd {
 	ExportHardcodedSync(ExportHsyncCmd),
 }
 
+#[derive(Debug, PartialEq)]
 pub struct Execute {
 	pub logger: LogConfig,
 	pub cmd: Cmd,
@@ -108,7 +109,7 @@ impl Configuration {
 	/// ```
 	pub fn parse_cli<S: AsRef<str>>(command: &[S]) -> Result<Self, ArgsError> {
 		let config = Configuration {
-			args: Args::parse(command)?,
+			args: Args::parse()?,
 		};
 
 		Ok(config)
@@ -146,9 +147,7 @@ impl Configuration {
 			return Err("--key-iterations must be non-zero".into());
 		}
 
-		let cmd = if self.args.flag_version {
-			Cmd::Version
-		} else if self.args.cmd_signer {
+		let cmd = if self.args.cmd_signer {
 			let authfile = ::signer::codes_path(&ws_conf.signer_path);
 
 			if self.args.cmd_signer_new_token {
@@ -223,15 +222,6 @@ impl Configuration {
 			} else {
 				unreachable!();
 			};
-			Cmd::Account(account_cmd)
-		} else if self.args.flag_import_geth_keys {
-				let account_cmd = AccountCmd::ImportFromGeth(
-				ImportFromGethAccounts {
-					spec: spec,
-					to: dirs.keys,
-					testnet: self.args.flag_testnet
-				}
-			);
 			Cmd::Account(account_cmd)
 		} else if self.args.cmd_wallet {
 			let presale_cmd = ImportWallet {
@@ -440,7 +430,7 @@ impl Configuration {
 	}
 
 	fn author(&self) -> Result<Address, String> {
-		to_address(self.args.arg_etherbase.clone().or(self.args.arg_author.clone()))
+		to_address(self.args.arg_author.clone())
 	}
 
 	fn engine_signer(&self) -> Result<Address, String> {
@@ -457,7 +447,7 @@ impl Configuration {
 	}
 
 	fn cache_config(&self) -> CacheConfig {
-		match self.args.arg_cache_size.or(self.args.arg_cache) {
+		match self.args.arg_cache_size{
 			Some(size) => CacheConfig::new_with_total_cache_size(size),
 			None => CacheConfig::new(
 				self.args.arg_cache_size_db,
@@ -477,56 +467,51 @@ impl Configuration {
 		}
 	}
 
-	fn chain(&self) -> Result<SpecType, String> {
-		let name = if self.args.flag_testnet {
-			"testnet".to_owned()
-		} else {
-			self.args.arg_chain.clone()
-		};
-
+	pub fn chain(&self) -> Result<SpecType, String> {
+		let name = self.args.arg_chain.clone();
 		Ok(name.parse()?)
 	}
 
-	fn is_dev_chain(&self) -> Result<bool, String> {
+	pub fn is_dev_chain(&self) -> Result<bool, String> {
 		Ok(self.chain()? == SpecType::Dev)
 	}
 
-	fn max_peers(&self) -> u32 {
+	pub fn max_peers(&self) -> u32 {
 		self.args.arg_max_peers
 			.or(cmp::max(self.args.arg_min_peers, Some(DEFAULT_MAX_PEERS)))
 			.unwrap_or(DEFAULT_MAX_PEERS) as u32
 	}
 
-	fn ip_filter(&self) -> Result<IpFilter, String> {
+	pub fn ip_filter(&self) -> Result<IpFilter, String> {
 		match IpFilter::parse(self.args.arg_allow_ips.as_str()) {
 			Ok(allow_ip) => Ok(allow_ip),
 			Err(_) => Err("Invalid IP filter value".to_owned()),
 		}
 	}
 
-	fn min_peers(&self) -> u32 {
+	pub fn min_peers(&self) -> u32 {
 		self.args.arg_min_peers
 			.or(cmp::min(self.args.arg_max_peers, Some(DEFAULT_MIN_PEERS)))
 			.unwrap_or(DEFAULT_MIN_PEERS) as u32
 	}
 
-	fn max_pending_peers(&self) -> u32 {
+	pub fn max_pending_peers(&self) -> u32 {
 		self.args.arg_max_pending_peers as u32
 	}
 
-	fn snapshot_peers(&self) -> u32 {
+	pub fn snapshot_peers(&self) -> u32 {
 		self.args.arg_snapshot_peers as u32
 	}
 
-	fn work_notify(&self) -> Vec<String> {
+	pub fn work_notify(&self) -> Vec<String> {
 		self.args.arg_notify_work.as_ref().map_or_else(Vec::new, |s| s.split(',').map(|s| s.to_owned()).collect())
 	}
 
-	fn accounts_config(&self) -> Result<AccountsConfig, String> {
+	pub fn accounts_config(&self) -> Result<AccountsConfig, String> {
 		let cfg = AccountsConfig {
 			iterations: self.args.arg_keys_iterations,
 			refresh_time: self.args.arg_accounts_refresh,
-			testnet: self.args.flag_testnet,
+		testnet: false, // FIXME: legacy option, should ideally be deleted
 			password_files: self.args.arg_password.iter().map(|s| replace_home(&self.directories().base, s)).collect(),
 			unlocked_accounts: to_addresses(&self.args.arg_unlock)?,
 			enable_fast_unlock: self.args.flag_fast_unlock,
@@ -535,18 +520,19 @@ impl Configuration {
 		Ok(cfg)
 	}
 
-	fn stratum_options(&self) -> Result<Option<stratum::Options>, String> {
-		if self.args.flag_stratum {
+	pub fn stratum_options(&self) -> Result<Option<stratum::Options>, String> {
+	if self.args.flag_stratum {
 			Ok(Some(stratum::Options {
 				io_path: self.directories().db,
 				listen_addr: self.stratum_interface(),
-				port: self.args.arg_ports_shift + self.args.arg_stratum_port,
+			port: self.args.arg_ports_shift + self.args.arg_stratum_port,
 				secret: self.args.arg_stratum_secret.as_ref().map(|s| s.parse::<H256>().unwrap_or_else(|_| keccak(s))),
 			}))
 		} else { Ok(None) }
 	}
 
-	fn miner_options(&self) -> Result<MinerOptions, String> {
+
+	pub fn miner_options(&self) -> Result<MinerOptions, String> {
 		let is_dev_chain = self.is_dev_chain()?;
 		if is_dev_chain && self.args.flag_force_sealing && self.args.arg_reseal_min_period == 0 {
 			return Err("Force sealing can't be used with reseal_min_period = 0".into());
@@ -579,7 +565,7 @@ impl Configuration {
 		Ok(options)
 	}
 
-	fn pool_limits(&self) -> Result<pool::Options, String> {
+	pub fn pool_limits(&self) -> Result<pool::Options, String> {
 		let max_count = self.args.arg_tx_queue_size;
 
 		Ok(pool::Options {
@@ -593,7 +579,7 @@ impl Configuration {
 		})
 	}
 
-	fn pool_verification_options(&self) -> Result<pool::verifier::Options, String>{
+	pub fn pool_verification_options(&self) -> Result<pool::verifier::Options, String>{
 		Ok(pool::verifier::Options {
 			// NOTE min_gas_price and block_gas_limit will be overwritten right after start.
 			minimal_gas_price: U256::from(20_000_000) * 1_000u32,
@@ -606,7 +592,7 @@ impl Configuration {
 		})
 	}
 
-	fn secretstore_config(&self) -> Result<SecretStoreConfiguration, String> {
+	pub fn secretstore_config(&self) -> Result<SecretStoreConfiguration, String> {
 		Ok(SecretStoreConfiguration {
 			enabled: self.secretstore_enabled(),
 			http_enabled: self.secretstore_http_enabled(),
@@ -630,7 +616,7 @@ impl Configuration {
 		})
 	}
 
-	fn gas_pricer_config(&self) -> Result<GasPricerConfig, String> {
+	pub fn gas_pricer_config(&self) -> Result<GasPricerConfig, String> {
 		fn wei_per_gas(usd_per_tx: f32, usd_per_eth: f32) -> U256 {
 			let wei_per_usd: f32 = 1.0e18 / usd_per_eth;
 			let gas_per_tx: f32 = 21000.0;
@@ -638,9 +624,7 @@ impl Configuration {
 			U256::from_dec_str(&format!("{:.0}", wei_per_gas)).unwrap()
 		}
 
-		if let Some(dec) = self.args.arg_gasprice.as_ref() {
-			return Ok(GasPricerConfig::Fixed(to_u256(dec)?));
-		} else if let Some(dec) = self.args.arg_min_gas_price {
+		if let Some(dec) = self.args.arg_min_gas_price {
 			return Ok(GasPricerConfig::Fixed(U256::from(dec)));
 		} else if self.chain()? != SpecType::Foundation {
 			return Ok(GasPricerConfig::Fixed(U256::zero()));
@@ -673,15 +657,15 @@ impl Configuration {
 		}
 	}
 
-	fn extra_data(&self) -> Result<Bytes, String> {
-		match self.args.arg_extradata.as_ref().or(self.args.arg_extra_data.as_ref()) {
+	pub fn extra_data(&self) -> Result<Bytes, String> {
+		match self.args.arg_extra_data.as_ref() {
 			Some(x) if x.len() <= 32 => Ok(x.as_bytes().to_owned()),
 			None => Ok(version_data()),
 			Some(_) => Err("Extra data must be at most 32 characters".into()),
 		}
 	}
 
-	fn init_reserved_nodes(&self) -> Result<Vec<String>, String> {
+	pub fn init_reserved_nodes(&self) -> Result<Vec<String>, String> {
 		use std::fs::File;
 
 		match self.args.arg_reserved_peers {
@@ -707,7 +691,7 @@ impl Configuration {
 		}
 	}
 
-	fn net_addresses(&self) -> Result<(SocketAddr, Option<SocketAddr>), String> {
+	pub fn net_addresses(&self) -> Result<(SocketAddr, Option<SocketAddr>), String> {
 		let port = self.args.arg_ports_shift + self.args.arg_port;
 		let listen_address = SocketAddr::new(self.interface(&self.args.arg_interface).parse().unwrap(), port);
 		let public_address = if self.args.arg_nat.starts_with("extip:") {
@@ -729,7 +713,7 @@ impl Configuration {
 		Ok((listen_address, public_address))
 	}
 
-	fn net_config(&self) -> Result<NetworkConfiguration, String> {
+	pub fn net_config(&self) -> Result<NetworkConfiguration, String> {
 		let mut ret = NetworkConfiguration::new();
 		ret.nat_enabled = self.args.arg_nat == "any" || self.args.arg_nat == "upnp" || self.args.arg_nat == "natpmp";
 		ret.nat_type = match &self.args.arg_nat[..] {
@@ -749,7 +733,7 @@ impl Configuration {
 			Some(Ok(key)) => Some(key),
 			Some(Err(err)) => return Err(err),
 		};
-		ret.discovery_enabled = !self.args.flag_no_discovery && !self.args.flag_nodiscover;
+		ret.discovery_enabled = !self.args.flag_no_discovery;
 		ret.max_peers = self.max_peers();
 		ret.min_peers = self.min_peers();
 		ret.snapshot_peers = self.snapshot_peers();
@@ -772,16 +756,12 @@ impl Configuration {
 		Ok(ret)
 	}
 
-	fn network_id(&self) -> Option<u64> {
-		self.args.arg_network_id.or(self.args.arg_networkid)
+	pub fn network_id(&self) -> Option<u64> {
+		self.args.arg_network_id
 	}
 
-	fn rpc_apis(&self) -> String {
-		let mut apis: Vec<&str> = self.args.arg_rpcapi
-			.as_ref()
-			.unwrap_or(&self.args.arg_jsonrpc_apis)
-			.split(",")
-			.collect();
+	pub fn rpc_apis(&self) -> String {
+		let mut apis: Vec<&str> = self.args.arg_jsonrpc_apis.split(",").collect();
 
 		if self.args.flag_geth {
 			apis.insert(0, "personal");
@@ -790,7 +770,7 @@ impl Configuration {
 		apis.join(",")
 	}
 
-	fn cors(cors: &str) -> Option<Vec<String>> {
+	pub fn cors(cors: &str) -> Option<Vec<String>> {
 		match cors {
 			"none" => return Some(Vec::new()),
 			"*" | "all" | "any" => return None,
@@ -800,8 +780,8 @@ impl Configuration {
 		Some(cors.split(',').map(Into::into).collect())
 	}
 
-	fn rpc_cors(&self) -> Option<Vec<String>> {
-		let cors = self.args.arg_rpccorsdomain.clone().unwrap_or_else(|| self.args.arg_jsonrpc_cors.to_owned());
+	pub fn rpc_cors(&self) -> Option<Vec<String>> {
+		let cors = self.args.arg_jsonrpc_cors.to_owned();
 		Self::cors(&cors)
 	}
 
@@ -827,7 +807,7 @@ impl Configuration {
 		Some(hosts)
 	}
 
-	fn rpc_hosts(&self) -> Option<Vec<String>> {
+	pub fn rpc_hosts(&self) -> Option<Vec<String>> {
 		self.hosts(&self.args.arg_jsonrpc_hosts, &self.rpc_interface())
 	}
 
@@ -846,14 +826,14 @@ impl Configuration {
 	fn ipc_config(&self) -> Result<IpcConfiguration, String> {
 		let conf = IpcConfiguration {
 			chmod: self.args.arg_ipc_chmod.clone(),
-			enabled: !(self.args.flag_ipcdisable || self.args.flag_ipc_off || self.args.flag_no_ipc),
+			enabled: !self.args.flag_no_ipc,
 			socket_addr: self.ipc_path(),
 			apis: {
-				let mut apis = self.args.arg_ipcapi.clone().unwrap_or(self.args.arg_ipc_apis.clone());
+				let mut apis = self.args.arg_ipc_apis.clone();
 				if self.args.flag_geth {
 					if !apis.is_empty() {
- 						apis.push_str(",");
- 					}
+						apis.push_str(",");
+					}
 					apis.push_str("personal");
 				}
 				apis.parse()?
@@ -863,11 +843,11 @@ impl Configuration {
 		Ok(conf)
 	}
 
-	fn http_config(&self) -> Result<HttpConfiguration, String> {
+	pub fn http_config(&self) -> Result<HttpConfiguration, String> {
 		let mut conf = HttpConfiguration::default();
 		conf.enabled = self.rpc_enabled();
 		conf.interface = self.rpc_interface();
-		conf.port = self.args.arg_ports_shift + self.args.arg_rpcport.unwrap_or(self.args.arg_jsonrpc_port);
+		conf.port = self.args.arg_ports_shift + self.args.arg_jsonrpc_port;
 		conf.apis = self.rpc_apis().parse()?;
 		conf.hosts = self.rpc_hosts();
 		conf.cors = self.rpc_cors();
@@ -882,7 +862,7 @@ impl Configuration {
 		Ok(conf)
 	}
 
-	fn ws_config(&self) -> Result<WsConfiguration, String> {
+	pub fn ws_config(&self) -> Result<WsConfiguration, String> {
 		let support_token_api =
 			// enabled when not unlocking
 			self.args.arg_unlock.is_none() && self.args.arg_enable_signing_queue;
@@ -902,7 +882,7 @@ impl Configuration {
 		Ok(conf)
 	}
 
-	fn private_provider_config(&self) -> Result<(ProviderConfig, EncryptorConfig, bool), String> {
+	pub fn private_provider_config(&self) -> Result<(ProviderConfig, EncryptorConfig, bool), String> {
 		let dirs = self.directories();
 		let provider_conf = ProviderConfig {
 			validator_accounts: to_addresses(&self.args.arg_private_validators)?,
@@ -923,7 +903,7 @@ impl Configuration {
 		Ok((provider_conf, encryptor_conf, self.args.flag_private_enabled))
 	}
 
-	fn snapshot_config(&self) -> Result<SnapshotConfiguration, String> {
+	pub fn snapshot_config(&self) -> Result<SnapshotConfiguration, String> {
 		let mut conf = SnapshotConfiguration::default();
 		conf.no_periodic = self.args.flag_no_periodic_snapshot;
 		if let Some(threads) = self.args.arg_snapshot_threads {
@@ -935,7 +915,7 @@ impl Configuration {
 		Ok(conf)
 	}
 
-	fn network_settings(&self) -> Result<NetworkSettings, String> {
+	pub fn network_settings(&self) -> Result<NetworkSettings, String> {
 		let http_conf = self.http_config()?;
 		let net_addresses = self.net_addresses()?;
 		Ok(NetworkSettings {
@@ -949,7 +929,7 @@ impl Configuration {
 		})
 	}
 
-	fn update_policy(&self) -> Result<UpdatePolicy, String> {
+	pub fn update_policy(&self) -> Result<UpdatePolicy, String> {
 		Ok(UpdatePolicy {
 			enable_downloading: !self.args.flag_no_download,
 			require_consensus: !self.args.flag_no_consensus,
@@ -972,10 +952,14 @@ impl Configuration {
 		})
 	}
 
-	fn directories(&self) -> Directories {
+	pub fn directories(&self) -> Directories {
 		let local_path = default_local_path();
-		let base_path = self.args.arg_base_path.as_ref().or_else(|| self.args.arg_datadir.as_ref()).map_or_else(|| default_data_path(), |s| s.clone());
-		let data_path = replace_home("", &base_path);
+		let default_data_path = default_data_path();
+		let base_path: &str = match &self.args.arg_base_path {
+			Some(x) => &x,
+			None => &default_data_path,
+		};
+		let data_path = replace_home("", &(base_path));
 		let is_using_base_path = self.args.arg_base_path.is_some();
 		// If base_path is set and db_path is not we default to base path subdir instead of LOCAL.
 		let base_db_path = if is_using_base_path && self.args.arg_db_path.is_none() {
@@ -1007,19 +991,15 @@ impl Configuration {
 		}
 	}
 
-	fn ipc_path(&self) -> String {
-		if self.args.flag_geth {
-			geth_ipc_path(self.args.flag_testnet)
-		} else {
+	pub fn ipc_path(&self) -> String {
 			parity_ipc_path(
 				&self.directories().base,
-				&self.args.arg_ipcpath.clone().unwrap_or(self.args.arg_ipc_path.clone()),
+				&self.args.arg_ipc_path.clone(),
 				self.args.arg_ports_shift,
 			)
-		}
 	}
 
-	fn interface(&self, interface: &str) -> String {
+	pub fn interface(&self, interface: &str) -> String {
 		if self.args.flag_unsafe_expose {
 			return "0.0.0.0".into();
 		}
@@ -1031,24 +1011,24 @@ impl Configuration {
 		}.into()
 	}
 
-	fn rpc_interface(&self) -> String {
-		let rpc_interface = self.args.arg_rpcaddr.clone().unwrap_or(self.args.arg_jsonrpc_interface.clone());
+	pub fn rpc_interface(&self) -> String {
+		let rpc_interface = self.args.arg_jsonrpc_interface.clone();
 		self.interface(&rpc_interface)
 	}
 
-	fn ws_interface(&self) -> String {
+	pub fn ws_interface(&self) -> String {
 		self.interface(&self.args.arg_ws_interface)
 	}
 
-	fn secretstore_interface(&self) -> String {
+	pub fn secretstore_interface(&self) -> String {
 		self.interface(&self.args.arg_secretstore_interface)
 	}
 
-	fn secretstore_http_interface(&self) -> String {
+	pub fn secretstore_http_interface(&self) -> String {
 		self.interface(&self.args.arg_secretstore_http_interface)
 	}
 
-	fn secretstore_cors(&self) -> Option<Vec<String>> {
+	pub fn secretstore_cors(&self) -> Option<Vec<String>> {
 		Self::cors(self.args.arg_secretstore_http_cors.as_ref())
 	}
 
@@ -1100,7 +1080,7 @@ impl Configuration {
 	}
 
 	fn rpc_enabled(&self) -> bool {
-		!self.args.flag_jsonrpc_off && !self.args.flag_no_jsonrpc
+		!self.args.flag_no_jsonrpc
 	}
 
 	fn ws_enabled(&self) -> bool {
@@ -1163,794 +1143,5 @@ fn into_secretstore_service_contract_address(s: Option<&String>) -> Result<Optio
 		None | Some("none") => Ok(None),
 		Some("registry") => Ok(Some(SecretStoreContractAddress::Registry)),
 		Some(a) => Ok(Some(SecretStoreContractAddress::Address(a.parse().map_err(|e| format!("{}", e))?))),
-	}
-}
-
-#[cfg(test)]
-mod tests {
-	use std::io::Write;
-	use std::fs::File;
-	use std::str::FromStr;
-
-	use tempfile::TempDir;
-	use ethcore::miner::MinerOptions;
-	use miner::pool::PrioritizationStrategy;
-	use parity_rpc::NetworkSettings;
-	use updater::{UpdatePolicy, UpdateFilter, ReleaseTrack};
-	use types::ids::BlockId;
-	use types::data_format::DataFormat;
-	use account::{AccountCmd, NewAccount, ImportAccounts, ListAccounts};
-	use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, ExportState};
-	use cli::Args;
-	use dir::{Directories, default_hypervisor_path};
-	use helpers::{default_network_config};
-	use params::SpecType;
-	use presale::ImportWallet;
-	use rpc::WsConfiguration;
-	use rpc_apis::ApiSet;
-	use run::RunCmd;
-
-	use network::{AllowIP, IpFilter};
-
-	extern crate ipnetwork;
-	use self::ipnetwork::IpNetwork;
-
-	use super::*;
-
-	#[derive(Debug, PartialEq)]
-	struct TestPasswordReader(&'static str);
-
-	fn parse(args: &[&str]) -> Configuration {
-		Configuration {
-			args: Args::parse_without_config(args).unwrap(),
-		}
-	}
-
-	#[test]
-	fn test_command_version() {
-		let args = vec!["parity", "--version"];
-		let conf = parse(&args);
-		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Version);
-	}
-
-	#[test]
-	fn test_command_account_new() {
-		let args = vec!["parity", "account", "new"];
-		let conf = parse(&args);
-		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Account(AccountCmd::New(NewAccount {
-			iterations: 10240,
-			path: Directories::default().keys,
-			password_file: None,
-			spec: SpecType::default(),
-		})));
-	}
-
-	#[test]
-	fn test_command_account_list() {
-		let args = vec!["parity", "account", "list"];
-		let conf = parse(&args);
-		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Account(
-			AccountCmd::List(ListAccounts {
-				path: Directories::default().keys,
-				spec: SpecType::default(),
-			})
-		));
-	}
-
-	#[test]
-	fn test_command_account_import() {
-		let args = vec!["parity", "account", "import", "my_dir", "another_dir"];
-		let conf = parse(&args);
-		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Account(AccountCmd::Import(ImportAccounts {
-			from: vec!["my_dir".into(), "another_dir".into()],
-			to: Directories::default().keys,
-			spec: SpecType::default(),
-		})));
-	}
-
-	#[test]
-	fn test_command_wallet_import() {
-		let args = vec!["parity", "wallet", "import", "my_wallet.json", "--password", "pwd"];
-		let conf = parse(&args);
-		assert_eq!(conf.into_command().unwrap().cmd, Cmd::ImportPresaleWallet(ImportWallet {
-			iterations: 10240,
-			path: Directories::default().keys,
-			wallet_path: "my_wallet.json".into(),
-			password_file: Some("pwd".into()),
-			spec: SpecType::default(),
-		}));
-	}
-
-	#[test]
-	fn test_command_blockchain_import() {
-		let args = vec!["parity", "import", "blockchain.json"];
-		let conf = parse(&args);
-		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Blockchain(BlockchainCmd::Import(ImportBlockchain {
-			spec: Default::default(),
-			cache_config: Default::default(),
-			dirs: Default::default(),
-			file_path: Some("blockchain.json".into()),
-			format: Default::default(),
-			pruning: Default::default(),
-			pruning_history: 128,
-			pruning_memory: 64,
-			compaction: Default::default(),
-			tracing: Default::default(),
-			fat_db: Default::default(),
-			check_seal: true,
-			with_color: !cfg!(windows),
-			verifier_settings: Default::default(),
-			light: false,
-			max_round_blocks_to_import: 12,
-		})));
-	}
-
-	#[test]
-	fn test_command_blockchain_export() {
-		let args = vec!["parity", "export", "blocks", "blockchain.json"];
-		let conf = parse(&args);
-		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Blockchain(BlockchainCmd::Export(ExportBlockchain {
-			spec: Default::default(),
-			cache_config: Default::default(),
-			dirs: Default::default(),
-			file_path: Some("blockchain.json".into()),
-			pruning: Default::default(),
-			pruning_history: 128,
-			pruning_memory: 64,
-			format: Default::default(),
-			compaction: Default::default(),
-			tracing: Default::default(),
-			fat_db: Default::default(),
-			from_block: BlockId::Number(1),
-			to_block: BlockId::Latest,
-			check_seal: true,
-			max_round_blocks_to_import: 12,
-		})));
-	}
-
-	#[test]
-	fn test_command_state_export() {
-		let args = vec!["parity", "export", "state", "state.json"];
-		let conf = parse(&args);
-		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Blockchain(BlockchainCmd::ExportState(ExportState {
-			spec: Default::default(),
-			cache_config: Default::default(),
-			dirs: Default::default(),
-			file_path: Some("state.json".into()),
-			pruning: Default::default(),
-			pruning_history: 128,
-			pruning_memory: 64,
-			format: Default::default(),
-			compaction: Default::default(),
-			tracing: Default::default(),
-			fat_db: Default::default(),
-			at: BlockId::Latest,
-			storage: true,
-			code: true,
-			min_balance: None,
-			max_balance: None,
-			max_round_blocks_to_import: 12,
-		})));
-	}
-
-	#[test]
-	fn test_command_blockchain_export_with_custom_format() {
-		let args = vec!["parity", "export", "blocks", "--format", "hex", "blockchain.json"];
-		let conf = parse(&args);
-		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Blockchain(BlockchainCmd::Export(ExportBlockchain {
-			spec: Default::default(),
-			cache_config: Default::default(),
-			dirs: Default::default(),
-			file_path: Some("blockchain.json".into()),
-			pruning: Default::default(),
-			pruning_history: 128,
-			pruning_memory: 64,
-			format: Some(DataFormat::Hex),
-			compaction: Default::default(),
-			tracing: Default::default(),
-			fat_db: Default::default(),
-			from_block: BlockId::Number(1),
-			to_block: BlockId::Latest,
-			check_seal: true,
-			max_round_blocks_to_import: 12,
-		})));
-	}
-
-	#[test]
-	fn test_command_signer_new_token() {
-		let args = vec!["parity", "signer", "new-token"];
-		let conf = parse(&args);
-		let expected = Directories::default().signer;
-		assert_eq!(conf.into_command().unwrap().cmd, Cmd::SignerToken(WsConfiguration {
-			enabled: true,
-			interface: "127.0.0.1".into(),
-			port: 8546,
-			apis: ApiSet::UnsafeContext,
-			origins: Some(vec!["parity://*".into(),"chrome-extension://*".into(), "moz-extension://*".into()]),
-			hosts: Some(vec![]),
-			signer_path: expected.into(),
-			support_token_api: false,
-			max_connections: 100,
-		}, LogConfig {
-			color: !cfg!(windows),
-			mode: None,
-			file: None,
-		} ));
-	}
-
-	#[test]
-	fn test_ws_max_connections() {
-		let args = vec!["parity", "--ws-max-connections", "1"];
-		let conf = parse(&args);
-
-		assert_eq!(conf.ws_config().unwrap(), WsConfiguration {
-			max_connections: 1,
-			..Default::default()
-		});
-	}
-
-	#[test]
-	fn test_run_cmd() {
-		let args = vec!["parity"];
-		let conf = parse(&args);
-		let mut expected = RunCmd {
-			allow_missing_blocks: false,
-			cache_config: Default::default(),
-			dirs: Default::default(),
-			spec: Default::default(),
-			pruning: Default::default(),
-			pruning_history: 128,
-			pruning_memory: 64,
-			daemon: None,
-			logger_config: Default::default(),
-			miner_options: Default::default(),
-			gas_price_percentile: 50,
-			poll_lifetime: 60,
-			ws_conf: Default::default(),
-			http_conf: Default::default(),
-			ipc_conf: Default::default(),
-			net_conf: default_network_config(),
-			network_id: None,
-			warp_sync: true,
-			warp_barrier: None,
-			acc_conf: Default::default(),
-			gas_pricer_conf: Default::default(),
-			miner_extras: Default::default(),
-			update_policy: UpdatePolicy {
-				enable_downloading: true,
-				require_consensus: true,
-				filter: UpdateFilter::Critical,
-				track: ReleaseTrack::Unknown,
-				path: default_hypervisor_path(),
-				max_size: 128 * 1024 * 1024,
-				max_delay: 100,
-				frequency: 20,
-			},
-			mode: Default::default(),
-			tracing: Default::default(),
-			compaction: Default::default(),
-			geth_compatibility: false,
-			experimental_rpcs: false,
-			net_settings: Default::default(),
-			secretstore_conf: Default::default(),
-			private_provider_conf: Default::default(),
-			private_encryptor_conf: Default::default(),
-			private_tx_enabled: false,
-			name: "".into(),
-			custom_bootnodes: false,
-			fat_db: Default::default(),
-			snapshot_conf: Default::default(),
-			stratum: None,
-			check_seal: true,
-			download_old_blocks: true,
-			verifier_settings: Default::default(),
-			serve_light: true,
-			light: false,
-			no_hardcoded_sync: false,
-			no_persistent_txqueue: false,
-			max_round_blocks_to_import: 12,
-			on_demand_response_time_window: None,
-			on_demand_request_backoff_start: None,
-			on_demand_request_backoff_max: None,
-			on_demand_request_backoff_rounds_max: None,
-			on_demand_request_consecutive_failures: None,
-			sync_until: None,
-		};
-		expected.secretstore_conf.enabled = cfg!(feature = "secretstore");
-		expected.secretstore_conf.http_enabled = cfg!(feature = "secretstore");
-		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Run(expected));
-	}
-
-	#[test]
-	fn should_parse_mining_options() {
-		// given
-		let mut mining_options = MinerOptions::default();
-
-		// when
-		let conf0 = parse(&["parity"]);
-		let conf2 = parse(&["parity", "--tx-queue-strategy", "gas_price"]);
-
-		// then
-		assert_eq!(conf0.miner_options().unwrap(), mining_options);
-		mining_options.tx_queue_strategy = PrioritizationStrategy::GasPriceOnly;
-		assert_eq!(conf2.miner_options().unwrap(), mining_options);
-	}
-
-	#[test]
-	fn should_fail_on_force_reseal_and_reseal_min_period() {
-		let conf = parse(&["parity", "--chain", "dev", "--force-sealing", "--reseal-min-period", "0"]);
-
-		assert!(conf.miner_options().is_err());
-	}
-
-	#[test]
-	fn should_parse_updater_options() {
-		// when
-		let conf0 = parse(&["parity", "--auto-update", "all", "--no-consensus", "--auto-update-delay", "300"]);
-		let conf1 = parse(&["parity", "--auto-update=xxx"]);
-
-		// then
-		assert_eq!(conf0.update_policy().unwrap(), UpdatePolicy {
-			enable_downloading: true,
-			require_consensus: false,
-			filter: UpdateFilter::All,
-			track: ReleaseTrack::Unknown,
-			path: default_hypervisor_path(),
-			max_size: 128 * 1024 * 1024,
-			max_delay: 300,
-			frequency: 20,
-		});
-		assert!(conf1.update_policy().is_err());
-	}
-
-	#[test]
-	fn should_parse_network_settings() {
-		// given
-
-		// when
-		let conf = parse(&["parity", "--testnet", "--identity", "testname"]);
-
-		// then
-		assert_eq!(conf.network_settings(), Ok(NetworkSettings {
-			name: "testname".to_owned(),
-			chain: "goerli".to_owned(),
-			is_dev_chain: false,
-			network_port: 30303,
-			rpc_enabled: true,
-			rpc_interface: "127.0.0.1".to_owned(),
-			rpc_port: 8545,
-		}));
-	}
-
-	#[test]
-	fn should_parse_rpc_settings_with_geth_compatiblity() {
-		// given
-		fn assert(conf: Configuration) {
-			let net = conf.network_settings().unwrap();
-			assert_eq!(net.rpc_enabled, true);
-			assert_eq!(net.rpc_interface, "0.0.0.0".to_owned());
-			assert_eq!(net.rpc_port, 8000);
-			assert_eq!(conf.rpc_cors(), None);
-			assert_eq!(conf.rpc_apis(), "web3,eth".to_owned());
-		}
-
-		// when
-		let conf1 = parse(&["parity", "-j",
-						 "--jsonrpc-port", "8000",
-						 "--jsonrpc-interface", "all",
-						 "--jsonrpc-cors", "*",
-						 "--jsonrpc-apis", "web3,eth"
-						 ]);
-		let conf2 = parse(&["parity", "--rpc",
-							"--rpcport", "8000",
-							"--rpcaddr", "all",
-							"--rpccorsdomain", "*",
-							"--rpcapi", "web3,eth"
-							]);
-
-		// then
-		assert(conf1);
-		assert(conf2);
-	}
-
-	#[test]
-	fn should_parse_rpc_hosts() {
-		// given
-
-		// when
-		let conf0 = parse(&["parity"]);
-		let conf1 = parse(&["parity", "--jsonrpc-hosts", "none"]);
-		let conf2 = parse(&["parity", "--jsonrpc-hosts", "all"]);
-		let conf3 = parse(&["parity", "--jsonrpc-hosts", "parity.io,something.io"]);
-
-		// then
-		assert_eq!(conf0.rpc_hosts(), Some(Vec::new()));
-		assert_eq!(conf1.rpc_hosts(), Some(Vec::new()));
-		assert_eq!(conf2.rpc_hosts(), None);
-		assert_eq!(conf3.rpc_hosts(), Some(vec!["parity.io".into(), "something.io".into()]));
-	}
-
-	#[test]
-	fn ensures_sane_http_settings() {
-		// given incorrect settings
-		let conf = parse(&["parity",
-			"--jsonrpc-server-threads=0",
-			"--jsonrpc-max-payload=0",
-		]);
-
-		// then things are adjusted to Just Work.
-		let http_conf = conf.http_config().unwrap();
-		assert_eq!(http_conf.server_threads, 1);
-		assert_eq!(http_conf.max_payload, 1);
-	}
-
-	#[test]
-	fn jsonrpc_threading_defaults() {
-		let conf = parse(&["parity"]);
-		let http_conf = conf.http_config().unwrap();
-		assert_eq!(http_conf.server_threads, 4);
-		assert_eq!(http_conf.max_payload, 5);
-	}
-
-	#[test]
-	fn should_parse_ui_configuration() {
-		// given
-
-		// when
-		let conf0 = parse(&["parity", "--ui-path=signer"]);
-		let conf1 = parse(&["parity", "--ui-path=signer", "--ui-no-validation"]);
-		let conf2 = parse(&["parity", "--ui-path=signer", "--ui-port", "3123"]);
-		let conf3 = parse(&["parity", "--ui-path=signer", "--ui-interface", "test"]);
-		let conf4 = parse(&["parity", "--ui-path=signer", "--force-ui"]);
-
-		// then
-		assert_eq!(conf0.directories().signer, "signer".to_owned());
-
-		assert!(conf1.ws_config().unwrap().hosts.is_some());
-		assert_eq!(conf1.ws_config().unwrap().origins, Some(vec!["parity://*".into(), "chrome-extension://*".into(), "moz-extension://*".into()]));
-		assert_eq!(conf1.directories().signer, "signer".to_owned());
-
-		assert!(conf2.ws_config().unwrap().hosts.is_some());
-		assert_eq!(conf2.directories().signer, "signer".to_owned());
-
-		assert!(conf3.ws_config().unwrap().hosts.is_some());
-		assert_eq!(conf3.directories().signer, "signer".to_owned());
-
-		assert!(conf4.ws_config().unwrap().hosts.is_some());
-		assert_eq!(conf4.directories().signer, "signer".to_owned());
-	}
-
-	#[test]
-	fn should_not_bail_on_empty_line_in_reserved_peers() {
-		let tempdir = TempDir::new().unwrap();
-		let filename = tempdir.path().join("peers");
-		File::create(&filename).unwrap().write_all(b"  \n\t\n").unwrap();
-		let args = vec!["parity", "--reserved-peers", filename.to_str().unwrap()];
-		let conf = Configuration::parse_cli(&args).unwrap();
-		assert!(conf.init_reserved_nodes().is_ok());
-	}
-
-	#[test]
-	fn should_ignore_comments_in_reserved_peers() {
-		let tempdir = TempDir::new().unwrap();
-		let filename = tempdir.path().join("peers_comments");
-		File::create(&filename).unwrap().write_all(b"# Sample comment\nenode://6f8a80d14311c39f35f516fa664deaaaa13e85b2f7493f37f6144d86991ec012937307647bd3b9a82abe2974e1407241d54947bbb39763a4cac9f77166ad92a0@172.0.0.1:30303\n").unwrap();
-		let args = vec!["parity", "--reserved-peers", filename.to_str().unwrap()];
-		let conf = Configuration::parse_cli(&args).unwrap();
-		let reserved_nodes = conf.init_reserved_nodes();
-		assert!(reserved_nodes.is_ok());
-		assert_eq!(reserved_nodes.unwrap().len(), 1);
-	}
-
-	#[test]
-	fn test_dev_preset() {
-		let args = vec!["parity", "--config", "dev"];
-		let conf = Configuration::parse_cli(&args).unwrap();
-		match conf.into_command().unwrap().cmd {
-			Cmd::Run(c) => {
-				assert_eq!(c.net_settings.chain, "dev");
-				assert_eq!(c.gas_pricer_conf, GasPricerConfig::Fixed(0.into()));
-				assert_eq!(c.miner_options.reseal_min_period, Duration::from_millis(0));
-			},
-			_ => panic!("Should be Cmd::Run"),
-		}
-	}
-
-	#[test]
-	fn test_mining_preset() {
-		let args = vec!["parity", "--config", "mining"];
-		let conf = Configuration::parse_cli(&args).unwrap();
-		match conf.into_command().unwrap().cmd {
-			Cmd::Run(c) => {
-				assert_eq!(c.net_conf.min_peers, 50);
-				assert_eq!(c.net_conf.max_peers, 100);
-				assert_eq!(c.ipc_conf.enabled, false);
-				assert_eq!(c.miner_options.force_sealing, true);
-				assert_eq!(c.miner_options.reseal_on_external_tx, true);
-				assert_eq!(c.miner_options.reseal_on_own_tx, true);
-				assert_eq!(c.miner_options.reseal_min_period, Duration::from_millis(4000));
-				assert_eq!(c.miner_options.pool_limits.max_count, 8192);
-				assert_eq!(c.cache_config, CacheConfig::new_with_total_cache_size(1024));
-				assert_eq!(c.logger_config.mode.unwrap(), "miner=trace,own_tx=trace");
-			},
-			_ => panic!("Should be Cmd::Run"),
-		}
-	}
-
-	#[test]
-	fn test_non_standard_ports_preset() {
-		let args = vec!["parity", "--config", "non-standard-ports"];
-		let conf = Configuration::parse_cli(&args).unwrap();
-		match conf.into_command().unwrap().cmd {
-			Cmd::Run(c) => {
-				assert_eq!(c.net_settings.network_port, 30305);
-				assert_eq!(c.net_settings.rpc_port, 8645);
-			},
-			_ => panic!("Should be Cmd::Run"),
-		}
-	}
-
-	#[test]
-	fn test_insecure_preset() {
-		let args = vec!["parity", "--config", "insecure"];
-		let conf = Configuration::parse_cli(&args).unwrap();
-		match conf.into_command().unwrap().cmd {
-			Cmd::Run(c) => {
-				assert_eq!(c.update_policy.require_consensus, false);
-				assert_eq!(c.net_settings.rpc_interface, "0.0.0.0");
-				match c.http_conf.apis {
-					ApiSet::List(set) => assert_eq!(set, ApiSet::All.list_apis()),
-					_ => panic!("Incorrect rpc apis"),
-				}
-				// "web3,eth,net,personal,parity,parity_set,traces,rpc,parity_accounts");
-				assert_eq!(c.http_conf.hosts, None);
-			},
-			_ => panic!("Should be Cmd::Run"),
-		}
-	}
-
-	#[test]
-	fn test_dev_insecure_preset() {
-		let args = vec!["parity", "--config", "dev-insecure"];
-		let conf = Configuration::parse_cli(&args).unwrap();
-		match conf.into_command().unwrap().cmd {
-			Cmd::Run(c) => {
-				assert_eq!(c.net_settings.chain, "dev");
-				assert_eq!(c.gas_pricer_conf, GasPricerConfig::Fixed(0.into()));
-				assert_eq!(c.miner_options.reseal_min_period, Duration::from_millis(0));
-				assert_eq!(c.update_policy.require_consensus, false);
-				assert_eq!(c.net_settings.rpc_interface, "0.0.0.0");
-				match c.http_conf.apis {
-					ApiSet::List(set) => assert_eq!(set, ApiSet::All.list_apis()),
-					_ => panic!("Incorrect rpc apis"),
-				}
-				// "web3,eth,net,personal,parity,parity_set,traces,rpc,parity_accounts");
-				assert_eq!(c.http_conf.hosts, None);
-			},
-			_ => panic!("Should be Cmd::Run"),
-		}
-	}
-
-	#[test]
-	fn test_override_preset() {
-		let args = vec!["parity", "--config", "mining", "--min-peers=99"];
-		let conf = Configuration::parse_cli(&args).unwrap();
-		match conf.into_command().unwrap().cmd {
-			Cmd::Run(c) => {
-				assert_eq!(c.net_conf.min_peers, 99);
-			},
-			_ => panic!("Should be Cmd::Run"),
-		}
-	}
-
-	#[test]
-	fn test_identity_arg() {
-		let args = vec!["parity", "--identity", "Somebody"];
-		let conf = Configuration::parse_cli(&args).unwrap();
-		match conf.into_command().unwrap().cmd {
-			Cmd::Run(c) => {
-				assert_eq!(c.name, "Somebody");
-				assert!(c.net_conf.client_version.starts_with("OpenEthereum/Somebody/"));
-			}
-			_ => panic!("Should be Cmd::Run"),
-		}
-	}
-
-	#[test]
-	fn should_apply_ports_shift() {
-		// given
-
-		// when
-		let conf0 = parse(&["parity", "--ports-shift", "1", "--stratum"]);
-		let conf1 = parse(&["parity", "--ports-shift", "1", "--jsonrpc-port", "8544"]);
-
-		// then
-		assert_eq!(conf0.net_addresses().unwrap().0.port(), 30304);
-		assert_eq!(conf0.network_settings().unwrap().network_port, 30304);
-		assert_eq!(conf0.network_settings().unwrap().rpc_port, 8546);
-		assert_eq!(conf0.http_config().unwrap().port, 8546);
-		assert_eq!(conf0.ws_config().unwrap().port, 8547);
-		assert_eq!(conf0.secretstore_config().unwrap().port, 8084);
-		assert_eq!(conf0.secretstore_config().unwrap().http_port, 8083);
-		assert_eq!(conf0.stratum_options().unwrap().unwrap().port, 8009);
-
-		assert_eq!(conf1.net_addresses().unwrap().0.port(), 30304);
-		assert_eq!(conf1.network_settings().unwrap().network_port, 30304);
-		assert_eq!(conf1.network_settings().unwrap().rpc_port, 8545);
-		assert_eq!(conf1.http_config().unwrap().port, 8545);
-		assert_eq!(conf1.ws_config().unwrap().port, 8547);
-		assert_eq!(conf1.secretstore_config().unwrap().port, 8084);
-		assert_eq!(conf1.secretstore_config().unwrap().http_port, 8083);
-	}
-
-	#[test]
-	fn should_resolve_external_nat_hosts() {
-		// Ip works
-		let conf = parse(&["parity", "--nat", "extip:1.1.1.1"]);
-		assert_eq!(conf.net_addresses().unwrap().1.unwrap().ip().to_string(), "1.1.1.1");
-		assert_eq!(conf.net_addresses().unwrap().1.unwrap().port(), 30303);
-
-		// Ip with port works, port is discarded
-		let conf = parse(&["parity", "--nat", "extip:192.168.1.1:123"]);
-		assert_eq!(conf.net_addresses().unwrap().1.unwrap().ip().to_string(), "192.168.1.1");
-		assert_eq!(conf.net_addresses().unwrap().1.unwrap().port(), 30303);
-
-		// Hostname works
-		let conf = parse(&["parity", "--nat", "extip:ethereum.org"]);
-		assert!(conf.net_addresses().unwrap().1.is_some());
-		assert_eq!(conf.net_addresses().unwrap().1.unwrap().port(), 30303);
-
-		// Hostname works, garbage at the end is discarded
-		let conf = parse(&["parity", "--nat", "extip:ethereum.org:whatever bla bla 123"]);
-		assert!(conf.net_addresses().unwrap().1.is_some());
-		assert_eq!(conf.net_addresses().unwrap().1.unwrap().port(), 30303);
-
-		// Garbage is error
-		let conf = parse(&["parity", "--nat", "extip:blabla"]);
-		assert!(conf.net_addresses().is_err());
-	}
-
-	#[test]
-	fn should_expose_all_servers() {
-		// given
-
-		// when
-		let conf0 = parse(&["parity", "--unsafe-expose"]);
-
-		// then
-		assert_eq!(&conf0.network_settings().unwrap().rpc_interface, "0.0.0.0");
-		assert_eq!(&conf0.http_config().unwrap().interface, "0.0.0.0");
-		assert_eq!(conf0.http_config().unwrap().hosts, None);
-		assert_eq!(&conf0.ws_config().unwrap().interface, "0.0.0.0");
-		assert_eq!(conf0.ws_config().unwrap().hosts, None);
-		assert_eq!(conf0.ws_config().unwrap().origins, None);
-		assert_eq!(&conf0.secretstore_config().unwrap().interface, "0.0.0.0");
-		assert_eq!(&conf0.secretstore_config().unwrap().http_interface, "0.0.0.0");
-	}
-
-	#[test]
-	fn allow_ips() {
-		let all = parse(&["parity", "--allow-ips", "all"]);
-		let private = parse(&["parity", "--allow-ips", "private"]);
-		let block_custom = parse(&["parity", "--allow-ips", "-10.0.0.0/8"]);
-		let combo = parse(&["parity", "--allow-ips", "public 10.0.0.0/8 -1.0.0.0/8"]);
-		let ipv6_custom_public = parse(&["parity", "--allow-ips", "public fc00::/7"]);
-		let ipv6_custom_private = parse(&["parity", "--allow-ips", "private -fc00::/7"]);
-
-		assert_eq!(all.ip_filter().unwrap(), IpFilter {
-			predefined: AllowIP::All,
-			custom_allow: vec![],
-			custom_block: vec![],
-		});
-
-		assert_eq!(private.ip_filter().unwrap(), IpFilter {
-			predefined: AllowIP::Private,
-			custom_allow: vec![],
-			custom_block: vec![],
-		});
-
-		assert_eq!(block_custom.ip_filter().unwrap(), IpFilter {
-			predefined: AllowIP::All,
-			custom_allow: vec![],
-			custom_block: vec![IpNetwork::from_str("10.0.0.0/8").unwrap()],
-		});
-
-		assert_eq!(combo.ip_filter().unwrap(), IpFilter {
-			predefined: AllowIP::Public,
-			custom_allow: vec![IpNetwork::from_str("10.0.0.0/8").unwrap()],
-			custom_block: vec![IpNetwork::from_str("1.0.0.0/8").unwrap()],
-		});
-
-		assert_eq!(ipv6_custom_public.ip_filter().unwrap(), IpFilter {
-			predefined: AllowIP::Public,
-			custom_allow: vec![IpNetwork::from_str("fc00::/7").unwrap()],
-			custom_block: vec![],
-		});
-
-		assert_eq!(ipv6_custom_private.ip_filter().unwrap(), IpFilter {
-			predefined: AllowIP::Private,
-			custom_allow: vec![],
-			custom_block: vec![IpNetwork::from_str("fc00::/7").unwrap()],
-		});
-	}
-
-	#[test]
-	fn should_use_correct_cache_path_if_base_is_set() {
-		use std::path;
-
-		let std = parse(&["parity"]);
-		let base = parse(&["parity", "--base-path", "/test"]);
-
-		let base_path = ::dir::default_data_path();
-		let local_path = ::dir::default_local_path();
-		assert_eq!(std.directories().cache, dir::helpers::replace_home_and_local(&base_path, &local_path, ::dir::CACHE_PATH));
-		assert_eq!(path::Path::new(&base.directories().cache), path::Path::new("/test/cache"));
-	}
-
-	#[test]
-	fn should_respect_only_max_peers_and_default() {
-		let args = vec!["parity", "--max-peers=50"];
-		let conf = Configuration::parse_cli(&args).unwrap();
-		match conf.into_command().unwrap().cmd {
-			Cmd::Run(c) => {
-				assert_eq!(c.net_conf.min_peers, 25);
-				assert_eq!(c.net_conf.max_peers, 50);
-			},
-			_ => panic!("Should be Cmd::Run"),
-		}
-	}
-
-	#[test]
-	fn should_respect_only_max_peers_less_than_default() {
-		let args = vec!["parity", "--max-peers=5"];
-		let conf = Configuration::parse_cli(&args).unwrap();
-		match conf.into_command().unwrap().cmd {
-			Cmd::Run(c) => {
-				assert_eq!(c.net_conf.min_peers, 5);
-				assert_eq!(c.net_conf.max_peers, 5);
-			},
-			_ => panic!("Should be Cmd::Run"),
-		}
-	}
-
-	#[test]
-	fn should_respect_only_min_peers_and_default() {
-		let args = vec!["parity", "--min-peers=5"];
-		let conf = Configuration::parse_cli(&args).unwrap();
-		match conf.into_command().unwrap().cmd {
-			Cmd::Run(c) => {
-				assert_eq!(c.net_conf.min_peers, 5);
-				assert_eq!(c.net_conf.max_peers, 50);
-			},
-			_ => panic!("Should be Cmd::Run"),
-		}
-	}
-
-	#[test]
-	fn should_respect_only_min_peers_and_greater_than_default() {
-		let args = vec!["parity", "--min-peers=500"];
-		let conf = Configuration::parse_cli(&args).unwrap();
-		match conf.into_command().unwrap().cmd {
-			Cmd::Run(c) => {
-				assert_eq!(c.net_conf.min_peers, 500);
-				assert_eq!(c.net_conf.max_peers, 500);
-			},
-			_ => panic!("Should be Cmd::Run"),
-		}
-	}
-
-	#[test]
-	fn should_parse_secretstore_cors() {
-		// given
-
-		// when
-		let conf0 = parse(&["parity"]);
-		let conf1 = parse(&["parity", "--secretstore-http-cors", "*"]);
-		let conf2 = parse(&["parity", "--secretstore-http-cors", "http://parity.io,http://something.io"]);
-
-		// then
-		assert_eq!(conf0.secretstore_cors(), Some(vec![]));
-		assert_eq!(conf1.secretstore_cors(), None);
-		assert_eq!(conf2.secretstore_cors(), Some(vec!["http://parity.io".into(),"http://something.io".into()]));
 	}
 }

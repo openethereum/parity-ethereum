@@ -19,8 +19,9 @@
 
 extern crate ansi_term;
 extern crate docopt;
-#[macro_use]
+extern crate rust_embed;
 extern crate clap;
+extern crate structopt;
 extern crate dir;
 extern crate futures;
 extern crate atty;
@@ -35,7 +36,6 @@ extern crate rustc_hex;
 extern crate semver;
 extern crate serde;
 extern crate serde_json;
-#[macro_use]
 extern crate serde_derive;
 extern crate toml;
 
@@ -104,8 +104,8 @@ mod blockchain;
 mod cache;
 mod cli;
 mod configuration;
+mod test_configuration;
 mod export_hardcoded_sync;
-mod deprecated;
 mod helpers;
 mod informant;
 mod light_helpers;
@@ -126,9 +126,8 @@ use std::fs::File;
 use std::io::BufReader;
 use std::sync::Arc;
 
-use cli::Args;
+// use cli::args::Args;
 use configuration::{Cmd, Execute};
-use deprecated::find_deprecated;
 use hash::keccak_buffer;
 
 pub use self::configuration::Configuration;
@@ -205,7 +204,9 @@ fn execute<Cr, Rr>(
 			let outcome = run::execute(run_cmd, logger, on_client_rq, on_updater_rq)?;
 			Ok(ExecutionAction::Running(outcome))
 		},
-		Cmd::Version => Ok(ExecutionAction::Instant(Some(Args::print_version()))),
+
+		// NOTE: this is handled automatically by structopt
+		// Cmd::Version => Ok(ExecutionAction::Instant(Some(Args::print_version()))),
 		Cmd::Hash(maybe_file) => print_hash_of(maybe_file).map(|s| ExecutionAction::Instant(Some(s))),
 		Cmd::Account(account_cmd) => account::execute(account_cmd).map(|s| ExecutionAction::Instant(Some(s))),
 		Cmd::ImportPresaleWallet(presale_cmd) => presale::execute(presale_cmd).map(|s| ExecutionAction::Instant(Some(s))),
@@ -241,10 +242,5 @@ pub fn start<Cr, Rr>(
 		Cr: Fn(String) + 'static + Send,
 		Rr: Fn() + 'static + Send
 {
-	let deprecated = find_deprecated(&conf.args);
-	for d in deprecated {
-		println!("{}", d);
-	}
-
 	execute(conf.into_command()?, logger, on_client_rq, on_updater_rq)
 }

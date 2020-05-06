@@ -1,0 +1,80 @@
+[operating]
+no_download = false
+no_consensus = false
+light = false
+no_hardcoded_sync = false
+force_direct = false
+
+[convenience]
+unsafe_expose = false
+
+[account]
+fast_unlock = false
+enable_signing_queue = false
+password = []
+
+[private_transactions]
+private_enabled = false
+private_state_offchain = false
+
+[ui_options]
+
+[networking]
+no_warp = false
+no_discovery = false
+reserved_only = false
+no_ancient_blocks = false
+no_serve_light = false
+
+[ipc]
+no_ipc = false
+
+[http_json_rpc]
+jsonrpc_allow_missing_blocks = false
+no_jsonrpc = false
+jsonrpc_no_keep_alive = false
+jsonrpc_experimental = false
+
+[light_client]
+
+[websockets]
+no_ws = false
+
+[secret_store]
+no_secretstore = false
+no_secretstore_http = false
+no_secretstore_auto_migrate = false
+
+[sealing_mining]
+force_sealing = false
+reseal_on_uncle = false
+remove_solved = false
+tx_queue_no_unfamiliar_locals = false
+tx_queue_no_early_reject = false
+refuse_service_transactions = false
+infinite_pending_block = false
+no_persistent_txqueue = false
+stratum = true
+stratum_interface = "some interface"
+stratum_port = 8007
+stratum_secret = "Yellow"
+
+[internal]
+can_restart = false
+
+[miscellaneous]
+no_color = false
+no_config = false
+
+[footprint]
+scale_verifiers = false
+
+[import_export]
+no_seal_check = false
+
+[snapshot]
+no_periodic_snapshot = false
+
+[legacy]
+geth = false
+import_geth_keys = false
