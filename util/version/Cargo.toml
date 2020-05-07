@@ -3,7 +3,7 @@
 [package]
 name = "parity-version"
 # NOTE: this value is used for the OpenEthereum version string (via env CARGO_PKG_VERSION)
-version = "3.0.0"
+version = "3.0.1"
 authors = ["Parity Technologies <admin@parity.io>"]
 build = "build.rs"
 
