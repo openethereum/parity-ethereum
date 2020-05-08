@@ -12,7 +12,7 @@ builtin = { path = "../builtin", package = "ethcore-builtin" }
 bytes = { package = "parity-bytes", version = "0.1.0" }
 client-traits = { path = "../client-traits" }
 common-types = { path = "../types" }
-ethereum-types = "0.9.0"
+ethereum-types = "0.9.1"
 parity-crypto = { version = "0.6.1", features = ["publickey"] }
 machine = { path = "../machine" }
 vm = { path = "../vm" }
