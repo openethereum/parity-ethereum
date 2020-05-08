@@ -49,7 +49,7 @@ use parity_daemonize::AsHandle;
 use parking_lot::{Condvar, Mutex};
 
 const PLEASE_RESTART_EXIT_CODE: i32 = 69;
-const PARITY_EXECUTABLE_NAME: &str = "parity";
+const CLIENT_EXECUTABLE_NAME: &str = "openethereum";
 
 #[derive(Debug)]
 enum Error {
@@ -392,7 +392,7 @@ fn main() {
 	let same_name = exe_path
 		.as_ref()
 		.map_or(false, |p| {
-			p.file_stem().map_or(false, |n| n == PARITY_EXECUTABLE_NAME)
+			p.file_stem().map_or(false, |n| n == CLIENT_EXECUTABLE_NAME)
 		});
 
 	trace_main!("Starting up {} (force-direct: {}, development: {}, same-name: {})",

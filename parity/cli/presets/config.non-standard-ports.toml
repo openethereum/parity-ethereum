@@ -1,5 +1,5 @@
 [network]
-# Parity will listen for connections on port 30305.
+# OpenEthereum will listen for connections on port 30305.
 port = 30305
 
 [rpc]
