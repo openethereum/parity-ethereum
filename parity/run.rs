@@ -639,10 +639,14 @@ fn execute_impl<Cr, Rr>(
 			.map_err(|e| format!("Stratum start error: {:?}", e))?;
 	}
 
-	let (private_tx_sync, private_state) = match cmd.private_tx_enabled {
-		true => (Some(private_tx_service.clone() as Arc<dyn PrivateTxHandler>), Some(private_tx_provider.private_state_db())),
-		false => (None, None),
-	};
+	let mut private_tx_sync = None;
+	let mut private_state = None;
+	
+	if cmd.private_tx_enabled {
+		warn!("Private transactions support is deprecated and may be removed in a future release.");
+		private_tx_sync = Some(private_tx_service.clone() as Arc<dyn PrivateTxHandler>);
+		private_state = Some(private_tx_provider.private_state_db());
+	}
 
 	// create sync object
 	let (sync_provider, manage_network, chain_notify, priority_tasks) = modules::sync(
