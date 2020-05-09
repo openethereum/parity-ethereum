@@ -46,7 +46,7 @@ use types::{
 use parity_rpc::{
 	Origin, Metadata, NetworkSettings, informant, PubSubSession, FutureResult, FutureResponse, FutureOutput
 };
-use updater::{UpdatePolicy, Updater};
+use updater::{UpdateFilter, UpdatePolicy, Updater};
 use parity_version::version;
 use ethcore_private_tx::{ProviderConfig, EncryptorConfig, SecretStoreEncryptor};
 use params::{
@@ -699,6 +699,10 @@ fn execute_impl<Cr, Rr>(
 	);
 
 	// the updater service
+	if update_policy.filter != UpdateFilter::None {
+		warn!("Updater is deprecated and may be removed in a future release.");
+	}
+
 	let updater = Updater::new(
 		&Arc::downgrade(&(service.client() as Arc<dyn BlockChainClient>)),
 		&Arc::downgrade(&sync_provider),
