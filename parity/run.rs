@@ -643,7 +643,7 @@ fn execute_impl<Cr, Rr>(
 	let mut private_state = None;
 	
 	if cmd.private_tx_enabled {
-		warn!("Private transactions support is deprecated and may be removed in a future release.");
+		warn!("Private transactions support is deprecated and may be removed in a future release. e. Please see #11695 for details:\nhttps://github.com/openethereum/openethereum/issues/11695");
 		private_tx_sync = Some(private_tx_service.clone() as Arc<dyn PrivateTxHandler>);
 		private_state = Some(private_tx_provider.private_state_db());
 	}
@@ -704,7 +704,7 @@ fn execute_impl<Cr, Rr>(
 
 	// the updater service
 	if update_policy.filter != UpdateFilter::None {
-		warn!("Updater is deprecated and may be removed in a future release.");
+		warn!("Updater is deprecated and may be removed in a future release. e. Please see #11696 for details:\nhttps://github.com/openethereum/openethereum/issues/11696");
 	}
 
 	let updater = Updater::new(
