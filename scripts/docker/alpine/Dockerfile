@@ -26,10 +26,12 @@ FROM alpine:edge
 # show backtraces
 ENV RUST_BACKTRACE 1
 
+# curl is installed to help create health and readiness checks on Kubernetes
 RUN apk add --no-cache \
   libstdc++ \
   eudev-libs \
-  libgcc
+  libgcc \
+  curl
 
 RUN addgroup -g 1000 openethereum \
   && adduser -u 1000 -G openethereum -s /bin/sh -D openethereum
