@@ -135,7 +135,7 @@ To start OpenEthereum as a regular user using `systemd` init:
 1. Copy `./scripts/openethereum.service` to your
 `systemd` user directory (usually `~/.config/systemd/user`).
 2. Copy release to bin folder, write `sudo install ./target/release/openethereum /usr/bin/openethereum`
-3. To configure OpenEthereum, see [our old wiki](https://paritytech.github.io/wiki/Configuring-Parity) for details.
+3. To configure OpenEthereum, see [our wiki](https://openethereum.github.io/wiki/Configuring-Parity-Ethereum) for details.
 
 ## 4. Testing <a id="chapter-004"></a>
 
