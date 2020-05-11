@@ -37,6 +37,7 @@ use num::{BigUint, Zero, One};
 use parity_bytes::BytesRef;
 use parity_crypto::digest;
 use eip_152::compress;
+use milagro_bls as bls;
 
 /// Native implementation of a built-in contract.
 pub trait Implementation: Send + Sync {
@@ -393,6 +394,42 @@ pub struct Bn128Pairing;
 #[derive(Debug)]
 /// The Blake2F builtin
 pub struct Blake2F;
+
+#[derive(Debug)]
+/// The Bls12G1Add builtin.
+pub struct Bls12G1Add;
+
+#[derive(Debug)]
+/// The Bls12G1Mul builtin.
+pub struct Bls12G1Mul;
+
+#[derive(Debug)]
+/// The Bls12G1MultiExp builtin.
+pub struct Bls12G1MultiExp;
+
+#[derive(Debug)]
+/// The Bls12G2Add builtin.
+pub struct Bls12G2Add;
+
+#[derive(Debug)]
+/// The Bls12G2Mul builtin.
+pub struct Bls12G2Mul;
+
+#[derive(Debug)]
+/// The Bls12G2MultiExp builtin.
+pub struct Bls12G2MultiExp;
+
+#[derive(Debug)]
+/// The Bls12Pairing builtin.
+pub struct Bls12Pairing;
+
+#[derive(Debug)]
+/// The Bls12MapFpToG1 builtin.
+pub struct Bls12MapFpToG1;
+
+#[derive(Debug)]
+/// The Bls12MapFp2ToG2 builtin.
+pub struct Bls12MapFp2ToG2;
 
 impl Implementation for Identity {
 	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
@@ -753,6 +790,148 @@ impl Bn128Pairing {
 		output.write(0, &buf);
 
 		Ok(())
+	}
+}
+
+impl Implementation for Bls12G1Add {
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
+		if input.len() != 256 {
+			return Err("Invalid input length")
+		}
+
+		let mut g1a = bls::G1Point::from_bytes(&input[0..128]).map_err(|_| "Invalid g1a")?;
+		let g1b = bls::G1Point::from_bytes(&input[128..256]).map_err(|_| "Invalid g1b")?;
+
+		g1a.add(&g1b);
+
+		output.write(0, &g1a.as_bytes()[..]);
+		Ok(())
+	}
+}
+
+impl Implementation for Bls12G1Mul {
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
+		if input.len() != 160 {
+			return Err("Invalid input length")
+		}
+
+		let mut g1a = bls::G1Point::from_bytes(&input[0..128]).map_err(|_| "Invalid g1a")?;
+		let num = bls::BigNum::frombytes(&input[128..160]);
+
+		g1a.mul(&num);
+
+		output.write(0, &g1a.as_bytes()[..]);
+		Ok(())
+	}
+}
+
+impl Implementation for Bls12G1MultiExp {
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
+		if input.len() % 160 != 0 {
+			return Err("Invalid input length")
+		}
+
+		let mut start = 0;
+		let mut ret = bls::G1Point::new();
+		while start < input.len() {
+			let mut g1a = bls::G1Point::from_bytes(&input[start..(start + 128)])
+				.map_err(|_| "Invalid g1a")?;
+			let num = bls::BigNum::frombytes(&input[(start + 128)..(start + 160)]);
+
+			g1a.mul(&num);
+			ret.add(&g1a);
+
+			start += 160;
+		}
+
+		output.write(0, &ret.as_bytes()[..]);
+		Ok(())
+	}
+}
+
+impl Implementation for Bls12G2Add {
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
+		if input.len() != 512 {
+			return Err("Invalid input length")
+		}
+
+		let mut g1a = bls::G2Point::from_bytes(&input[0..256]).map_err(|_| "Invalid g1a")?;
+		let g1b = bls::G2Point::from_bytes(&input[256..512]).map_err(|_| "Invalid g1b")?;
+
+		g1a.add(&g1b);
+
+		output.write(0, &g1a.as_bytes()[..]);
+		Ok(())
+	}
+}
+
+impl Implementation for Bls12G2Mul {
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
+		if input.len() != 288 {
+			return Err("Invalid input length")
+		}
+
+		let mut g1a = bls::G2Point::from_bytes(&input[0..256]).map_err(|_| "Invalid g1a")?;
+		let num = bls::BigNum::frombytes(&input[256..288]);
+
+		g1a.mul(&num);
+
+		output.write(0, &g1a.as_bytes()[..]);
+		Ok(())
+	}
+}
+
+impl Implementation for Bls12G2MultiExp {
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
+		if input.len() % 288 != 0 {
+			return Err("Invalid input length")
+		}
+
+		let mut start = 0;
+		let mut ret = bls::G2Point::new();
+		while start < input.len() {
+			let mut g1a = bls::G2Point::from_bytes(&input[start..(start + 256)])
+				.map_err(|_| "Invalid g1a")?;
+			let num = bls::BigNum::frombytes(&input[(start + 256)..(start + 288)]);
+
+			g1a.mul(&num);
+			ret.add(&g1a);
+
+			start += 288;
+		}
+
+		output.write(0, &ret.as_bytes()[..]);
+		Ok(())
+	}
+}
+
+impl Implementation for Bls12Pairing {
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
+		if input.len() % 384 != 0 {
+			return Err("Invalid input length")
+		}
+
+		unimplemented!()
+	}
+}
+
+impl Implementation for Bls12MapFpToG1 {
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
+		if input.len() % 64 != 0 {
+			return Err("Invalid input length")
+		}
+
+		unimplemented!()
+	}
+}
+
+impl Implementation for Bls12MapFp2ToG2 {
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
+		if input.len() % 128 != 0 {
+			return Err("Invalid input length")
+		}
+
+		unimplemented!()
 	}
 }
 

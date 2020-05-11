@@ -131,3 +131,6 @@ members = [
 	"ethcore/wasm/run",
 	"evmbin",
 ]
+exclude = [
+	"vendor",
+]
