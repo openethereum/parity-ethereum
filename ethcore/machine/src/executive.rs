@@ -63,12 +63,11 @@ const STACK_SIZE_ENTRY_OVERHEAD: usize = 100 * 1024;
 const STACK_SIZE_ENTRY_OVERHEAD: usize = 20 * 1024;
 
 #[cfg(any(test, feature = "test-helpers"))]
-/// RIPEMD160 was removed in mainnet block #2686351. See security Security alert [11/24/2016].
-/// This is only applies in tests, since all precompile accounts are now non-empty in mainnet.
+/// Precompile that can never be prunned from state trie (0x3, only in tests)
 const UNPRUNABLE_PRECOMPILE_ADDRESS: Option<Address> = Some(ethereum_types::H160([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3]));
 
 #[cfg(not(any(test, feature = "test-helpers")))]
-/// EIP161 - By default all empty accounts can be prunned. 
+/// Precompile that can never be prunned from state trie (none)
 const UNPRUNABLE_PRECOMPILE_ADDRESS: Option<Address> = None;
 
 /// Returns new address created from address, nonce, and code hash
@@ -422,7 +421,6 @@ impl<'a> CallCreateExecutive<'a> {
 					Self::check_static_flag(&params, self.static_flag, self.is_create)?;
 					state.checkpoint();
 
-					let initial_builtin_balance = state.balance(&params.code_address)?;
 					Self::transfer_exec_balance(&params, self.schedule, state, substate)?;
 
 					let default = [];
@@ -451,13 +449,14 @@ impl<'a> CallCreateExecutive<'a> {
 							})
 						}
 					} else {
-						// EIP161 - reverted calls cancels state trie cleaning
-						if initial_builtin_balance.is_zero() {
-							let prune = UNPRUNABLE_PRECOMPILE_ADDRESS
-								.map_or(true, |addr| addr != params.code_address);
-							if prune {
+						// Openethereum needs balance > 0 in precompiles to be EIP161 compliant, see PR#11597.
+						// Since RIPEMD160 was removed in mainnet block #2686351, this is activated only in
+						//    tests to check this specific irregular state transition.
+						if let Some(unprunable_addr) = UNPRUNABLE_PRECOMPILE_ADDRESS { 
+							if unprunable_addr != params.code_address 
+							   && state.balance(&params.code_address)?.is_zero() {
 								substate.touched.remove(&params.code_address);
-							} 
+							}
 						}
 						// just drain the whole gas
 						state.revert_to_checkpoint();
