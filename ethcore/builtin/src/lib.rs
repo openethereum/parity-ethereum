@@ -37,6 +37,11 @@ use num::{BigUint, Zero, One};
 use parity_bytes::BytesRef;
 use parity_crypto::digest;
 use eip_152::compress;
+use eth_pairings::public_interface::eip2537::{
+	EIP2537Executor,
+	SERIALIZED_G1_POINT_BYTE_LENGTH,
+	SERIALIZED_G2_POINT_BYTE_LENGTH
+};
 
 /// Native implementation of a built-in contract.
 pub trait Implementation: Send + Sync {
@@ -77,6 +82,9 @@ enum Pricing {
 	Blake2F(Blake2FPricer),
 	Linear(Linear),
 	Modexp(ModexpPricer),
+	Bls12Pairing(Bls12PairingPricer),
+	Bls12ConstOperations(Bls12ConstOperationsPricer),
+	Bls12Multiexp(Bls12MultiexpPricer),
 }
 
 impl Pricer for Pricing {
@@ -87,6 +95,9 @@ impl Pricer for Pricing {
 			Pricing::Blake2F(inner) => inner.cost(input),
 			Pricing::Linear(inner) => inner.cost(input),
 			Pricing::Modexp(inner) => inner.cost(input),
+			Pricing::Bls12Pairing(inner) => inner.cost(input),
+			Pricing::Bls12ConstOperations(inner) => inner.cost(input),
+			Pricing::Bls12Multiexp(inner) => inner.cost(input),
 		}
 	}
 }
@@ -207,6 +218,93 @@ impl ModexpPricer {
 	}
 }
 
+/// Bls12 pairing price
+#[derive(Debug, Copy, Clone)]
+struct Bls12PairingPrice {
+	base: u64,
+	pair: u64,
+}
+
+/// bls12_pairing pricing model. This computes a price using a base cost and a cost per pair.
+#[derive(Debug)]
+struct Bls12PairingPricer {
+	price: Bls12PairingPrice,
+}
+
+/// Pricing for constant Bls12 operations (ADD and MUL in G1 and G2, as well as mappings)
+#[derive(Debug, Copy, Clone)]
+pub struct Bls12ConstOperationsPricer {
+	/// Fixed price.
+	pub price: u64,
+}
+
+/// Discount table for multiexponentiation (Peppinger algorithm)
+/// Later on is normalized using the divisor
+pub const BLS12_MULTIEXP_DISCOUNTS_TABLE: [[u64; 2]; 128] = [
+	[1, 1200], [2, 888], [3, 764], [4, 641], [5, 594], [6, 547], [7, 500], [8, 453], 
+	[9, 438], [10, 423], [11, 408], [12, 394], [13, 379], [14, 364], [15, 349], [16, 334], 
+	[17, 330], [18, 326], [19, 322], [20, 318], [21, 314], [22, 310], [23, 306], [24, 302], 
+	[25, 298], [26, 294], [27, 289], [28, 285], [29, 281], [30, 277], [31, 273], [32, 269], 
+	[33, 268], [34, 266], [35, 265], [36, 263], [37, 262], [38, 260], [39, 259], [40, 257], 
+	[41, 256], [42, 254], [43, 253], [44, 251], [45, 250], [46, 248], [47, 247], [48, 245], 
+	[49, 244], [50, 242], [51, 241], [52, 239], [53, 238], [54, 236], [55, 235], [56, 233], 
+	[57, 232], [58, 231], [59, 229], [60, 228], [61, 226], [62, 225], [63, 223], [64, 222], 
+	[65, 221], [66, 220], [67, 219], [68, 219], [69, 218], [70, 217], [71, 216], [72, 216], 
+	[73, 215], [74, 214], [75, 213], [76, 213], [77, 212], [78, 211], [79, 211], [80, 210], 
+	[81, 209], [82, 208], [83, 208], [84, 207], [85, 206], [86, 205], [87, 205], [88, 204], 
+	[89, 203], [90, 202], [91, 202], [92, 201], [93, 200], [94, 199], [95, 199], [96, 198], 
+	[97, 197], [98, 196], [99, 196], [100, 195], [101, 194], [102, 193], [103, 193], [104, 192], 
+	[105, 191], [106, 191], [107, 190], [108, 189], [109, 188], [110, 188], [111, 187], [112, 186], 
+	[113, 185], [114, 185], [115, 184], [116, 183], [117, 182], [118, 182], [119, 181], [120, 180], 
+	[121, 179], [122, 179], [123, 178], [124, 177], [125, 176], [126, 176], [127, 175], [128, 174]
+];
+
+/// Max discount allowed
+pub const BLS12_MULTIEXP_MAX_DISCOUNT: u64 = 174;
+/// Max discount is reached at this number of pairs
+pub const BLS12_MULTIEXP_PAIRS_FOR_MAX_DISCOUNT: usize = 128;
+/// Divisor for discounts table
+pub const BLS12_MULTIEXP_DISCOUNT_DIVISOR: u64 = 1000;
+/// Length of single G1 + G2 points pair for pairing operation
+pub const BLS12_G1_AND_G2_PAIR_LEN: usize = SERIALIZED_G1_POINT_BYTE_LENGTH + SERIALIZED_G2_POINT_BYTE_LENGTH;
+
+/// Pricing for constant Bls12 operations (ADD and MUL in G1 and G2, as well as mappings)
+#[derive(Debug, Copy, Clone)]
+pub struct Bls12MultiexpPricer {
+	/// Base const of the operation (G1 or G2 multiplication)
+	pub base_price: Bls12ConstOperationsPricer,
+	/// Length of input per one pair (point + scalar)
+	pub len_per_pair: usize,
+}
+
+impl Pricer for Bls12ConstOperationsPricer {
+	fn cost(&self, _input: &[u8]) -> U256 {
+		self.price.into()
+	}
+}
+
+impl Pricer for Bls12PairingPricer {
+	fn cost(&self, input: &[u8]) -> U256 {
+		U256::from(self.price.base) + U256::from(self.price.pair) * U256::from(input.len() / BLS12_G1_AND_G2_PAIR_LEN)
+	}
+}
+
+impl Pricer for Bls12MultiexpPricer {
+	fn cost(&self, input: &[u8]) -> U256 {
+		let num_pairs = input.len() / self.len_per_pair;
+		if num_pairs == 0 {
+			return U256::max_value();
+		}
+		let discount = if num_pairs > BLS12_MULTIEXP_PAIRS_FOR_MAX_DISCOUNT {
+			BLS12_MULTIEXP_MAX_DISCOUNT
+		} else {
+			let table_entry = BLS12_MULTIEXP_DISCOUNTS_TABLE[num_pairs - 1];
+			table_entry[1]
+		};
+		U256::from(self.base_price.price) * U256::from(num_pairs) * U256::from(discount) / U256::from(BLS12_MULTIEXP_DISCOUNT_DIVISOR)
+	}
+}
+
 /// Pricing scheme, execution definition, and activation block for a built-in contract.
 ///
 /// Call `cost` to compute cost for the given input, `execute` to execute the contract
@@ -297,6 +395,29 @@ impl From<ethjson::spec::builtin::Pricing> for Pricing {
 					price: pricer.price
 				})
 			}
+			ethjson::spec::builtin::Pricing::Bls12ConstOperationsPrice(pricer) => {
+				Pricing::Bls12ConstOperations(Bls12ConstOperationsPricer {
+					price: pricer.price
+				})
+			},
+			ethjson::spec::builtin::Pricing::Bls12PairingPrice(pricer) => {
+				Pricing::Bls12Pairing(Bls12PairingPricer {
+						price : Bls12PairingPrice {
+							base: pricer.base,
+							pair: pricer.pair
+						}
+					}
+				)
+			},
+			ethjson::spec::builtin::Pricing::Bls12MultiexpPrice(pricer) => {
+				Pricing::Bls12Multiexp(Bls12MultiexpPricer {
+						base_price: Bls12ConstOperationsPricer {
+							price: pricer.base_price
+						},
+						len_per_pair: pricer.len_per_pair
+					}
+				)
+			},
 		}
 	}
 }
@@ -320,7 +441,25 @@ enum EthereumBuiltin {
 	/// alt_bn128_pairing
 	Bn128Pairing(Bn128Pairing),
 	/// blake2_f (The Blake2 compression function F, EIP-152)
-	Blake2F(Blake2F)
+	Blake2F(Blake2F),
+	/// bls12_381 addition in g1
+	Bls12G1Add(Bls12G1Add),
+	/// bls12_381 multiplication in g1
+	Bls12G1Mul(Bls12G1Mul),
+	/// bls12_381 multiexponentiation in g1
+	Bls12G1MultiExp(Bls12G1MultiExp),
+	/// bls12_381 addition in g2
+	Bls12G2Add(Bls12G2Add),
+	/// bls12_381 multiplication in g2
+	Bls12G2Mul(Bls12G2Mul),
+	/// bls12_381 multiexponentiation in g2
+	Bls12G2MultiExp(Bls12G2MultiExp),
+	/// bls12_381 pairing
+	Bls12Pairing(Bls12Pairing),
+	/// bls12_381 fp to g1 mapping
+	Bls12MapFpToG1(Bls12MapFpToG1),
+	/// bls12_381 fp2 to g2 mapping
+	Bls12MapFp2ToG2(Bls12MapFp2ToG2),
 }
 
 impl FromStr for EthereumBuiltin {
@@ -337,6 +476,15 @@ impl FromStr for EthereumBuiltin {
 			"alt_bn128_mul" => Ok(EthereumBuiltin::Bn128Mul(Bn128Mul)),
 			"alt_bn128_pairing" => Ok(EthereumBuiltin::Bn128Pairing(Bn128Pairing)),
 			"blake2_f" => Ok(EthereumBuiltin::Blake2F(Blake2F)),
+			"bls12_381_g1_add" => Ok(EthereumBuiltin::Bls12G1Add(Bls12G1Add)),
+			"bls12_381_g1_mul" => Ok(EthereumBuiltin::Bls12G1Mul(Bls12G1Mul)),
+			"bls12_381_g1_multiexp" => Ok(EthereumBuiltin::Bls12G1MultiExp(Bls12G1MultiExp)),
+			"bls12_381_g2_add" => Ok(EthereumBuiltin::Bls12G2Add(Bls12G2Add)),
+			"bls12_381_g2_mul" => Ok(EthereumBuiltin::Bls12G2Mul(Bls12G2Mul)),
+			"bls12_381_g2_multiexp" => Ok(EthereumBuiltin::Bls12G2MultiExp(Bls12G2MultiExp)),
+			"bls12_381_pairing" => Ok(EthereumBuiltin::Bls12Pairing(Bls12Pairing)),
+			"bls12_381_fp_to_g1" => Ok(EthereumBuiltin::Bls12MapFpToG1(Bls12MapFpToG1)),
+			"bls12_381_fp2_to_g2" => Ok(EthereumBuiltin::Bls12MapFp2ToG2(Bls12MapFp2ToG2)),
 			_ => return Err(EthcoreError::Msg(format!("invalid builtin name: {}", name))),
 		}
 	}
@@ -354,6 +502,15 @@ impl Implementation for EthereumBuiltin {
 			EthereumBuiltin::Bn128Mul(inner) => inner.execute(input, output),
 			EthereumBuiltin::Bn128Pairing(inner) => inner.execute(input, output),
 			EthereumBuiltin::Blake2F(inner) => inner.execute(input, output),
+			EthereumBuiltin::Bls12G1Add(inner) => inner.execute(input, output),
+			EthereumBuiltin::Bls12G1Mul(inner) => inner.execute(input, output),
+			EthereumBuiltin::Bls12G1MultiExp(inner) => inner.execute(input, output),
+			EthereumBuiltin::Bls12G2Add(inner) => inner.execute(input, output),
+			EthereumBuiltin::Bls12G2Mul(inner) => inner.execute(input, output),
+			EthereumBuiltin::Bls12G2MultiExp(inner) => inner.execute(input, output),
+			EthereumBuiltin::Bls12Pairing(inner) => inner.execute(input, output),
+			EthereumBuiltin::Bls12MapFpToG1(inner) => inner.execute(input, output),
+			EthereumBuiltin::Bls12MapFp2ToG2(inner) => inner.execute(input, output),
 		}
 	}
 }
@@ -393,6 +550,42 @@ pub struct Bn128Pairing;
 #[derive(Debug)]
 /// The Blake2F builtin
 pub struct Blake2F;
+
+#[derive(Debug)]
+/// The Bls12G1Add builtin.
+pub struct Bls12G1Add;
+
+#[derive(Debug)]
+/// The Bls12G1Mul builtin.
+pub struct Bls12G1Mul;
+
+#[derive(Debug)]
+/// The Bls12G1MultiExp builtin.
+pub struct Bls12G1MultiExp;
+
+#[derive(Debug)]
+/// The Bls12G2Add builtin.
+pub struct Bls12G2Add;
+
+#[derive(Debug)]
+/// The Bls12G2Mul builtin.
+pub struct Bls12G2Mul;
+
+#[derive(Debug)]
+/// The Bls12G2MultiExp builtin.
+pub struct Bls12G2MultiExp;
+
+#[derive(Debug)]
+/// The Bls12Pairing builtin.
+pub struct Bls12Pairing;
+
+#[derive(Debug)]
+/// The Bls12MapFpToG1 builtin.
+pub struct Bls12MapFpToG1;
+
+#[derive(Debug)]
+/// The Bls12MapFp2ToG2 builtin.
+pub struct Bls12MapFp2ToG2;
 
 impl Implementation for Identity {
 	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
@@ -755,6 +948,178 @@ impl Bn128Pairing {
 		Ok(())
 	}
 }
+
+impl Implementation for Bls12G1Add {
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
+		let result = EIP2537Executor::g1_add(input);
+
+		match result {
+			Ok(result_bytes) => {
+				output.write(0, &result_bytes[..]);
+
+				Ok(())
+			},
+			Err(e) => {
+				trace!(target: "builtin", "Bls12G1Add error: {:?}", e);
+
+				Err("Bls12G1Add error")
+			}
+		}
+	}
+}
+
+impl Implementation for Bls12G1Mul {
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
+		let result = EIP2537Executor::g1_mul(input);
+
+		match result {
+			Ok(result_bytes) => {
+				output.write(0, &result_bytes[..]);
+
+				Ok(())
+			},
+			Err(e) => {
+				trace!(target: "builtin", "Bls12G1Mul error: {:?}", e);
+
+				Err("Bls12G1Mul error")
+			}
+		}
+	}
+}
+
+impl Implementation for Bls12G1MultiExp {
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
+		let result = EIP2537Executor::g1_multiexp(input);
+
+		match result {
+			Ok(result_bytes) => {
+				output.write(0, &result_bytes[..]);
+
+				Ok(())
+			},
+			Err(e) => {
+				trace!(target: "builtin", "Bls12G1MultiExp error: {:?}", e);
+
+				Err("Bls12G1MultiExp error")
+			}
+		}
+	}
+}
+
+impl Implementation for Bls12G2Add {
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
+		let result = EIP2537Executor::g2_add(input);
+
+		match result {
+			Ok(result_bytes) => {
+				output.write(0, &result_bytes[..]);
+
+				Ok(())
+			},
+			Err(e) => {
+				trace!(target: "builtin", "Bls12G2Add error: {:?}", e);
+
+				Err("Bls12G2Add error")
+			}
+		}
+	}
+}
+
+impl Implementation for Bls12G2Mul {
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
+		let result = EIP2537Executor::g2_mul(input);
+
+		match result {
+			Ok(result_bytes) => {
+				output.write(0, &result_bytes[..]);
+
+				Ok(())
+			},
+			Err(e) => {
+				trace!(target: "builtin", "Bls12G2Mul error: {:?}", e);
+
+				Err("Bls12G2Mul error")
+			}
+		}
+	}
+}
+
+impl Implementation for Bls12G2MultiExp {
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
+		let result = EIP2537Executor::g2_multiexp(input);
+
+		match result {
+			Ok(result_bytes) => {
+				output.write(0, &result_bytes[..]);
+
+				Ok(())
+			},
+			Err(e) => {
+				trace!(target: "builtin", "Bls12G2MultiExp error: {:?}", e);
+
+				Err("Bls12G2MultiExp error")
+			}
+		}
+	}
+}
+
+impl Implementation for Bls12Pairing {
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
+		let result = EIP2537Executor::pair(input);
+
+		match result {
+			Ok(result_bytes) => {
+				output.write(0, &result_bytes[..]);
+
+				Ok(())
+			},
+			Err(e) => {
+				trace!(target: "builtin", "Bls12Pairing error: {:?}", e);
+
+				Err("Bls12Pairing error")
+			}
+		}
+	}
+}
+
+impl Implementation for Bls12MapFpToG1 {
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
+		let result = EIP2537Executor::map_fp_to_g1(input);
+
+		match result {
+			Ok(result_bytes) => {
+				output.write(0, &result_bytes[..]);
+
+				Ok(())
+			},
+			Err(e) => {
+				trace!(target: "builtin", "Bls12MapFpToG1 error: {:?}", e);
+
+				Err("Bls12MapFpToG1 error")
+			}
+		}
+	}
+}
+
+impl Implementation for Bls12MapFp2ToG2 {
+	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
+		let result = EIP2537Executor::map_fp2_to_g2(input);
+
+		match result {
+			Ok(result_bytes) => {
+				output.write(0, &result_bytes[..]);
+
+				Ok(())
+			},
+			Err(e) => {
+				trace!(target: "builtin", "Bls12MapFp2ToG2 error: {:?}", e);
+
+				Err("Bls12MapFp2ToG2 error")
+			}
+		}
+	}
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -1522,5 +1887,30 @@ mod tests {
 
 		assert_eq!(b.cost(&[0; 1], 0), U256::from(0), "not activated yet");
 		assert_eq!(b.cost(&[0; 1], 1), U256::from(1_337), "use price #3");
+	}
+
+	#[test]
+	fn bls12_381_multiexp_init_from_spec() {
+		use ethjson::spec::builtin::{Pricing, Bls12MultiexpPrice};
+
+		let b = Builtin::try_from(JsonBuiltin {
+			name: "bls12_381_g1_multiexp".to_owned(),
+			pricing: btreemap![
+				10000000 => PricingAt {
+					info: None,
+					price: Pricing::Bls12MultiexpPrice(Bls12MultiexpPrice{
+							base_price: 12000,
+							len_per_pair: 96
+					}),
+				}
+			],
+		}).unwrap();
+
+		match b.native {
+			EthereumBuiltin::Bls12G1MultiExp(..) => {},
+			_ => {
+				panic!("invalid precompile type");
+			}
+		}
 	}
 }
