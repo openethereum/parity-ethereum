@@ -46,7 +46,7 @@ use types::{
 use parity_rpc::{
 	Origin, Metadata, NetworkSettings, informant, PubSubSession, FutureResult, FutureResponse, FutureOutput
 };
-use updater::{UpdatePolicy, Updater};
+use updater::{UpdateFilter, UpdatePolicy, Updater};
 use parity_version::version;
 use ethcore_private_tx::{ProviderConfig, EncryptorConfig, SecretStoreEncryptor};
 use params::{
@@ -639,10 +639,14 @@ fn execute_impl<Cr, Rr>(
 			.map_err(|e| format!("Stratum start error: {:?}", e))?;
 	}
 
-	let (private_tx_sync, private_state) = match cmd.private_tx_enabled {
-		true => (Some(private_tx_service.clone() as Arc<dyn PrivateTxHandler>), Some(private_tx_provider.private_state_db())),
-		false => (None, None),
-	};
+	let mut private_tx_sync = None;
+	let mut private_state = None;
+	
+	if cmd.private_tx_enabled {
+		warn!("Private transactions support is deprecated and may be removed in a future release. Please see #11695 for details:\nhttps://github.com/openethereum/openethereum/issues/11695");
+		private_tx_sync = Some(private_tx_service.clone() as Arc<dyn PrivateTxHandler>);
+		private_state = Some(private_tx_provider.private_state_db());
+	}
 
 	// create sync object
 	let (sync_provider, manage_network, chain_notify, priority_tasks) = modules::sync(
@@ -699,6 +703,10 @@ fn execute_impl<Cr, Rr>(
 	);
 
 	// the updater service
+	if update_policy.filter != UpdateFilter::None {
+		warn!("Updater is deprecated and may be removed in a future release. Please see #11696 for details:\nhttps://github.com/openethereum/openethereum/issues/11696");
+	}
+
 	let updater = Updater::new(
 		&Arc::downgrade(&(service.client() as Arc<dyn BlockChainClient>)),
 		&Arc::downgrade(&sync_provider),
@@ -925,6 +933,7 @@ pub fn execute<Cr, Rr>(
 		Rr: Fn() + 'static + Send
 {
 	if cmd.light {
+		warn!("Light client is deprecated and may be removed in a future release. Please see #11681 for details:\nhttps://github.com/openethereum/openethereum/issues/11681");
 		execute_light_impl(cmd, logger, on_client_rq)
 	} else {
 		execute_impl(cmd, logger, on_client_rq, on_updater_rq)
