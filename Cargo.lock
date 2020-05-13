@@ -8,7 +8,7 @@ dependencies = [
  "hash-db",
  "keccak-hash",
  "keccak-hasher 0.1.1",
- "kvdb 0.6.0",
+ "kvdb",
  "rlp",
 ]
 
@@ -24,7 +24,7 @@ dependencies = [
  "journaldb",
  "keccak-hash",
  "keccak-hasher 0.1.1",
- "kvdb 0.6.0",
+ "kvdb",
  "log",
  "lru-cache",
  "memory-db",
@@ -596,7 +596,7 @@ dependencies = [
  "ethcore-db",
  "ethcore-miner",
  "ethereum-types",
- "kvdb 0.6.0",
+ "kvdb",
  "parity-bytes",
  "registrar",
  "stats",
@@ -1164,9 +1164,9 @@ dependencies = [
  "itertools",
  "journaldb",
  "keccak-hash",
- "kvdb 0.6.0",
+ "kvdb",
  "kvdb-memorydb",
- "kvdb-rocksdb 0.8.0",
+ "kvdb-rocksdb",
  "lazy_static",
  "log",
  "machine",
@@ -1232,7 +1232,7 @@ dependencies = [
  "ethereum-types",
  "itertools",
  "keccak-hash",
- "kvdb 0.6.0",
+ "kvdb",
  "kvdb-memorydb",
  "log",
  "parity-bytes",
@@ -1283,7 +1283,7 @@ version = "0.1.0"
 dependencies = [
  "common-types",
  "ethereum-types",
- "kvdb 0.6.0",
+ "kvdb",
  "parity-util-mem",
  "parking_lot 0.10.0",
  "rlp",
@@ -1331,7 +1331,7 @@ dependencies = [
  "journaldb",
  "keccak-hash",
  "keccak-hasher 0.1.1",
- "kvdb 0.6.0",
+ "kvdb",
  "kvdb-memorydb",
  "log",
  "machine",
@@ -1487,7 +1487,7 @@ dependencies = [
  "journaldb",
  "keccak-hash",
  "keccak-hasher 0.1.1",
- "kvdb 0.6.0",
+ "kvdb",
  "log",
  "machine",
  "parity-bytes",
@@ -1527,8 +1527,8 @@ dependencies = [
  "ethcore-private-tx",
  "ethcore-sync",
  "ethereum-types",
- "kvdb 0.6.0",
- "kvdb-rocksdb 0.8.0",
+ "kvdb",
+ "kvdb-rocksdb",
  "log",
  "snapshot",
  "spec",
@@ -1762,7 +1762,7 @@ dependencies = [
  "journaldb",
  "keccak-hash",
  "keccak-hasher 0.1.1",
- "kvdb 0.6.0",
+ "kvdb",
  "log",
  "machine",
  "parity-bytes",
@@ -2295,12 +2295,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "interleaved-ordered"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "141340095b15ed7491bd3d4ced9d20cebfb826174b6bb03386381f62b01e3d77"
-
-[[package]]
 name = "iovec"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2361,7 +2355,7 @@ dependencies = [
  "hash-db",
  "keccak-hash",
  "keccak-hasher 0.1.1",
- "kvdb 0.6.0",
+ "kvdb",
  "kvdb-memorydb",
  "log",
  "memory-db",
@@ -2532,16 +2526,6 @@ dependencies = [
 
 [[package]]
 name = "kvdb"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cad096c6849b2ef027fabe35c4aed356d0e3d3f586d0a8361e5e17f1e50a7ce5"
-dependencies = [
- "parity-util-mem",
- "smallvec 1.2.0",
-]
-
-[[package]]
-name = "kvdb"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e763b2a9b500ba47948061d1e8bc3b5f03a8a1f067dbcf822a4d2c84d2b54a3a"
@@ -2556,28 +2540,9 @@ version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "73027d5e228de6f503b5b7335d530404fc26230a6ae3e09b33ec6e45408509a4"
 dependencies = [
- "kvdb 0.6.0",
+ "kvdb",
  "parity-util-mem",
  "parking_lot 0.10.0",
-]
-
-[[package]]
-name = "kvdb-rocksdb"
-version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b3f14c3a10c8894d26175e57e9e26032e6d6c49c30cbe2468c5bf5f6b64bb0be"
-dependencies = [
- "fs-swap",
- "interleaved-ordered",
- "kvdb 0.5.0",
- "log",
- "num_cpus",
- "owning_ref",
- "parity-util-mem",
- "parking_lot 0.10.0",
- "regex",
- "rocksdb 0.13.0",
- "smallvec 1.2.0",
 ]
 
 [[package]]
@@ -2587,14 +2552,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "84384eca250c7ff67877eda5336f28a86586aaee24acb945643590671f6bfce1"
 dependencies = [
  "fs-swap",
- "kvdb 0.6.0",
+ "kvdb",
  "log",
  "num_cpus",
  "owning_ref",
  "parity-util-mem",
  "parking_lot 0.10.0",
  "regex",
- "rocksdb 0.14.0",
+ "rocksdb",
  "smallvec 1.2.0",
 ]
 
@@ -2638,9 +2603,8 @@ dependencies = [
 
 [[package]]
 name = "librocksdb-sys"
-version = "6.7.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "883213ae3d09bfc3d104aefe94b25ebb183b6f4d3a515b23b14817e1f4854005"
+version = "6.8.1"
+source = "git+https://github.com/rust-rocksdb/rust-rocksdb#70aa3914c30de6fddd3d9f4c1786f0e5ad10b048"
 dependencies = [
  "bindgen",
  "cc",
@@ -2853,8 +2817,8 @@ checksum = "71d96e3f3c0b6325d8ccd83c33b28acb183edcb6c67938ba104ec546854b0882"
 name = "migration-rocksdb"
 version = "0.1.0"
 dependencies = [
- "kvdb 0.6.0",
- "kvdb-rocksdb 0.8.0",
+ "kvdb",
+ "kvdb-rocksdb",
  "log",
  "maplit",
  "tempfile",
@@ -3178,8 +3142,8 @@ dependencies = [
  "journaldb",
  "jsonrpc-core",
  "keccak-hash",
- "kvdb 0.6.0",
- "kvdb-rocksdb 0.8.0",
+ "kvdb",
+ "kvdb-rocksdb",
  "log",
  "migration-rocksdb",
  "node-filter",
@@ -3330,7 +3294,7 @@ dependencies = [
  "common-types",
  "ethcore-io",
  "ethkey",
- "kvdb 0.6.0",
+ "kvdb",
  "kvdb-memorydb",
  "log",
  "parity-crypto",
@@ -3460,7 +3424,7 @@ dependencies = [
 [[package]]
 name = "parity-secretstore"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/secret-store?branch=v1.x#02964410fc05d7f94a133c0a2e5632f386040854"
+source = "git+https://github.com/paritytech/secret-store?branch=dp/chore/update-deps/kvdb#147d819b0569d88adadc3b8d48895869a9eee149"
 dependencies = [
  "byteorder",
  "ethabi",
@@ -3471,8 +3435,8 @@ dependencies = [
  "hyper",
  "jsonrpc-server-utils",
  "keccak-hash",
- "kvdb 0.5.0",
- "kvdb-rocksdb 0.7.0",
+ "kvdb",
+ "kvdb-rocksdb",
  "lazy_static",
  "libsecp256k1",
  "log",
@@ -3787,7 +3751,7 @@ dependencies = [
  "itertools",
  "keccak-hash",
  "keccak-hasher 0.1.1",
- "kvdb 0.6.0",
+ "kvdb",
  "log",
  "maplit",
  "parity-bytes",
@@ -4296,19 +4260,8 @@ dependencies = [
 
 [[package]]
 name = "rocksdb"
-version = "0.13.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "12069b106981c6103d3eab7dd1c86751482d0779a520b7c14954c8b586c1e643"
-dependencies = [
- "libc",
- "librocksdb-sys",
-]
-
-[[package]]
-name = "rocksdb"
 version = "0.14.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "61aa17a99a2413cd71c1106691bf59dad7de0cd5099127f90e9d99c429c40d4a"
+source = "git+https://github.com/rust-rocksdb/rust-rocksdb#70aa3914c30de6fddd3d9f4c1786f0e5ad10b048"
 dependencies = [
  "libc",
  "librocksdb-sys",
@@ -4636,8 +4589,8 @@ dependencies = [
  "journaldb",
  "keccak-hash",
  "keccak-hasher 0.1.1",
- "kvdb 0.6.0",
- "kvdb-rocksdb 0.8.0",
+ "kvdb",
+ "kvdb-rocksdb",
  "lazy_static",
  "log",
  "num_cpus",
@@ -4681,8 +4634,8 @@ dependencies = [
  "journaldb",
  "keccak-hash",
  "keccak-hasher 0.1.1",
- "kvdb 0.6.0",
- "kvdb-rocksdb 0.8.0",
+ "kvdb",
+ "kvdb-rocksdb",
  "lazy_static",
  "log",
  "parity-bytes",
@@ -4776,7 +4729,7 @@ dependencies = [
  "hash-db",
  "journaldb",
  "keccak-hasher 0.1.1",
- "kvdb 0.6.0",
+ "kvdb",
  "log",
  "lru-cache",
  "memory-cache",
@@ -5258,7 +5211,7 @@ dependencies = [
  "ethcore-db",
  "ethereum-types",
  "evm",
- "kvdb 0.6.0",
+ "kvdb",
  "log",
  "parity-bytes",
  "parity-util-mem",
@@ -5499,7 +5452,7 @@ dependencies = [
  "ethjson",
  "executive-state",
  "keccak-hash",
- "kvdb 0.6.0",
+ "kvdb",
  "lazy_static",
  "log",
  "machine",
