@@ -65,7 +65,9 @@ fn run_test_path_inner<H: FnMut(&str, HookType)>(
 		os
 	}).collect();
 
-	if path.is_dir() {
+	if !path.exists() {
+		panic!("Error opening test at: {:?}", path.display());
+	} else if path.is_dir() {
 		trace!(target: "json-tests", "running tests contained in '{}'", path.display());
 		let test_files = read_dir(path)
 			.expect("Directory exists on disk")

@@ -110,8 +110,9 @@ bundle_test_spec! {
 	"ethereum/test-specs/istanbul_test" => new_istanbul_test,
 	"ethereum/test-specs/kovan_wasm_test" => new_kovan_wasm_test,
 	"ethereum/test-specs/mcip3_test" => new_mcip3_test,
-	"ethereum/test-specs/st_peters_test" => new_constantinople_fix_test,
-	"ethereum/test-specs/transition_test" => new_transition_test
+	"ethereum/test-specs/constantinople_fix_test" => new_constantinople_fix_test,
+	"ethereum/test-specs/eip158_to_byzantiumat5_test" => new_eip158_to_byzantiumat5_test,
+	"ethereum/test-specs/byzantium_to_constantinoplefixat5_test" => new_byzantium_to_constantinoplefixat5_test
 }
 
 bundle_custom_spec! {
@@ -141,7 +142,7 @@ bundle_test_machine! {
 	"ethereum/test-specs/istanbul_test" => new_istanbul_test_machine,
 	"ethereum/test-specs/kovan_wasm_test" => new_kovan_wasm_test_machine,
 	"ethereum/test-specs/mcip3_test" => new_mcip3_test_machine,
-	"ethereum/test-specs/st_peters_test" => new_constantinople_fix_test_machine
+	"ethereum/test-specs/constantinople_fix_test" => new_constantinople_fix_test_machine
 }
 
 #[cfg(test)]

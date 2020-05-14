@@ -24,6 +24,10 @@ pub struct SkipTests {
 	pub block: Vec<SkipBlockchainTest>,
 	/// State tests
 	pub state: Vec<SkipStateTest>,
+	/// Legacy block tests
+	pub legacy_block: Vec<SkipBlockchainTest>,
+	/// Legacy state tests
+	pub legacy_state: Vec<SkipStateTest>,
 
 }
 
@@ -64,6 +68,8 @@ impl SkipTests {
 		SkipTests {
 			block: Vec::new(),
 			state: Vec::new(),
+			legacy_block: Vec::new(),
+			legacy_state: Vec::new(),
 		}
 	}
 
