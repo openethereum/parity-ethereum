@@ -33,35 +33,35 @@ jobs:
           profile:              minimal
           override:             true
       - name:                   Cache cargo registry
-        uses:                   actions/cache@v1.1.2
+        uses:                   actions/cache@master
         with:
           path:                 ~/.cargo/registry
           key:                  ${{ runner.os }}-cargo-registry-build-tests-${{ hashFiles('**/Cargo.lock') }}
       - name:                   Cache cargo index
-        uses:                   actions/cache@v1.1.2
+        uses:                   actions/cache@master
         with:
           path:                 ~/.cargo/git
           key:                  ${{ runner.os }}-cargo-git-build-tests-${{ hashFiles('**/Cargo.lock') }}
       - name:                   Cache cargo build
-        uses:                   actions/cache@v1.1.2
+        uses:                   actions/cache@master
         with:
           path:                 target
           key:                  ${{ runner.os }}-cargo-build-target-build-tests-${{ hashFiles('**/Cargo.lock') }}
       - name:                   Cache sccache linux
         if:                     matrix.platform == 'ubuntu-16.04'
-        uses:                   actions/cache@v1.1.2
+        uses:                   actions/cache@master
         with:
           path:                 "/home/runner/.cache/sccache"
           key:                  ${{ runner.os }}-sccache-build-tests-${{ hashFiles('**/Cargo.lock') }}
       - name:                   Cache sccache MacOS
         if:                     matrix.platform == 'macos-latest'
-        uses:                   actions/cache@v1.1.2
+        uses:                   actions/cache@master
         with:
           path:                 "/Users/runner/Library/Caches/Mozilla.sccache"
           key:                  ${{ runner.os }}-sccache-build-tests-${{ hashFiles('**/Cargo.lock') }}
       - name:                   Cache sccache Windows
         if:                     matrix.platform == 'windows-latest'
-        uses:                   actions/cache@v1.1.2
+        uses:                   actions/cache@master
         with:
           path:                 "C:\\Users\\runneradmin\\AppData\\Local\\Mozilla\\sccache\\cache"
           key:                  ${{ runner.os }}-sccache-build-tests-${{ hashFiles('**/Cargo.lock') }}
