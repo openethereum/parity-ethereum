@@ -132,6 +132,8 @@ pub struct Schedule {
 	pub have_chain_id: bool,
 	/// SELFBALANCE opcode enabled.
 	pub have_selfbalance: bool,
+	/// BEGINSUB, JUMPSUB and RETURNSUB opcodes enabled.
+	pub have_subs: bool,
 	/// Kill basic accounts below this balance if touched.
 	pub kill_dust: CleanDustMode,
 	/// Enable EIP-1283 rules
@@ -234,6 +236,7 @@ impl Schedule {
 			have_chain_id: false,
 			have_selfbalance: false,
 			have_extcodehash: false,
+			have_subs: false,
 			stack_limit: 1024,
 			max_depth: 1024,
 			tier_step_gas: [0, 2, 3, 5, 8, 10, 20, 0],
@@ -319,6 +322,7 @@ impl Schedule {
 	pub fn new_berlin() -> Schedule {
 		let mut schedule = Self::new_istanbul();
 		schedule.staticcall_precompile_gas = 40; // EIPs 2046 1352
+		schedule.have_subs = true; // EIP 2315
 		schedule
 	}
 	
@@ -333,6 +337,7 @@ impl Schedule {
 			have_chain_id: false,
 			have_selfbalance: false,
 			have_extcodehash: false,
+			have_subs: false,
 			stack_limit: 1024,
 			max_depth: 1024,
 			tier_step_gas: [0, 2, 3, 5, 8, 10, 20, 0],
