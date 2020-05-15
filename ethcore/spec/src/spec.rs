@@ -406,7 +406,6 @@ impl Spec {
 			params.eip1344_transition,
 			params.eip1884_transition,
 			params.eip2028_transition,
-			params.eip2200_advance_transition,
 			params.dust_protection_transition,
 			params.wasm_activation_transition,
 			params.kip4_transition,
