@@ -21,10 +21,10 @@ extern crate ethcore_io as io;
 extern crate ethereum_types;
 extern crate rlp;
 extern crate ipnetwork;
-extern crate parity_snappy as snappy;
 extern crate libc;
 extern crate semver;
 extern crate serde;
+extern crate snap;
 
 #[macro_use]
 extern crate serde_derive;

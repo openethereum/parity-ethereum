@@ -15,10 +15,10 @@ ethjson = { path = "../../json" }
 hash = { package = "keccak-hash", version = "0.5" }
 parity-crypto = { version = "0.6.1", features = ["publickey"] }
 parity-util-mem = "0.6.0"
-parity-snappy = "0.1"
 ethtrie = { package = "patricia-trie-ethereum", path = "../../util/patricia-trie-ethereum" }
 rlp = "0.4.5"
 rlp-derive = "0.1"
+snap = "1"
 unexpected = { path = "../../util/unexpected" }
 vm = { path = "../vm"}
 

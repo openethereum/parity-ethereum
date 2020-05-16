@@ -639,15 +639,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cmake"
-version = "0.1.42"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "81fb25b677f8bf1eb325017cb6bb8452f87969db0fedb4f757b297bee78a7c62"
-dependencies = [
- "cc",
-]
-
-[[package]]
 name = "common-types"
 version = "0.1.0"
 dependencies = [
@@ -659,12 +650,12 @@ dependencies = [
  "keccak-hash",
  "parity-bytes",
  "parity-crypto",
- "parity-snappy",
  "parity-util-mem",
  "patricia-trie-ethereum",
  "rlp",
  "rlp-derive",
  "rustc-hex 2.1.0",
+ "snap",
  "unexpected",
  "vm",
 ]
@@ -1418,11 +1409,11 @@ dependencies = [
  "lazy_static",
  "libc",
  "parity-crypto",
- "parity-snappy",
  "rlp",
  "semver",
  "serde",
  "serde_derive",
+ "snap",
 ]
 
 [[package]]
@@ -1450,7 +1441,6 @@ dependencies = [
  "parity-bytes",
  "parity-crypto",
  "parity-path",
- "parity-snappy",
  "parking_lot 0.10.0",
  "rand 0.7.3",
  "rlp",
@@ -1458,6 +1448,7 @@ dependencies = [
  "serde",
  "serde_json",
  "slab",
+ "snap",
  "tempfile",
  "tiny-keccak 2.0.2",
 ]
@@ -3465,26 +3456,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "parity-snappy"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e2c5f9d149b13134b8b354d93a92830efcbee6fe5b73a2e6e540fe70d4dd8a63"
-dependencies = [
- "libc",
- "parity-snappy-sys",
-]
-
-[[package]]
-name = "parity-snappy-sys"
-version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1a413d51e5e1927320c9de992998e4a279dffb8c8a7363570198bd8383e66f1b"
-dependencies = [
- "cmake",
- "libc",
-]
-
-[[package]]
 name = "parity-tokio-ipc"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4573,6 +4544,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5c2fb2ec9bcd216a5b0d0ccf31ab17b5ed1d627960edff65bbe95d3ce221cefc"
 
 [[package]]
+name = "snap"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f7fb9b0bb877b35a1cc1474a3b43d9c226a2625311760cdda2cbccbc0c7a8376"
+
+[[package]]
 name = "snapshot"
 version = "0.1.0"
 dependencies = [
@@ -4604,7 +4581,6 @@ dependencies = [
  "log",
  "num_cpus",
  "parity-bytes",
- "parity-snappy",
  "parking_lot 0.10.0",
  "patricia-trie-ethereum",
  "rand 0.7.3",
@@ -4612,6 +4588,7 @@ dependencies = [
  "rlp",
  "rlp-derive",
  "scopeguard 1.1.0",
+ "snap",
  "snapshot-tests",
  "spec",
  "tempfile",
@@ -4649,12 +4626,12 @@ dependencies = [
  "log",
  "parity-bytes",
  "parity-crypto",
- "parity-snappy",
  "parking_lot 0.10.0",
  "patricia-trie-ethereum",
  "rand 0.7.3",
  "rand_xorshift 0.2.0",
  "rlp",
+ "snap",
  "snapshot",
  "spec",
  "tempfile",
