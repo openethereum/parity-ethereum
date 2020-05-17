@@ -16,14 +16,14 @@
 
 //! Snapshot-related errors.
 
+use crate::ids::BlockId;
+
 use std::error;
 use std::fmt;
 
 use ethereum_types::H256;
 use ethtrie::TrieError;
 use rlp::DecoderError;
-
-use ids::BlockId;
 
 /// Snapshot-related errors.
 #[derive(Debug)]

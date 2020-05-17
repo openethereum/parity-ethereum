@@ -89,7 +89,7 @@ mod inner {
 			}
 		}
 
-		pub fn before_instruction<Cost: CostType>(&mut self, pc: usize, instruction: Instruction, info: &InstructionInfo, current_gas: &Cost, stack: &Stack<U256>) {
+		pub fn before_instruction<Cost: CostType>(&mut self, pc: usize, instruction: Instruction, info: &InstructionInfo, current_gas: &Cost, stack: &dyn Stack<U256>) {
 			let time = self.last_instruction.elapsed();
 			self.last_instruction = Instant::now();
 

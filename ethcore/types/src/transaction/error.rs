@@ -18,10 +18,9 @@ use std::{fmt, error};
 
 use ethereum_types::U256;
 use parity_crypto::publickey::{Error as EthPublicKeyCryptoError};
-use rlp;
 use unexpected::OutOfBounds;
 
-use errors::ExecutionError;
+use crate::errors::ExecutionError;
 
 #[derive(Debug, PartialEq, Clone)]
 /// Errors concerning transaction processing.

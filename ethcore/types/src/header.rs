@@ -16,12 +16,12 @@
 
 //! Block header.
 
+use crate::BlockNumber;
 use hash::{KECCAK_NULL_RLP, KECCAK_EMPTY_LIST_RLP, keccak};
 use parity_util_mem::MallocSizeOf;
 use ethereum_types::{H256, U256, Address, Bloom};
 use bytes::Bytes;
 use rlp::{Rlp, RlpStream, Encodable, DecoderError, Decodable};
-use BlockNumber;
 
 /// Semantic boolean for when a seal/signature is included.
 #[derive(Debug, Clone, Copy)]
@@ -278,8 +278,8 @@ impl Header {
 	}
 
 	/// Encode the header, getting a type-safe wrapper around the RLP.
-	pub fn encoded(&self) -> ::encoded::Header {
-		::encoded::Header::new(self.rlp(Seal::With))
+	pub fn encoded(&self) -> crate::encoded::Header {
+		crate::encoded::Header::new(self.rlp(Seal::With))
 	}
 
 	/// Get the RLP representation of this Header.

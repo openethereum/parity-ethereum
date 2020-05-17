@@ -16,12 +16,11 @@
 
 //! View onto block header rlp
 
+use crate::BlockNumber;
 use bytes::Bytes;
 use ethereum_types::{H256, Bloom, U256, Address};
 use hash::keccak;
-use rlp::{self};
 use super::ViewRlp;
-use BlockNumber;
 
 /// View onto block header rlp.
 pub struct HeaderView<'a> {

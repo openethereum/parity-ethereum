@@ -18,10 +18,10 @@
 
 use ethereum_types::{Address, U256, H256};
 use bytes::Bytes;
-use ethjson;
-
-use BlockNumber;
-use engines::DEFAULT_BLOCKHASH_CONTRACT;
+use crate::{
+	engines::DEFAULT_BLOCKHASH_CONTRACT,
+	BlockNumber
+};
 
 const MAX_TRANSACTION_SIZE: usize = 300 * 1024;
 
