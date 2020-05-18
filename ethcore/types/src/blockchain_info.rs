@@ -16,11 +16,12 @@
 
 //! Blockhain info type definition
 
-use std::fmt;
-
+use crate::{
+	BlockNumber,
+	security_level::SecurityLevel,
+};
 use ethereum_types::{U256, H256};
-use security_level::SecurityLevel;
-use BlockNumber;
+use std::fmt;
 
 /// Information about the blockchain gathered together.
 #[derive(Clone, Debug)]

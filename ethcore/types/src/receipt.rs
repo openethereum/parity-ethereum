@@ -16,12 +16,13 @@
 
 //! Receipt
 
+use crate::{
+	log_entry::{LogEntry, LocalizedLogEntry},
+	BlockNumber,
+};
 use ethereum_types::{H160, H256, U256, Address, Bloom};
 use parity_util_mem::MallocSizeOf;
 use rlp::{Rlp, RlpStream, Encodable, Decodable, DecoderError};
-
-use BlockNumber;
-use log_entry::{LogEntry, LocalizedLogEntry};
 
 /// Transaction outcome store in the receipt.
 #[derive(Debug, Clone, PartialEq, Eq, MallocSizeOf)]
@@ -173,7 +174,7 @@ mod tests {
 	use std::str::FromStr;
 
 	use super::{Receipt, TransactionOutcome, Address, H256};
-	use log_entry::LogEntry;
+	use crate::log_entry::LogEntry;
 	use rustc_hex::FromHex;
 
 	#[test]
