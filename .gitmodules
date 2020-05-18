@@ -1,7 +1,7 @@
 [submodule "ethcore/res/ethereum/tests"]
 	path = ethcore/res/ethereum/tests
 	url = https://github.com/ethereum/tests.git
-	branch = develop
+	branch = v7.0.0
 [submodule "ethcore/res/wasm-tests"]
 	path = ethcore/res/wasm-tests
 	url = https://github.com/openethereum/wasm-tests
