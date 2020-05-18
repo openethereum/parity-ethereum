@@ -1,0 +1,64 @@
+name:                           Build Release Suite for ARM
+
+on:
+  push:
+    branches:
+      - denisgranha/add-arm-build
+    tags:
+      - v*
+
+jobs:
+  build:
+    name:                       Build Release ARM (crosscompile)
+    env:
+      SCCACHE_CACHE_SIZE:       "1G"
+      SCCACHE_IDLE_TIMEOUT:     0
+    runs-on:                    "ubuntu-18.04"
+    steps:
+      - name:                   Checkout sources
+        uses:                   actions/checkout@master
+      # https://github.com/actions/cache/issues/133
+      - name:                   Install toolchain
+        uses:                   actions-rs/toolchain@v1
+        with:
+          toolchain:            stable
+          profile:              minimal
+          override:             true
+      - name:                   Cache cargo registry
+        uses:                   actions/cache@v1.1.2
+        with:
+          path:                 ~/.cargo/registry
+          key:                  ${{ runner.os }}-cargo-registry-build-${{ hashFiles('**/Cargo.lock') }}
+      - name:                   Cache cargo index
+        uses:                   actions/cache@v1.1.2
+        with:
+          path:                 ~/.cargo/git
+          key:                  ${{ runner.os }}-cargo-git-build-${{ hashFiles('**/Cargo.lock') }}
+      - name:                   Cache cargo build
+        uses:                   actions/cache@v1.1.2
+        with:
+          path:                 target
+          key:                  ${{ runner.os }}-cargo-build-target-build-${{ hashFiles('**/Cargo.lock') }}
+      - name:                   Cache sccache linux
+        uses:                   actions/cache@v1.1.2
+        with:
+          path:                 "/home/runner/.cache/sccache"
+          key:                  ${{ runner.os }}-sccache-build-${{ hashFiles('**/Cargo.lock') }}
+      - name:                   Install sccache for Ubuntu
+        shell:                  pwsh
+        run:                    pwsh scripts/actions/install-sccache.ps1 ${{ runner.os}}
+      - name:                   Sccache statistics
+        run:                    sccache --show-stats
+      - name:                   Build OpenEthereum for ARM (cross-compile)
+        run:                    sh scripts/actions/build-arm.sh
+      - name:                   Stop sccache
+        if:                     always()
+        run:                    sccache --stop-server
+      - name:                   Download artifact
+        uses:                   actions/upload-artifact@v1
+        with:
+          name:                 armv7-unknown-linux-gnueabihf.artifacts.zip
+          path:                 artifacts/
+      - name:                   Prepare build directory for cache
+        shell: bash
+        run:                    bash scripts/actions/clean-target.sh
