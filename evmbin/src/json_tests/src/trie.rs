@@ -17,14 +17,19 @@
 use std::path::Path;
 
 use ethjson;
-use trie::{TrieFactory, TrieSpec};
-use ethereum_types::H256;
+use ethcore::{
+	ethtrie,
+	trie::{TrieFactory, TrieSpec},
+	journaldb,
+	ethereum_types::H256
+};
 
+use super::json;
 use super::HookType;
 
 #[allow(dead_code)]
 fn test_trie<H: FnMut(&str, HookType)>(path: &Path, json: &[u8], trie: TrieSpec, start_stop_hook: &mut H) -> Vec<String> {
-	let tests = ethjson::test_helpers::trie::Test::load(json)
+	let tests = json::trie::Test::load(json)
 		.expect(&format!("Could not parse JSON trie test data from {}", path.display()));
 	let factory = TrieFactory::new(trie, ethtrie::Layout);
 	let mut result = vec![];
@@ -55,35 +60,4 @@ fn test_trie<H: FnMut(&str, HookType)>(path: &Path, json: &[u8], trie: TrieSpec,
 	}
 
 	result
-}
-
-mod generic {
-	use std::path::Path;
-	use trie::TrieSpec;
-
-	use super::HookType;
-
-	#[allow(dead_code)]
-	fn do_json_test<H: FnMut(&str, HookType)>(path: &Path, json: &[u8], h: &mut H) -> Vec<String> {
-		super::test_trie(path, json, TrieSpec::Generic, h)
-	}
-
-	declare_test!{TrieTests_trietest, "TrieTests/trietest.json"}
-	declare_test!{TrieTests_trieanyorder, "TrieTests/trieanyorder.json"}
-}
-
-mod secure {
-	use std::path::Path;
-	use trie::TrieSpec;
-
-	use super::HookType;
-
-	#[allow(dead_code)]
-	fn do_json_test<H: FnMut(&str, HookType)>(path: &Path, json: &[u8], h: &mut H) -> Vec<String> {
-		super::test_trie(path, json, TrieSpec::Secure, h)
-	}
-
-	declare_test!{TrieTests_hex_encoded_secure, "TrieTests/hex_encoded_securetrie_test.json"}
-	declare_test!{TrieTests_trietest_secure, "TrieTests/trietest_secureTrie.json"}
-	declare_test!{TrieTests_trieanyorder_secure, "TrieTests/trieanyorder_secureTrie.json"}
 }

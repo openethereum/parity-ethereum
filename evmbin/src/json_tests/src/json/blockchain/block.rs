@@ -16,7 +16,7 @@
 
 //! Blockchain test block deserializer.
 
-use crate::{bytes::Bytes, transaction::Transaction};
+use ethjson::{bytes::Bytes, transaction::Transaction};
 use super::header::Header;
 use serde::Deserialize;
 

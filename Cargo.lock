@@ -1732,6 +1732,8 @@ dependencies = [
  "ethjson",
  "evm",
  "hex-literal",
+ "json_tests",
+ "lazy_static",
  "panic_hook",
  "parity-bytes",
  "pod",
@@ -2378,6 +2380,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1cb931d43e71f560c81badb0191596562bafad2be06a3f9025b845c847c60df5"
 dependencies = [
  "wasm-bindgen",
+]
+
+[[package]]
+name = "json_tests"
+version = "0.1.0"
+dependencies = [
+ "criterion",
+ "docopt",
+ "env_logger 0.5.13",
+ "ethcore",
+ "ethjson",
+ "hex-literal",
+ "lazy_static",
+ "parity-bytes",
+ "rustc-hex 2.1.0",
+ "serde",
+ "serde_json",
+ "tempfile",
 ]
 
 [[package]]

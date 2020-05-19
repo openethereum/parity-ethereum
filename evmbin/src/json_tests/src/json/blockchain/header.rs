@@ -16,7 +16,7 @@
 
 //! Blockchain test header deserializer.
 
-use crate::{
+use ethjson::{
 	bytes::Bytes,
 	hash::{H64, Address, H256, Bloom},
 	uint::Uint

@@ -19,7 +19,7 @@
 use std::fmt;
 use std::collections::BTreeMap;
 use std::str::FromStr;
-use crate::bytes::Bytes;
+use ethjson::bytes::Bytes;
 use serde::{Deserialize, Deserializer};
 use serde::de::{Error as ErrorTrait, Visitor, MapAccess, SeqAccess};
 

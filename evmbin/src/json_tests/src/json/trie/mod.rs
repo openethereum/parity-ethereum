@@ -14,26 +14,24 @@
 // You should have received a copy of the GNU General Public License
 // along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use crate::{hash::H256, uint::Uint};
+//! Trie test deserialization.
+
+mod input;
+
+pub use self::input::Input;
+
+/// Type used by `trie` tests
+pub type Test = super::tester::GenericTester<String, Trie>;
+
 use serde::Deserialize;
+use ethjson::hash::H256;
 
-/// Blockchain test header deserializer.
-#[derive(Debug, PartialEq, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct DifficultyTestCase {
-	/// Parent timestamp.
-	pub parent_timestamp: Uint,
-	/// Parent difficulty.
-	pub parent_difficulty: Uint,
-	/// Parent uncle hash.
-	pub parent_uncles: H256,
-	/// Current timestamp.
-	pub current_timestamp: Uint,
-	/// Current difficulty.
-	pub current_difficulty: Uint,
-	/// Current block number.
-	pub current_block_number: Uint,
+/// Trie test deserialization.
+#[derive(Debug, Deserialize, PartialEq)]
+pub struct Trie {
+	/// Trie test input.
+	#[serde(rename = "in")]
+	pub input: Input,
+	/// Trie root hash.
+	pub root: H256,
 }
-
-/// Type for running `Difficulty` tests
-pub type DifficultyTest = super::tester::GenericTester<String, DifficultyTestCase>;

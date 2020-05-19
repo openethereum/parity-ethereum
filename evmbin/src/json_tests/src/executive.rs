@@ -16,41 +16,45 @@
 
 use std::path::Path;
 use std::sync::Arc;
-use super::test_common::*;
-use account_state::{Backend as StateBackend, State};
-use evm::Finalize;
-use vm::{
-	self, ActionParams, ActionType, Schedule, Ext,
-	ContractCreateResult, EnvInfo, MessageCallResult,
-	CreateContractAddress, ReturnData,
-};
-use machine::{
-	Machine,
-	externalities::{OutputPolicy, OriginInfo, Externalities},
-	substate::Substate,
-	executive::contract_address,
+
+use ethcore::{
+	log::{info,error},
+	ethereum_types::{U256,H256,Address},
+	account_state::{Backend as StateBackend, State},
+	evm::Finalize,
+	vm::{
+		self, ActionParams, ActionType, Schedule, Ext,
+		ContractCreateResult, EnvInfo, MessageCallResult,
+		CreateContractAddress, ReturnData,
+	},
+	machine::{
+		Machine,
+		externalities::{OutputPolicy, OriginInfo, Externalities},
+		substate::Substate,
+		executive::contract_address,
+	},
+	test_helpers::get_temp_state,
+	trace::{Tracer, NoopTracer, VMTracer, NoopVMTracer},
+	bytes::Bytes,
+	ethtrie,
+	rlp::RlpStream,
+	hash::keccak,
+	ethereum_types::BigEndianHash,
+	spec
 };
 
-use test_helpers::get_temp_state;
 use ethjson;
-use trace::{Tracer, NoopTracer, VMTracer, NoopVMTracer};
-use bytes::Bytes;
-use ethtrie;
-use rlp::RlpStream;
-use hash::keccak;
-use ethereum_types::BigEndianHash;
-use spec;
-
+use super::json;
 use super::HookType;
 
 /// Run executive jsontests on a given folder.
 pub fn run_test_path<H: FnMut(&str, HookType)>(p: &Path, skip: &[&'static str], h: &mut H) {
-	::json_tests::test_common::run_test_path(p, skip, do_json_test, h)
+	super::test_common::run_test_path(p, skip, do_json_test, h)
 }
 
 /// Run executive jsontests on a given file.
 pub fn run_test_file<H: FnMut(&str, HookType)>(p: &Path, h: &mut H) {
-	::json_tests::test_common::run_test_file(p, do_json_test, h)
+	super::test_common::run_test_file(p, do_json_test, h)
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -240,7 +244,7 @@ fn do_json_test<H: FnMut(&str, HookType)>(
 	json_data: &[u8],
 	start_stop_hook: &mut H
 ) -> Vec<String> {
-	let tests = ethjson::test_helpers::vm::Test::load(json_data)
+	let tests = json::vm::Test::load(json_data)
 		.expect(&format!("Could not parse JSON executive test data from {}", path.display()));
 	let mut failed = Vec::new();
 
@@ -363,17 +367,3 @@ fn do_json_test<H: FnMut(&str, HookType)>(
 
 	failed
 }
-
-declare_test!{ExecutiveTests_vmArithmeticTest, "VMTests/vmArithmeticTest"}
-declare_test!{ExecutiveTests_vmBitwiseLogicOperationTest, "VMTests/vmBitwiseLogicOperation"}
-declare_test!{ExecutiveTests_vmBlockInfoTest, "VMTests/vmBlockInfoTest"}
- // TODO [todr] Fails with Signal 11 when using JIT
-declare_test!{ExecutiveTests_vmEnvironmentalInfoTest, "VMTests/vmEnvironmentalInfo"}
-declare_test!{ExecutiveTests_vmIOandFlowOperationsTest, "VMTests/vmIOandFlowOperations"}
-declare_test!{ExecutiveTests_vmLogTest, "VMTests/vmLogTest"}
-declare_test!{heavy => ExecutiveTests_vmPerformance, "VMTests/vmPerformance"}
-declare_test!{ExecutiveTests_vmPushDupSwapTest, "VMTests/vmPushDupSwapTest"}
-declare_test!{ExecutiveTests_vmRandomTest, "VMTests/vmRandomTest"}
-declare_test!{ExecutiveTests_vmSha3Test, "VMTests/vmSha3Test"}
-declare_test!{ExecutiveTests_vmSystemOperationsTest, "VMTests/vmSystemOperations"}
-declare_test!{ExecutiveTests_vmTests, "VMTests/vmTests"}

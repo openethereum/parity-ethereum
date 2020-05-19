@@ -15,7 +15,7 @@
 // along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Provide facilities to create `Machine` instances for testing various networks.
-
+/*
 use std::convert::TryFrom;
 use common_types::engines::params::CommonParams;
 use ethcore_builtin::Builtin;
@@ -63,3 +63,4 @@ pub fn new_mcip3_test_machine() -> Machine { load_machine(include_bytes!("../../
 
 /// Create new Kovan spec with wasm activated at certain block
 pub fn new_kovan_wasm_test_machine() -> Machine { load_machine(include_bytes!("../../res/ethereum/test-specs/kovan_wasm_test.json")) }
+*/

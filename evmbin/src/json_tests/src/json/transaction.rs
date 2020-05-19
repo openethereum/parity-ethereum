@@ -17,7 +17,7 @@
 //! Transaction test deserialization.
 
 use std::collections::BTreeMap;
-use crate::{bytes::Bytes, hash::{Address, H256}, spec::ForkSpec};
+use ethjson::{bytes::Bytes, hash::{Address, H256}, spec::ForkSpec};
 use serde::Deserialize;
 
 /// Type for running `Transaction` tests

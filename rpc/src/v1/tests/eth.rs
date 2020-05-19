@@ -26,7 +26,7 @@ use spec::{Genesis, Spec, self};
 use ethcore::test_helpers;
 use verification::VerifierType;
 use ethereum_types::{Address, H256, U256};
-use ethjson::test_helpers::blockchain::BlockChain;
+use json_tests::json::blockchain::BlockChain;
 use ethjson::spec::ForkSpec;
 use io::IoChannel;
 use miner::external::ExternalMiner;
@@ -85,7 +85,7 @@ struct EthTester {
 impl EthTester {
 	fn from_chain(chain: &BlockChain) -> Self {
 
-		let tester = if ethjson::test_helpers::blockchain::Engine::NoProof == chain.engine {
+		let tester = if json_tests::json::blockchain::Engine::NoProof == chain.engine {
 			let mut config = ClientConfig::default();
 			config.verifier_type = VerifierType::CanonNoSeal;
 			config.check_seal = false;

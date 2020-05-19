@@ -26,6 +26,9 @@
 ///
 /// NOTE: a skipped test is considered a passing test as far as `cargo test` is concerned. Normally
 /// one test corresponds to a folder full of test files, each of which may contain many tests.
+
+use ethcore::log::error;
+
 #[macro_export]
 macro_rules! declare_test {
 	(skip => $arr: expr, $id: ident, $name: expr) => {
@@ -79,8 +82,8 @@ macro_rules! test {
 /// Similar to `print!` but flushes stdout in order to ensure the output is emitted immediately.
 #[macro_export]
 macro_rules! flushed_write {
-	($arg:expr) => ($crate::json_tests::macros::write_and_flush($arg.into()));
-	($($arg:tt)*) => ($crate::json_tests::macros::write_and_flush(format!("{}", format_args!($($arg)*))));
+	($arg:expr) => ($crate::macros::write_and_flush($arg.into()));
+	($($arg:tt)*) => ($crate::macros::write_and_flush(format!("{}", format_args!($($arg)*))));
 }
 
 /// Similar to `println!` but flushes stdout in order to ensure the output is emitted immediately.

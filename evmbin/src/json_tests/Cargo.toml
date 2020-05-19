@@ -1,0 +1,25 @@
+[package]
+description = "OpenEthereum Json Tests"
+name = "json_tests"
+version = "0.1.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+edition = "2018"
+
+[dependencies]
+ethcore = { path = "../../../ethcore", features = ["test-helpers", "json-tests"] }
+ethjson = { path = "../../../json" }
+docopt = "1.0"
+env_logger = "0.5"
+parity-bytes = "0.1"
+rustc-hex = "2.1.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+lazy_static = "1.4.0"
+
+[dev-dependencies]
+criterion = "0.3"
+hex-literal = "0.2.1"
+tempfile = "3.1"
+
+[features]
+evm-debug = ["ethcore/evm-debug-tests"]

@@ -21,7 +21,7 @@ pub type Test = super::tester::GenericTester<String, State>;
 
 use std::collections::BTreeMap;
 use serde::Deserialize;
-use crate::{
+use ethjson::{
 	bytes::Bytes,
 	hash::{Address, H256},
 	maybe::MaybeEmpty,

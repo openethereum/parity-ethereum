@@ -14,24 +14,28 @@
 // You should have received a copy of the GNU General Public License
 // along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Test structures for JSON deserialization.
+//! Helpers and tests for operating on `JSON` tests.
 
-/// Blockchain test helpers
-pub mod blockchain;
-/// Difficulty test helpers
-pub mod difficulty;
-/// Tests to skip helpers
-pub mod skip;
-/// State test helpers
-pub mod state;
-/// Test primitives
-pub mod tester;
-/// Transaction test helpers
-pub mod transaction;
-/// Trie test helpers
-pub mod trie;
-/// Vm test helpers
-pub mod vm {
-	/// Type for running `vm` tests
-	pub type Test = super::tester::GenericTester<String, crate::vm::Vm>;
-}
+#[macro_use]
+extern crate lazy_static;
+
+#[macro_use]
+mod macros;
+
+mod chain;
+mod executive;
+mod skip;
+mod state;
+mod test_common;
+mod transaction;
+mod trie;
+
+pub mod json;
+
+mod difficulty;
+
+pub use self::executive::run_test_path as run_executive_test_path;
+pub use self::executive::run_test_file as run_executive_test_file;
+pub use self::test_common::HookType;
+
+pub use skip::SkipTests;

@@ -16,15 +16,18 @@
 
 use std::path::Path;
 use super::test_common::*;
-use test_helpers::EvmTestClient;
+use super::json;
 use ethjson;
-use rlp::Rlp;
-use types::{
-	header::Header,
-	errors::EthcoreError as Error,
-	transaction::UnverifiedTransaction
+use ethcore::{
+	test_helpers::EvmTestClient,
+	rlp::Rlp,
+	types::{
+		header::Header,
+		errors::EthcoreError as Error,
+		transaction::UnverifiedTransaction
+	},
+	machine::transaction_ext::Transaction
 };
-use machine::transaction_ext::Transaction;
 
 #[allow(dead_code)]
 fn do_json_test<H: FnMut(&str, HookType)>(path: &Path, json_data: &[u8], start_stop_hook: &mut H) -> Vec<String> {
@@ -32,7 +35,7 @@ fn do_json_test<H: FnMut(&str, HookType)>(path: &Path, json_data: &[u8], start_s
 	// Make sure that all the specified features are activated.
 	const BLOCK_NUMBER: u64 = 0x6ffffffffffffe;
 
-	let tests = ethjson::test_helpers::transaction::Test::load(json_data)
+	let tests = json::transaction::Test::load(json_data)
 		.expect(&format!("Could not parse JSON transaction test data from {}", path.display()));
 	let mut failed = Vec::new();
 	for (name, test) in tests.into_iter() {
@@ -63,7 +66,7 @@ fn do_json_test<H: FnMut(&str, HookType)>(path: &Path, json_data: &[u8], start_s
 
 					let minimal = t.gas_required(&spec.engine.schedule(header.number())).into();
 					if t.gas < minimal {
-						return Err(::types::transaction::Error::InsufficientGas {
+						return Err(ethcore::types::transaction::Error::InsufficientGas {
 							minimal, got: t.gas,
 						}.into());
 					}
@@ -94,14 +97,3 @@ fn do_json_test<H: FnMut(&str, HookType)>(path: &Path, json_data: &[u8], start_s
 	}
 	failed
 }
-
-declare_test!{TransactionTests_ttAddress, "TransactionTests/ttAddress"}
-declare_test!{TransactionTests_ttData, "TransactionTests/ttData"}
-declare_test!{TransactionTests_ttGasLimit, "TransactionTests/ttGasLimit"}
-declare_test!{TransactionTests_ttGasPrice, "TransactionTests/ttGasPrice"}
-declare_test!{TransactionTests_ttNonce, "TransactionTests/ttNonce"}
-declare_test!{TransactionTests_ttRSValue, "TransactionTests/ttRSValue"}
-declare_test!{TransactionTests_ttSignature, "TransactionTests/ttSignature"}
-declare_test!{TransactionTests_ttValue, "TransactionTests/ttValue"}
-declare_test!{TransactionTests_ttVValue, "TransactionTests/ttVValue"}
-declare_test!{TransactionTests_ttWrongRLP, "TransactionTests/ttWrongRLP"}

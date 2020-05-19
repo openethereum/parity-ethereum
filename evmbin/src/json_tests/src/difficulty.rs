@@ -16,11 +16,12 @@
 
 use std::path::Path;
 
-use ethereum_types::U256;
-use ethjson::test_helpers::difficulty::DifficultyTest;
-use types::header::Header;
-use spec::Spec;
-
+use ethcore::{
+	ethereum_types::U256,
+	types::header::Header,
+	spec::Spec
+};
+use super::json::difficulty::DifficultyTest;
 use super::HookType;
 
 pub fn json_difficulty_test<H: FnMut(&str, HookType)>(
@@ -57,65 +58,4 @@ pub fn json_difficulty_test<H: FnMut(&str, HookType)>(
 		start_stop_hook(&name, HookType::OnStop);
 	}
 	vec![]
-}
-
-macro_rules! difficulty_json_test {
-	( $spec:ident ) => {
-
-	use std::path::Path;
-	use super::json_difficulty_test;
-	use tempfile::TempDir;
-	use json_tests::HookType;
-
-	fn do_json_test<H: FnMut(&str, HookType)>(path: &Path, json_data: &[u8], h: &mut H) -> Vec<String> {
-		let tempdir = TempDir::new().unwrap();
-		json_difficulty_test(path, json_data, crate::spec::$spec(&tempdir.path()), h)
-	}
-
-	}
-}
-
-macro_rules! difficulty_json_test_nopath {
-	( $spec:ident ) => {
-	use std::path::Path;
-
-	use super::json_difficulty_test;
-	use json_tests::HookType;
-
-	fn do_json_test<H: FnMut(&str, HookType)>(path: &Path, json_data: &[u8], h: &mut H) -> Vec<String> {
-		json_difficulty_test(path, json_data, crate::spec::$spec(), h)
-	}
-
-	}
-}
-
-mod difficulty_test {
-	difficulty_json_test!(new_foundation);
-	declare_test!{DifficultyTests_difficulty, "BasicTests/difficulty.json"}
-}
-
-mod difficulty_test_byzantium {
-	difficulty_json_test_nopath!(new_byzantium_test);
-	declare_test!{DifficultyTests_difficultyByzantium, "BasicTests/difficultyByzantium.json"}
-}
-
-mod difficulty_test_foundation {
-	difficulty_json_test!(new_foundation);
-	declare_test!{DifficultyTests_difficultyMainNetwork, "BasicTests/difficultyMainNetwork.json"}
-}
-
-// Disabling Ropsten diff tests; waiting for upstream ethereum/tests Constantinople update
-//mod difficulty_test_ropsten {
-//	difficulty_json_test_nopath!(new_ropsten_test);
-//	declare_test!{DifficultyTests_difficultyRopsten, "BasicTests/difficultyRopsten.json"}
-//}
-
-mod difficulty_test_frontier {
-	difficulty_json_test_nopath!(new_frontier_test);
-	declare_test!{DifficultyTests_difficultyFrontier, "BasicTests/difficultyFrontier.json"}
-}
-
-mod difficulty_test_homestead {
-	difficulty_json_test_nopath!(new_homestead_test);
-	declare_test!{DifficultyTests_difficultyHomestead, "BasicTests/difficultyHomestead.json"}
 }

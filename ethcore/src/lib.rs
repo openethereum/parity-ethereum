@@ -18,46 +18,46 @@
 
 //! Ethcore library
 
-extern crate account_state;
-extern crate ansi_term;
-extern crate client_traits;
-extern crate common_types as types;
-extern crate engine;
-extern crate ethcore_blockchain as blockchain;
-extern crate ethcore_call_contract as call_contract;
-extern crate ethcore_db as db;
-extern crate ethcore_io as io;
-extern crate ethcore_miner;
-extern crate ethereum_types;
-extern crate executive_state;
-extern crate futures;
-extern crate hash_db;
-extern crate itertools;
-extern crate journaldb;
-extern crate keccak_hash as hash;
-extern crate kvdb;
-extern crate machine;
-extern crate memory_cache;
-extern crate parity_bytes as bytes;
-extern crate parking_lot;
-extern crate trie_db as trie;
-extern crate patricia_trie_ethereum as ethtrie;
-extern crate rand;
-extern crate rayon;
-extern crate registrar;
-extern crate rlp;
-extern crate rustc_hex;
-extern crate serde;
-extern crate snapshot;
-extern crate spec;
-extern crate state_db;
-extern crate trace;
-extern crate trie_vm_factories;
-extern crate triehash_ethereum as triehash;
-extern crate unexpected;
-extern crate using_queue;
-extern crate verification;
-extern crate vm;
+pub extern crate account_state;
+pub extern crate ansi_term;
+pub extern crate client_traits;
+pub extern crate common_types as types;
+pub extern crate engine;
+pub extern crate ethcore_blockchain as blockchain;
+pub extern crate ethcore_call_contract as call_contract;
+pub extern crate ethcore_db as db;
+pub extern crate ethcore_io as io;
+pub extern crate ethcore_miner;
+pub extern crate ethereum_types;
+pub extern crate executive_state;
+pub extern crate futures;
+pub extern crate hash_db;
+pub extern crate itertools;
+pub extern crate journaldb;
+pub extern crate keccak_hash as hash;
+pub extern crate kvdb;
+pub extern crate machine;
+pub extern crate memory_cache;
+pub extern crate parity_bytes as bytes;
+pub extern crate parking_lot;
+pub extern crate trie_db as trie;
+pub extern crate patricia_trie_ethereum as ethtrie;
+pub extern crate rand;
+pub extern crate rayon;
+pub extern crate registrar;
+pub extern crate rlp;
+pub extern crate rustc_hex;
+pub extern crate serde;
+pub extern crate snapshot;
+pub extern crate spec;
+pub extern crate state_db;
+pub extern crate trace;
+pub extern crate trie_vm_factories;
+pub extern crate triehash_ethereum as triehash;
+pub extern crate unexpected;
+pub extern crate using_queue;
+pub extern crate verification;
+pub extern crate vm;
 
 #[cfg(test)]
 extern crate account_db;
@@ -82,7 +82,7 @@ extern crate kvdb_rocksdb;
 #[macro_use]
 extern crate lazy_static;
 #[cfg(any(test, feature = "test-helpers"))]
-extern crate pod;
+pub extern crate pod;
 #[cfg(any(test, feature = "blooms-db"))]
 extern crate blooms_db;
 #[cfg(feature = "env_logger")]
@@ -93,15 +93,15 @@ extern crate serde_json;
 extern crate tempfile;
 
 #[macro_use]
-extern crate log;
+pub extern crate log;
 #[macro_use]
-extern crate trace_time;
+pub extern crate trace_time;
 
 #[cfg_attr(test, macro_use)]
-extern crate evm;
+pub extern crate evm;
 
 #[cfg(all(test, feature = "price-info"))]
-extern crate fetch;
+pub extern crate fetch;
 
 #[cfg(all(test, feature = "price-info"))]
 extern crate parity_runtime;
@@ -112,7 +112,5 @@ pub mod miner;
 
 #[cfg(test)]
 mod tests;
-#[cfg(feature = "json-tests")]
-pub mod json_tests;
 #[cfg(any(test, feature = "test-helpers"))]
 pub mod test_helpers;

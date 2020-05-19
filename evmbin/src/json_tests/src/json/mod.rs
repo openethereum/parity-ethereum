@@ -14,24 +14,22 @@
 // You should have received a copy of the GNU General Public License
 // along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Helpers and tests for operating on `JSON` tests.
+//! Test structures for JSON deserialization.
 
-#[macro_use]
-mod macros;
-
-mod chain;
-mod executive;
-mod skip;
-mod state;
-mod test_common;
-mod transaction;
-mod trie;
-
-#[cfg(test)]
-mod difficulty;
-
-pub use self::executive::run_test_path as run_executive_test_path;
-pub use self::executive::run_test_file as run_executive_test_file;
-pub use self::test_common::HookType;
-
-use self::skip::SKIP_TESTS;
+/// Blockchain test helpers
+pub mod blockchain;
+/// Difficulty test helpers
+pub mod difficulty;
+/// State test helpers
+pub mod state;
+/// Test primitives
+pub mod tester;
+/// Transaction test helpers
+pub mod transaction;
+/// Trie test helpers
+pub mod trie;
+/// Vm test helpers
+pub mod vm {
+	/// Type for running `vm` tests
+	pub type Test = super::tester::GenericTester<String, ethjson::vm::Vm>;
+}

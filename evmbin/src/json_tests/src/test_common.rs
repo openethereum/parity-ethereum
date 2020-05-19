@@ -20,7 +20,9 @@ use std::fs::{File, read_dir};
 use std::path::Path;
 use std::ffi::OsString;
 
-pub use ethereum_types::{H256, U256, Address};
+use ethcore::{
+	log::{debug,trace}
+};
 
 /// Indicate when to run the hook passed to test functions.
 #[derive(Copy, Clone, Eq, PartialEq)]

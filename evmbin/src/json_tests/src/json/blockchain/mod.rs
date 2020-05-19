@@ -16,7 +16,7 @@
 
 //! Blockchain test deserialization.
 
-use crate::{
+use ethjson::{
 	bytes::Bytes,
 	hash::H256,
 	spec::{Ethereum, ForkSpec, Genesis, Seal, State}

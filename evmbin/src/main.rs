@@ -42,10 +42,11 @@ use parity_bytes::Bytes;
 use docopt::Docopt;
 use rustc_hex::FromHex;
 use ethereum_types::{U256, Address};
-use ethcore::{json_tests, test_helpers::TrieSpec};
+use ethcore::{test_helpers::TrieSpec};
 use spec;
 use serde::Deserialize;
 use vm::{ActionParams, ActionType};
+use json_tests;
 
 mod info;
 mod display;
@@ -123,7 +124,7 @@ fn main() {
 }
 
 fn run_state_test(args: Args) {
-	use ethjson::test_helpers::state::Test;
+	use json_tests::json::state::Test;
 
 	// Parse the specified state test JSON file provided to the command `state-test <file>`.
 	let file = args.arg_file.expect("PATH to a state test JSON file is required");
@@ -445,7 +446,7 @@ mod tests {
 	use common_types::transaction;
 	use docopt::Docopt;
 	use ethcore::test_helpers::TrieSpec;
-	use ethjson::test_helpers::state::State;
+	use json_tests::json::state::State;
 	use serde::Deserialize;
 
 	use super::{Args, USAGE, Address, run_call};
