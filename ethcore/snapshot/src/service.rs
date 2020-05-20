@@ -41,7 +41,6 @@ use keccak_hash::keccak;
 use kvdb::DBTransaction;
 use log::{debug, error, info, trace, warn};
 use parking_lot::{Mutex, RwLock, RwLockReadGuard};
-use snappy;
 use trie_db::TrieError;
 
 use crate::{SnapshotClient, SnapshotWriter};
@@ -150,12 +149,15 @@ impl Restoration {
 	/// Feeds a chunk of state data to the Restoration. Aborts early if `flag` becomes false.
 	pub fn feed_state(&mut self, hash: H256, chunk: &[u8], flag: &AtomicBool) -> Result<(), Error> {
 		if self.state_chunks_left.contains(&hash) {
-			let expected_len = snappy::decompressed_len(chunk)?;
+			let expected_len = snap::raw::decompress_len(chunk)?;
 			if expected_len > MAX_CHUNK_SIZE {
 				trace!(target: "snapshot", "Discarding large chunk: {} vs {}", expected_len, MAX_CHUNK_SIZE);
 				return Err(SnapshotError::ChunkTooLarge.into());
 			}
-			let len = snappy::decompress_into(chunk, &mut self.snappy_buffer)?;
+			if self.snappy_buffer.len() < expected_len {
+				self.snappy_buffer.resize_with(expected_len, Default::default);
+			}
+			let len = snap::raw::Decoder::new().decompress(chunk, &mut self.snappy_buffer)?;
 
 			self.state.feed(&self.snappy_buffer[..len], flag)?;
 
@@ -173,12 +175,15 @@ impl Restoration {
 	/// Feeds a chunk of block data to the `Restoration`. Aborts early if `flag` becomes false.
 	pub fn feed_blocks(&mut self, hash: H256, chunk: &[u8], engine: &dyn Engine, flag: &AtomicBool) -> Result<(), Error> {
 		if self.block_chunks_left.contains(&hash) {
-			let expected_len = snappy::decompressed_len(chunk)?;
+			let expected_len = snap::raw::decompress_len(chunk)?;
 			if expected_len > MAX_CHUNK_SIZE {
 				trace!(target: "snapshot", "Discarding large chunk: {} vs {}", expected_len, MAX_CHUNK_SIZE);
 				return Err(SnapshotError::ChunkTooLarge.into());
 			}
-			let len = snappy::decompress_into(chunk, &mut self.snappy_buffer)?;
+			if self.snappy_buffer.len() < expected_len {
+				self.snappy_buffer.resize_with(expected_len, Default::default);
+			}
+			let len = snap::raw::Decoder::new().decompress(chunk, &mut self.snappy_buffer)?;
 
 			self.secondary.feed(&self.snappy_buffer[..len], engine, flag)?;
 			if let Some(ref mut writer) = self.writer.as_mut() {

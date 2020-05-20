@@ -24,7 +24,6 @@ use std::{error, fmt};
 use derive_more::{Display, From};
 use ethereum_types::{U256, U512};
 use ethtrie::TrieError;
-use parity_snappy::InvalidInput;
 use parity_crypto::publickey::Error as EthPublicKeyCryptoError;
 
 /// Ethcore Result
@@ -59,7 +58,7 @@ pub enum EthcoreError {
 	Transaction(TransactionError),
 	/// Snappy error
 	#[display(fmt = "Snappy error: {}", _0)]
-	Snappy(InvalidInput),
+	Snappy(snap::Error),
 	/// Consensus vote error.
 	#[display(fmt = "Engine error: {}", _0)]
 	Engine(EngineError),

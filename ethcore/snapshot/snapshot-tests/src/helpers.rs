@@ -181,14 +181,22 @@ pub fn restore(
 	for state_chunk_hash in manifest.state_hashes.iter() {
 		trace!(target: "snapshot", "state chunk hash: {}", state_chunk_hash);
 		let chunk = reader.chunk(*state_chunk_hash).unwrap();
-		let len = snappy::decompress_into(&chunk, &mut snappy_buffer).unwrap();
+		let required_len = snap::raw::decompress_len(&chunk)?;
+		if snappy_buffer.len() < required_len {
+			snappy_buffer.resize_with(required_len, Default::default);
+		}
+		let len = snap::raw::Decoder::new().decompress(&chunk, &mut snappy_buffer).unwrap();
 		state.feed(&snappy_buffer[..len], &flag)?;
 	}
 
 	trace!(target: "snapshot", "restoring secondary");
 	for chunk_hash in manifest.block_hashes.iter() {
 		let chunk = reader.chunk(*chunk_hash).unwrap();
-		let len = snappy::decompress_into(&chunk, &mut snappy_buffer).unwrap();
+		let required_len = snap::raw::decompress_len(&chunk)?;
+		if snappy_buffer.len() < required_len {
+			snappy_buffer.resize_with(required_len, Default::default);
+		}
+		let len = snap::raw::Decoder::new().decompress(&chunk, &mut snappy_buffer).unwrap();
 		secondary.feed(&snappy_buffer[..len], engine, &flag)?;
 	}
 
