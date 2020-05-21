@@ -3,6 +3,7 @@ mode = "dark"
 mode_timeout = 15
 mode_alarm = 10
 chain = "./chain.json"
+sync_until = 123
 
 [account]
 unlock = ["0x1", "0x2", "0x3"]

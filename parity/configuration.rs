@@ -413,6 +413,7 @@ impl Configuration {
 				on_demand_request_backoff_max: self.args.arg_on_demand_request_backoff_max,
 				on_demand_request_backoff_rounds_max: self.args.arg_on_demand_request_backoff_rounds_max,
 				on_demand_request_consecutive_failures: self.args.arg_on_demand_request_consecutive_failures,
+				sync_until: self.args.arg_sync_until,
 			};
 			Cmd::Run(run_cmd)
 		};
@@ -1453,6 +1454,7 @@ mod tests {
 			on_demand_request_backoff_max: None,
 			on_demand_request_backoff_rounds_max: None,
 			on_demand_request_consecutive_failures: None,
+			sync_until: None,
 		};
 		expected.secretstore_conf.enabled = cfg!(feature = "secretstore");
 		expected.secretstore_conf.http_enabled = cfg!(feature = "secretstore");
