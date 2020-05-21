@@ -4827,10 +4827,21 @@
 		"0x0000000000000000000000000000000000000005": {
 			"builtin": {
 				"name": "modexp",
-				"activate_at": "0x42ae50",
 				"pricing": {
-					"modexp": {
-						"divisor": 20
+					"0x42ae50": {
+						"price": {
+							"modexp": {
+								"divisor": 20
+							}
+						}
+					},
+					"0x7fffffffffffff": {
+						"info": "EIP 2565 transition at block X",
+						"price": {
+							"modexp2": {
+								"divisor": 20
+							}
+						}
 					}
 				}
 			}

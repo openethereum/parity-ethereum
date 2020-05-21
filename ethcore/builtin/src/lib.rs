@@ -116,6 +116,7 @@ struct Linear {
 #[derive(Debug)]
 struct ModexpPricer {
 	divisor: u64,
+	new_formula: bool,
 }
 
 impl Pricer for Linear {
@@ -194,7 +195,13 @@ impl Pricer for ModexpPricer {
 
 		let adjusted_exp_len = Self::adjusted_exp_len(exp_len, exp_low);
 
-		let (gas, overflow) = Self::mult_complexity(m).overflowing_mul(max(adjusted_exp_len, 1));
+		let complexity_formula = if self.new_formula {
+			Self::mult_complexity_new
+		} else {
+			Self::mult_complexity
+		};
+
+		let (gas, overflow) = (complexity_formula)(m).overflowing_mul(max(adjusted_exp_len, 1));
 		if overflow {
 			return U256::max_value();
 		}
@@ -218,6 +225,10 @@ impl ModexpPricer {
 			x if x <= 1024 => (x * x) / 4 + 96 * x - 3072,
 			x => (x * x) / 16 + 480 * x - 199_680,
 		}
+	}
+
+	fn mult_complexity_new(x: u64) -> u64 {
+		((x / 64) + if x % 64 == 0 { 0 } else { 1 }) ^ 2
 	}
 }
 
@@ -407,7 +418,19 @@ impl From<ethjson::spec::builtin::Pricing> for Pricing {
 						10
 					} else {
 						exp.divisor
-					}
+					},
+					new_formula: false,
+				})
+			}
+			ethjson::spec::builtin::Pricing::Modexp2(exp) => {
+				Pricing::Modexp(ModexpPricer {
+					divisor: if exp.divisor == 0 {
+						warn!(target: "builtin", "Zero modexp divisor specified. Falling back to default: 10.");
+						10
+					} else {
+						exp.divisor
+					},
+					new_formula: true,
 				})
 			}
 			ethjson::spec::builtin::Pricing::AltBn128Pairing(pricer) => {
@@ -1360,7 +1383,7 @@ mod tests {
 	#[test]
 	fn modexp() {
 		let f = Builtin {
-			pricer: btreemap![0 => Pricing::Modexp(ModexpPricer { divisor: 20 })],
+			pricer: btreemap![0 => Pricing::Modexp(ModexpPricer { divisor: 20, new_formula: false })],
 			native: EthereumBuiltin::from_str("modexp").unwrap(),
 		};
 

@@ -104,8 +104,10 @@ pub enum Pricing {
 	},
 	/// Linear pricing.
 	Linear(Linear),
-	/// Pricing for modular exponentiation.
+	/// Pricing for modular exponentiation with original formula from EIP-198.
 	Modexp(Modexp),
+	/// Pricing for modular exponentiation that includes new formula from EIP-2565.
+	Modexp2(Modexp),
 	/// Pricing for alt_bn128_pairing exponentiation.
 	AltBn128Pairing(AltBn128Pairing),
 	/// Pricing for constant alt_bn128 operations
