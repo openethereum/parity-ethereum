@@ -21,7 +21,6 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering as AtomicOrder};
 use std::sync::Arc;
 use std::collections::{HashMap, BTreeMap};
 use blockchain::BlockProvider;
-use std::mem;
 
 use blockchain::{TreeRoute, BlockReceipts};
 use bytes::Bytes;
@@ -584,7 +583,7 @@ impl ImportBlock for TestBlockChainClient {
 				let mut difficulty = self.difficulty.write();
 				*difficulty = *difficulty + header.difficulty().clone();
 			}
-			mem::replace(&mut *self.last_hash.write(), h.clone());
+			*self.last_hash.write() = h;
 			self.blocks.write().insert(h.clone(), unverified.bytes);
 			self.numbers.write().insert(number, h.clone());
 			let mut parent_hash = header.parent_hash().clone();
