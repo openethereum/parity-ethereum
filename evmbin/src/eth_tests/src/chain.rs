@@ -17,7 +17,7 @@
 use std::path::Path;
 use std::sync::Arc;
 use ethcore::{
-	log::{warn,trace},
+	log::{warn,trace,info},
 	client::{Client, ClientConfig},
 	client_traits::{ImportBlock, ChainInfo, StateOrBlock, Balance, Nonce, BlockChainClient},
 	spec::Genesis,
@@ -36,19 +36,8 @@ use ethcore::{
 use super::json::{self,blockchain};
 use ethjson::spec::State;
 
-use super::{HookType, SkipTests};
+use super::{HookType};
 use rustc_hex::ToHex;
-
-#[allow(dead_code)]
-fn skip_test(skip: &SkipTests, name: &String, is_legacy: bool) -> bool {
-	let skip_set = if is_legacy {
-		&skip.legacy_block
-	} else {
-		&skip.block
-	};
-	skip_set.iter()
-		.any(|block_test| block_test.subtests.contains(name))
-}
 
 fn check_poststate(client: &Arc<Client>, test_name: &str, post_state: State) -> bool {
 	let mut success = true;
@@ -125,15 +114,17 @@ fn check_poststate(client: &Arc<Client>, test_name: &str, post_state: State) -> 
 }
 
 #[allow(dead_code)]
-pub fn json_chain_test<H: FnMut(&str, HookType)>(skip: &SkipTests, path: &Path, json_data: &[u8], start_stop_hook: &mut H, is_legacy: bool) -> Vec<String> {
+pub fn json_chain_test<H: FnMut(&str, HookType)>(test: &super::runner::ChainTests, path: &Path, json_data: &[u8], start_stop_hook: &mut H, is_legacy: bool) -> Vec<String> {
 	let _ = ::env_logger::try_init();
 	let tests = blockchain::Test::load(json_data)
 		.expect(&format!("Could not parse JSON chain test data from {}", path.display()));
 	let mut failed = Vec::new();
 
 	for (name, blockchain) in tests.into_iter() {
-		if skip_test(&skip, &name, is_legacy) {
-			println!("   - {} | {:?}: SKIPPED", name, blockchain.network);
+
+		let skip_test = test.skip.iter().any(|block_test| block_test.names.contains(&name));
+		if skip_test {
+			info!("   SKIPPED {:?} {:?}", name, blockchain.network);
 			continue;
 		}
 
@@ -151,8 +142,6 @@ pub fn json_chain_test<H: FnMut(&str, HookType)>(skip: &SkipTests, path: &Path, 
 					false
 				}
 			};
-
-			flushed_write!("   - {}...", name);
 
 			let spec = {
 				let mut spec = match EvmTestClient::fork_spec_from_json(&blockchain.network) {
@@ -219,17 +208,14 @@ pub fn json_chain_test<H: FnMut(&str, HookType)>(skip: &SkipTests, path: &Path, 
 			}
 		}
 
-		if !fail {
-			flushed_writeln!("OK");
+		if fail {
+			flushed_writeln!("   - chain: {}...FAILED", name);
 		} else {
-			flushed_writeln!("FAILED");
+			flushed_writeln!("   - chain: {}...OK", name);
 		}
 
 		start_stop_hook(&name, HookType::OnStop);
 	}
 
-	if failed.len() > 0 {
-		println!("!!! {:?} tests failed.", failed.len());
-	}
 	failed
 }

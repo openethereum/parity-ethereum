@@ -239,7 +239,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for TestExt<'a, T, V, B>
 	}
 }
 
-fn do_json_test<H: FnMut(&str, HookType)>(
+pub fn do_json_test<H: FnMut(&str, HookType)>(
 	path: &Path,
 	json_data: &[u8],
 	start_stop_hook: &mut H
@@ -251,7 +251,6 @@ fn do_json_test<H: FnMut(&str, HookType)>(
 	for (name, vm) in tests.into_iter() {
 		start_stop_hook(&format!("{}", name), HookType::OnStart);
 
-		info!(target: "jsontests", "name: {:?}", name);
 		let mut fail = false;
 
 		let mut fail_unless = |cond: bool, s: &str | if !cond && !fail {
@@ -358,11 +357,13 @@ fn do_json_test<H: FnMut(&str, HookType)>(
 			}
 		};
 
-		start_stop_hook(&format!("{}", name), HookType::OnStop);
-	}
+		if fail {
+			println!("   - vm: {:?}...FAILED", name);
+		} else {
+			println!("   - vm: {:?}...OK", name);
+		}
 
-	for f in &failed {
-		error!("FAILED: {:?}", f);
+		start_stop_hook(&format!("{}", name), HookType::OnStop);
 	}
 
 	failed

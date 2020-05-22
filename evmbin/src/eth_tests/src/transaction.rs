@@ -30,7 +30,7 @@ use ethcore::{
 };
 
 #[allow(dead_code)]
-fn do_json_test<H: FnMut(&str, HookType)>(path: &Path, json_data: &[u8], start_stop_hook: &mut H) -> Vec<String> {
+pub fn do_json_test<H: FnMut(&str, HookType)>(path: &Path, json_data: &[u8], start_stop_hook: &mut H) -> Vec<String> {
 	// Block number used to run the tests.
 	// Make sure that all the specified features are activated.
 	const BLOCK_NUMBER: u64 = 0x6ffffffffffffe;
@@ -41,11 +41,13 @@ fn do_json_test<H: FnMut(&str, HookType)>(path: &Path, json_data: &[u8], start_s
 	for (name, test) in tests.into_iter() {
 		start_stop_hook(&name, HookType::OnStart);
 
+		println!("   - tx: {} ", name);
+
 		for (spec_name, result) in test.post_state {
 			let spec = match EvmTestClient::fork_spec_from_json(&spec_name) {
 				Some(spec) => spec,
 				None => {
-					println!("   - {} | {:?} Ignoring tests because of missing spec", name, spec_name);
+					failed.push(format!("{}-{:?} (missing spec)", name, spec_name));
 					continue;
 				}
 			};
@@ -90,10 +92,6 @@ fn do_json_test<H: FnMut(&str, HookType)>(path: &Path, json_data: &[u8], start_s
 		}
 
 		start_stop_hook(&name, HookType::OnStop);
-	}
-
-	for f in &failed {
-		println!("FAILED: {:?}", f);
 	}
 	failed
 }

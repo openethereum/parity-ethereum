@@ -16,7 +16,6 @@
 
 use std::path::Path;
 use super::test_common::*;
-use super::SkipTests;
 use super::json;
 
 use ethcore::{
@@ -30,16 +29,11 @@ use ethcore::{
 };
 
 #[allow(dead_code)]
-fn skip_test(skip: &SkipTests, subname: &str, chain: &String, number: usize, is_legacy: bool) -> bool {	
-	trace!(target: "json-tests", "[state, skip_test] subname: '{}', chain: '{}', number: {} legacy:{}", subname, chain, number, is_legacy);
-	let skip_set = if is_legacy {
-		&skip.legacy_state
-	} else {
-		&skip.state
-	};
-	skip_set.iter().any(|state_test|{
-		if let Some(subtest) = state_test.subtests.get(subname) {
-			trace!(target: "json-tests", "[state, skip_test] Maybe skipping {:?} (legacy:{})", subtest, is_legacy);
+fn skip_test(test: &super::runner::StateTests, subname: &str, chain: &String, number: usize) -> bool {
+	trace!(target: "json-tests", "[state, skip_test] subname: '{}', chain: '{}', number: {}", subname, chain, number);
+	test.skip.iter().any(|state_test|{
+		if let Some(subtest) = state_test.names.get(subname) {
+			trace!(target: "json-tests", "[state, skip_test] Maybe skipping {:?}", subtest);
 			chain == &subtest.chain &&
 			(
 				subtest.subnumbers[0] == "*" ||
@@ -52,7 +46,7 @@ fn skip_test(skip: &SkipTests, subname: &str, chain: &String, number: usize, is_
 }
 
 #[allow(dead_code)]
-pub fn json_chain_test<H: FnMut(&str, HookType)>(skip: &SkipTests, path: &Path, json_data: &[u8], start_stop_hook: &mut H, is_legacy: bool) -> Vec<String> {
+pub fn json_chain_test<H: FnMut(&str, HookType)>(state_test: &super::runner::StateTests, path: &Path, json_data: &[u8], start_stop_hook: &mut H, is_legacy: bool) -> Vec<String> {
 	let _ = ::env_logger::try_init();
 	let tests = json::state::Test::load(json_data)
 		.expect(&format!("Could not parse JSON state test data from {}", path.display()));
@@ -76,8 +70,8 @@ pub fn json_chain_test<H: FnMut(&str, HookType)>(skip: &SkipTests, path: &Path, 
 				};
 
 				for (i, state) in states.into_iter().enumerate() {
-					let info = format!("   - {} | {:?} ({}/{}) ...", name, spec_name, i + 1, total);
-					if skip_test(&skip, &name, &spec.name, i + 1, is_legacy) {
+					let info = format!("   - state: {} | {:?} ({}/{}) ...", name, spec_name, i + 1, total);
+					if skip_test(&state_test, &name, &spec.name, i + 1) {
 						println!("{}: SKIPPED", info);
 						continue;
 					}
@@ -120,8 +114,5 @@ pub fn json_chain_test<H: FnMut(&str, HookType)>(skip: &SkipTests, path: &Path, 
 		start_stop_hook(&name, HookType::OnStop);
 	}
 
-	if !failed.is_empty() {
-		println!("!!! {:?} tests failed.", failed.len());
-	}
 	failed
 }

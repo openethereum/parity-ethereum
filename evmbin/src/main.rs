@@ -46,7 +46,7 @@ use ethcore::{test_helpers::TrieSpec};
 use spec;
 use serde::Deserialize;
 use vm::{ActionParams, ActionType};
-use json_tests;
+use eth_tests;
 
 mod info;
 mod display;
@@ -61,11 +61,13 @@ Usage:
     openethereum-evm state-test <file> [--chain CHAIN --only NAME --json --std-json --std-dump-json --std-out-only --std-err-only]
     openethereum-evm stats [options]
     openethereum-evm stats-jsontests-vm <file>
+    openethereum-evm eth-test <file>
     openethereum-evm [options]
     openethereum-evm [-h | --help]
 
 Commands:
     state-test         Run a state test on a provided state test JSON file.
+    eth-test           Run ethereum/tests.
     stats              Execute EVM runtime code and return the statistics.
     stats-jsontests-vm Execute standard json-tests on a provided state test JSON
                        file path, format VMTests, and return timing statistics
@@ -100,12 +102,19 @@ General options:
 
 fn main() {
 	panic_hook::set_abort();
-	env_logger::init();
 
 	let args: Args = Docopt::new(USAGE).and_then(|d| d.deserialize()).unwrap_or_else(|e| e.exit());
 
+	if args.cmd_eth_test {
+		env_logger::Builder::new().filter(Some("ethtests"), log::LevelFilter::Info).init();
+	} else {
+		env_logger::init();
+	}
+
 	if args.cmd_state_test {
 		run_state_test(args)
+	} else if args.cmd_eth_test {
+		run_ethereum_tests(args)
 	} else if args.cmd_stats_jsontests_vm {
 		run_stats_jsontests_vm(args)
 	} else if args.flag_json {
@@ -124,7 +133,7 @@ fn main() {
 }
 
 fn run_state_test(args: Args) {
-	use json_tests::json::state::Test;
+	use eth_tests::json::state::Test;
 
 	// Parse the specified state test JSON file provided to the command `state-test <file>`.
 	let file = args.arg_file.expect("PATH to a state test JSON file is required");
@@ -267,8 +276,45 @@ fn run_state_test(args: Args) {
 	}
 }
 
+fn run_ethereum_tests(args: Args) {
+	use crate::eth_tests::HookType;
+	use std::collections::HashMap;
+	use std::time::{Instant, Duration};
+
+	let file = args.arg_file.expect("PATH to ethereum test spec JSON file is required");
+	if !file.is_file() {
+		panic!("path should be a file");
+	}
+
+	let mut timings: HashMap<String, (Instant, Option<Duration>)> = HashMap::new();
+
+	{
+		let mut record_time = |name: &str, typ: HookType| {
+			match typ {
+				HookType::OnStart => {
+					timings.insert(name.to_string(), (Instant::now(), None));
+				},
+				HookType::OnStop => {
+					timings.entry(name.to_string()).and_modify(|v| {
+						v.1 = Some(v.0.elapsed());
+					});
+				},
+			}
+		};
+		let content = std::fs::read(file).expect("cannot open file");
+		let runner = eth_tests::runner::TestRunner::load(content.as_slice()).expect("cannot parse file");
+		let result = runner.run_without_par();
+		println!("SUCCESS: {} FAILED: {} {:?}",result.success,result.failed.len(), result.failed);
+	}
+
+	for (name, v) in timings {
+		println!("{}\t{}", name, display::as_micros(&v.1.expect("All hooks are called with OnStop; qed")));
+	}
+}
+
+
 fn run_stats_jsontests_vm(args: Args) {
-	use crate::json_tests::HookType;
+	use crate::eth_tests::HookType;
 	use std::collections::HashMap;
 	use std::time::{Instant, Duration};
 
@@ -290,9 +336,9 @@ fn run_stats_jsontests_vm(args: Args) {
 			}
 		};
 		if !file.is_file() {
-			json_tests::run_executive_test_path(&file, &[], &mut record_time);
+			eth_tests::run_executive_test_path(&file, &[], &mut record_time);
 		} else {
-			json_tests::run_executive_test_file(&file, &mut record_time);
+			eth_tests::run_executive_test_file(&file, &mut record_time);
 		}
 	}
 
@@ -339,6 +385,7 @@ fn run_call<T: Informant>(args: Args, informant: T) {
 struct Args {
 	cmd_stats: bool,
 	cmd_state_test: bool,
+	cmd_eth_test: bool,
 	cmd_stats_jsontests_vm: bool,
 	arg_file: Option<PathBuf>,
 	flag_code: Option<String>,
@@ -446,7 +493,7 @@ mod tests {
 	use common_types::transaction;
 	use docopt::Docopt;
 	use ethcore::test_helpers::TrieSpec;
-	use json_tests::json::state::State;
+	use eth_tests::json::state::State;
 	use serde::Deserialize;
 
 	use super::{Args, USAGE, Address, run_call};

@@ -28,7 +28,7 @@
 /// one test corresponds to a folder full of test files, each of which may contain many tests.
 
 use ethcore::log::error;
-
+/*
 #[macro_export]
 macro_rules! declare_test {
 	(skip => $arr: expr, $id: ident, $name: expr) => {
@@ -78,7 +78,7 @@ macro_rules! test {
 		);
 	}
 }
-
+*/
 /// Similar to `print!` but flushes stdout in order to ensure the output is emitted immediately.
 #[macro_export]
 macro_rules! flushed_write {

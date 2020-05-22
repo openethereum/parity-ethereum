@@ -19,12 +19,16 @@
 #[macro_use]
 extern crate lazy_static;
 
+extern crate walkdir;
+extern crate rayon;
+extern crate globset;
+
 #[macro_use]
 mod macros;
 
 mod chain;
 mod executive;
-mod skip;
+pub mod runner;
 mod state;
 mod test_common;
 mod transaction;
@@ -37,5 +41,3 @@ mod difficulty;
 pub use self::executive::run_test_path as run_executive_test_path;
 pub use self::executive::run_test_file as run_executive_test_file;
 pub use self::test_common::HookType;
-
-pub use skip::SkipTests;

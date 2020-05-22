@@ -28,7 +28,7 @@ use super::json;
 use super::HookType;
 
 #[allow(dead_code)]
-fn test_trie<H: FnMut(&str, HookType)>(path: &Path, json: &[u8], trie: TrieSpec, start_stop_hook: &mut H) -> Vec<String> {
+pub fn test_trie<H: FnMut(&str, HookType)>(path: &Path, json: &[u8], trie: TrieSpec, start_stop_hook: &mut H) -> Vec<String> {
 	let tests = json::trie::Test::load(json)
 		.expect(&format!("Could not parse JSON trie test data from {}", path.display()));
 	let factory = TrieFactory::new(trie, ethtrie::Layout);
@@ -48,15 +48,14 @@ fn test_trie<H: FnMut(&str, HookType)>(path: &Path, json: &[u8], trie: TrieSpec,
 				.expect(&format!("Trie test '{:?}' failed due to internal error", name));
 		}
 
-		if *t.root() != test.root.into() {
-			result.push(format!("Trie test '{:?}' failed.", name));
+		if *t.root() == test.root.into() {
+			println!("   - trie: {}...OK", name);
+		} else {
+			println!("   - trie: {}...FAILED ({:?})",name,path);
+			result.push(format!("{}", name));
 		}
 
 		start_stop_hook(&name, HookType::OnStop);
-	}
-
-	for i in &result {
-		println!("FAILED: {}", i);
 	}
 
 	result

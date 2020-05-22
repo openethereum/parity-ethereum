@@ -12,7 +12,7 @@ path = "./src/main.rs"
 [dependencies]
 account-state = { path = "../ethcore/account-state" }
 common-types = { path = "../ethcore/types", features = ["test-helpers"] }
-json_tests = { path = "src/json_tests" }
+eth_tests = { path = "src/eth_tests" }
 docopt = "1.0"
 env_logger = "0.5"
 ethcore = { path = "../ethcore", features = ["test-helpers", "json-tests"] }
@@ -29,6 +29,7 @@ spec = { path = "../ethcore/spec" }
 trace = { path = "../ethcore/trace" }
 vm = { path = "../ethcore/vm" }
 lazy_static = "1.4.0"
+log = "0.4.8"
 
 [dev-dependencies]
 criterion = "0.3"

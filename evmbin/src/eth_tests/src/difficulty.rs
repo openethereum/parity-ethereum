@@ -30,6 +30,7 @@ pub fn json_difficulty_test<H: FnMut(&str, HookType)>(
 	spec: Spec,
 	start_stop_hook: &mut H
 ) -> Vec<String> {
+	let mut ret = Vec::new();
 	let _ = env_logger::try_init();
 	let tests = DifficultyTest::load(json_data)
 		.expect(&format!("Could not parse JSON difficulty test data from {}", path.display()));
@@ -37,8 +38,6 @@ pub fn json_difficulty_test<H: FnMut(&str, HookType)>(
 
 	for (name, test) in tests.into_iter() {
 		start_stop_hook(&name, HookType::OnStart);
-
-		flushed_writeln!("   - {}...", name);
 
 		let mut parent_header = Header::new();
 		let block_number: u64 = test.current_block_number.into();
@@ -52,10 +51,14 @@ pub fn json_difficulty_test<H: FnMut(&str, HookType)>(
 		header.set_timestamp(test.current_timestamp.into());
 		engine.populate_from_parent(&mut header, &parent_header);
 		let expected_difficulty: U256 = test.current_difficulty.into();
-		assert_eq!(header.difficulty(), &expected_difficulty);
-		flushed_writeln!("OK");
+		if header.difficulty() == &expected_difficulty {
+			flushed_writeln!("   - difficulty: {}...OK",name);
+		} else {
+			flushed_writeln!("   - difficulty: {}...FAILED",name);
+			ret.push(format!("{}:{}",path.to_string_lossy(),name));
+		}
 
 		start_stop_hook(&name, HookType::OnStop);
 	}
-	vec![]
+	ret
 }
