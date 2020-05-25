@@ -26,7 +26,7 @@ use parity_util_mem::MallocSizeOf;
 
 use rlp::{self, RlpStream, Rlp, DecoderError, Encodable};
 
-use transaction::error;
+use crate::transaction::error;
 
 type Bytes = Vec<u8>;
 type BlockNumber = u64;

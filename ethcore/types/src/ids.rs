@@ -16,8 +16,8 @@
 
 //! Unique identifiers.
 
+use crate::BlockNumber;
 use ethereum_types::H256;
-use BlockNumber;
 
 /// Uniquely identifies block.
 #[derive(Debug, PartialEq, Copy, Clone, Hash, Eq)]

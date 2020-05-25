@@ -15,7 +15,6 @@
 // along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::{BTreeMap, HashMap};
-use std::mem;
 use std::path::PathBuf;
 use parking_lot::{Mutex, RwLock};
 use std::time::{Instant, Duration};
@@ -341,8 +340,7 @@ impl EthMultiStore {
 			}
 		}
 
-		let _ = mem::replace(&mut *cache, new_accounts);
-
+		*cache = new_accounts;
 		Ok(())
 	}
 

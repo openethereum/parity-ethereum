@@ -31,28 +31,13 @@
 //! we should try to dissolve that crate in favour of more fine-grained crates,
 //! by moving the types closer to where they are actually required.
 
-#![warn(missing_docs, unused_extern_crates)]
+#![warn(missing_docs)]
 
-extern crate ethbloom;
-extern crate ethereum_types;
-extern crate ethjson;
-extern crate parity_crypto;
 #[macro_use]
 extern crate derive_more;
-extern crate keccak_hash as hash;
-extern crate parity_bytes as bytes;
-extern crate patricia_trie_ethereum as ethtrie;
-extern crate parity_snappy;
-extern crate rlp;
-extern crate unexpected;
 
 #[macro_use]
 extern crate rlp_derive;
-extern crate parity_util_mem;
-extern crate parity_util_mem as malloc_size_of;
-
-#[cfg(test)]
-extern crate rustc_hex;
 
 #[macro_use]
 pub mod views;

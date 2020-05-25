@@ -20,14 +20,15 @@
 //!
 //! Other block types are found in `ethcore`
 
+use crate::{
+	BlockNumber,
+	header::Header,
+	transaction::{UnverifiedTransaction, SignedTransaction},
+};
 use bytes::Bytes;
 use ethereum_types::{H256, U256};
 use parity_util_mem::MallocSizeOf;
-
-use BlockNumber;
-use header::Header;
 use rlp::{Rlp, RlpStream, Decodable, DecoderError};
-use transaction::{UnverifiedTransaction, SignedTransaction};
 
 /// A block, encoded as it is on the block chain.
 #[derive(Default, Debug, Clone, PartialEq)]

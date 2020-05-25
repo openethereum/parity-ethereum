@@ -16,15 +16,15 @@
 
 //! General error types for use in ethcore.
 
+use crate::{
+	errors::{BlockError, EngineError, ImportError, SnapshotError},
+	transaction::Error as TransactionError,
+};
 use std::{error, fmt};
 use derive_more::{Display, From};
 use ethereum_types::{U256, U512};
 use ethtrie::TrieError;
-use parity_snappy::InvalidInput;
 use parity_crypto::publickey::Error as EthPublicKeyCryptoError;
-
-use errors::{BlockError, EngineError, ImportError, SnapshotError};
-use transaction::Error as TransactionError;
 
 /// Ethcore Result
 pub type EthcoreResult<T> = Result<T, EthcoreError>;
@@ -58,7 +58,7 @@ pub enum EthcoreError {
 	Transaction(TransactionError),
 	/// Snappy error
 	#[display(fmt = "Snappy error: {}", _0)]
-	Snappy(InvalidInput),
+	Snappy(snap::Error),
 	/// Consensus vote error.
 	#[display(fmt = "Engine error: {}", _0)]
 	Engine(EngineError),

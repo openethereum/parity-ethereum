@@ -109,7 +109,7 @@ impl ServiceTransactionChecker {
 				let allowed = self.call_contract(client, contract_address, *address)?;
 				cache.insert(*address, allowed);
 			}
-			let _ = mem::replace(&mut *self.certified_addresses_cache.write(),  cache);
+			*self.certified_addresses_cache.write() = cache;
 			Ok(true)
 		} else {
 			Ok(false)

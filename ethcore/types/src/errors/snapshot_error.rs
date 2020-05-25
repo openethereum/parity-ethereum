@@ -16,14 +16,14 @@
 
 //! Snapshot-related errors.
 
+use crate::ids::BlockId;
+
 use std::error;
 use std::fmt;
 
 use ethereum_types::H256;
 use ethtrie::TrieError;
 use rlp::DecoderError;
-
-use ids::BlockId;
 
 /// Snapshot-related errors.
 #[derive(Debug)]
@@ -70,6 +70,8 @@ pub enum SnapshotError {
 	WrongChunkFormat(String),
 	/// Unlinked ancient block chain; includes the parent hash where linkage failed
 	UnlinkedAncientBlockChain(H256),
+	/// Compression error
+	CompressionError(snap::Error),
 }
 
 impl error::Error for SnapshotError {
@@ -87,7 +89,7 @@ impl error::Error for SnapshotError {
 impl fmt::Display for SnapshotError {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		use self::SnapshotError::*;
-		match *self {
+		match self {
 			InvalidStartingBlock(ref id) => write!(f, "Invalid starting block: {:?}", id),
 			BlockNotFound(ref hash) => write!(f, "Block not found in chain: {}", hash),
 			IncompleteChain => write!(f, "Incomplete blockchain."),
@@ -111,6 +113,7 @@ impl fmt::Display for SnapshotError {
 			BadEpochProof(i) => write!(f, "Bad epoch proof for transition to epoch {}", i),
 			WrongChunkFormat(ref msg) => write!(f, "Wrong chunk format: {}", msg),
 			UnlinkedAncientBlockChain(parent_hash) => write!(f, "Unlinked ancient blocks chain at parent_hash={:#x}", parent_hash),
+			CompressionError(err) => write!(f, "Compression error: {}", err),
 		}
 	}
 }
@@ -130,6 +133,12 @@ impl From<TrieError> for SnapshotError {
 impl From<DecoderError> for SnapshotError {
 	fn from(err: DecoderError) -> Self {
 		SnapshotError::Decoder(err)
+	}
+}
+
+impl From<snap::Error> for SnapshotError {
+	fn from(err: snap::Error) -> Self {
+		SnapshotError::CompressionError(err)
 	}
 }
 

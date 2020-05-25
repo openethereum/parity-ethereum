@@ -313,6 +313,14 @@ impl Importer {
 
 				match self.check_and_lock_block(block, client) {
 					Ok((locked_block, pending)) => {
+						if let Some(sync_until_block_nr) = client.config.sync_until {
+							if locked_block.header.number() > sync_until_block_nr {
+								info!("Sync target reached at block: #{}. Going offline.", sync_until_block_nr);
+								client.disable();
+								break;
+							}
+						}
+
 						imported_blocks.push(hash);
 						let transactions_len = locked_block.transactions.len();
 						let gas_used = *locked_block.header.gas_used();

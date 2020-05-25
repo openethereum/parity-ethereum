@@ -23,15 +23,17 @@
 //! When the entirety of the object is needed, it's better to upgrade it to a fully
 //! decoded object where parts like the hash can be saved.
 
-use block::Block as FullBlock;
 use ethereum_types::{H256, Bloom, U256, Address};
 use hash::keccak;
-use header::Header as FullHeader;
 use parity_util_mem::MallocSizeOf;
 use rlp::{self, Rlp, RlpStream};
-use transaction::UnverifiedTransaction;
-use views::{self, BlockView, HeaderView, BodyView};
-use BlockNumber;
+use crate::{
+	block::Block as FullBlock,
+	header::Header as FullHeader,
+	transaction::UnverifiedTransaction,
+	views::{self, BlockView, HeaderView, BodyView},
+	BlockNumber
+};
 
 /// Owning header view.
 #[derive(Debug, Clone, PartialEq, Eq, MallocSizeOf)]

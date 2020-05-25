@@ -29,20 +29,6 @@
 			"subtests": [
 				"EIP150Transition_HomesteadToEIP150At5"
 			]
-		},
-		{
-			"reference": "Issue. https://github.com/openethereum/openethereum/issues/11660",
-			"failing": "bcWalletTest",
-			"subtests": [
-				"walletReorganizeOwners_Istanbul"
-			]
-		},
-		{
-			"reference": "Issue. https://github.com/openethereum/openethereum/issues/11660",
-			"failing": "bcForkStressTest",
-			"subtests": [
-				"ForkStressTest_Istanbul"
-			]
 		}
 	],
 	"state": [

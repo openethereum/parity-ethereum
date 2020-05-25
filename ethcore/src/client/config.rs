@@ -94,6 +94,8 @@ pub struct ClientConfig {
 	pub max_round_blocks_to_import: usize,
 	/// Snapshot configuration
 	pub snapshot: SnapshotConfiguration,
+	/// Stop importing at this block and enter sleep mode.
+	pub sync_until: Option<u64>,
 }
 
 impl Default for ClientConfig {
@@ -122,6 +124,7 @@ impl Default for ClientConfig {
 			transaction_verification_queue_size: 8192,
 			max_round_blocks_to_import: 12,
 			snapshot: Default::default(),
+			sync_until: None,
 		}
 	}
 }

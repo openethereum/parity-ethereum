@@ -24,7 +24,7 @@ use ethbloom::Bloom;
 use ethereum_types::{H256, U256, Address};
 use unexpected::{Mismatch, OutOfBounds};
 
-use BlockNumber;
+use crate::BlockNumber;
 
 /// Errors concerning block processing.
 #[derive(Debug, Display, PartialEq, Clone, Eq)]

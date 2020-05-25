@@ -31,7 +31,7 @@ parity-crypto = { version = "0.6.1", features = ["publickey"] }
 rand = "0.7.3"
 rand_xorshift = "0.2.0"
 rlp = "0.4.5"
-snappy = { package = "parity-snappy", version ="0.1.0" }
+snap = "1"
 snapshot = { path = "../../snapshot", features = ["test-helpers"] }
 spec = { path = "../../spec" }
 tempfile = "3.1"

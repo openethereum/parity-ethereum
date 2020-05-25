@@ -137,6 +137,7 @@ pub struct RunCmd {
 	pub on_demand_request_backoff_max: Option<u64>,
 	pub on_demand_request_backoff_rounds_max: Option<usize>,
 	pub on_demand_request_consecutive_failures: Option<usize>,
+	pub sync_until: Option<u64>,
 }
 
 // node info fetcher for the local store.
@@ -538,6 +539,7 @@ fn execute_impl<Cr, Rr>(
 		cmd.pruning_memory,
 		cmd.check_seal,
 		cmd.max_round_blocks_to_import,
+		cmd.sync_until,
 	);
 
 	client_config.queue.verifier_settings = cmd.verifier_settings;

@@ -36,7 +36,7 @@ parking_lot = "0.10.0"
 rlp = "0.4.5"
 rlp-derive = "0.1"
 scopeguard = "1.1.0"
-snappy = { package = "parity-snappy", version ="0.1.0" }
+snap = "1"
 trie-db = "0.20.0"
 triehash = { package = "triehash-ethereum", version = "0.2",  path = "../../util/triehash-ethereum" }
 
