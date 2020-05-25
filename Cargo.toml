@@ -131,6 +131,3 @@ members = [
 	"ethcore/wasm/run",
 	"evmbin",
 ]
-
-[patch.crates-io]
-rocksdb = { git = "https://github.com/rust-rocksdb/rust-rocksdb" }
