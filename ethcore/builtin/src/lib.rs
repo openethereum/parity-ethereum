@@ -240,7 +240,7 @@ pub struct Bls12ConstOperationsPricer {
 
 /// Discount table for multiexponentiation (Peppinger algorithm)
 /// Later on is normalized using the divisor
-pub const BLS12_MULTIEXP_DISCOUNTS_TABLE: [[u64; 2]; 128] = [
+pub const BLS12_MULTIEXP_DISCOUNTS_TABLE: [[u64; 2]; BLS12_MULTIEXP_PAIRS_FOR_MAX_DISCOUNT] = [
 	[1, 1200], [2, 888], [3, 764], [4, 641], [5, 594], [6, 547], [7, 500], [8, 453], 
 	[9, 438], [10, 423], [11, 408], [12, 394], [13, 379], [14, 364], [15, 349], [16, 334], 
 	[17, 330], [18, 326], [19, 322], [20, 318], [21, 314], [22, 310], [23, 306], [24, 302], 

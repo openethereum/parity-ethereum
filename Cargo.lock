@@ -1048,7 +1048,7 @@ dependencies = [
 [[package]]
 name = "eth_pairings"
 version = "0.6.0"
-source = "git+https://github.com/matter-labs/eip1962.git#1c79dba99c970c99066e249627c29b38dc949677"
+source = "git+https://github.com/matter-labs/eip1962.git?rev=ece6cbabc41948db4200e41f0bfdab7ab94c7af8#ece6cbabc41948db4200e41f0bfdab7ab94c7af8"
 dependencies = [
  "byteorder",
  "eth_pairings_repr_derive",
@@ -1063,7 +1063,7 @@ dependencies = [
 [[package]]
 name = "eth_pairings_repr_derive"
 version = "0.2.0"
-source = "git+https://github.com/matter-labs/eip1962.git#1c79dba99c970c99066e249627c29b38dc949677"
+source = "git+https://github.com/matter-labs/eip1962.git?rev=ece6cbabc41948db4200e41f0bfdab7ab94c7af8#ece6cbabc41948db4200e41f0bfdab7ab94c7af8"
 dependencies = [
  "byteorder",
  "proc-macro2 1.0.9",
@@ -1899,7 +1899,7 @@ dependencies = [
 [[package]]
 name = "fixed_width_field"
 version = "0.1.0"
-source = "git+https://github.com/matter-labs/eip1962.git#1c79dba99c970c99066e249627c29b38dc949677"
+source = "git+https://github.com/matter-labs/eip1962.git?rev=ece6cbabc41948db4200e41f0bfdab7ab94c7af8#ece6cbabc41948db4200e41f0bfdab7ab94c7af8"
 dependencies = [
  "simple_uint",
 ]
@@ -1907,7 +1907,7 @@ dependencies = [
 [[package]]
 name = "fixed_width_group_and_loop"
 version = "0.1.0"
-source = "git+https://github.com/matter-labs/eip1962.git#1c79dba99c970c99066e249627c29b38dc949677"
+source = "git+https://github.com/matter-labs/eip1962.git?rev=ece6cbabc41948db4200e41f0bfdab7ab94c7af8#ece6cbabc41948db4200e41f0bfdab7ab94c7af8"
 dependencies = [
  "simple_uint",
 ]
@@ -4614,7 +4614,7 @@ checksum = "7fdf1b9db47230893d76faad238fd6097fd6d6a9245cd7a4d90dbd639536bbd2"
 [[package]]
 name = "simple_uint"
 version = "0.1.0"
-source = "git+https://github.com/matter-labs/eip1962.git#1c79dba99c970c99066e249627c29b38dc949677"
+source = "git+https://github.com/matter-labs/eip1962.git?rev=ece6cbabc41948db4200e41f0bfdab7ab94c7af8#ece6cbabc41948db4200e41f0bfdab7ab94c7af8"
 dependencies = [
  "byteorder",
  "crunchy",
