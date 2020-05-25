@@ -3424,7 +3424,7 @@ dependencies = [
 [[package]]
 name = "parity-secretstore"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/secret-store?branch=dp/chore/update-deps/kvdb#147d819b0569d88adadc3b8d48895869a9eee149"
+source = "git+https://github.com/paritytech/secret-store?branch=v1.x#546404b4017e9a20144828fc79eb01d4130237ff"
 dependencies = [
  "byteorder",
  "ethabi",
