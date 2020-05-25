@@ -41,7 +41,6 @@ macro_rules! enum_with_from_u8 {
 		}
 	};
 }
-
 enum_with_from_u8! {
 	#[doc = "Virtual machine bytecode instruction."]
 	#[repr(u8)]
@@ -321,6 +320,13 @@ enum_with_from_u8! {
 		#[doc = "Makes a log entry, 4 topics."]
 		LOG4 = 0xa4,
 
+		#[doc = "Marks the entry point to a subroutine."]
+		BEGINSUB = 0xb2,
+		#[doc = "Jumps to a defined BEGINSUB subroutine."]
+		JUMPSUB = 0xb3,
+		#[doc = "Returns from a subroutine."]
+		RETURNSUB = 0xb7,
+
 		#[doc = "create a new account with associated code"]
 		CREATE = 0xf0,
 		#[doc = "message-call into an account"]
@@ -586,6 +592,9 @@ lazy_static! {
 		arr[LOG2 as usize] = Some(InstructionInfo::new("LOG2", 4, 0, GasPriceTier::Special));
 		arr[LOG3 as usize] = Some(InstructionInfo::new("LOG3", 5, 0, GasPriceTier::Special));
 		arr[LOG4 as usize] = Some(InstructionInfo::new("LOG4", 6, 0, GasPriceTier::Special));
+		arr[BEGINSUB as usize] = Some(InstructionInfo::new("BEGINSUB", 0, 0, GasPriceTier::Base));
+		arr[JUMPSUB as usize] = Some(InstructionInfo::new("JUMPSUB", 1, 0, GasPriceTier::Low));
+		arr[RETURNSUB as usize] = Some(InstructionInfo::new("RETURNSUB", 0, 0, GasPriceTier::VeryLow));
 		arr[CREATE as usize] = Some(InstructionInfo::new("CREATE", 3, 1, GasPriceTier::Special));
 		arr[CALL as usize] = Some(InstructionInfo::new("CALL", 7, 1, GasPriceTier::Special));
 		arr[CALLCODE as usize] = Some(InstructionInfo::new("CALLCODE", 7, 1, GasPriceTier::Special));

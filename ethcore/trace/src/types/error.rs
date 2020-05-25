@@ -34,6 +34,10 @@ pub enum Error {
 	StackUnderflow,
 	/// When execution would exceed defined Stack Limit
 	OutOfStack,
+	/// When there is not enough subroutine stack elements to return from
+	SubStackUnderflow,
+	/// When execution would exceed defined subroutine Stack Limit
+	OutOfSubStack,
 	/// When builtin contract failed on input data
 	BuiltIn,
 	/// Returned on evm internal error. Should never be ignored during development.
@@ -63,6 +67,8 @@ impl<'a> From<&'a VmError> for Error {
 			VmError::MutableCallInStaticContext => Error::MutableCallInStaticContext,
 			VmError::OutOfBounds => Error::OutOfBounds,
 			VmError::Reverted => Error::Reverted,
+			VmError::SubStackUnderflow { .. } => Error::SubStackUnderflow,
+			VmError::OutOfSubStack { .. } => Error::OutOfSubStack,
 		}
 	}
 }
@@ -88,6 +94,8 @@ impl fmt::Display for Error {
 			MutableCallInStaticContext => "Mutable Call In Static Context",
 			OutOfBounds => "Out of bounds",
 			Reverted => "Reverted",
+			SubStackUnderflow => "Subroutine stack underflow",
+			OutOfSubStack => "Subroutine stack overflow",
 		};
 		message.fmt(f)
 	}
@@ -108,6 +116,8 @@ impl Encodable for Error {
 			Wasm => 8,
 			OutOfBounds => 9,
 			Reverted => 10,
+			SubStackUnderflow => 11,
+			OutOfSubStack => 12,
 		};
 
 		s.append_internal(&value);
@@ -130,6 +140,8 @@ impl Decodable for Error {
 			8 => Ok(Wasm),
 			9 => Ok(OutOfBounds),
 			10 => Ok(Reverted),
+			11 => Ok(SubStackUnderflow),
+			12 => Ok(OutOfSubStack),
 			_ => Err(DecoderError::Custom("Invalid error type")),
 		}
 	}

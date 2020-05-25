@@ -24,6 +24,7 @@ use vm::{self, ActionParams, ActionValue, Ext};
 use vm::tests::{FakeExt, FakeCall, FakeCallType, test_finalize};
 use factory::Factory;
 use hex_literal::hex;
+use super::interpreter::MAX_SUB_STACK_SIZE;
 
 evm_test!{test_add: test_add_int}
 fn test_add(factory: super::Factory) {
@@ -784,6 +785,146 @@ fn test_jumps(factory: super::Factory) {
 	assert_store(&ext, 0, "0000000000000000000000000000000000000000000000000000000000000000"); // 5!
 	assert_store(&ext, 1, "0000000000000000000000000000000000000000000000000000000000000078"); // 5!
 	assert_eq!(gas_left, U256::from(54_117));
+}
+
+evm_test!{test_subs_simple: test_subs_simple_int}
+fn test_subs_simple(factory: super::Factory) {
+	// as defined in https://eips.ethereum.org/EIPS/eip-2315
+	let code = hex!("6004b300b2b7").to_vec();
+
+	let mut params = ActionParams::default();
+	params.gas = U256::from(13);
+	params.code = Some(Arc::new(code));
+	let mut ext = FakeExt::new_berlin();
+
+	let gas_left = {
+		let vm = factory.create(params, ext.schedule(), ext.depth());
+		test_finalize(vm.exec(&mut ext).ok().unwrap()).unwrap()
+	};
+
+	assert_eq!(gas_left, U256::from(0));
+}
+
+evm_test!{test_subs_two_levels: test_subs_two_levels_int}
+fn test_subs_two_levels(factory: super::Factory) {
+	// as defined in https://eips.ethereum.org/EIPS/eip-2315
+	let code = hex!("6800000000000000000cb300b26011b3b7b2b7").to_vec();
+
+	let mut params = ActionParams::default();
+	params.gas = U256::from(26);
+	params.code = Some(Arc::new(code));
+	let mut ext = FakeExt::new_berlin();
+
+	let gas_left = {
+		let vm = factory.create(params, ext.schedule(), ext.depth());
+		test_finalize(vm.exec(&mut ext).ok().unwrap()).unwrap()
+	};
+
+	assert_eq!(gas_left, U256::from(0));
+}
+
+evm_test!{test_subs_invalid_jump: test_subs_invalid_jump_int}
+fn test_subs_invalid_jump(factory: super::Factory) {
+	// as defined in https://eips.ethereum.org/EIPS/eip-2315
+	let code = hex!("6801000000000000000cb300b26011b3b7b2b7").to_vec();
+
+	let mut params = ActionParams::default();
+	params.gas = U256::from(24);
+	params.code = Some(Arc::new(code));
+	let mut ext = FakeExt::new_berlin();
+
+	let current = {
+		let vm = factory.create(params, ext.schedule(), ext.depth());
+		test_finalize(vm.exec(&mut ext).ok().unwrap())
+	};
+
+	let expected = Result::Err(vm::Error::BadJumpDestination{ destination: 0xc });
+	assert_eq!(current, expected);
+}
+
+evm_test!{test_subs_shallow_return_stack: test_subs_shallow_return_stack_int}
+fn test_subs_shallow_return_stack(factory: super::Factory) {
+	// as defined in https://eips.ethereum.org/EIPS/eip-2315
+	let code = hex!("b75858").to_vec();
+
+	let mut params = ActionParams::default();
+	params.gas = U256::from(24);
+	params.code = Some(Arc::new(code));
+	let mut ext = FakeExt::new_berlin();
+
+	let current = {
+		let vm = factory.create(params, ext.schedule(), ext.depth());
+		test_finalize(vm.exec(&mut ext).ok().unwrap())
+	};
+
+	let expected = Result::Err(vm::Error::SubStackUnderflow{ wanted:1, on_stack:0 });
+	assert_eq!(current, expected);
+}
+
+evm_test!{test_subs_substack_limit: test_subs_substack_limit_int}
+fn test_subs_substack_limit(factory: super::Factory) {
+
+	//    PUSH <recursion_limit>
+	// :s BEGINSUB
+	//    DUP1
+	//    JUMPI :c
+	//    STOP
+	// :c JUMPDEST
+	//    PUSH1 1
+	//    SWAP
+	//    SUB
+	//    JUMPSUB :s
+
+	let mut code = hex!("610400b280600957005b600190036003b3").to_vec();
+	code[1..3].copy_from_slice(&(MAX_SUB_STACK_SIZE as u16).to_be_bytes()[..]);
+
+	let mut params = ActionParams::default();
+	params.gas = U256::from(1_000_000);
+	params.code = Some(Arc::new(code));
+	let mut ext = FakeExt::new_berlin();
+
+	let gas_left = {
+		let vm = factory.create(params, ext.schedule(), ext.depth());
+		test_finalize(vm.exec(&mut ext).ok().unwrap()).unwrap()
+	};
+
+	assert_eq!(gas_left, U256::from(963_115));
+}
+
+evm_test!{test_subs_substack_out: test_subs_substack_out_int}
+fn test_subs_substack_out(factory: super::Factory) {
+	let mut code = hex!("610400b280600957005b600190036003b3").to_vec();
+	code[1..3].copy_from_slice(&((MAX_SUB_STACK_SIZE+1) as u16).to_be_bytes()[..]);
+
+	let mut params = ActionParams::default();
+	params.gas = U256::from(1_000_000);
+	params.code = Some(Arc::new(code));
+	let mut ext = FakeExt::new_berlin();
+
+	let current = {
+		let vm = factory.create(params, ext.schedule(), ext.depth());
+		test_finalize(vm.exec(&mut ext).ok().unwrap())
+	};
+
+	let expected = Result::Err(vm::Error::OutOfSubStack{ wanted:1, limit: MAX_SUB_STACK_SIZE });
+	assert_eq!(current, expected);
+}
+
+evm_test!{test_subs_sub_at_end: test_subs_sub_at_end_int}
+fn test_subs_sub_at_end(factory: super::Factory) {
+	let code = hex!("600556b2b75b6003b3").to_vec();
+
+	let mut params = ActionParams::default();
+	params.gas = U256::from(25);
+	params.code = Some(Arc::new(code));
+	let mut ext = FakeExt::new_berlin();
+
+	let gas_left = {
+		let vm = factory.create(params, ext.schedule(), ext.depth());
+		test_finalize(vm.exec(&mut ext).ok().unwrap()).unwrap()
+	};
+
+	assert_eq!(gas_left, U256::from(0));
 }
 
 evm_test!{test_calls: test_calls_int}

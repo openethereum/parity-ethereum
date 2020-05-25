@@ -68,8 +68,8 @@ mod generic {
 		super::test_trie(path, json, TrieSpec::Generic, h)
 	}
 
-	declare_test!{TrieTests_trietest, "TrieTests/trietest"}
-	declare_test!{TrieTests_trieanyorder, "TrieTests/trieanyorder"}
+	declare_test!{TrieTests_trietest, "TrieTests/trietest.json"}
+	declare_test!{TrieTests_trieanyorder, "TrieTests/trieanyorder.json"}
 }
 
 mod secure {
@@ -83,7 +83,7 @@ mod secure {
 		super::test_trie(path, json, TrieSpec::Secure, h)
 	}
 
-	declare_test!{TrieTests_hex_encoded_secure, "TrieTests/hex_encoded_securetrie_test"}
-	declare_test!{TrieTests_trietest_secure, "TrieTests/trietest_secureTrie"}
-	declare_test!{TrieTests_trieanyorder_secure, "TrieTests/trieanyorder_secureTrie"}
+	declare_test!{TrieTests_hex_encoded_secure, "TrieTests/hex_encoded_securetrie_test.json"}
+	declare_test!{TrieTests_trietest_secure, "TrieTests/trietest_secureTrie.json"}
+	declare_test!{TrieTests_trieanyorder_secure, "TrieTests/trieanyorder_secureTrie.json"}
 }

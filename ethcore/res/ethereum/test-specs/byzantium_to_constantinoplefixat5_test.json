@@ -1,16 +1,19 @@
 {
-	"name": "Berlin (test)",
+	"name": "Byzantium to Constantinople (test)",
 	"engine": {
 		"Ethash": {
 			"params": {
 				"minimumDifficulty": "0x020000",
 				"difficultyBoundDivisor": "0x0800",
 				"durationLimit": "0x0d",
-				"blockReward": "0x1BC16D674EC80000",
+				"blockReward": {
+					"0x0": "0x29A2241AF62C0000",
+					"0x5": "0x1BC16D674EC80000"
+				},
 				"homesteadTransition": "0x0",
 				"eip100bTransition": "0x0",
 				"difficultyBombDelays": {
-					"0": 5000000
+					"0": 3000000
 				}
 			}
 		}
@@ -33,18 +36,11 @@
 		"eip214Transition": "0x0",
 		"eip155Transition": "0x0",
 		"eip658Transition": "0x0",
-		"eip145Transition": "0x0",
-		"eip1014Transition": "0x0",
-		"eip1052Transition": "0x0",
-		"eip1283Transition": "0x0",
-		"eip1283DisableTransition": "0x0",
-		"eip1283ReenableTransition": "0x0",
-		"eip1344Transition": "0x0",
-		"eip1706Transition": "0x0",
-		"eip1884Transition": "0x0",
-		"eip2028Transition": "0x0",
-		"eip2046Transition": "0x0",
-		"eip2315Transition": "0x0"
+		"eip145Transition": "0x5",
+		"eip1014Transition": "0x5",
+		"eip1052Transition": "0x5",
+		"eip1283Transition": "0x5" ,
+		"eip1283DisableTransition": "0x5"
 	},
 	"genesis": {
 		"seal": {
@@ -73,7 +69,7 @@
 					"0": {
 						"price": { "alt_bn128_const_operations": { "price": 500 }}
 					},
-					"0": {
+					"0x7fffffffffffff": {
 						"info": "EIP 1108 transition",
 						"price": { "alt_bn128_const_operations": { "price": 150 }}
 					}
@@ -87,7 +83,7 @@
 					"0": {
 						"price": { "alt_bn128_const_operations": { "price": 40000 }}
 					},
-					"0": {
+					"0x7fffffffffffff": {
 						"info": "EIP 1108 transition",
 						"price": { "alt_bn128_const_operations": { "price": 6000 }}
 					}
@@ -101,20 +97,9 @@
 					"0": {
 						"price": { "alt_bn128_pairing": { "base": 100000, "pair": 80000 }}
 					},
-					"0": {
+					"0x7fffffffffffff": {
 						"info": "EIP 1108 transition",
 						"price": { "alt_bn128_pairing": { "base": 45000, "pair": 34000 }}
-					}
-				}
-			}
-		},
-		"0000000000000000000000000000000000000009": {
-			"builtin": {
-				"name": "blake2_f",
-				"activate_at": "0x00",
-				"pricing": {
-					"blake2_f": {
-						"gas_per_round": 1
 					}
 				}
 			}

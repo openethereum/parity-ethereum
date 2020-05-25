@@ -62,6 +62,14 @@ const STACK_SIZE_ENTRY_OVERHEAD: usize = 100 * 1024;
 /// Entry stack overhead prior to execution.
 const STACK_SIZE_ENTRY_OVERHEAD: usize = 20 * 1024;
 
+#[cfg(any(test, feature = "test-helpers"))]
+/// Precompile that can never be prunned from state trie (0x3, only in tests)
+const UNPRUNABLE_PRECOMPILE_ADDRESS: Option<Address> = Some(ethereum_types::H160([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,3]));
+
+#[cfg(not(any(test, feature = "test-helpers")))]
+/// Precompile that can never be prunned from state trie (none)
+const UNPRUNABLE_PRECOMPILE_ADDRESS: Option<Address> = None;
+
 /// Returns new address created from address, nonce, and code hash
 pub fn contract_address(address_scheme: CreateContractAddress, sender: &Address, nonce: &U256, code: &[u8]) -> (Address, Option<H256>) {
 	match address_scheme {
@@ -349,7 +357,14 @@ impl<'a> CallCreateExecutive<'a> {
 				| Err(vm::Error::MutableCallInStaticContext)
 				| Err(vm::Error::OutOfBounds)
 				| Err(vm::Error::Reverted)
+				| Err(vm::Error::SubStackUnderflow {..})
+				| Err(vm::Error::OutOfSubStack {..})
 				| Ok(FinalizationResult { apply_state: false, .. }) => {
+					if let Some(addr) = UNPRUNABLE_PRECOMPILE_ADDRESS {
+						if un_substate.touched.contains(&addr) {
+							substate.touched.insert(addr);
+						}	
+					}
 					state.revert_to_checkpoint();
 			},
 			Ok(_) | Err(vm::Error::Internal(_)) => {
@@ -407,6 +422,7 @@ impl<'a> CallCreateExecutive<'a> {
 
 					Self::check_static_flag(&params, self.static_flag, self.is_create)?;
 					state.checkpoint();
+
 					Self::transfer_exec_balance(&params, self.schedule, state, substate)?;
 
 					let default = [];
@@ -435,9 +451,17 @@ impl<'a> CallCreateExecutive<'a> {
 							})
 						}
 					} else {
+						// Openethereum needs balance > 0 in precompiles to be EIP161 compliant, see PR#11597.
+						// Since RIPEMD160 was removed in mainnet block #2686351, this is activated only in
+						//    tests to check this specific irregular state transition.
+						if let Some(unprunable_addr) = UNPRUNABLE_PRECOMPILE_ADDRESS { 
+							if unprunable_addr != params.code_address 
+							   && state.balance(&params.code_address)?.is_zero() {
+								substate.touched.remove(&params.code_address);
+							}
+						}
 						// just drain the whole gas
 						state.revert_to_checkpoint();
-
 						Err(vm::Error::OutOfGas)
 					}
 				};

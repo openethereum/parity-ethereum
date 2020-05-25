@@ -71,6 +71,20 @@ pub enum Error {
 		/// What was the stack limit
 		limit: usize
 	},
+	/// `SubStackUnderflow` when there is not enough stack elements to execute a subroutine return
+	SubStackUnderflow {
+		/// How many stack elements was requested by instruction
+		wanted: usize,
+		/// How many elements were on stack
+		on_stack: usize
+	},
+	/// When execution would exceed defined subroutine Stack Limit
+	OutOfSubStack {
+		/// How many stack elements instruction wanted to pop
+		wanted: usize,
+		/// What was the stack limit
+		limit: usize
+	},
 	/// Built-in contract failed on given input
 	BuiltIn(&'static str),
 	/// When execution tries to modify the state in static context
@@ -102,10 +116,12 @@ impl fmt::Display for Error {
 		use self::Error::*;
 		match *self {
 			OutOfGas => write!(f, "Out of gas"),
-			BadJumpDestination { destination } => write!(f, "Bad jump destination {:x}", destination),
+			BadJumpDestination { destination } => write!(f, "Bad jump destination {:x} (trimmed to usize)", destination),
 			BadInstruction { instruction } => write!(f, "Bad instruction {:x}",  instruction),
 			StackUnderflow { instruction, wanted, on_stack } => write!(f, "Stack underflow {} {}/{}", instruction, wanted, on_stack),
 			OutOfStack { instruction, wanted, limit } => write!(f, "Out of stack {} {}/{}", instruction, wanted, limit),
+			SubStackUnderflow { wanted, on_stack } => write!(f, "Subroutine stack underflow {}/{}", wanted, on_stack),
+			OutOfSubStack { wanted, limit } => write!(f, "Out of subroutine stack {}/{}", wanted, limit),
 			BuiltIn(name) => write!(f, "Built-in failed: {}", name),
 			Internal(ref msg) => write!(f, "Internal error: {}", msg),
 			MutableCallInStaticContext => write!(f, "Mutable call in static context"),

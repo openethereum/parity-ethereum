@@ -1,16 +1,19 @@
 {
-	"name": "Berlin (test)",
+	"name": "EIP158 to byzantium (test)",
 	"engine": {
 		"Ethash": {
 			"params": {
 				"minimumDifficulty": "0x020000",
 				"difficultyBoundDivisor": "0x0800",
 				"durationLimit": "0x0d",
-				"blockReward": "0x1BC16D674EC80000",
-				"homesteadTransition": "0x0",
-				"eip100bTransition": "0x0",
+				"blockReward": {
+					"0x0": "0x4563918244F40000",
+					"0x5": "0x29A2241AF62C0000"
+				},
+				"homesteadTransition": "0",
+				"eip100bTransition": "5",
 				"difficultyBombDelays": {
-					"0": 5000000
+					"5": 3000000
 				}
 			}
 		}
@@ -23,28 +26,17 @@
 		"minGasLimit": "0x1388",
 		"networkID" : "0x1",
 		"maxCodeSize": 24576,
-		"maxCodeSizeTransition": "0x0",
-		"eip150Transition": "0x0",
-		"eip160Transition": "0x0",
-		"eip161abcTransition": "0x0",
-		"eip161dTransition": "0x0",
-		"eip140Transition": "0x0",
-		"eip211Transition": "0x0",
-		"eip214Transition": "0x0",
-		"eip155Transition": "0x0",
-		"eip658Transition": "0x0",
-		"eip145Transition": "0x0",
-		"eip1014Transition": "0x0",
-		"eip1052Transition": "0x0",
-		"eip1283Transition": "0x0",
-		"eip1283DisableTransition": "0x0",
-		"eip1283ReenableTransition": "0x0",
-		"eip1344Transition": "0x0",
-		"eip1706Transition": "0x0",
-		"eip1884Transition": "0x0",
-		"eip2028Transition": "0x0",
-		"eip2046Transition": "0x0",
-		"eip2315Transition": "0x0"
+		"maxCodeSizeTransition": "0",
+		"eip150Transition": "0",
+		"eip155Transition": "0",
+		"eip160Transition": "0",
+		"eip161abcTransition": "0",
+		"eip161dTransition": "0",
+		"eip98Transition": "5",
+		"eip140Transition": "5",
+		"eip211Transition": "5",
+		"eip214Transition": "5",
+		"eip658Transition": "5"
 	},
 	"genesis": {
 		"seal": {
@@ -65,15 +57,15 @@
 		"0000000000000000000000000000000000000002": { "balance": "1", "builtin": { "name": "sha256", "pricing": { "linear": { "base": 60, "word": 12 } } } },
 		"0000000000000000000000000000000000000003": { "balance": "1", "builtin": { "name": "ripemd160", "pricing": { "linear": { "base": 600, "word": 120 } } } },
 		"0000000000000000000000000000000000000004": { "balance": "1", "builtin": { "name": "identity", "pricing": { "linear": { "base": 15, "word": 3 } } } },
-		"0000000000000000000000000000000000000005": { "builtin": { "name": "modexp", "activate_at": "0x00", "pricing": { "modexp": { "divisor": 20 } } } },
+		"0000000000000000000000000000000000000005": { "builtin": { "name": "modexp", "activate_at": "0x5", "pricing": { "modexp": { "divisor": 20 } } } },
 		"0000000000000000000000000000000000000006": {
 			"builtin": {
 				"name": "alt_bn128_add",
 				"pricing": {
-					"0": {
+					"5": {
 						"price": { "alt_bn128_const_operations": { "price": 500 }}
 					},
-					"0": {
+					"0x7fffffffffffff": {
 						"info": "EIP 1108 transition",
 						"price": { "alt_bn128_const_operations": { "price": 150 }}
 					}
@@ -84,10 +76,10 @@
 			"builtin": {
 				"name": "alt_bn128_mul",
 				"pricing": {
-					"0": {
+					"5": {
 						"price": { "alt_bn128_const_operations": { "price": 40000 }}
 					},
-					"0": {
+					"0x7fffffffffffff": {
 						"info": "EIP 1108 transition",
 						"price": { "alt_bn128_const_operations": { "price": 6000 }}
 					}
@@ -98,23 +90,12 @@
 			"builtin": {
 				"name": "alt_bn128_pairing",
 				"pricing": {
-					"0": {
+					"5": {
 						"price": { "alt_bn128_pairing": { "base": 100000, "pair": 80000 }}
 					},
-					"0": {
+					"0x7fffffffffffff": {
 						"info": "EIP 1108 transition",
 						"price": { "alt_bn128_pairing": { "base": 45000, "pair": 34000 }}
-					}
-				}
-			}
-		},
-		"0000000000000000000000000000000000000009": {
-			"builtin": {
-				"name": "blake2_f",
-				"activate_at": "0x00",
-				"pricing": {
-					"blake2_f": {
-						"gas_per_round": 1
 					}
 				}
 			}

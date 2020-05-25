@@ -1,5 +1,5 @@
 {
-	"name": "Berlin (test)",
+	"name": "St. Peter's (test)",
 	"engine": {
 		"Ethash": {
 			"params": {
@@ -37,14 +37,7 @@
 		"eip1014Transition": "0x0",
 		"eip1052Transition": "0x0",
 		"eip1283Transition": "0x0",
-		"eip1283DisableTransition": "0x0",
-		"eip1283ReenableTransition": "0x0",
-		"eip1344Transition": "0x0",
-		"eip1706Transition": "0x0",
-		"eip1884Transition": "0x0",
-		"eip2028Transition": "0x0",
-		"eip2046Transition": "0x0",
-		"eip2315Transition": "0x0"
+		"eip1283DisableTransition": "0x0"
 	},
 	"genesis": {
 		"seal": {
@@ -73,7 +66,7 @@
 					"0": {
 						"price": { "alt_bn128_const_operations": { "price": 500 }}
 					},
-					"0": {
+					"0x7fffffffffffff": {
 						"info": "EIP 1108 transition",
 						"price": { "alt_bn128_const_operations": { "price": 150 }}
 					}
@@ -87,7 +80,7 @@
 					"0": {
 						"price": { "alt_bn128_const_operations": { "price": 40000 }}
 					},
-					"0": {
+					"0x7fffffffffffff": {
 						"info": "EIP 1108 transition",
 						"price": { "alt_bn128_const_operations": { "price": 6000 }}
 					}
@@ -101,20 +94,9 @@
 					"0": {
 						"price": { "alt_bn128_pairing": { "base": 100000, "pair": 80000 }}
 					},
-					"0": {
+					"0x7fffffffffffff": {
 						"info": "EIP 1108 transition",
 						"price": { "alt_bn128_pairing": { "base": 45000, "pair": 34000 }}
-					}
-				}
-			}
-		},
-		"0000000000000000000000000000000000000009": {
-			"builtin": {
-				"name": "blake2_f",
-				"activate_at": "0x00",
-				"pricing": {
-					"blake2_f": {
-						"gas_per_round": 1
 					}
 				}
 			}
