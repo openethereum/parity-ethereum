@@ -520,10 +520,23 @@ impl<C> Service<C> where C: SnapshotClient + ChainInfo {
 
 			let _ = fs::remove_dir_all(&temp_dir); // expected to fail
 
-			let writer = LooseWriter::new(temp_dir.clone())?;
+			let writer = match LooseWriter::new(temp_dir.clone()) {
+				Ok(writer) => writer,
+				Err(err) => {
+					warn!("Failed taking snapshot at #{} {} (elapsed {:.0?})", num, err, start_time.elapsed());
+					return Err(err.into());
+				}
+			};
 
 			let guard = Guard::new(temp_dir.clone());
-			let _ = client.take_snapshot(writer, BlockId::Number(num), &self.progress)?;
+			match client.take_snapshot(writer, BlockId::Number(num), &self.progress) {
+				Ok(_) => {},
+				Err(err) => {
+					warn!("Failed taking snapshot at #{} {} {:.0?}", num, err, start_time.elapsed());
+					return Err(err);
+				}
+			};
+
 			info!("Finished taking snapshot at #{}, in {:.0?}", num, start_time.elapsed());
 
 			// destroy the old snapshot reader.
