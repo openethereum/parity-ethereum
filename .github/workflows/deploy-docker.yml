@@ -28,3 +28,4 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
           dockerfile: scripts/docker/alpine/Dockerfile
           tag_names: true
+          tags: "nightly"
