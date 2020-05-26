@@ -304,6 +304,7 @@ mod block_tests {
 	declare_test!{BlockchainTests_GeneralStateTest_stSStoreTest, "BlockchainTests/GeneralStateTests/stSStoreTest/"}
 	declare_test!{BlockchainTests_GeneralStateTest_stStackTests, "BlockchainTests/GeneralStateTests/stStackTests/"}
 	declare_test!{BlockchainTests_GeneralStateTest_stStaticCall, "BlockchainTests/GeneralStateTests/stStaticCall/"}
+	declare_test!{BlockchainTests_GeneralStateTest_stSubroutine, "BlockchainTests/GeneralStateTests/stSubroutine/"}
 	declare_test!{BlockchainTests_GeneralStateTest_stSystemOperationsTest, "BlockchainTests/GeneralStateTests/stSystemOperationsTest/"}
 	declare_test!{BlockchainTests_GeneralStateTest_stTimeConsuming, "BlockchainTests/GeneralStateTests/stTimeConsuming/"}
 	declare_test!{BlockchainTests_GeneralStateTest_stTransactionTest, "BlockchainTests/GeneralStateTests/stTransactionTest/"}

@@ -793,7 +793,7 @@ fn test_subs_simple(factory: super::Factory) {
 	let code = hex!("6004b300b2b7").to_vec();
 
 	let mut params = ActionParams::default();
-	params.gas = U256::from(11);
+	params.gas = U256::from(13);
 	params.code = Some(Arc::new(code));
 	let mut ext = FakeExt::new_berlin();
 
@@ -808,10 +808,10 @@ fn test_subs_simple(factory: super::Factory) {
 evm_test!{test_subs_two_levels: test_subs_two_levels_int}
 fn test_subs_two_levels(factory: super::Factory) {
 	// as defined in https://eips.ethereum.org/EIPS/eip-2315
-	let code = hex!("6801000000000000000cb300b26011b3b7b2b7").to_vec();
+	let code = hex!("6800000000000000000cb300b26011b3b7b2b7").to_vec();
 
 	let mut params = ActionParams::default();
-	params.gas = U256::from(22);
+	params.gas = U256::from(26);
 	params.code = Some(Arc::new(code));
 	let mut ext = FakeExt::new_berlin();
 
@@ -890,7 +890,7 @@ fn test_subs_substack_limit(factory: super::Factory) {
 		test_finalize(vm.exec(&mut ext).ok().unwrap()).unwrap()
 	};
 
-	assert_eq!(gas_left, U256::from(964_164));
+	assert_eq!(gas_left, U256::from(961_095));
 }
 
 evm_test!{test_subs_substack_out: test_subs_substack_out_int}
@@ -917,7 +917,7 @@ fn test_subs_sub_at_end(factory: super::Factory) {
 	let code = hex!("600556b2b75b6003b3").to_vec();
 
 	let mut params = ActionParams::default();
-	params.gas = U256::from(23);
+	params.gas = U256::from(25);
 	params.code = Some(Arc::new(code));
 	let mut ext = FakeExt::new_berlin();
 
@@ -929,9 +929,9 @@ fn test_subs_sub_at_end(factory: super::Factory) {
 	assert_eq!(gas_left, U256::from(0));
 }
 
-evm_test!{test_subs_oog_on_exec_beginsub: test_subs_oog_on_exec_beginsub_int}
-fn test_subs_oog_on_exec_beginsub(factory: super::Factory) {
-	let code = hex!("b200").to_vec();
+evm_test!{test_subs_walk_into_subroutine: test_subs_walk_into_subroutine_int}
+fn test_subs_walk_into_subroutine(factory: super::Factory) {
+	let code = hex!("b2").to_vec();
 
 	let mut params = ActionParams::default();
 	params.gas = U256::from(100);

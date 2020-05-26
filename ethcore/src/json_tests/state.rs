@@ -175,6 +175,7 @@ mod state_tests {
 	declare_test!{GeneralStateTest_stSStoreTest, "GeneralStateTests/stSStoreTest/"}
 	declare_test!{GeneralStateTest_stStackTests, "GeneralStateTests/stStackTests/"}
 	declare_test!{GeneralStateTest_stStaticCall, "GeneralStateTests/stStaticCall/"}
+	declare_test!{GeneralStateTest_stSubroutine, "GeneralStateTests/stSubroutine/"}
 	declare_test!{GeneralStateTest_stSystemOperationsTest, "GeneralStateTests/stSystemOperationsTest/"}
 	declare_test!{GeneralStateTest_stTimeConsuming, "GeneralStateTests/stTimeConsuming/"}
 	declare_test!{GeneralStateTest_stTransactionTest, "GeneralStateTests/stTransactionTest/"}
