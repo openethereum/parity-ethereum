@@ -76,14 +76,20 @@ pub struct Bls12ConstOperationsPrice {
 	pub price: u64,
 }
 
-/// Pricing for constant Bls12 operations (ADD and MUL in G1 and G2, as well as mappings)
+/// Pricing for constant Bls12 operations (ADD and MUL in G1, as well as mappings)
 #[derive(Debug, PartialEq, Deserialize, Clone)]
 #[serde(deny_unknown_fields)]
-pub struct Bls12MultiexpPrice {
+pub struct Bls12MultiexpPriceG1 {
 	/// Base const of the operation (G1 or G2 multiplication)
 	pub base_price: u64,
-	/// Length of input per one pair (point + scalar)
-	pub len_per_pair: usize,
+}
+
+/// Pricing for constant Bls12 operations (ADD and MUL in G2, as well as mappings)
+#[derive(Debug, PartialEq, Deserialize, Clone)]
+#[serde(deny_unknown_fields)]
+pub struct Bls12MultiexpPriceG2 {
+	/// Base const of the operation (G1 or G2 multiplication)
+	pub base_price: u64,
 }
 
 /// Pricing variants.
@@ -108,8 +114,10 @@ pub enum Pricing {
 	Bls12ConstOperationsPrice(Bls12ConstOperationsPrice),
 	/// Pricing of pairing bls12_381 operation
 	Bls12PairingPrice(Bls12PairingPrice),
-	/// Pricing of bls12_381 multiexp operations
-	Bls12MultiexpPrice(Bls12MultiexpPrice),
+	/// Pricing of bls12_381 multiexp operations in G1
+	Bls12MultiexpPriceG1(Bls12MultiexpPriceG1),
+	/// Pricing of bls12_381 multiexp operations in G2
+	Bls12MultiexpPriceG2(Bls12MultiexpPriceG2),
 }
 
 /// Builtin compability layer
@@ -174,7 +182,7 @@ pub struct PricingAt {
 
 #[cfg(test)]
 mod tests {
-	use super::{Builtin, BuiltinCompat, Pricing, PricingAt, Linear, Modexp, AltBn128ConstOperations, Bls12MultiexpPrice};
+	use super::{Builtin, BuiltinCompat, Pricing, PricingAt, Linear, Modexp, AltBn128ConstOperations, Bls12MultiexpPriceG1, Bls12MultiexpPriceG2};
 	use maplit::btreemap;
 
 	#[test]
@@ -284,7 +292,7 @@ mod tests {
 			"name": "bls12_381_g1_multiexp",
 			"pricing": {
 				"10000000": {
-					"price": { "bls12_multiexp_price": { "base_price": 12000, "len_per_pair": 96 }}
+					"price": { "bls12_multiexp_price_g1": { "base_price": 12000}}
 				}
 			}
 		}"#;
@@ -293,9 +301,30 @@ mod tests {
 		assert_eq!(builtin.pricing, btreemap![
 			10000000 => PricingAt {
 				info: None,
-				price: Pricing::Bls12MultiexpPrice(Bls12MultiexpPrice{
-						base_price: 12000,
-						len_per_pair: 96
+				price: Pricing::Bls12MultiexpPriceG1(Bls12MultiexpPriceG1{
+						base_price: 12000
+				}),
+			}
+		]);
+	}
+
+	#[test]
+	fn deserialization_bls12_381_multiexp_operation_in_g2() {
+		let s = r#"{
+			"name": "bls12_381_g2_multiexp",
+			"pricing": {
+				"10000000": {
+					"price": { "bls12_multiexp_price_g2": { "base_price": 55000}}
+				}
+			}
+		}"#;
+		let builtin: Builtin = serde_json::from_str::<BuiltinCompat>(s).unwrap().into();
+		assert_eq!(builtin.name, "bls12_381_g2_multiexp");
+		assert_eq!(builtin.pricing, btreemap![
+			10000000 => PricingAt {
+				info: None,
+				price: Pricing::Bls12MultiexpPriceG2(Bls12MultiexpPriceG2{
+						base_price: 55000
 				}),
 			}
 		]);

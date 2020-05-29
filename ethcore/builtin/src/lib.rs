@@ -40,7 +40,8 @@ use eip_152::compress;
 use eth_pairings::public_interface::eip2537::{
 	EIP2537Executor,
 	SERIALIZED_G1_POINT_BYTE_LENGTH,
-	SERIALIZED_G2_POINT_BYTE_LENGTH
+	SERIALIZED_G2_POINT_BYTE_LENGTH,
+	SCALAR_BYTE_LENGTH
 };
 
 /// Native implementation of a built-in contract.
@@ -84,7 +85,8 @@ enum Pricing {
 	Modexp(ModexpPricer),
 	Bls12Pairing(Bls12PairingPricer),
 	Bls12ConstOperations(Bls12ConstOperationsPricer),
-	Bls12Multiexp(Bls12MultiexpPricer),
+	Bls12MultiexpG1(Bls12MultiexpPricerG1),
+	Bls12MultiexpG2(Bls12MultiexpPricerG2),
 }
 
 impl Pricer for Pricing {
@@ -97,7 +99,8 @@ impl Pricer for Pricing {
 			Pricing::Modexp(inner) => inner.cost(input),
 			Pricing::Bls12Pairing(inner) => inner.cost(input),
 			Pricing::Bls12ConstOperations(inner) => inner.cost(input),
-			Pricing::Bls12Multiexp(inner) => inner.cost(input),
+			Pricing::Bls12MultiexpG1(inner) => inner.cost(input),
+			Pricing::Bls12MultiexpG2(inner) => inner.cost(input),
 		}
 	}
 }
@@ -268,13 +271,32 @@ pub const BLS12_MULTIEXP_DISCOUNT_DIVISOR: u64 = 1000;
 /// Length of single G1 + G2 points pair for pairing operation
 pub const BLS12_G1_AND_G2_PAIR_LEN: usize = SERIALIZED_G1_POINT_BYTE_LENGTH + SERIALIZED_G2_POINT_BYTE_LENGTH;
 
+/// Marter trait for length of input per one pair (point + scalar)
+pub trait PointScalarLength: Copy + Clone + std::fmt::Debug + Send + Sync {
+	/// Length itself
+	const LENGTH: usize;
+}
+/// Marker trait that indicated that we perform operations in G1
+#[derive(Clone, Copy, Debug)]
+pub struct G1Marker;
+impl PointScalarLength for G1Marker {
+	const LENGTH: usize = SERIALIZED_G1_POINT_BYTE_LENGTH + SCALAR_BYTE_LENGTH;
+}
+/// Marker trait that indicated that we perform operations in G2
+#[derive(Clone, Copy, Debug)]
+pub struct G2Marker;
+impl PointScalarLength for G2Marker {
+	const LENGTH: usize = SERIALIZED_G2_POINT_BYTE_LENGTH + SCALAR_BYTE_LENGTH;
+}
+
+
 /// Pricing for constant Bls12 operations (ADD and MUL in G1 and G2, as well as mappings)
 #[derive(Debug, Copy, Clone)]
-pub struct Bls12MultiexpPricer {
+pub struct Bls12MultiexpPricer<P: PointScalarLength> {
 	/// Base const of the operation (G1 or G2 multiplication)
 	pub base_price: Bls12ConstOperationsPricer,
-	/// Length of input per one pair (point + scalar)
-	pub len_per_pair: usize,
+
+	_marker: std::marker::PhantomData<P>
 }
 
 impl Pricer for Bls12ConstOperationsPricer {
@@ -289,9 +311,9 @@ impl Pricer for Bls12PairingPricer {
 	}
 }
 
-impl Pricer for Bls12MultiexpPricer {
+impl<P: PointScalarLength> Pricer for Bls12MultiexpPricer<P> {
 	fn cost(&self, input: &[u8]) -> U256 {
-		let num_pairs = input.len() / self.len_per_pair;
+		let num_pairs = input.len() / P::LENGTH;
 		if num_pairs == 0 {
 			return U256::max_value();
 		}
@@ -304,6 +326,12 @@ impl Pricer for Bls12MultiexpPricer {
 		U256::from(self.base_price.price) * U256::from(num_pairs) * U256::from(discount) / U256::from(BLS12_MULTIEXP_DISCOUNT_DIVISOR)
 	}
 }
+
+/// Multiexp pricer in G1
+pub type Bls12MultiexpPricerG1 = Bls12MultiexpPricer<G1Marker>;
+
+/// Multiexp pricer in G2
+pub type Bls12MultiexpPricerG2 = Bls12MultiexpPricer<G2Marker>;
 
 /// Pricing scheme, execution definition, and activation block for a built-in contract.
 ///
@@ -409,12 +437,21 @@ impl From<ethjson::spec::builtin::Pricing> for Pricing {
 					}
 				)
 			},
-			ethjson::spec::builtin::Pricing::Bls12MultiexpPrice(pricer) => {
-				Pricing::Bls12Multiexp(Bls12MultiexpPricer {
+			ethjson::spec::builtin::Pricing::Bls12MultiexpPriceG1(pricer) => {
+				Pricing::Bls12MultiexpG1(Bls12MultiexpPricerG1 {
+						base_price: Bls12ConstOperationsPricer {
+							price: pricer.base_price,
+						},
+						_marker: std::marker::PhantomData
+					}
+				)
+			},
+			ethjson::spec::builtin::Pricing::Bls12MultiexpPriceG2(pricer) => {
+				Pricing::Bls12MultiexpG2(Bls12MultiexpPricerG2 {
 						base_price: Bls12ConstOperationsPricer {
 							price: pricer.base_price
 						},
-						len_per_pair: pricer.len_per_pair
+						_marker: std::marker::PhantomData
 					}
 				)
 			},
@@ -1890,17 +1927,16 @@ mod tests {
 	}
 
 	#[test]
-	fn bls12_381_multiexp_init_from_spec() {
-		use ethjson::spec::builtin::{Pricing, Bls12MultiexpPrice};
+	fn bls12_381_g1_multiexp_init_from_spec() {
+		use ethjson::spec::builtin::{Pricing, Bls12MultiexpPriceG1};
 
 		let b = Builtin::try_from(JsonBuiltin {
 			name: "bls12_381_g1_multiexp".to_owned(),
 			pricing: btreemap![
 				10000000 => PricingAt {
 					info: None,
-					price: Pricing::Bls12MultiexpPrice(Bls12MultiexpPrice{
+					price: Pricing::Bls12MultiexpPriceG1(Bls12MultiexpPriceG1{
 							base_price: 12000,
-							len_per_pair: 96
 					}),
 				}
 			],
@@ -1908,6 +1944,30 @@ mod tests {
 
 		match b.native {
 			EthereumBuiltin::Bls12G1MultiExp(..) => {},
+			_ => {
+				panic!("invalid precompile type");
+			}
+		}
+	}
+
+	#[test]
+	fn bls12_381_g2_multiexp_init_from_spec() {
+		use ethjson::spec::builtin::{Pricing, Bls12MultiexpPriceG2};
+
+		let b = Builtin::try_from(JsonBuiltin {
+			name: "bls12_381_g2_multiexp".to_owned(),
+			pricing: btreemap![
+				10000000 => PricingAt {
+					info: None,
+					price: Pricing::Bls12MultiexpPriceG2(Bls12MultiexpPriceG2{
+							base_price: 55000,
+					}),
+				}
+			],
+		}).unwrap();
+
+		match b.native {
+			EthereumBuiltin::Bls12G2MultiExp(..) => {},
 			_ => {
 				panic!("invalid precompile type");
 			}
