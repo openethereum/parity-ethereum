@@ -85,6 +85,8 @@ pub enum Error {
 		/// What was the stack limit
 		limit: usize
 	},
+	/// When the code walks into a subroutine, that is not allowed
+	InvalidSubEntry,
 	/// Built-in contract failed on given input
 	BuiltIn(&'static str),
 	/// When execution tries to modify the state in static context
@@ -122,6 +124,7 @@ impl fmt::Display for Error {
 			OutOfStack { instruction, wanted, limit } => write!(f, "Out of stack {} {}/{}", instruction, wanted, limit),
 			SubStackUnderflow { wanted, on_stack } => write!(f, "Subroutine stack underflow {}/{}", wanted, on_stack),
 			OutOfSubStack { wanted, limit } => write!(f, "Out of subroutine stack {}/{}", wanted, limit),
+			InvalidSubEntry => write!(f,"Invalid subroutine entry"),
 			BuiltIn(name) => write!(f, "Built-in failed: {}", name),
 			Internal(ref msg) => write!(f, "Internal error: {}", msg),
 			MutableCallInStaticContext => write!(f, "Mutable call in static context"),

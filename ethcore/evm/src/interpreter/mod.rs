@@ -553,7 +553,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 				// ignore
 			},
 			instructions::BEGINSUB => {
-				return Err(vm::Error::OutOfGas);
+				return Err(vm::Error::InvalidSubEntry);
 			},
 			instructions::JUMPSUB => {
 				if self.return_stack.len() >= MAX_SUB_STACK_SIZE {

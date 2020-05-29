@@ -943,7 +943,7 @@ fn test_subs_walk_into_subroutine(factory: super::Factory) {
 		test_finalize(vm.exec(&mut ext).ok().unwrap())
 	};
 
-	let expected = Result::Err(vm::Error::OutOfGas);
+	let expected = Result::Err(vm::Error::InvalidSubEntry);
 	assert_eq!(current, expected);
 }
 
