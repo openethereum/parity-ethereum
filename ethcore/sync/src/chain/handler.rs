@@ -160,10 +160,10 @@ impl SyncHandler {
 		let difficulty: U256 = r.val_at(1)?;
 		// Most probably the sent block is being imported by peer right now
 		// Use td and hash, that peer must have for now
-		let parent_td = difficulty - block.header.difficulty();
+		let parent_td = difficulty.checked_sub(*block.header.difficulty());
 		if let Some(ref mut peer) = sync.peers.get_mut(&peer_id) {
-			if peer.difficulty.map_or(true, |pd| parent_td > pd) {
-				peer.difficulty = Some(parent_td);
+			if peer.difficulty.map_or(true, |pd| parent_td.map_or(true, |td| td > pd)) {
+				peer.difficulty = parent_td;
 			}
 		}
 		let mut unknown = false;

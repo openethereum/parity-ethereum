@@ -232,7 +232,7 @@ impl BlockDownloader {
 	}
 
 	/// Reset sync to the specified block
-	pub fn reset_to_block(&mut self, start_hash: &H256, start_number: BlockNumber) {
+	fn reset_to_block(&mut self, start_hash: &H256, start_number: BlockNumber) {
 		self.reset();
 		self.last_imported_block = start_number;
 		self.last_imported_hash = start_hash.clone();

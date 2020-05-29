@@ -490,7 +490,7 @@ impl NetworkProtocolHandler for SyncProtocolHandler {
 			io.register_timer(MAINTAIN_SYNC_TIMER, Duration::from_millis(1100)).expect("Error registering sync timer");
 			io.register_timer(CONTINUE_SYNC_TIMER, Duration::from_millis(2500)).expect("Error registering sync timer");
 			io.register_timer(TX_TIMER, Duration::from_millis(1300)).expect("Error registering transactions timer");
-			io.register_timer(DELAYED_PROCESSING_TIMER, Duration::from_millis(2000)).expect("Error registering delayed processing timer");
+			io.register_timer(DELAYED_PROCESSING_TIMER, Duration::from_millis(2100)).expect("Error registering delayed processing timer");
 
 			io.register_timer(PRIORITY_TIMER, PRIORITY_TIMER_INTERVAL).expect("Error registering peers timer");
 		}

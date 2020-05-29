@@ -487,10 +487,7 @@ impl ChainSyncApi {
 
 	/// Process the queue with requests, that were delayed with response.
 	pub fn process_delayed_requests(&self, io: &mut dyn SyncIo) {
-		let requests;
-		{
-			requests = self.sync.write().retrieve_delayed_requests();
-		}
+		let requests = self.sync.write().retrieve_delayed_requests();
 		if !requests.is_empty() {
 			debug!(target: "sync", "Processing {} delayed requests", requests.len());
 			for request in requests {
@@ -1307,7 +1304,7 @@ impl ChainSync {
 		packet.append(&chain.total_difficulty);
 		packet.append(&chain.best_block_hash);
 		packet.append(&chain.genesis_hash);
-		if eth_protocol_version >= ETH_PROTOCOL_VERSION_64.0 { 
+		if eth_protocol_version >= ETH_PROTOCOL_VERSION_64.0 {
 			packet.append(&self.fork_filter.current(io.chain()));
 		}
 		if warp_protocol {
