@@ -117,6 +117,105 @@
 					}
 				}
 			}
+		},
+		"000000000000000000000000000000000000000a": {
+			"builtin": {
+				"name": "bls12_381_g1_add",
+				"activate_at": "0x00",
+				"pricing": {
+					"0": {
+						"price": { "bls12_const_operations_price": { "price": 600 }}
+					}
+				}
+			}
+		},
+		"000000000000000000000000000000000000000b": {
+			"builtin": {
+				"name": "bls12_381_g1_mul",
+				"activate_at": "0x00",
+				"pricing": {
+					"0": {
+						"price": { "bls12_const_operations_price": { "price": 12000 }}
+					}
+				}
+			}
+		},
+		"000000000000000000000000000000000000000c": {
+			"builtin": {
+				"name": "bls12_381_g1_multiexp",
+				"activate_at": "0x00",
+				"pricing": {
+					"0": {
+						"price": { "bls12_multiexp_price_g1": { "base_price": 12000 }}
+					}
+				}
+			}
+		},
+		"000000000000000000000000000000000000000d": {
+			"builtin": {
+				"name": "bls12_381_g2_add",
+				"activate_at": "0x00",
+				"pricing": {
+					"0": {
+						"price": { "bls12_const_operations_price": { "price": 4500 }}
+					}
+				}
+			}
+		},
+		"000000000000000000000000000000000000000e": {
+			"builtin": {
+				"name": "bls12_381_g2_mul",
+				"activate_at": "0x00",
+				"pricing": {
+					"0": {
+						"price": { "bls12_const_operations_price": { "price": 55000 }}
+					}
+				}
+			}
+		},
+		"000000000000000000000000000000000000000f": {
+			"builtin": {
+				"name": "bls12_381_g2_multiexp",
+				"activate_at": "0x00",
+				"pricing": {
+					"0": {
+						"price": { "bls12_multiexp_price_g2": { "base_price": 55000 }}
+					}
+				}
+			}
+		},
+		"0000000000000000000000000000000000000010": {
+			"builtin": {
+				"name": "bls12_381_pairing",
+				"activate_at": "0x00",
+				"pricing": {
+					"0": {
+						"price": { "bls12_pairing_price": { "base": 115000, "pair": 23000 }}
+					}
+				}
+			}
+		},
+		"0000000000000000000000000000000000000011": {
+			"builtin": {
+				"name": "bls12_381_fp_to_g1",
+				"activate_at": "0x00",
+				"pricing": {
+					"0": {
+						"price": { "bls12_const_operations_price": { "price": 5500 }}
+					}
+				}
+			}
+		},
+		"0000000000000000000000000000000000000012": {
+			"builtin": {
+				"name": "bls12_381_fp2_to_g2",
+				"activate_at": "0x00",
+				"pricing": {
+					"0": {
+						"price": { "bls12_const_operations_price": { "price": 110000 }}
+					}
+				}
+			}
 		}
 	}
 }
