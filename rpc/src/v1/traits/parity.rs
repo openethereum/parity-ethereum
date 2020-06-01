@@ -226,6 +226,10 @@ pub trait Parity {
 	#[rpc(name = "parity_nodeStatus")]
 	fn status(&self) -> Result<()>;
 
+	/// [adria0] document
+	#[rpc(name = "parity_nodeMetrics")]
+	fn metrics(&self) -> Result<String>;
+
 	/// Extracts Address and public key from signature using the r, s and v params. Equivalent to Solidity erecover
 	/// as well as checks the signature for chain replay protection
 	#[rpc(name = "parity_verifySignature")]

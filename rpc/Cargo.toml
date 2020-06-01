@@ -26,12 +26,12 @@ tokio-timer = "0.2.13"
 transient-hashmap = "0.4"
 itertools = "0.8.2"
 
-jsonrpc-core = "14.0.5"
-jsonrpc-derive = "14.0.5"
-jsonrpc-http-server = "14.0.5"
-jsonrpc-ws-server = "14.0.5"
-jsonrpc-ipc-server = "14.0.6"
-jsonrpc-pubsub = "14.0.5"
+jsonrpc-core = { path = "../../jsonrpc/core" }
+jsonrpc-derive = { path = "../../jsonrpc/derive" }
+jsonrpc-http-server = { path = "../../jsonrpc/http" }
+jsonrpc-ws-server = { path = "../../jsonrpc/ws" }
+jsonrpc-ipc-server = { path = "../../jsonrpc/ipc" }
+jsonrpc-pubsub = { path = "../../jsonrpc/pubsub" }
 
 client-traits = { path = "../ethcore/client-traits" }
 common-types = { path = "../ethcore/types" }

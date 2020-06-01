@@ -453,6 +453,25 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 		}
 	}
 
+	fn metrics(&self) -> Result<String> {
+		let mut r = String::new();
+
+		let scalar = |b| if b {1} else {0};
+
+		let sync_status = self.sync.status();
+		r.push_str(&format!("oe_sync_peers {}\n",sync_status.num_peers));
+		r.push_str(&format!("oe_sync_active_peers {}\n",sync_status.num_active_peers));
+		r.push_str(&format!("oe_sync_blocks_recieved {}\n",sync_status.blocks_received));
+		r.push_str(&format!("oe_sync_blocks_total {}\n",sync_status.blocks_total));
+		r.push_str(&format!("oe_sync_blocks_highest {}\n",sync_status.highest_block_number.unwrap_or(0)));
+		r.push_str(&format!("oe_sync_is_majorsync {}\n",scalar(self.sync.is_major_syncing())));
+		r.push_str(&format!("oe_sync_snapshot_is_sync {}\n",scalar(sync_status.is_snapshot_syncing())));
+		r.push_str(&format!("oe_sync_snapshot_chunks {}\n",sync_status.num_snapshot_chunks));
+		r.push_str(&format!("oe_sync_snapshot_chunks_done {}\n",sync_status.snapshot_chunks_done));
+		r.push_str(&format!("oe_sync_mem_used {}\n",sync_status.mem_used));
+		Ok(String::from(r))
+	}
+
 	fn logs_no_tx_hash(&self, filter: Filter) -> BoxFuture<Vec<Log>> {
 		use v1::impls::eth::base_logs;
 		// only specific impl for lightclient
