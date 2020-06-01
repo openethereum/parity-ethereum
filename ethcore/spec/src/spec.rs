@@ -406,6 +406,7 @@ impl Spec {
 			params.eip1344_transition,
 			params.eip1884_transition,
 			params.eip2028_transition,
+			params.eip2046_transition,
 			params.eip2200_advance_transition,
 			params.dust_protection_transition,
 			params.wasm_activation_transition,
@@ -425,7 +426,17 @@ impl Spec {
 			ethjson::spec::Engine::Null(null) => Arc::new(NullEngine::new(null.params.into(), machine)),
 			ethjson::spec::Engine::Ethash(ethash) => {
 				// Specific transitions for Ethash-based networks
-				for block in &[ethash.params.homestead_transition, ethash.params.dao_hardfork_transition] {
+				for block in &[
+					ethash.params.homestead_transition,
+					ethash.params.dao_hardfork_transition,
+					ethash.params.difficulty_hardfork_transition,
+					ethash.params.bomb_defuse_transition,
+					ethash.params.eip100b_transition,
+					ethash.params.ecip1010_pause_transition,
+					ethash.params.ecip1010_continue_transition,
+					ethash.params.ecip1017_era_rounds,
+					ethash.params.expip2_transition,
+				] {
 					if let Some(block) = *block {
 						hard_forks.insert(block.into());
 					}
