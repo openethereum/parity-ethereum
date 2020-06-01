@@ -1,3 +1,7 @@
+## OpenEthereum [v3.0.1](https://github.com/openethereum/openethereum/releases/tag/v3.0.1)
+
+- Add missing forks to fork ID (#11747)
+
 ## OpenEthereum [v3.0.0](https://github.com/openethereum/openethereum/releases/tag/v3.0.0)
 
 OpenEthereum v3.0.0 is the first release of OpenEthereum client as part of OpenEthereum project, divested from Parity Technologies.
