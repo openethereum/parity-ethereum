@@ -45,4 +45,4 @@ WORKDIR /home/openethereum
 RUN mkdir -p /home/openethereum/.local/share/io.parity.ethereum/
 COPY --chown=openethereum:openethereum --from=builder /openethereum/target/x86_64-alpine-linux-musl/release/openethereum ./
 
-ENTRYPOINT ["./openethereum"]
+ENTRYPOINT ["/home/openethereum/openethereum"]
