@@ -645,8 +645,14 @@ impl SyncHandler {
 			return Err(DownloaderImportError::Invalid);
 		}
 		if let Some((fork_id, reason)) = forkid_validation_error {
-			trace!(target: "sync", "Peer {} incompatible fork id (fork id: {:#x}/{}, error: {:?})", peer_id, fork_id.hash.0, fork_id.next, reason);
-			return Err(DownloaderImportError::Invalid);
+			// 0x9007bfcc/0 <-- Ethereum Classic post-Phoenix fork (core-geth, multi-geth)
+			if fork_id.hash.0 == 0x9007bfcc && fork_id.next == 0 {
+				warn!(target: "sync", "Peer {} incompatible fork id (fork id: {:#x}/{}, error: {:?})", peer_id, fork_id.hash.0, fork_id.next, reason);
+			} else {
+				trace!(target: "sync", "Peer {} incompatible fork id (fork id: {:#x}/{}, error: {:?})", peer_id, fork_id.hash.0, fork_id.next, reason);
+				return Err(DownloaderImportError::Invalid);
+			}
+
 		}
 
 		if false
