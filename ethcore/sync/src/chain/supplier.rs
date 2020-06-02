@@ -431,15 +431,11 @@ impl SyncSupplier {
 			FError : FnOnce(network::Error) -> String
 	{
 		let response = rlp_func(io, rlp, peer);
-		match response {
-			Err(e) => Err(e),
-			Ok(Some((packet_id, rlp_stream))) => {
-				io.respond(packet_id.id(), rlp_stream.out()).unwrap_or_else(
-					|e| debug!(target: "sync", "{:?}", error_func(e)));
-				Ok(())
-			}
-			_ => Ok(())
+		if let Some((packet_id, rlp_stream)) = response? {
+			io.respond(packet_id.id(), rlp_stream.out()).unwrap_or_else(
+				|e| debug!(target: "sync", "{:?}", error_func(e)));
 		}
+		Ok(())
 	}
 
 	fn send_rlp<FRlp, FError>(io: &mut dyn SyncIo, rlp: &Rlp, peer: PeerId, rlp_func: FRlp, error_func: FError) -> Result<(), PacketProcessError>
