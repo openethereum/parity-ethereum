@@ -490,8 +490,8 @@ impl ChainSyncApi {
 		let requests = self.sync.write().retrieve_delayed_requests();
 		if !requests.is_empty() {
 			debug!(target: "sync", "Processing {} delayed requests", requests.len());
-			for request in requests {
-				SyncSupplier::postponed_dispatch_packet(&self.sync, io, request.0, request.1, &request.2);
+			for (peer_id, packet_id, packet_data) in requests {
+				SyncSupplier::dispatch_delayed_request(&self.sync, io, peer_id, packet_id, &packet_data);
 			}
 		}
 	}

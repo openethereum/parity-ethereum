@@ -153,9 +153,9 @@ impl SyncSupplier {
 		}
 	}
 
-	/// Dispatch delayed requests
+	/// Dispatch delayed request
 	/// The main difference with dispatch packet is the direct send of the responses to the peer
-	pub fn postponed_dispatch_packet(sync: &RwLock<ChainSync>, io: &mut dyn SyncIo, peer: PeerId, packet_id: u8, data: &[u8]) {
+	pub fn dispatch_delayed_request(sync: &RwLock<ChainSync>, io: &mut dyn SyncIo, peer: PeerId, packet_id: u8, data: &[u8]) {
 		let rlp = Rlp::new(data);
 
 		if let Some(id) = SyncPacket::from_u8(packet_id) {
