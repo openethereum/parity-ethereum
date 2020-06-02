@@ -114,6 +114,7 @@ impl SyncHandler {
 			debug!(target: "sync", "Disconnected {}", peer_id);
 			sync.clear_peer_download(peer_id);
 			sync.peers.remove(&peer_id);
+			sync.delayed_requests.retain(|(request_peer_id, _, _)| *request_peer_id != peer_id);
 			sync.active_peers.remove(&peer_id);
 
 			if sync.state == SyncState::SnapshotManifest {
