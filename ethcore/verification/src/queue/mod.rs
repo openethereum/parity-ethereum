@@ -43,6 +43,8 @@ pub mod kind;
 
 const MIN_MEM_LIMIT: usize = 16384;
 const MIN_QUEUE_LIMIT: usize = 512;
+/// Empiric estimation of the minimal length of the processing queue,
+/// That definitely doesn't contain forks inside.
 const MAX_QUEUE_WITH_FORK: usize = 8;
 
 /// Type alias for block queue convenience.
@@ -540,9 +542,9 @@ impl<K: Kind, C> VerificationQueue<K, C> {
 		bad.reserve(hashes.len());
 		for hash in hashes {
 			bad.insert(hash.clone());
-			if let Some(item) = processing.remove(hash) {
+			if let Some((difficulty, _)) = processing.remove(hash) {
 				let mut td = self.total_difficulty.write();
-				*td = *td - item.0;
+				*td = *td - difficulty;
 			}
 		}
 
@@ -552,9 +554,9 @@ impl<K: Kind, C> VerificationQueue<K, C> {
 			if bad.contains(&output.parent_hash()) {
 				removed_size += output.malloc_size_of();
 				bad.insert(output.hash());
-				if let Some(item) = processing.remove(&output.hash()) {
+				if let Some((difficulty, _)) = processing.remove(&output.hash()) {
 					let mut td = self.total_difficulty.write();
-					*td = *td - item.0;
+					*td = *td - difficulty;
 				}
 			} else {
 				new_verified.push_back(output);
@@ -573,9 +575,9 @@ impl<K: Kind, C> VerificationQueue<K, C> {
 		}
 		let mut processing = self.processing.write();
 		for hash in hashes {
-			if let Some(item) = processing.remove(hash) {
+			if let Some((difficulty, _)) = processing.remove(hash) {
 				let mut td = self.total_difficulty.write();
-				*td = *td - item.0;
+				*td = *td - difficulty;
 			}
 		}
 		processing.is_empty()
@@ -606,15 +608,15 @@ impl<K: Kind, C> VerificationQueue<K, C> {
 			&& v.verified.load_len() == 0
 	}
 
-	/// Returns true, if in processing queue there are descendants of the current best block
+	/// Returns true if there are descendants of the current best block in the processing queue
 	pub fn is_processing_fork(&self, best_block_hash: &H256, chain: &BlockChain) -> bool {
 		let processing = self.processing.read();
 		if processing.is_empty() || processing.len() > MAX_QUEUE_WITH_FORK {
 			// Assume, that long enough processing queue doesn't have fork blocks
 			return false;
 		}
-		for item in processing.values() {
-			if chain.tree_route(*best_block_hash, item.1).map_or(true, |route| route.ancestor != *best_block_hash) {
+		for (_, item_parent_hash) in processing.values() {
+			if chain.tree_route(*best_block_hash, item_parent_hash).map_or(true, |route| route.ancestor != *best_block_hash) {
 				return true;
 			}
 		}
