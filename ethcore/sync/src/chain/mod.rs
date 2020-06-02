@@ -701,7 +701,7 @@ pub struct ChainSync {
 	/// Value is request timestamp.
 	handshaking_peers: HashMap<PeerId, Instant>,
 	/// Requests, that can not be processed at the moment
-	delayed_requests: HashSet<(PeerId, u8, Vec<u8>)>,
+	delayed_requests: Vec<(PeerId, u8, Vec<u8>)>,
 	/// Sync start timestamp. Measured when first peer is connected
 	sync_start_time: Option<Instant>,
 	/// Transactions propagation statistics
@@ -737,7 +737,7 @@ impl ChainSync {
 			peers: HashMap::new(),
 			handshaking_peers: HashMap::new(),
 			active_peers: HashSet::new(),
-			delayed_requests: HashSet::new(),
+			delayed_requests: Vec::new(),
 			new_blocks: BlockDownloader::new(BlockSet::NewBlocks, &chain_info.best_block_hash, chain_info.best_block_number),
 			old_blocks: None,
 			last_sent_block_number: 0,
@@ -854,14 +854,17 @@ impl ChainSync {
 
 	/// Add a request for later processing
 	pub fn add_delayed_request(&mut self, peer: PeerId, packet_id: u8, data: &[u8]) {
-		if self.delayed_requests.insert((peer, packet_id, data.to_vec())) {
+		if let Some(position) = self.delayed_requests.iter().position(|request| request.0 == peer && request.1 == packet_id) {
+			self.delayed_requests[position] = (peer, packet_id, data.to_vec());
+		} else {
+			self.delayed_requests.push((peer, packet_id, data.to_vec()));
 			debug!(target: "sync", "Delayed request with packet id {} from peer {} added", packet_id, peer);
 		}
 	}
 
 	/// Drain and return all delayed requests
 	pub fn retrieve_delayed_requests(&mut self) -> Vec<(PeerId, u8, Vec<u8>)> {
-		self.delayed_requests.drain().collect()
+		self.delayed_requests.drain(..).collect()
 	}
 
 	/// Restart sync
