@@ -29,24 +29,30 @@ mod fixture;
 mod runner;
 
 use fixture::Fixture;
-use clap::{App, Arg};
+use clap::Clap;
 use std::fs;
+
+#[derive(Clap)]
+#[clap(
+    name = "pwasm-run-test",
+)]
+struct Options {
+	#[clap(
+		required = true,
+		name = "target",
+		min_values = 1,
+		about = "JSON fixture",
+	)]
+	pub target: Vec<String>
+}
 
 fn main() {
 	::env_logger::init();
 
-	let matches = App::new("pwasm-run-test")
-		.arg(Arg::with_name("target")
-			.index(1)
-			.required(true)
-			.multiple(true)
-			.help("JSON fixture"))
-		.get_matches();
-
 	let mut exit_code = 0;
 
-	for target in matches.values_of("target").expect("No target parameter") {
-		let mut f = fs::File::open(target).expect("Failed to open file");
+	for target in Options::parse().target {
+		let mut f = fs::File::open(&target).expect("Failed to open file");
 		let fixtures: Vec<Fixture> = serde_json::from_reader(&mut f).expect("Failed to deserialize json");
 
 		for fixture in fixtures.into_iter() {

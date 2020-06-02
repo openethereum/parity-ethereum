@@ -34,7 +34,7 @@ fn test_overwrite_custom_config_with_raw_flags() {
 	let (user_defaults, fallback) =
 		Args::generate_default_configuration("test_config.toml", "config_default.toml").unwrap();
 
-	resolved.absorb_cli(raw, user_defaults, fallback);
+	resolved.absorb_cli(raw, user_defaults, fallback).unwrap();
 
 	assert_eq!(resolved.arg_stratum_secret, Some("Changed".to_owned()));
 }

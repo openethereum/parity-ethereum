@@ -21,7 +21,6 @@ extern crate ansi_term;
 extern crate docopt;
 extern crate rust_embed;
 extern crate clap;
-extern crate structopt;
 extern crate dir;
 extern crate futures;
 extern crate atty;
@@ -104,7 +103,6 @@ mod blockchain;
 mod cache;
 mod cli;
 mod configuration;
-mod test_configuration;
 mod export_hardcoded_sync;
 mod helpers;
 mod informant;
@@ -205,7 +203,7 @@ fn execute<Cr, Rr>(
 			Ok(ExecutionAction::Running(outcome))
 		},
 
-		// NOTE: this is handled automatically by structopt
+		// NOTE: this is handled automatically by Clap
 		// Cmd::Version => Ok(ExecutionAction::Instant(Some(Args::print_version()))),
 		Cmd::Hash(maybe_file) => print_hash_of(maybe_file).map(|s| ExecutionAction::Instant(Some(s))),
 		Cmd::Account(account_cmd) => account::execute(account_cmd).map(|s| ExecutionAction::Instant(Some(s))),

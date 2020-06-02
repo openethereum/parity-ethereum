@@ -302,7 +302,7 @@ dependencies = [
  "cexpr",
  "cfg-if",
  "clang-sys",
- "clap",
+ "clap 2.33.0",
  "env_logger 0.7.1",
  "lazy_static",
  "lazycell",
@@ -575,6 +575,36 @@ dependencies = [
 ]
 
 [[package]]
+name = "clap"
+version = "3.0.0-beta.1"
+source = "git+https://github.com/clap-rs/clap#f4ace424c4a821765cfac76274967507a74566bb"
+dependencies = [
+ "atty",
+ "bitflags",
+ "clap_derive",
+ "indexmap",
+ "lazy_static",
+ "os_str_bytes",
+ "strsim 0.10.0",
+ "termcolor",
+ "textwrap",
+ "unicode-width",
+ "vec_map",
+]
+
+[[package]]
+name = "clap_derive"
+version = "3.0.0-beta.1"
+source = "git+https://github.com/clap-rs/clap#f4ace424c4a821765cfac76274967507a74566bb"
+dependencies = [
+ "heck",
+ "proc-macro-error",
+ "proc-macro2 1.0.9",
+ "quote 1.0.3",
+ "syn 1.0.17",
+]
+
+[[package]]
 name = "cli-signer"
 version = "1.4.0"
 dependencies = [
@@ -713,7 +743,7 @@ checksum = "1fc755679c12bda8e5523a71e4d654b6bf2e14bd838dfc48cde6559a05caf7d1"
 dependencies = [
  "atty",
  "cast",
- "clap",
+ "clap 2.33.0",
  "criterion-plot",
  "csv",
  "itertools",
@@ -3109,7 +3139,7 @@ dependencies = [
  "ansi_term",
  "atty",
  "blooms-db",
- "clap",
+ "clap 3.0.0-beta.1",
  "cli-signer",
  "client-traits",
  "common-types",
@@ -3176,7 +3206,6 @@ dependencies = [
  "serde_json",
  "snapshot",
  "spec",
- "structopt",
  "tempfile",
  "term_size",
  "textwrap",
@@ -3202,6 +3231,12 @@ name = "ordermap"
 version = "0.3.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a86ed3f5f244b372d6b1a00b72ef7f8876d0bc6a78a4c9985c53614041512063"
+
+[[package]]
+name = "os_str_bytes"
+version = "2.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "06de47b848347d8c4c94219ad8ecd35eb90231704b067e67e6ae2e36ee023510"
 
 [[package]]
 name = "owning_ref"
@@ -3894,8 +3929,8 @@ dependencies = [
 name = "pwasm-run-test"
 version = "0.1.0"
 dependencies = [
- "clap",
- "env_logger 0.5.13",
+ "clap 3.0.0-beta.1",
+ "env_logger 0.7.1",
  "ethereum-types",
  "ethjson",
  "rustc-hex 2.1.0",
@@ -4826,28 +4861,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6446ced80d6c486436db5c078dde11a9f73d42b57fb273121e160b84f63d894c"
 
 [[package]]
-name = "structopt"
-version = "0.3.14"
+name = "strsim"
+version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "863246aaf5ddd0d6928dfeb1a9ca65f505599e4e1b399935ef7e75107516b4ef"
-dependencies = [
- "clap",
- "lazy_static",
- "structopt-derive",
-]
-
-[[package]]
-name = "structopt-derive"
-version = "0.4.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d239ca4b13aee7a2142e6795cbd69e457665ff8037aed33b3effdc430d2f927a"
-dependencies = [
- "heck",
- "proc-macro-error",
- "proc-macro2 1.0.9",
- "quote 1.0.3",
- "syn 1.0.17",
-]
+checksum = "73473c0e59e6d5812c5dfe2a064a6444949f089e20eec9a2e5506596494e4623"
 
 [[package]]
 name = "subtle"

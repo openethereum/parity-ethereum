@@ -8,12 +8,12 @@ authors = ["Parity Technologies <admin@parity.io>"]
 serde = "1"
 serde_json = "1"
 serde_derive = "1"
-ethereum-types = "0.9.0"
+ethereum-types = "0.9"
 ethjson = { path = "../../../json" }
 vm = { path = "../../vm" }
 wasm = { path = "../" }
-clap = "2.24"
-env_logger = "0.5"
+clap = { git = "https://github.com/clap-rs/clap" }
+env_logger = "0.7"
 rustc-hex = "2.1.0"
 
 [features]

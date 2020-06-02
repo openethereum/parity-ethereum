@@ -1,9 +1,9 @@
+use clap::Clap;
 use cli::config::get_config;
 use cli::globals::{Globals, IPCOptions};
 use cli::parse_cli::*;
 use cli::subcommands::*;
 use std::fs;
-use structopt::StructOpt;
 
 #[derive(Debug, PartialEq)]
 pub enum ArgsError {
@@ -216,8 +216,6 @@ pub struct Args {
 	pub arg_max_round_blocks_to_import: usize,
 	pub flag_can_restart: bool,
 	pub flag_no_color: bool,
-	// NOTE: This is auto handled by structopt
-	// pub flag_version: bool,
 	pub flag_no_config: bool,
 	pub arg_logging: Option<String>,
 	pub arg_log_file: Option<String>,
@@ -247,7 +245,7 @@ impl Args {
 	pub fn parse() -> Result<Self, ArgsError> {
 		let mut args: Args = Default::default();
 
-		let mut raw_input = ArgsInput::from_args();
+		let mut raw_input = ArgsInput::parse();
 
 		Args::save_current_config(&mut raw_input.globals)?;
 
