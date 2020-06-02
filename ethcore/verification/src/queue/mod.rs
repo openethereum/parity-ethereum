@@ -145,7 +145,7 @@ pub struct VerificationQueue<K: Kind, C: 'static> {
 	deleting: Arc<AtomicBool>,
 	ready_signal: Arc<QueueSignal<C>>,
 	empty: Arc<Condvar>,
-	processing: RwLock<HashMap<H256, (U256, H256)>>, // hash to difficulty and parent hash
+	processing: RwLock<HashMap<H256, (U256, H256)>>, // item's hash to difficulty and parent item hash
 	ticks_since_adjustment: AtomicUsize,
 	max_queue_size: usize,
 	max_mem_use: usize,
@@ -620,7 +620,7 @@ impl<K: Kind, C> VerificationQueue<K, C> {
 				return true;
 			}
 		}
-		return false;
+		false
 	}
 
 	/// Get queue status.
