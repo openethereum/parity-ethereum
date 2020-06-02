@@ -616,7 +616,7 @@ impl<K: Kind, C> VerificationQueue<K, C> {
 			return false;
 		}
 		for (_, item_parent_hash) in processing.values() {
-			if chain.tree_route(*best_block_hash, item_parent_hash).map_or(true, |route| route.ancestor != *best_block_hash) {
+			if chain.tree_route(*best_block_hash, *item_parent_hash).map_or(true, |route| route.ancestor != *best_block_hash) {
 				return true;
 			}
 		}
