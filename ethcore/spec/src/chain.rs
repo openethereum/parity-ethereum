@@ -94,7 +94,8 @@ bundle_release_spec! {
 	"ethereum/rinkeby" => new_rinkeby,
 	"ethereum/ropsten" => new_ropsten,
 	"ethereum/volta" => new_volta,
-	"ethereum/xdai" => new_xdai
+	"ethereum/xdai" => new_xdai,
+	"ethereum/yolov1" => new_yolov1
 }
 
 bundle_test_spec! {
