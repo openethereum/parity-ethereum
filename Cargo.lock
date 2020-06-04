@@ -3423,7 +3423,7 @@ dependencies = [
 [[package]]
 name = "parity-secretstore"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/secret-store?branch=v1.x#02964410fc05d7f94a133c0a2e5632f386040854"
+source = "git+https://github.com/paritytech/secret-store?branch=v1.x#2ca2842edb6ae580663b59624a30d99a7d9f8e78"
 dependencies = [
  "byteorder",
  "ethabi",
