@@ -84,7 +84,7 @@ enum Pricing {
 	Linear(Linear),
 	Modexp(ModexpPricer),
 	Bls12Pairing(Bls12PairingPricer),
-	Bls12ConstOperations(Bls12ConstOperationsPricer),
+	Bls12ConstOperations(Bls12ConstOperations),
 	Bls12MultiexpG1(Bls12MultiexpPricerG1),
 	Bls12MultiexpG2(Bls12MultiexpPricerG2),
 }
@@ -236,7 +236,7 @@ struct Bls12PairingPricer {
 
 /// Pricing for constant Bls12 operations (ADD and MUL in G1 and G2, as well as mappings)
 #[derive(Debug, Copy, Clone)]
-pub struct Bls12ConstOperationsPricer {
+pub struct Bls12ConstOperations {
 	/// Fixed price.
 	pub price: u64,
 }
@@ -294,12 +294,12 @@ impl PointScalarLength for G2Marker {
 #[derive(Debug, Copy, Clone)]
 pub struct Bls12MultiexpPricer<P: PointScalarLength> {
 	/// Base const of the operation (G1 or G2 multiplication)
-	pub base_price: Bls12ConstOperationsPricer,
+	pub base_price: Bls12ConstOperations,
 
 	_marker: std::marker::PhantomData<P>
 }
 
-impl Pricer for Bls12ConstOperationsPricer {
+impl Pricer for Bls12ConstOperations {
 	fn cost(&self, _input: &[u8]) -> U256 {
 		self.price.into()
 	}
@@ -315,7 +315,7 @@ impl<P: PointScalarLength> Pricer for Bls12MultiexpPricer<P> {
 	fn cost(&self, input: &[u8]) -> U256 {
 		let num_pairs = input.len() / P::LENGTH;
 		if num_pairs == 0 {
-			return U256::max_value();
+			return U256::zero();
 		}
 		let discount = if num_pairs > BLS12_MULTIEXP_PAIRS_FOR_MAX_DISCOUNT {
 			BLS12_MULTIEXP_MAX_DISCOUNT
@@ -423,12 +423,12 @@ impl From<ethjson::spec::builtin::Pricing> for Pricing {
 					price: pricer.price
 				})
 			}
-			ethjson::spec::builtin::Pricing::Bls12ConstOperationsPrice(pricer) => {
-				Pricing::Bls12ConstOperations(Bls12ConstOperationsPricer {
+			ethjson::spec::builtin::Pricing::Bls12ConstOperations(pricer) => {
+				Pricing::Bls12ConstOperations(Bls12ConstOperations {
 					price: pricer.price
 				})
 			},
-			ethjson::spec::builtin::Pricing::Bls12PairingPrice(pricer) => {
+			ethjson::spec::builtin::Pricing::Bls12Pairing(pricer) => {
 				Pricing::Bls12Pairing(Bls12PairingPricer {
 						price : Bls12PairingPrice {
 							base: pricer.base,
@@ -437,19 +437,19 @@ impl From<ethjson::spec::builtin::Pricing> for Pricing {
 					}
 				)
 			},
-			ethjson::spec::builtin::Pricing::Bls12MultiexpPriceG1(pricer) => {
+			ethjson::spec::builtin::Pricing::Bls12G1Multiexp(pricer) => {
 				Pricing::Bls12MultiexpG1(Bls12MultiexpPricerG1 {
-						base_price: Bls12ConstOperationsPricer {
-							price: pricer.base_price,
+						base_price: Bls12ConstOperations {
+							price: pricer.base,
 						},
 						_marker: std::marker::PhantomData
 					}
 				)
 			},
-			ethjson::spec::builtin::Pricing::Bls12MultiexpPriceG2(pricer) => {
+			ethjson::spec::builtin::Pricing::Bls12G2Multiexp(pricer) => {
 				Pricing::Bls12MultiexpG2(Bls12MultiexpPricerG2 {
-						base_price: Bls12ConstOperationsPricer {
-							price: pricer.base_price
+						base_price: Bls12ConstOperations {
+							price: pricer.base
 						},
 						_marker: std::marker::PhantomData
 					}
@@ -1173,7 +1173,7 @@ mod tests {
 	use super::{
 		Builtin, EthereumBuiltin, FromStr, Implementation, Linear,
 		ModexpPricer, modexp as me, Pricing,
-		Bls12ConstOperationsPricer,
+		Bls12ConstOperations,
 		Bls12PairingPrice,Bls12PairingPricer
 	};
 
@@ -1931,7 +1931,7 @@ mod tests {
 	#[test]
 	fn bls12_381_g1_add() {
 		let f = Builtin {
-			pricer: btreemap![0 => Pricing::Bls12ConstOperations(Bls12ConstOperationsPricer{price: 1})],
+			pricer: btreemap![0 => Pricing::Bls12ConstOperations(Bls12ConstOperations{price: 1})],
 			native: EthereumBuiltin::from_str("bls12_381_g1_add").unwrap(),
 		};
 
@@ -1955,7 +1955,7 @@ mod tests {
 	#[test]
 	fn bls12_381_g1_mul() {
 		let f = Builtin {
-			pricer: btreemap![0 => Pricing::Bls12ConstOperations(Bls12ConstOperationsPricer{price: 1})],
+			pricer: btreemap![0 => Pricing::Bls12ConstOperations(Bls12ConstOperations{price: 1})],
 			native: EthereumBuiltin::from_str("bls12_381_g1_mul").unwrap(),
 		};
 
@@ -1978,7 +1978,7 @@ mod tests {
 	#[test]
 	fn bls12_381_g1_multiexp() {
 		let f = Builtin {
-			pricer: btreemap![0 => Pricing::Bls12ConstOperations(Bls12ConstOperationsPricer{price: 1})],
+			pricer: btreemap![0 => Pricing::Bls12ConstOperations(Bls12ConstOperations{price: 1})],
 			native: EthereumBuiltin::from_str("bls12_381_g1_multiexp").unwrap(),
 		};
 		let input = hex!("
@@ -2041,10 +2041,11 @@ mod tests {
 		f.execute(&input[..], &mut BytesRef::Fixed(&mut output[..])).expect("Builtin should not fail");
 		assert_eq!(&output[..], &expected[..]);
 	}
+	
 	#[test]
 	fn bls12_381_g2_add() {
 		let f = Builtin {
-			pricer: btreemap![0 => Pricing::Bls12ConstOperations(Bls12ConstOperationsPricer{price: 1})],
+			pricer: btreemap![0 => Pricing::Bls12ConstOperations(Bls12ConstOperations{price: 1})],
 			native: EthereumBuiltin::from_str("bls12_381_g2_add").unwrap(),
 		};
 		let input = hex!("
@@ -2073,7 +2074,7 @@ mod tests {
 	#[test]
 	fn bls12_381_g2_mul() {
 		let f = Builtin {
-			pricer: btreemap![0 => Pricing::Bls12ConstOperations(Bls12ConstOperationsPricer{price: 1})],
+			pricer: btreemap![0 => Pricing::Bls12ConstOperations(Bls12ConstOperations{price: 1})],
 			native: EthereumBuiltin::from_str("bls12_381_g2_mul").unwrap(),
 		};
 
@@ -2100,7 +2101,7 @@ mod tests {
 	#[test]
 	fn bls12_381_g2_multiexp() {
 		let f = Builtin {
-			pricer: btreemap![0 => Pricing::Bls12ConstOperations(Bls12ConstOperationsPricer{price: 1})],
+			pricer: btreemap![0 => Pricing::Bls12ConstOperations(Bls12ConstOperations{price: 1})],
 			native: EthereumBuiltin::from_str("bls12_381_g2_multiexp").unwrap(),
 		};
 
@@ -2277,15 +2278,15 @@ mod tests {
 
 	#[test]
 	fn bls12_381_g1_multiexp_init_from_spec() {
-		use ethjson::spec::builtin::{Pricing, Bls12MultiexpPriceG1};
+		use ethjson::spec::builtin::{Pricing, Bls12G1Multiexp};
 
 		let b = Builtin::try_from(JsonBuiltin {
 			name: "bls12_381_g1_multiexp".to_owned(),
 			pricing: btreemap![
 				10000000 => PricingAt {
 					info: None,
-					price: Pricing::Bls12MultiexpPriceG1(Bls12MultiexpPriceG1{
-							base_price: 12000,
+					price: Pricing::Bls12G1Multiexp(Bls12G1Multiexp{
+							base: 12000,
 					}),
 				}
 			],
@@ -2301,15 +2302,15 @@ mod tests {
 
 	#[test]
 	fn bls12_381_g2_multiexp_init_from_spec() {
-		use ethjson::spec::builtin::{Pricing, Bls12MultiexpPriceG2};
+		use ethjson::spec::builtin::{Pricing, Bls12G2Multiexp};
 
 		let b = Builtin::try_from(JsonBuiltin {
 			name: "bls12_381_g2_multiexp".to_owned(),
 			pricing: btreemap![
 				10000000 => PricingAt {
 					info: None,
-					price: Pricing::Bls12MultiexpPriceG2(Bls12MultiexpPriceG2{
-							base_price: 55000,
+					price: Pricing::Bls12G2Multiexp(Bls12G2Multiexp{
+							base: 55000,
 					}),
 				}
 			],
