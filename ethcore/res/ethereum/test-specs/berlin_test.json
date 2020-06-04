@@ -124,7 +124,7 @@
 				"activate_at": "0x0",
 				"pricing": {
 					"0": {
-						"price": { "bls12_const_operations_price": { "price": 600 }}
+						"price": { "bls12_const_operations": { "price": 600 }}
 					}
 				}
 			}
@@ -135,7 +135,7 @@
 				"activate_at": "0x0",
 				"pricing": {
 					"0": {
-						"price": { "bls12_const_operations_price": { "price": 12000 }}
+						"price": { "bls12_const_operations": { "price": 12000 }}
 					}
 				}
 			}
@@ -190,7 +190,7 @@
 				"activate_at": "0x0",
 				"pricing": {
 					"0": {
-						"price": { "bls12_pairing_price": { "base": 115000, "pair": 23000 }}
+						"price": { "bls12_pairing": { "base": 115000, "pair": 23000 }}
 					}
 				}
 			}
