@@ -123,9 +123,7 @@
 				"name": "bls12_381_g1_add",
 				"activate_at": "0x0",
 				"pricing": {
-					"0": {
-						"price": { "bls12_const_operations": { "price": 600 }}
-					}
+					"bls12_const_operations": { "price": 600 }
 				}
 			}
 		},
@@ -134,9 +132,7 @@
 				"name": "bls12_381_g1_mul",
 				"activate_at": "0x0",
 				"pricing": {
-					"0": {
-						"price": { "bls12_const_operations": { "price": 12000 }}
-					}
+					"bls12_const_operations": { "price": 12000 }
 				}
 			}
 		},
@@ -145,9 +141,7 @@
 				"name": "bls12_381_g1_multiexp",
 				"activate_at": "0x0",
 				"pricing": {
-					"0": {
-						"price": { "bls12_g1_multiexp": { "base": 12000 }}
-					}
+					"bls12_g1_multiexp": { "base": 12000 }
 				}
 			}
 		},
@@ -156,9 +150,7 @@
 				"name": "bls12_381_g2_add",
 				"activate_at": "0x0",
 				"pricing": {
-					"0": {
-						"price": { "bls12_const_operations": { "price": 4500 }}
-					}
+					"bls12_const_operations": { "price": 4500 }
 				}
 			}
 		},
@@ -167,9 +159,7 @@
 				"name": "bls12_381_g2_mul",
 				"activate_at": "0x0",
 				"pricing": {
-					"0": {
-						"price": { "bls12_const_operations": { "price": 55000 }}
-					}
+					"bls12_const_operations": { "price": 55000 }
 				}
 			}
 		},
@@ -178,9 +168,7 @@
 				"name": "bls12_381_g2_multiexp",
 				"activate_at": "0x0",
 				"pricing": {
-					"0": {
-						"price": { "bls12_g2_multiexp": { "base": 55000 }}
-					}
+					"bls12_g2_multiexp": { "base": 55000 }
 				}
 			}
 		},
@@ -189,9 +177,7 @@
 				"name": "bls12_381_pairing",
 				"activate_at": "0x0",
 				"pricing": {
-					"0": {
-						"price": { "bls12_pairing": { "base": 115000, "pair": 23000 }}
-					}
+					"bls12_pairing": { "base": 115000, "pair": 23000 }
 				}
 			}
 		},
@@ -200,9 +186,7 @@
 				"name": "bls12_381_fp_to_g1",
 				"activate_at": "0x0",
 				"pricing": {
-					"0": {
-						"price": { "bls12_const_operations": { "price": 5500 }}
-					}
+					"bls12_const_operations": { "price": 5500 }
 				}
 			}
 		},
@@ -211,9 +195,7 @@
 				"name": "bls12_381_fp2_to_g2",
 				"activate_at": "0x00",
 				"pricing": {
-					"0": {
-						"price": { "bls12_const_operations": { "price": 110000 }}
-					}
+					"bls12_const_operations": { "price": 110000 }
 				}
 			}
 		}
