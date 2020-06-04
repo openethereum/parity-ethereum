@@ -21,8 +21,25 @@ use std::ops::{Add, Sub, Deref, Div};
 
 #[macro_use]
 extern crate log;
+pub extern crate prometheus;
 
-/// Sorted corpus of data.
+pub trait PrometheusMetrics {
+	fn prometheus_metrics(&self, registry: &mut prometheus::Registry);
+}
+
+pub fn prometheus_counter(reg: &mut prometheus::Registry, name: &str, help: &str, value: i64) {
+	let c = prometheus::IntCounter::new(name,help).expect("does not fail. qed.");
+	c.inc_by(value);
+	reg.register(Box::new(c)).expect("qed");
+}
+
+pub fn prometheus_gauge(reg: &mut prometheus::Registry, name: &str, help: &str, value: i64) {
+	let g = prometheus::IntGauge::new(name,help).expect("does not fail. qed.");
+	g.set(value);
+	reg.register(Box::new(g)).expect("qed");
+}
+
+/// Sorted corpus of data.1
 #[derive(Debug, Clone, PartialEq)]
 pub struct Corpus<T>(Vec<T>);
 

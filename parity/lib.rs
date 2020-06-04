@@ -75,6 +75,7 @@ extern crate registrar;
 extern crate snapshot;
 extern crate spec;
 extern crate verification;
+extern crate prometheus;
 
 #[macro_use]
 extern crate log as rlog;

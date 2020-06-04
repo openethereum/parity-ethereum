@@ -49,6 +49,7 @@ extern crate rlp;
 extern crate rustc_hex;
 extern crate serde;
 extern crate snapshot;
+extern crate stats;
 extern crate spec;
 extern crate state_db;
 extern crate trace;

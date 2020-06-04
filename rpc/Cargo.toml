@@ -26,12 +26,12 @@ tokio-timer = "0.2.13"
 transient-hashmap = "0.4"
 itertools = "0.8.2"
 
-jsonrpc-core = { path = "../../jsonrpc/core" }
-jsonrpc-derive = { path = "../../jsonrpc/derive" }
-jsonrpc-http-server = { path = "../../jsonrpc/http" }
-jsonrpc-ws-server = { path = "../../jsonrpc/ws" }
-jsonrpc-ipc-server = { path = "../../jsonrpc/ipc" }
-jsonrpc-pubsub = { path = "../../jsonrpc/pubsub" }
+jsonrpc-core ={ git = "https://github.com/adria0/jsonrpc", branch="adria0/rawapi"}
+jsonrpc-derive = { git = "https://github.com/adria0/jsonrpc", branch="adria0/rawapi"}
+jsonrpc-http-server = { git = "https://github.com/adria0/jsonrpc", branch="adria0/rawapi"}
+jsonrpc-ws-server = { git = "https://github.com/adria0/jsonrpc", branch="adria0/rawapi"}
+jsonrpc-ipc-server = { git = "https://github.com/adria0/jsonrpc", branch="adria0/rawapi"}
+jsonrpc-pubsub ={ git = "https://github.com/adria0/jsonrpc", branch="adria0/rawapi"}
 
 client-traits = { path = "../ethcore/client-traits" }
 common-types = { path = "../ethcore/types" }

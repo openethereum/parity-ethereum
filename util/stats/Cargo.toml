@@ -5,3 +5,4 @@ authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]
 log = "0.4"
+prometheus = "0.9.0"

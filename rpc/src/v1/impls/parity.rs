@@ -39,6 +39,10 @@ use types::{
 };
 use updater::{Service as UpdateService};
 use version::version_data;
+use stats::{
+	PrometheusMetrics,
+	prometheus::{self, Encoder}
+};
 
 use v1::helpers::{self, errors, fake_sign, NetworkSettings, verify_signature};
 use v1::helpers::external_signer::{SigningQueue, SignerService};
@@ -70,7 +74,7 @@ pub struct ParityClient<C, M, U> {
 }
 
 impl<C, M, U> ParityClient<C, M, U> where
-	C: BlockChainClient,
+	C: BlockChainClient + PrometheusMetrics,
 {
 	/// Creates new `ParityClient`.
 	pub fn new(
@@ -102,7 +106,7 @@ impl<C, M, U> ParityClient<C, M, U> where
 
 impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 	S: StateInfo + 'static,
-	C: miner::BlockChainClient + BlockChainClient + StateClient<State=S> + Call<State=S> + 'static,
+	C: miner::BlockChainClient + BlockChainClient + PrometheusMetrics + StateClient<State=S> + Call<State=S> + 'static,
 	M: MinerService<State=S> + 'static,
 	U: UpdateService + 'static,
 {
@@ -454,22 +458,16 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 	}
 
 	fn metrics(&self) -> Result<String> {
-		let mut r = String::new();
 
-		let scalar = |b| if b {1} else {0};
+		let mut reg = prometheus::Registry::new();
+		self.client.prometheus_metrics(&mut reg);
+		self.sync.prometheus_metrics(&mut reg);
 
-		let sync_status = self.sync.status();
-		r.push_str(&format!("oe_sync_peers {}\n",sync_status.num_peers));
-		r.push_str(&format!("oe_sync_active_peers {}\n",sync_status.num_active_peers));
-		r.push_str(&format!("oe_sync_blocks_recieved {}\n",sync_status.blocks_received));
-		r.push_str(&format!("oe_sync_blocks_total {}\n",sync_status.blocks_total));
-		r.push_str(&format!("oe_sync_blocks_highest {}\n",sync_status.highest_block_number.unwrap_or(0)));
-		r.push_str(&format!("oe_sync_is_majorsync {}\n",scalar(self.sync.is_major_syncing())));
-		r.push_str(&format!("oe_sync_snapshot_is_sync {}\n",scalar(sync_status.is_snapshot_syncing())));
-		r.push_str(&format!("oe_sync_snapshot_chunks {}\n",sync_status.num_snapshot_chunks));
-		r.push_str(&format!("oe_sync_snapshot_chunks_done {}\n",sync_status.snapshot_chunks_done));
-		r.push_str(&format!("oe_sync_mem_used {}\n",sync_status.mem_used));
-		Ok(String::from(r))
+		let mut buffer = vec![];
+		let encoder = prometheus::TextEncoder::new();
+		let metric_families = reg.gather();
+		encoder.encode(&metric_families, &mut buffer).unwrap();
+		Ok(String::from_utf8(buffer).unwrap())
 	}
 
 	fn logs_no_tx_hash(&self, filter: Filter) -> BoxFuture<Vec<Log>> {

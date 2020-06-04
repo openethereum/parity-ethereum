@@ -32,6 +32,7 @@ rand = "0.7.3"
 parking_lot = "0.10.0"
 rlp = "0.4.5"
 snapshot = { path = "../snapshot" }
+stats = { path = "../../util/stats" }
 trace-time = "0.1"
 triehash-ethereum = { version = "0.2", path = "../../util/triehash-ethereum" }
 

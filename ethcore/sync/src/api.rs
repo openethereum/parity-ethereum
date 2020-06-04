@@ -66,7 +66,7 @@ use common_types::{
 	pruning_info::PruningInfo,
 	transaction::UnverifiedTransaction,
 };
-
+use stats::{PrometheusMetrics, prometheus_counter, prometheus_gauge, prometheus};
 
 /// Parity sync protocol
 pub const WARP_SYNC_PROTOCOL_ID: ProtocolId = *b"par";
@@ -150,7 +150,7 @@ impl Default for SyncConfig {
 pub type Notification<T> = futures_mpsc::UnboundedReceiver<T>;
 
 /// Current sync status
-pub trait SyncProvider: Send + Sync {
+pub trait SyncProvider: Send + Sync + PrometheusMetrics {
 	/// Get sync status
 	fn status(&self) -> EthSyncStatus;
 
@@ -409,6 +409,24 @@ impl EthSync {
 	/// Priority tasks producer
 	pub fn priority_tasks(&self) -> mpsc::Sender<PriorityTask> {
 		self.priority_tasks.lock().clone()
+	}
+}
+
+impl PrometheusMetrics for EthSync {
+	fn prometheus_metrics(&self, r: &mut prometheus::Registry) {
+		let scalar = |b| if b {1i64} else {0i64};
+		let sync_status = self.status();
+
+		prometheus_gauge(r,"sync_peers","Total number of connected peers",sync_status.num_peers as i64);
+		prometheus_gauge(r,"sync_active_peers","Total number of active peers",sync_status.num_active_peers as i64);
+		prometheus_counter(r,"sync_blocks_recieved","Number of blocks downloaded so far",sync_status.blocks_received as i64);
+		prometheus_counter(r,"sync_blocks_total","Total number of blocks for the sync process",sync_status.blocks_total as i64);
+		prometheus_gauge(r,"sync_blocks_highest","Highest block number in the download queue",sync_status.highest_block_number.unwrap_or(0) as i64);
+		prometheus_gauge(r,"sync_is_majorsync","Are we in the middle of a major sync?",scalar(self.is_major_syncing()));
+		prometheus_gauge(r,"sync_mem_used","Heap memory used in bytes",sync_status.mem_used  as i64);
+		prometheus_gauge(r,"sync_snapshot_is_sync",".",scalar(sync_status.is_snapshot_syncing()));
+		prometheus_gauge(r,"sync_snapshot_chunks","Snapshot chunks",sync_status.num_snapshot_chunks as i64);
+		prometheus_gauge(r,"sync_snapshot_chunks_done","Snapshot chunks downloaded",sync_status.snapshot_chunks_done as i64);
 	}
 }
 
