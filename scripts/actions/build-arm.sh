@@ -6,7 +6,7 @@ set -u # treat unset variables as error
 export RUSTFLAGS=" -Clink-arg=-s -Ctarget-feature=+aes"
 
 echo "_____ Setup OpenEthereum cross-compiling tools _____"
-time sudo apt-get install -qq gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf clang
+time sudo apt-get install -qq gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf clang clang++
 time rustup target add armv7-unknown-linux-gnueabihf
 
 echo "_____ Build OpenEthereum and tools _____"
