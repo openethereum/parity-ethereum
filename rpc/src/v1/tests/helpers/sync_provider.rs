@@ -22,6 +22,7 @@ use parking_lot::RwLock;
 use network::client_version::ClientVersion;
 use futures::sync::mpsc;
 use sync::{SyncProvider, EthProtocolInfo, SyncStatus, PeerInfo, TransactionStats, SyncState};
+use stats::{PrometheusMetrics,prometheus};
 
 /// TestSyncProvider config.
 pub struct Config {
@@ -69,6 +70,11 @@ impl TestSyncProvider {
 		*self.is_importing.write() = true;
 		let current_number = status.last_imported_block_number.unwrap_or(0);
 		status.last_imported_block_number = Some(current_number + count);
+	}
+}
+
+impl PrometheusMetrics for TestSyncProvider {
+	fn prometheus_metrics(&self, r: &mut prometheus::Registry) {
 	}
 }
 

@@ -81,6 +81,7 @@ use spec::{Spec, self};
 use account_state::state::StateInfo;
 use state_db::StateDB;
 use trace::LocalizedTrace;
+use stats::{PrometheusMetrics,prometheus};
 
 /// Test client.
 pub struct TestBlockChainClient {
@@ -993,5 +994,10 @@ impl client_traits::EngineClient for TestBlockChainClient {
 
 	fn block_header(&self, id: BlockId) -> Option<encoded::Header> {
 		BlockChainClient::block_header(self, id)
+	}
+}
+
+impl PrometheusMetrics for TestBlockChainClient {
+	fn prometheus_metrics(&self, r: &mut prometheus::Registry) {
 	}
 }
