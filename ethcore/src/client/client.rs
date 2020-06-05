@@ -30,7 +30,7 @@ use ethereum_types::{Address, H256, H264, U256};
 use hash::keccak;
 use hash_db::EMPTY_PREFIX;
 use kvdb::{DBTransaction, DBValue, KeyValueDB};
-use parking_lot::{Mutex, RwLock, RwLockReadGuard};
+use parking_lot::{Mutex, MutexGuard, RwLock, RwLockReadGuard};
 use rand::rngs::OsRng;
 use rlp::PayloadInfo;
 use rustc_hex::FromHex;
@@ -465,6 +465,7 @@ impl Importer {
 			return Err(e);
 		}
 
+		drop(chain);
 		let pending = self.check_epoch_end_signal(
 			&header,
 			&locked_block.receipts,
@@ -479,9 +480,8 @@ impl Importer {
 	///
 	/// The block is guaranteed to be the next best blocks in the
 	/// first block sequence. Does no sealing or transaction validation.
-	fn import_old_block(&self, unverified: Unverified, receipts_bytes: &[u8], db: &dyn KeyValueDB, chain: &BlockChain) -> EthcoreResult<()> {
+	fn import_old_block(&self, unverified: Unverified, receipts_bytes: &[u8], db: &dyn KeyValueDB, chain: &BlockChain, _import_lock: MutexGuard<()>) -> EthcoreResult<()> {
 		let receipts = ::rlp::decode_list(receipts_bytes);
-		let _import_lock = self.import_lock.lock();
 
 		{
 			trace_time!("import_old_block");
@@ -1299,12 +1299,12 @@ impl DatabaseRestore for Client {
 		trace!(target: "snapshot", "Replacing client database with {:?}", new_db);
 
 		let _import_lock = self.importer.import_lock.lock();
-		let mut state_db = self.state_db.write();
 		let mut chain = self.chain.write();
 		let mut tracedb = self.tracedb.write();
 		self.importer.miner.clear();
 		let db = self.db.write();
 		db.restore(new_db)?;
+		let mut state_db = self.state_db.write();
 
 		let cache_size = state_db.cache_size();
 		*state_db = StateDB::new(journaldb::new(db.key_value().clone(), self.pruning, ::db::COL_STATE), cache_size);
@@ -2271,12 +2271,17 @@ impl IoClient for Client {
 				let first = queued.write().1.pop_front();
 				if let Some((unverified, receipts_bytes)) = first {
 					let hash = unverified.hash();
-					let result = client.importer.import_old_block(
-						unverified,
-						&receipts_bytes,
-						&**client.db.read().key_value(),
-						&*client.chain.read(),
-					);
+					let result = {
+						let import_lock = client.importer.import_lock.lock();
+						let chain = client.chain.read();
+						client.importer.import_old_block(
+							unverified,
+							&receipts_bytes,
+							&**client.db.read().key_value(),
+							&*chain,
+							import_lock,
+						)
+					};
 					if let Err(e) = result {
 						error!(target: "client", "Error importing ancient block: {}", e);
 
