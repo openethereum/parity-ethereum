@@ -432,7 +432,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 					Err(e) => return InterpreterResult::Done(Err(e))
 				};
 				self.return_stack.push(self.reader.position);
-				self.reader.position = pos+1;
+				self.reader.position = pos + 1;
 			},	
 			InstructionResult::ReturnFromSubroutine(pos) => {
 				self.reader.position = pos;
