@@ -823,10 +823,8 @@ impl HeaderChain {
 	/// The header corresponding the the parent hash must be stored already.
 	pub fn epoch_transition_for(&self, parent_hash: H256) -> Option<(Header, Vec<u8>)> {
 		// slow path: loop back block by block
-		let live_proofs = self.live_epoch_proofs.read();
-
 		for hdr in self.ancestry_iter(BlockId::Hash(parent_hash)) {
-			if let Some(transition) = live_proofs.get(&hdr.hash()).cloned() {
+			if let Some(transition) = self.live_epoch_proofs.read().get(&hdr.hash()).cloned() {
 				return hdr.decode().map(|decoded_hdr| {
 					(decoded_hdr, transition.proof)
 				}).ok();
