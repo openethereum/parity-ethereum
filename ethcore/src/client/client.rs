@@ -30,7 +30,7 @@ use ethereum_types::{Address, H256, H264, U256};
 use hash::keccak;
 use hash_db::EMPTY_PREFIX;
 use kvdb::{DBTransaction, DBValue, KeyValueDB};
-use parking_lot::{Mutex, RwLock};
+use parking_lot::{Mutex, RwLock, RwLockReadGuard};
 use rand::rngs::OsRng;
 use rlp::PayloadInfo;
 use rustc_hex::FromHex;
@@ -424,7 +424,7 @@ impl Importer {
 		};
 
 		// Enact Verified Block
-		let last_hashes = client.build_last_hashes(*header.parent_hash());
+		let last_hashes = client.build_last_hashes(*header.parent_hash(), &chain);
 		let db = client.state_db.read().boxed_clone_canon(header.parent_hash());
 
 		let is_epoch_begin = chain.epoch_transition(parent.number(), *header.parent_hash()).is_some();
@@ -633,7 +633,7 @@ impl Importer {
 							author: *header.author(),
 							timestamp: header.timestamp(),
 							difficulty: *header.difficulty(),
-							last_hashes: client.build_last_hashes(*header.parent_hash()),
+							last_hashes: client.build_last_hashes(*header.parent_hash(), &client.chain.read()),
 							gas_used: U256::default(),
 							gas_limit: u64::max_value().into(),
 						};
@@ -911,14 +911,14 @@ impl Client {
 				author: header.author(),
 				timestamp: header.timestamp(),
 				difficulty: header.difficulty(),
-				last_hashes: self.build_last_hashes(header.parent_hash()),
+				last_hashes: self.build_last_hashes(header.parent_hash(), &self.chain.read()),
 				gas_used: U256::default(),
 				gas_limit: header.gas_limit(),
 			}
 		})
 	}
 
-	fn build_last_hashes(&self, parent_hash: H256) -> Arc<LastHashes> {
+	fn build_last_hashes(&self, parent_hash: H256, chain: &RwLockReadGuard<Arc<BlockChain>>) -> Arc<LastHashes> {
 		{
 			let hashes = self.last_hashes.read();
 			if hashes.front().map_or(false, |h| h == &parent_hash) {
@@ -930,7 +930,6 @@ impl Client {
 		let mut last_hashes = LastHashes::new();
 		last_hashes.resize(256, H256::zero());
 		last_hashes[0] = parent_hash;
-		let chain = self.chain.read();
 		for i in 0..255 {
 			match chain.block_details(&last_hashes[i]) {
 				Some(details) => {
@@ -1030,7 +1029,7 @@ impl Client {
 
 	/// Access state from tests
 	#[cfg(any(test, feature = "test-helpers"))]
-	pub fn state_db(&self) -> ::parking_lot::RwLockReadGuard<StateDB> {
+	pub fn state_db(&self) -> RwLockReadGuard<StateDB> {
 		self.state_db.read()
 	}
 
@@ -1268,12 +1267,12 @@ impl Client {
 		}
 	}
 
-	fn block_number_ref(&self, id: &BlockId) -> Option<BlockNumber> {
+	fn block_number_ref(&self, id: &BlockId, chain: &RwLockReadGuard<Arc<BlockChain>>) -> Option<BlockNumber> {
 		match *id {
 			BlockId::Number(number) => Some(number),
-			BlockId::Hash(ref hash) => self.chain.read().block_number(hash),
+			BlockId::Hash(ref hash) => chain.block_number(hash),
 			BlockId::Earliest => Some(0),
-			BlockId::Latest => Some(self.chain.read().best_block_number()),
+			BlockId::Latest => Some(chain.best_block_number()),
 		}
 	}
 
@@ -1529,7 +1528,7 @@ impl Call for Client {
 			author: *header.author(),
 			timestamp: header.timestamp(),
 			difficulty: *header.difficulty(),
-			last_hashes: self.build_last_hashes(*header.parent_hash()),
+			last_hashes: self.build_last_hashes(*header.parent_hash(), &self.chain.read()),
 			gas_used: U256::default(),
 			gas_limit: U256::max_value(),
 		};
@@ -1544,7 +1543,7 @@ impl Call for Client {
 			author: *header.author(),
 			timestamp: header.timestamp(),
 			difficulty: *header.difficulty(),
-			last_hashes: self.build_last_hashes(*header.parent_hash()),
+			last_hashes: self.build_last_hashes(*header.parent_hash(), &self.chain.read()),
 			gas_used: U256::default(),
 			gas_limit: U256::max_value(),
 		};
@@ -1571,7 +1570,7 @@ impl Call for Client {
 				author: *header.author(),
 				timestamp: header.timestamp(),
 				difficulty: *header.difficulty(),
-				last_hashes: self.build_last_hashes(*header.parent_hash()),
+				last_hashes: self.build_last_hashes(*header.parent_hash(), &self.chain.read()),
 				gas_used: U256::default(),
 				gas_limit: max,
 			};
@@ -1746,7 +1745,7 @@ impl BlockChainClient for Client {
 	}
 
 	fn block_number(&self, id: BlockId) -> Option<BlockNumber> {
-		self.block_number_ref(&id)
+		self.block_number_ref(&id, &self.chain.read())
 	}
 
 	fn block_body(&self, id: BlockId) -> Option<encoded::Body> {
@@ -1997,11 +1996,11 @@ impl BlockChainClient for Client {
 			// If we are sure the block does not exist (where val > best_block_number), then return error. Note that we
 			// don't need to care about pending blocks here because RPC query sets pending back to latest (or handled
 			// pending logs themselves).
-			let from = match self.block_number_ref(&filter.from_block) {
+			let from = match self.block_number_ref(&filter.from_block, &chain) {
 				Some(val) if val <= chain.best_block_number() => val,
 				_ => return Err(filter.from_block),
 			};
-			let to = match self.block_number_ref(&filter.to_block) {
+			let to = match self.block_number_ref(&filter.to_block, &chain) {
 				Some(val) if val <= chain.best_block_number() => val,
 				_ => return Err(filter.to_block),
 			};
@@ -2130,7 +2129,8 @@ impl BlockChainClient for Client {
 	}
 
 	fn last_hashes(&self) -> LastHashes {
-		self.build_last_hashes(self.chain.read().best_block_hash()).to_vec()
+		let chain = self.chain.read();
+		self.build_last_hashes(chain.best_block_hash(), &chain).to_vec()
 	}
 
 	fn transactions_to_propagate(&self) -> Vec<Arc<VerifiedTransaction>> {
@@ -2365,7 +2365,7 @@ impl PrepareOpenBlock for Client {
 			self.tracedb.read().tracing_enabled(),
 			self.state_db.read().boxed_clone_canon(&h),
 			&best_header,
-			self.build_last_hashes(h),
+			self.build_last_hashes(h, &chain),
 			author,
 			gas_range_target,
 			extra_data,
