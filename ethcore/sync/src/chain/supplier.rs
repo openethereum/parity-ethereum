@@ -20,7 +20,7 @@ use std::time::{Duration, Instant};
 use crate::sync_io::SyncIo;
 
 use bytes::Bytes;
-use enum_primitive::FromPrimitive;
+use num_traits::FromPrimitive;
 use ethereum_types::H256;
 use log::{debug, trace, warn};
 use network::{self, PeerId};
