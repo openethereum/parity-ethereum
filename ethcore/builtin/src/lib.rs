@@ -772,7 +772,11 @@ impl Implementation for Modexp {
 			let exponent = read_num(&mut reader, exp_len);
 			let modulus = read_num(&mut reader, mod_len);
 
-			base.modpow(&exponent, &modulus)
+			if modulus.is_zero() || modulus.is_one() {
+				BigUint::zero()
+			} else {
+				base.modpow(&exponent, &modulus)
+			}
 		};
 
 		// write output to given memory, left padded and same length as the modulus.
