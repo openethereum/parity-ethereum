@@ -50,6 +50,7 @@ pub enum SpecType {
 	Kovan,
 	Rinkeby,
 	Goerli,
+	YOLOv1,
 	Kotti,
 	Sokol,
 	Evantestcore,
@@ -87,6 +88,7 @@ impl str::FromStr for SpecType {
 			"kovan" => SpecType::Kovan,
 			"rinkeby" => SpecType::Rinkeby,
 			"goerli" | "görli" | "testnet" => SpecType::Goerli,
+			"yolo" | "yolov1" => SpecType::YOLOv1,
 			"kotti" => SpecType::Kotti,
 			"sokol" | "poasokol" => SpecType::Sokol,
 			"evantestcore" => SpecType::Evantestcore,
@@ -118,6 +120,7 @@ impl fmt::Display for SpecType {
 			SpecType::Kovan => "kovan",
 			SpecType::Rinkeby => "rinkeby",
 			SpecType::Goerli => "goerli",
+			SpecType::YOLOv1 => "yolov1",
 			SpecType::Kotti => "kotti",
 			SpecType::Sokol => "sokol",
 			SpecType::Evantestcore => "evantestcore",
@@ -149,6 +152,7 @@ impl SpecType {
 			SpecType::Kovan => Ok(spec::new_kovan(params)),
 			SpecType::Rinkeby => Ok(spec::new_rinkeby(params)),
 			SpecType::Goerli => Ok(spec::new_goerli(params)),
+			SpecType::YOLOv1 => Ok(spec::new_yolov1(params)),
 			SpecType::Kotti => Ok(spec::new_kotti(params)),
 			SpecType::Sokol => Ok(spec::new_sokol(params)),
 			SpecType::Evantestcore => Ok(spec::new_evantestcore(params)),
@@ -411,6 +415,8 @@ mod tests {
 		assert_eq!(SpecType::Goerli, "goerli".parse().unwrap());
 		assert_eq!(SpecType::Goerli, "görli".parse().unwrap());
 		assert_eq!(SpecType::Goerli, "testnet".parse().unwrap());
+		assert_eq!(SpecType::YOLOv1, "yolo".parse().unwrap());
+		assert_eq!(SpecType::YOLOv1, "yolov1".parse().unwrap());
 		assert_eq!(SpecType::Kotti, "kotti".parse().unwrap());
 		assert_eq!(SpecType::Sokol, "sokol".parse().unwrap());
 		assert_eq!(SpecType::Sokol, "poasokol".parse().unwrap());
@@ -441,6 +447,7 @@ mod tests {
 		assert_eq!(format!("{}", SpecType::Kovan), "kovan");
 		assert_eq!(format!("{}", SpecType::Rinkeby), "rinkeby");
 		assert_eq!(format!("{}", SpecType::Goerli), "goerli");
+		assert_eq!(format!("{}", SpecType::YOLOv1), "yolov1");
 		assert_eq!(format!("{}", SpecType::Kotti), "kotti");
 		assert_eq!(format!("{}", SpecType::Sokol), "sokol");
 		assert_eq!(format!("{}", SpecType::Evantestcore), "evantestcore");
