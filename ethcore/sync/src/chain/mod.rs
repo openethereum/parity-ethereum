@@ -1119,8 +1119,8 @@ impl ChainSync {
 					}
 				},
 				SyncState::SnapshotData => {
-					match io.snapshot_service().status() {
-						RestorationStatus::Ongoing { state_chunks_done, block_chunks_done, state_chunks, block_chunks } => {
+					match io.snapshot_service().restoration_status() {
+						RestorationStatus::Ongoing { state_chunks_done, block_chunks_done, state_chunks, block_chunks, .. } => {
 							// Initialize the snapshot if not already done
 							self.snapshot.initialize(io.snapshot_service(), block_chunks as usize + state_chunks as usize);
 							if self.snapshot.done_chunks() - (state_chunks_done + block_chunks_done) as usize > MAX_SNAPSHOT_CHUNKS_DOWNLOAD_AHEAD {
@@ -1322,14 +1322,14 @@ impl ChainSync {
 				self.set_state(SyncState::Blocks);
 				self.continue_sync(io);
 			},
-			SyncState::SnapshotData => match io.snapshot_service().status() {
+			SyncState::SnapshotData => match io.snapshot_service().restoration_status() {
 				RestorationStatus::Inactive | RestorationStatus::Failed => {
 					self.set_state(SyncState::SnapshotWaiting);
 				},
 				RestorationStatus::Initializing { .. } | RestorationStatus::Ongoing { .. } | RestorationStatus::Finalizing => (),
 			},
 			SyncState::SnapshotWaiting => {
-				match io.snapshot_service().status() {
+				match io.snapshot_service().restoration_status() {
 					RestorationStatus::Inactive => {
 						trace!(target:"snapshot_sync", "Snapshot restoration is complete");
 						self.restart(io);

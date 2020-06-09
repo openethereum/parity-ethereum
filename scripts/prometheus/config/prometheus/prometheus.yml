@@ -34,11 +34,5 @@ scrape_configs:
         replacement: "oe_${1}"
     static_configs:
     - targets:
-      - 10.0.1.1:8545
-
-  - job_name: cadvisor
-    scrape_interval: 5s
-    static_configs:
-    - targets:
-      - 10.0.10.4:8080
+      - localhost:8545
 

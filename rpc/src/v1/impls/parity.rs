@@ -17,6 +17,7 @@
 //! Parity-specific rpc implementation.
 use std::sync::Arc;
 use std::collections::BTreeMap;
+use std::time::Instant;
 
 use crypto::DEFAULT_MAC;
 use ethereum_types::{H64, H160, H256, H512, U64, U256};
@@ -41,6 +42,7 @@ use updater::{Service as UpdateService};
 use version::version_data;
 use stats::{
 	PrometheusMetrics,
+	prometheus_gauge,
 	prometheus::{self, Encoder}
 };
 
@@ -443,7 +445,7 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 
 	fn status(&self) -> Result<()> {
 		let has_peers = self.settings.is_dev_chain || self.sync.status().num_peers > 0;
-		let is_warping = match self.snapshot.as_ref().map(|s| s.status()) {
+		let is_warping = match self.snapshot.as_ref().map(|s| s.restoration_status()) {
 			Some(RestorationStatus::Ongoing { .. }) => true,
 			_ => false,
 		};
@@ -458,10 +460,15 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 	}
 
 	fn metrics(&self) -> Result<String> {
-
+		let start = Instant::now();
 		let mut reg = prometheus::Registry::new();
+
 		self.client.prometheus_metrics(&mut reg);
 		self.sync.prometheus_metrics(&mut reg);
+
+		let elapsed = start.elapsed();
+		let ms = (elapsed.as_secs() as i64)*1000 + (elapsed.subsec_millis() as i64);
+		prometheus_gauge(&mut reg,"metrics_time","Time to perform rpc metrics",ms);
 
 		let mut buffer = vec![];
 		let encoder = prometheus::TextEncoder::new();

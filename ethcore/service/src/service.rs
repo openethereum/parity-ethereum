@@ -240,7 +240,7 @@ where
 		match timer {
 			CLIENT_TICK_TIMER => {
 				use snapshot::SnapshotService;
-				let snapshot_restoration = if let RestorationStatus::Ongoing{..} = self.snapshot.status() { true } else { false };
+				let snapshot_restoration = if let RestorationStatus::Ongoing{..} = self.snapshot.restoration_status() { true } else { false };
 				self.client.tick(snapshot_restoration)
 			},
 			SNAPSHOT_TICK_TIMER => self.snapshot.tick(),

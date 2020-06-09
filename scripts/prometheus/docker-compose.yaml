@@ -1,34 +1,6 @@
 version: '3.5'
 services:
 
-  openethereum:
-    image: openethereum:prometheus
-    restart: always
-    ports:
-      - '8545:8545'
-      - '30303:30303'
-      - '30303:30303/udp'
-    dns: 1.1.1.1
-    networks:
-      scnetwork:
-        ipv4_address: 10.0.1.1
-    volumes:
-      - /tmp/oe:/log
-    entrypoint: ./openethereum  --no-warp --jsonrpc-port 8545 --jsonrpc-interface 10.0.1.1 --jsonrpc-hosts all
-
-  promtail:
-    image: grafana/promtail:latest
-    volumes:
-      - ./config/promtail/config.yaml:/etc/promtail/config.yaml
-      - /tmp/xdailogs:/log/xdai
-    command: -client.url=${LOKI_PUSH_URL} -config.file=/etc/promtail/config.yaml
-    dns: 1.1.1.1
-    networks:
-      scnetwork:
-        ipv4_address: 10.0.1.2
-    depends_on:
-      - openethereum
-
   prometheus:
     image: prom/prometheus
     container_name: prometheus
@@ -37,71 +9,17 @@ services:
       - ./config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml 
     ports:
       - '9090:9090'
-    dns: 1.1.1.1
-    networks:
-      scnetwork:
-        ipv4_address: 10.0.10.1
-    logging:
-      options:
-        max-size: 10m
-        max-file: '3'
-
-
-  loki:
-    image: grafana/loki
-    container_name: loki
-    restart: always
-    ports:
-      - '3100:3100'
-    dns: 1.1.1.1
-    networks:
-      scnetwork:
-        ipv4_address: 10.0.10.2
-    logging:
-      options:
-        max-size: 10m
-        max-file: '3'
+    network_mode: host
 
   grafana:
     image: grafana/grafana
     container_name: grafana  
     restart: always
     volumes:
-      - ./config/grafana/grafana.ini:/etc/grafana/grafana.ini
-      - ./config/grafana/prometheus.yaml:/etc/grafana/provisioning/datasources/prometheus.yaml
-      - ./config/grafana/loki.yaml:/etc/grafana/provisioning/datasources/loki.yaml
+      - ./config/grafana:/etc/grafana
     ports:
       - '3000:3000'
     environment:
      - GF_SECURITY_ADMIN_PASSWORD:secret
-    dns: 1.1.1.1
-    networks:
-      scnetwork:
-        ipv4_address: 10.0.10.3
-    logging:
-      options:
-        max-size: 10m
-        max-file: '3'
-
-  cadvisor:
-    image: google/cadvisor:latest
-    container_name: cadvisor
-    ports:
-      - 8080:8080
-    volumes:
-      - /:/rootfs:ro
-      - /var/run:/var/run:rw
-      - /sys:/sys:ro
-      - /var/lib/docker/:/var/lib/docker:ro
-      - /dev/disk/:/dev/disk:ro
-    networks:
-      scnetwork:
-        ipv4_address: 10.0.10.4
-
-networks:
-  scnetwork:
-    driver: bridge
-    ipam:
-      config:
-        - subnet: 10.0.0.0/16
+    network_mode: host
 

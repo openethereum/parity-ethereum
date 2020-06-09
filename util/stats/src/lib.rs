@@ -18,6 +18,7 @@
 
 use std::iter::FromIterator;
 use std::ops::{Add, Sub, Deref, Div};
+use std::time::Instant;
 
 #[macro_use]
 extern crate log;
@@ -37,6 +38,15 @@ pub fn prometheus_gauge(reg: &mut prometheus::Registry, name: &str, help: &str, 
 	let g = prometheus::IntGauge::new(name,help).expect("does not fail. qed.");
 	g.set(value);
 	reg.register(Box::new(g)).expect("qed");
+}
+
+pub fn prometheus_optime<T>(r: &mut prometheus::Registry, name: &str, f: &dyn Fn()->T ) -> T {
+	let start = Instant::now();
+	let t = f();
+	let elapsed = start.elapsed();
+	let ms = (elapsed.as_secs() as i64)*1000 + (elapsed.subsec_millis() as i64);
+	prometheus_gauge(r,&format!("optime_{}",name),&format!("Time to perform {}",name),ms);
+	t
 }
 
 /// Sorted corpus of data.1

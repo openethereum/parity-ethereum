@@ -2900,10 +2900,7 @@ impl PrometheusMetrics for Client {
 			prometheus_gauge(r,"chain_warpsync_gap_last","Warp sync gap, last block",last.as_u64() as i64);
 		}
 
-		prometheus_gauge(r,"chain_difficulty_total","Blockchain difficulty",chain.total_difficulty.as_u64() as i64);
-		prometheus_gauge(r,"chain_difficulty_total_pending","Block queue difficulty",chain.pending_total_difficulty.as_u64() as i64);
 		prometheus_gauge(r,"chain_block","Best block number",chain.best_block_number as i64);
-
 
 		// prunning info
 		let prunning = self.pruning_info();

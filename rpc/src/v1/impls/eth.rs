@@ -551,10 +551,10 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM, T: StateInfo + 'static> Eth for EthClient<
 	fn syncing(&self) -> Result<SyncStatus> {
 		let status = self.sync.status();
 		let client = &self.client;
-		let snapshot_status = self.snapshot.status();
+		let snapshot_status = self.snapshot.restoration_status();
 
 		let (warping, warp_chunks_amount, warp_chunks_processed) = match snapshot_status {
-			RestorationStatus::Ongoing { state_chunks, block_chunks, state_chunks_done, block_chunks_done } =>
+			RestorationStatus::Ongoing { state_chunks, block_chunks, state_chunks_done, block_chunks_done, .. } =>
 				(true, Some(block_chunks + state_chunks), Some(block_chunks_done + state_chunks_done)),
 			_ => (false, None, None),
 		};

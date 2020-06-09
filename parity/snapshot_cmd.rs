@@ -86,7 +86,7 @@ fn restore_using<R: SnapshotReader>(snapshot: Arc<SnapshotService<Client>>, read
 
 	let informant_handle = snapshot.clone();
 	::std::thread::spawn(move || {
- 		while let RestorationStatus::Ongoing { state_chunks_done, block_chunks_done, .. } = informant_handle.status() {
+ 		while let RestorationStatus::Ongoing { state_chunks_done, block_chunks_done, .. } = informant_handle.restoration_status() {
  			info!("Processed {}/{} state chunks and {}/{} block chunks.",
  				state_chunks_done, num_state, block_chunks_done, num_blocks);
  			::std::thread::sleep(Duration::from_secs(5));
@@ -95,7 +95,7 @@ fn restore_using<R: SnapshotReader>(snapshot: Arc<SnapshotService<Client>>, read
 
  	info!("Restoring state");
  	for &state_hash in &manifest.state_hashes {
- 		if snapshot.status() == RestorationStatus::Failed {
+ 		if snapshot.restoration_status() == RestorationStatus::Failed {
  			return Err("Restoration failed".into());
  		}
 
@@ -112,7 +112,7 @@ fn restore_using<R: SnapshotReader>(snapshot: Arc<SnapshotService<Client>>, read
 
 	info!("Restoring blocks");
 	for &block_hash in &manifest.block_hashes {
-		if snapshot.status() == RestorationStatus::Failed {
+		if snapshot.restoration_status() == RestorationStatus::Failed {
 			return Err("Restoration failed".into());
 		}
 
@@ -126,7 +126,7 @@ fn restore_using<R: SnapshotReader>(snapshot: Arc<SnapshotService<Client>>, read
 		snapshot.feed_block_chunk(block_hash, &chunk);
 	}
 
-	match snapshot.status() {
+	match snapshot.restoration_status() {
 		RestorationStatus::Ongoing { .. } => Err("Snapshot file is incomplete and missing chunks.".into()),
 		RestorationStatus::Initializing { .. } => Err("Snapshot restoration is still initializing.".into()),
 		RestorationStatus::Finalizing => Err("Snapshot restoration is still finalizing.".into()),
