@@ -74,7 +74,7 @@ impl TestSyncProvider {
 }
 
 impl PrometheusMetrics for TestSyncProvider {
-	fn prometheus_metrics(&self, r: &mut prometheus::Registry) {
+	fn prometheus_metrics(&self, _: &mut prometheus::Registry) {
 	}
 }
 
