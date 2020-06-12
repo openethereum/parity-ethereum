@@ -1121,7 +1121,6 @@ mod tests {
 	};
 	use hex_literal::hex;
 	use maplit::btreemap;
-	use num::{BigUint, Zero, One};
 	use parity_bytes::BytesRef;
 	use super::{
 		Builtin, EthereumBuiltin, FromStr, Implementation, Linear,
