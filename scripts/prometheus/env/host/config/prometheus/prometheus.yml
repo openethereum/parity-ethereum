@@ -36,3 +36,13 @@ scrape_configs:
     - targets:
       - localhost:8545
 
+  - job_name: cadvisor
+    scrape_interval: 5s
+    static_configs:
+    - targets:
+      - cadvisor:8080
+
+  - job_name: nodeexporter
+    static_configs:
+    - targets:
+       - nodeexporter:9100

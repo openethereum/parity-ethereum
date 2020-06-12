@@ -6,6 +6,7 @@ services:
     container_name: prometheus
     restart: always
     volumes:
+      - ../../grafana:/etc/grafana
       - ./config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml 
     ports:
       - '9090:9090'
@@ -22,4 +23,3 @@ services:
     environment:
      - GF_SECURITY_ADMIN_PASSWORD:secret
     network_mode: host
-

@@ -1,0 +1,63 @@
+version: '3.5'
+services:
+
+#  openethereum:
+#    build:
+#      dockerfile: scripts/docker/alpine/Dockerfile
+#      context: ../../../..
+#    ports:
+#      - '30303:30303'
+#      - '30303:30303/udp'
+#      - '8545:8545'
+
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    restart: always
+    ports:
+      - '9090:9090'
+    volumes:
+      - ../../grafana:/etc/grafana
+      - ./config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml 
+
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    restart: always
+    volumes:
+      - ./config/grafana:/etc/grafana
+    ports:
+      - '3000:3000'
+    environment:
+     - GF_SECURITY_ADMIN_PASSWORD:secret
+
+  cadvisor:
+    image: google/cadvisor:latest
+    container_name: cadvisor
+    volumes:
+    - /:/rootfs:ro
+    - /var/run:/var/run:rw
+    - /sys:/sys:ro
+    - /var/lib/docker/:/var/lib/docker:ro
+    depends_on:
+    - redis
+
+  redis:
+    image: redis:latest
+    container_name: redis
+    network_mode: host
+
+  nodeexporter:
+    image: prom/node-exporter:latest
+    container_name: nodeexporter
+    user: root
+    privileged: true
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.ignored-mount-points=^/(sys|proc|dev|host|etc)($$|/)'
+    restart: unless-stopped

@@ -562,7 +562,7 @@ fn execute_impl<Cr, Rr>(
 	let private_tx_signer = account_utils::private_tx_signer(account_provider.clone(), &passwords)?;
 
 	// create client service.
-	let service = ClientService::start(
+	let service = ClientService::1(
 		client_config,
 		&spec,
 		client_db,
