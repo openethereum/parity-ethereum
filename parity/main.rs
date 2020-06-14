@@ -28,6 +28,9 @@ extern crate openethereum;
 extern crate parking_lot;
 extern crate parity_daemonize;
 extern crate ansi_term;
+extern crate alloc_counter;
+extern crate prometheus;
+extern crate stats;
 
 #[cfg(windows)] extern crate winapi;
 extern crate ethcore_logger;
@@ -50,6 +53,13 @@ use parking_lot::{Condvar, Mutex};
 
 const PLEASE_RESTART_EXIT_CODE: i32 = 69;
 const PARITY_EXECUTABLE_NAME: &str = "parity";
+
+use alloc_counter::*;
+
+#[global_allocator]
+pub static A: AllocCounterSystem = AllocCounterSystem;
+
+pub static B : i64 = 0;
 
 #[derive(Debug)]
 enum Error {
@@ -368,6 +378,8 @@ macro_rules! trace_main {
 	($($arg:tt)*) => (println_trace_main(format!("{}", format_args!($($arg)*))));
 }
 
+
+
 fn main() {
 	panic_hook::set_abort();
 
@@ -445,7 +457,7 @@ fn main() {
 				process::exit(exit_code);
 			}
 			trace!(target: "updater", "Re-running updater loop");
-		}
+		}trace_main
 	} else {
 		trace_main!("Running direct");
 		// Otherwise, we're presumably running the version we want. Just run and fall-through.

@@ -66,6 +66,7 @@ use secretstore;
 use signer;
 use db;
 use registrar::RegistrarClient;
+use stats::{prometheus, prometheus_gauge};
 
 // How often we attempt to take a snapshot: only snapshot on blocknumbers that are multiples of this.
 const SNAPSHOT_PERIOD: u64 = 5000;
@@ -562,7 +563,7 @@ fn execute_impl<Cr, Rr>(
 	let private_tx_signer = account_utils::private_tx_signer(account_provider.clone(), &passwords)?;
 
 	// create client service.
-	let service = ClientService::1(
+	let service = ClientService::start(
 		client_config,
 		&spec,
 		client_db,
@@ -745,6 +746,9 @@ fn execute_impl<Cr, Rr>(
 		poll_lifetime: cmd.poll_lifetime,
 		allow_missing_blocks: cmd.allow_missing_blocks,
 		no_ancient_blocks: !cmd.download_old_blocks,
+		heap_allocator_info: Arc::new(|r| {
+			prometheus_gauge(r,"heap_allocs","BlockDetails cache size",::B);
+		})
 	});
 
 	let dependencies = rpc::Dependencies {

@@ -74,6 +74,7 @@ extern crate parity_version;
 extern crate registrar;
 extern crate snapshot;
 extern crate spec;
+extern crate stats;
 extern crate verification;
 extern crate prometheus;
 

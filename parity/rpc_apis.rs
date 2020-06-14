@@ -255,6 +255,7 @@ pub struct FullDependencies {
 	pub poll_lifetime: u32,
 	pub allow_missing_blocks: bool,
 	pub no_ancient_blocks: bool,
+	pub heap_allocator_info : Arc<dyn Fn(&mut prometheus::Registry)>,
 }
 
 impl FullDependencies {

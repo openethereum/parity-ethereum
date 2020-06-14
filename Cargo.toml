@@ -61,7 +61,7 @@ parity-rpc = { path = "rpc" }
 parity-runtime = "0.1.1"
 parity-secretstore = { git = "https://github.com/paritytech/secret-store", branch = "v1.x", optional = true }
 parity-updater = { path = "updater" }
-parity-util-mem = { version = "0.6.0", features = ["jemalloc-global"] }
+parity-util-mem = { version = "0.6.0" }
 parity-version = { path = "util/version" }
 parking_lot = "0.10.0"
 regex = "1.0"
@@ -75,11 +75,13 @@ serde_derive = "1.0"
 serde_json = "1.0"
 snapshot = { path = "ethcore/snapshot" }
 spec = { path = "ethcore/spec" }
+stats = { path = "util/stats" }
 term_size = "0.3"
 textwrap = "0.11.0"
 toml = "0.5.6"
 verification = { path = "ethcore/verification" }
 prometheus = "0.9.0"
+alloc_counter = { path = "../alloc-counter" }
 
 [build-dependencies]
 rustc_version = "0.2"
