@@ -1,4 +1,4 @@
-name:                           Docker Image Release
+name:                           Docker Image Release - Custom Version
 on: push
 jobs:
   deploy-docker:
