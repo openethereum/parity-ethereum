@@ -22,5 +22,5 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
           dockerfile: scripts/docker/alpine/Dockerfile
           tag_names: false
-          tags: "alpha-${{ env.GITHUB_REF }}"
+          tags: "${{ env.GITHUB_REF }}"
 
