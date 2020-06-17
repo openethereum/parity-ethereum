@@ -74,20 +74,23 @@ const CACHE_MEM_USED_TIMEOUT: std::time::Duration = std::time::Duration::from_se
 
 pub struct CachedMemUsed {
 	mem_used: usize,
-	ts: std::time::Instant
+	ts: std::time::Instant,
+	outdated : bool,
 }
 impl CachedMemUsed {
 	pub fn new(mem_used: usize) -> Self {
 		Self {
 			mem_used,
 			ts : std::time::Instant::now(),
+			outdated : false,
 		}
 	}
-	pub fn value(&self) -> Option<usize> {
-		if self.ts.elapsed() < CACHE_MEM_USED_TIMEOUT {
-			Some(self.mem_used)
-		}  else {
+	pub fn value_or_none_once(&mut self) -> Option<usize> {
+		if !self.outdated && self.ts.elapsed() > CACHE_MEM_USED_TIMEOUT {
+			self.outdated = true;
 			None
+		}  else {
+			Some(self.mem_used)
 		}
 	}
 }
@@ -273,7 +276,7 @@ impl JournalDB for OverlayRecentDB {
 	}
 
 	fn mem_used(&self) -> usize {
-		if let Some(mem_used) = self.cached_mem_used.read().value() {
+		if let Some(mem_used) = self.cached_mem_used.write().value_or_none_once() {
 			return mem_used;
 		}
 
