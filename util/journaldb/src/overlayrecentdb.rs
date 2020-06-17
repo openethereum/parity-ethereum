@@ -70,12 +70,35 @@ use crate::{
 /// the removed key is not present in the history overlay.
 /// 7. Delete ancient record from memory and disk.
 
+const CACHE_MEM_USED_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(60);
+
+pub struct CachedMemUsed {
+	mem_used: usize,
+	ts: std::time::Instant
+}
+impl CachedMemUsed {
+	pub fn new(mem_used: usize) -> Self {
+		Self {
+			mem_used,
+			ts : std::time::Instant::now(),
+		}
+	}
+	pub fn value(&self) -> Option<usize> {
+		if self.ts.elapsed() < CACHE_MEM_USED_TIMEOUT {
+			Some(self.mem_used)
+		}  else {
+			None
+		}
+	}
+}
+
 #[derive(Clone)]
 pub struct OverlayRecentDB {
 	transaction_overlay: super::MemoryDB,
 	backing: Arc<dyn KeyValueDB>,
 	journal_overlay: Arc<RwLock<JournalOverlay>>,
 	column: u32,
+	cached_mem_used: Arc<RwLock<CachedMemUsed>>,
 }
 
 struct DatabaseValue {
@@ -150,6 +173,7 @@ impl OverlayRecentDB {
 			backing,
 			journal_overlay,
 			column: col,
+			cached_mem_used : Arc::new(RwLock::new(CachedMemUsed::new(0)))
 		}
 	}
 
@@ -249,6 +273,10 @@ impl JournalDB for OverlayRecentDB {
 	}
 
 	fn mem_used(&self) -> usize {
+		if let Some(mem_used) = self.cached_mem_used.read().value() {
+			return mem_used;
+		}
+
 		let mut ops = new_malloc_size_ops();
 		let mut mem = self.transaction_overlay.size_of(&mut ops);
 		let overlay = self.journal_overlay.read();
@@ -256,6 +284,8 @@ impl JournalDB for OverlayRecentDB {
 		mem += overlay.backing_overlay.size_of(&mut ops);
 		mem += overlay.pending_overlay.size_of(&mut ops);
 		mem += overlay.journal.size_of(&mut ops);
+
+		*self.cached_mem_used.write() = CachedMemUsed::new(mem);
 
 		mem
 	}

@@ -292,8 +292,7 @@ impl<T: InformantData> Informant<T> {
 			true => format!("{}", c.paint(t)),
 			false => t,
 		};
-
-		info!(target: "import", "{}  {}  {}  {}",
+		let line = format!("{}  {}  {}  {}",
 			match importing {
 				true => match snapshot_sync {
 					false => format!("Syncing {} {}  {}  {}+{} Qed",
@@ -367,6 +366,7 @@ impl<T: InformantData> Informant<T> {
 				_ => String::new(),
 			},
 		);
+	    info!(target: "import", "{}  [{:5.3}s]",line,now.elapsed().as_secs_f32());
 	}
 }
 
