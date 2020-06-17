@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - stable
-      - feature/publish-draft-release-ci
     tags:
       - v*
 
@@ -84,11 +83,11 @@ jobs:
       - name:                   Sccache statistics
         run:                    sccache --show-stats
 
-      - name:                   Build OpenEthereum for windows
+      - name:                   Build OpenEthereum for Windows
         if:                     matrix.platform == 'windows-latest'
         run:                    sh scripts/actions/build-windows.sh ${{matrix.platform}}
 
-      - name:                   Upload windows build
+      - name:                   Upload Windows build
         uses:                   actions/upload-artifact@v2
         if:                     matrix.platform == 'windows-latest'
         with:
@@ -103,14 +102,14 @@ jobs:
         if:                     matrix.platform != 'windows-latest'
         run:                    sh scripts/actions/build-linux.sh ${{matrix.platform}}
 
-      - name:                   Upload ${{ matrix.platform }} build
+      - name:                   Upload Linux build
         uses:                   actions/upload-artifact@v2
         if:                     matrix.platform == 'ubuntu-16.04'
         with:
           name:                 linux-artifacts
           path:                 artifacts
 
-      - name:                   Upload ${{ matrix.platform }} build
+      - name:                   Upload MacOS build
         uses:                   actions/upload-artifact@v2
         if:                     matrix.platform == 'macos-latest'
         with:
