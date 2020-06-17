@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - stable
+      - feature/publish-draft-release-ci
     tags:
       - v*
 
@@ -71,25 +72,251 @@ jobs:
       - name:                   Install sccache for ${{ matrix.platform }}
         shell:                  pwsh
         run:                    pwsh scripts/actions/install-sccache.ps1 ${{ runner.os}}
+
+      # ==============================
+      #       Windows Build
+      # ==============================
+
       - name:                   Install LLVM for Windows
         if:                     matrix.platform == 'windows-latest'
         run:                    choco install llvm
+
       - name:                   Sccache statistics
         run:                    sccache --show-stats
+
       - name:                   Build OpenEthereum for windows
         if:                     matrix.platform == 'windows-latest'
         run:                    sh scripts/actions/build-windows.sh ${{matrix.platform}}
+
+      - name:                   Upload windows build
+        uses:                   actions/upload-artifact@v2
+        if:                     matrix.platform == 'windows-latest'
+        with:
+          name:                 windows-artifacts
+          path:                 artifacts
+
+      # ==============================
+      #       Linux/Macos Build
+      # ==============================
+
       - name:                   Build OpenEthereum for ${{matrix.platform}}
         if:                     matrix.platform != 'windows-latest'
         run:                    sh scripts/actions/build-linux.sh ${{matrix.platform}}
+
+      - name:                   Upload ${{ matrix.platform }} build
+        uses:                   actions/upload-artifact@v2
+        if:                     matrix.platform == 'ubuntu-16.04'
+        with:
+          name:                 linux-artifacts
+          path:                 artifacts
+
+      - name:                   Upload ${{ matrix.platform }} build
+        uses:                   actions/upload-artifact@v2
+        if:                     matrix.platform == 'macos-latest'
+        with:
+          name:                 macos-artifacts
+          path:                 artifacts
+
+      # ==============================
+      #       End builds
+      # ==============================
+
       - name:                   Stop sccache
         if:                     always()
         run:                    sccache --stop-server
-      - name:                   Download artifact
-        uses:                   actions/upload-artifact@v1
-        with:
-          name:                 ${{matrix.platform}}.artifacts.zip
-          path:                 artifacts/
+
       - name:                   Prepare build directory for cache
-        shell: bash
+        shell:                  bash
         run:                    bash scripts/actions/clean-target.sh
+
+  zip-artifacts-creator:
+    name:                       Create zip artifacts
+    needs:                      build
+    runs-on:                    ubuntu-16.04
+    steps:
+      - name:                   Set env
+        run:                    echo ::set-env name=RELEASE_VERSION::${GITHUB_REF#refs/*/}
+
+      # ==============================
+      #       Create ZIP files
+      # ==============================
+
+      - name:                   Download Windows artifacts
+        uses:                   actions/download-artifact@v2
+        with:
+          name:                 windows-artifacts
+          path:                 windows-artifacts
+
+      - name:                   Download Linux artifacts
+        uses:                   actions/download-artifact@v2
+        with:
+          name:                 linux-artifacts
+          path:                 linux-artifacts
+
+      - name:                   Download MacOS artifacts
+        uses:                   actions/download-artifact@v2
+        with:
+          name:                 macos-artifacts
+          path:                 macos-artifacts
+
+      - name:                   Display structure of downloaded files
+        run:                    ls
+
+      - name:                   Create zip Linux
+        id:                     create_zip_linux
+        run: |
+          cd linux-artifacts/
+          zip -rT openethereum-linux-${{ env.RELEASE_VERSION }}.zip *
+          ls openethereum-linux-${{ env.RELEASE_VERSION }}.zip
+          cd ..
+          mv linux-artifacts/openethereum-linux-${{ env.RELEASE_VERSION }}.zip .
+
+          echo "Setting outputs..."
+          echo ::set-output name=LINUX_ARTIFACT::openethereum-linux-${{ env.RELEASE_VERSION }}.zip
+          echo ::set-output name=LINUX_SHASUM::$(shasum -a 256 openethereum-linux-${{ env.RELEASE_VERSION }}.zip | awk '{print $1}')
+
+      - name:                   Create zip MacOS
+        id:                     create_zip_macos
+        run: |
+          cd macos-artifacts/
+          zip -rT openethereum-macos-${{ env.RELEASE_VERSION }}.zip *
+          ls openethereum-macos-${{ env.RELEASE_VERSION }}.zip
+          cd ..
+          mv macos-artifacts/openethereum-macos-${{ env.RELEASE_VERSION }}.zip .
+
+          echo "Setting outputs..."
+          echo ::set-output name=MACOS_ARTIFACT::openethereum-macos-${{ env.RELEASE_VERSION }}.zip
+          echo ::set-output name=MACOS_SHASUM::$(shasum -a 256 openethereum-macos-${{ env.RELEASE_VERSION }}.zip | awk '{print $1}')
+
+      - name:                   Create zip Windows
+        id:                     create_zip_windows
+        run: |
+          cd windows-artifacts/
+          zip -rT openethereum-windows-${{ env.RELEASE_VERSION }}.zip *
+          ls openethereum-windows-${{ env.RELEASE_VERSION }}.zip
+          cd ..
+          mv windows-artifacts/openethereum-windows-${{ env.RELEASE_VERSION }}.zip .
+
+          echo "Setting outputs..."
+          echo ::set-output name=WINDOWS_ARTIFACT::openethereum-windows-${{ env.RELEASE_VERSION }}.zip
+          echo ::set-output name=WINDOWS_SHASUM::$(shasum -a 256 openethereum-windows-${{ env.RELEASE_VERSION }}.zip | awk '{print $1}')
+
+      # ==============================
+      #       Upload artifacts
+      # ==============================
+
+      - name:                   Upload artifacts
+        uses:                   actions/upload-artifact@v2
+        with:
+          name:                 openethereum-linux-${{ env.RELEASE_VERSION }}.zip
+          path:                 openethereum-linux-${{ env.RELEASE_VERSION }}.zip
+
+      - name:                   Upload artifacts
+        uses:                   actions/upload-artifact@v2
+        with:
+          name:                 openethereum-macos-${{ env.RELEASE_VERSION }}.zip
+          path:                 openethereum-macos-${{ env.RELEASE_VERSION }}.zip
+
+      - name:                   Upload artifacts
+        uses:                   actions/upload-artifact@v2
+        with:
+          name:                 openethereum-windows-${{ env.RELEASE_VERSION }}.zip
+          path:                 openethereum-windows-${{ env.RELEASE_VERSION }}.zip
+
+    outputs:
+      linux-artifact:           ${{ steps.create_zip_linux.outputs.LINUX_ARTIFACT }}
+      linux-shasum:             ${{ steps.create_zip_linux.outputs.LINUX_SHASUM }}
+      macos-artifact:           ${{ steps.create_zip_macos.outputs.MACOS_ARTIFACT }}
+      macos-shasum:             ${{ steps.create_zip_macos.outputs.MACOS_SHASUM }}
+      windows-artifact:         ${{ steps.create_zip_windows.outputs.WINDOWS_ARTIFACT }}
+      windows-shasum:           ${{ steps.create_zip_windows.outputs.WINDOWS_SHASUM }}
+
+  draft-release:
+    name:                       Draft Release
+    needs:                      zip-artifacts-creator
+    runs-on:                    ubuntu-16.04
+    steps:
+      - name:                   Set env
+        run:                    echo ::set-env name=RELEASE_VERSION::${GITHUB_REF#refs/*/}
+
+      # ==============================
+      #       Download artifacts
+      # ==============================
+
+      - name:                   Download artifacts
+        uses:                   actions/download-artifact@v2
+        with:
+          name:                 openethereum-linux-${{ env.RELEASE_VERSION }}.zip
+
+      - name:                   Download artifacts
+        uses:                   actions/download-artifact@v2
+        with:
+          name:                 openethereum-macos-${{ env.RELEASE_VERSION }}.zip
+
+      - name:                   Download artifacts
+        uses:                   actions/download-artifact@v2
+        with:
+          name:                 openethereum-windows-${{ env.RELEASE_VERSION }}.zip
+
+      - name:                   Display structure of downloaded files
+        run:                    ls
+
+      # ==============================
+      #       Create release draft
+      # ==============================
+
+      - name:                   Create Release Draft
+        id:                     create_release_draft
+        uses:                   actions/create-release@v1
+        env:
+          GITHUB_TOKEN:         ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
+        with:
+          tag_name:             ${{ github.ref }}
+          release_name:         OpenEthereum ${{ github.ref }}
+          body: |
+            This release contains <ADD_TEXT>
+
+            | System | Architecture | Binary | Sha256 Checksum |
+            |:---:|:---:|:---:|:---|
+            | <img src="https://gist.github.com/5chdn/1fce888fde1d773761f809b607757f76/raw/44c4f0fc63f1ea8e61a9513af5131ef65eaa6c75/apple.png" alt="Apple Icon by Pixel Perfect from https://www.flaticon.com/authors/pixel-perfect" style="width: 32px;"/> | x64 | [${{ needs.zip-artifacts-creator.outputs.macos-artifact }}](https://github.com/openethereum/openethereum/releases/download/${{ env.RELEASE_VERSION }}/${{ needs.zip-artifacts-creator.outputs.macos-artifact }}) | `${{ needs.zip-artifacts-creator.outputs.macos-shasum }}` |
+            | <img src="https://gist.github.com/5chdn/1fce888fde1d773761f809b607757f76/raw/44c4f0fc63f1ea8e61a9513af5131ef65eaa6c75/linux.png" alt="Linux Icon by Pixel Perfect from https://www.flaticon.com/authors/pixel-perfect" style="width: 32px;"/> | x64 | [${{ needs.zip-artifacts-creator.outputs.linux-artifact }}](https://github.com/openethereum/openethereum/releases/download/${{ env.RELEASE_VERSION }}/${{ needs.zip-artifacts-creator.outputs.linux-artifact }}) | `${{ needs.zip-artifacts-creator.outputs.linux-shasum }}` |
+            | <img src="https://gist.github.com/5chdn/1fce888fde1d773761f809b607757f76/raw/44c4f0fc63f1ea8e61a9513af5131ef65eaa6c75/windows.png" alt="Windows Icon by Pixel Perfect from https://www.flaticon.com/authors/pixel-perfect" style="width: 32px;"/> | x64 | [${{ needs.zip-artifacts-creator.outputs.windows-artifact }}](https://github.com/openethereum/openethereum/releases/download/${{ env.RELEASE_VERSION }}/${{ needs.zip-artifacts-creator.outputs.windows-artifact }}) | `${{ needs.zip-artifacts-creator.outputs.windows-shasum }}` |
+            | | | | |
+            | **System** | **Option** | - | **Resource** |
+            | <img src="https://gist.github.com/5chdn/1fce888fde1d773761f809b607757f76/raw/44c4f0fc63f1ea8e61a9513af5131ef65eaa6c75/settings.png" alt="Settings Icon by Pixel Perfect from https://www.flaticon.com/authors/pixel-perfect" style="width: 32px;"/> | Docker | - | [hub.docker.com/r/openethereum/openethereum](https://hub.docker.com/r/openethereum/openethereum) |
+
+          draft:                true
+          prerelease:           true
+
+      - name:                   Upload Release Asset - Linux
+        id:                     upload_release_asset_linux
+        uses:                   actions/upload-release-asset@v1.0.1
+        env:
+          GITHUB_TOKEN:         ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url:           ${{ steps.create_release_draft.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps
+          asset_path:           ./openethereum-linux-${{ env.RELEASE_VERSION }}.zip
+          asset_name:           openethereum-linux-${{ env.RELEASE_VERSION }}.zip
+          asset_content_type:   application/zip
+
+      - name:                   Upload Release Asset - MacOS
+        id:                     upload_release_asset_macos
+        uses:                   actions/upload-release-asset@v1.0.1
+        env:
+          GITHUB_TOKEN:         ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url:           ${{ steps.create_release_draft.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps
+          asset_path:           ./openethereum-macos-${{ env.RELEASE_VERSION }}.zip
+          asset_name:           openethereum-macos-${{ env.RELEASE_VERSION }}.zip
+          asset_content_type:   application/zip
+
+      - name:                   Upload Release Asset - Windows
+        id:                     upload_release_asset_windows
+        uses:                   actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN:         ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url:           ${{ steps.create_release_draft.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps
+          asset_path:           ./openethereum-windows-${{ env.RELEASE_VERSION }}.zip
+          asset_name:           openethereum-windows-${{ env.RELEASE_VERSION }}.zip
+          asset_content_type:   application/zip
