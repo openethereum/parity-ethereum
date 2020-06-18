@@ -14,7 +14,7 @@ client-traits = { path = "../client-traits" }
 common-types = { path = "../types" }
 devp2p = { package = "ethcore-network-devp2p", path = "../../util/network-devp2p" }
 derive_more = "0.99"
-enum_primitive = "0.2"
+enum-primitive-derive = "0.2"
 ethcore-io = { path = "../../util/io" }
 ethcore-private-tx = { path = "../private-tx" }
 ethereum-forkid = "0.2"
