@@ -1,0 +1,26 @@
+name:                           Docker Image Release - Custom Version
+on: push
+jobs:
+  deploy-docker:
+    name:                       Build Docker Image for Custom Branches
+    if: "contains(github.event.head_commit.message, 'ci-build-docker')"
+    runs-on:                    ubuntu-latest
+    steps:
+      - name:                   Checkout sources
+        uses:                   actions/checkout@master
+      - name:                   Install toolchain
+        uses:                   actions-rs/toolchain@v1
+        with:
+          toolchain:            stable
+          profile:              minimal
+          override:             true
+      - name:                   Deploy to docker hub
+        uses: elgohr/Publish-Docker-Github-Action@master
+        with:
+          name: openethereum/openethereum
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+          dockerfile: scripts/docker/alpine/Dockerfile
+          tag_names: false
+          tags: "${{ env.GITHUB_REF }}"
+
