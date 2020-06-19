@@ -33,7 +33,7 @@ use hash_fetch::{self, fetch};
 use informant::{Informant, LightNodeInformantData, FullNodeInformantData};
 use journaldb::Algorithm;
 use light::Cache as LightDataCache;
-use metrics::{MetricsConfiguration,start_prometheus_metrics};
+use metrics::{MetricsConfiguration, start_prometheus_metrics};
 use miner::external::ExternalMiner;
 use miner::work_notify::WorkPoster;
 use node_filter::NodeFilter;

@@ -432,25 +432,25 @@ impl PrometheusMetrics for EthSync {
 			SyncState::NewBlocks => 7,
 		});
 
-		prometheus_gauge(r,"net_peers","Total number of connected peers",sync_status.num_peers as i64);
-		prometheus_gauge(r,"net_active_peers","Total number of active peers",sync_status.num_active_peers as i64);
-		prometheus_counter(r,"sync_blocks_recieved","Number of blocks downloaded so far",sync_status.blocks_received as i64);
-		prometheus_counter(r,"sync_blocks_total","Total number of blocks for the sync process",sync_status.blocks_total as i64);
-		prometheus_gauge(r,"sync_blocks_highest","Highest block number in the download queue",sync_status.highest_block_number.unwrap_or(0) as i64);
-		prometheus_gauge(r,"sync_is_majorsync","Are we in the middle of a major sync?",scalar(self.is_major_syncing()));
-		prometheus_gauge(r,"sync_mem_used","Heap memory used in bytes",sync_status.mem_used  as i64);
-		prometheus_gauge(r,"snapshot_download_active","1 if downloading snapshots",scalar(sync_status.is_snapshot_syncing()));
-		prometheus_gauge(r,"snapshot_download_chunks","Snapshot chunks",sync_status.num_snapshot_chunks as i64);
-		prometheus_gauge(r,"snapshot_download_chunks_done","Snapshot chunks downloaded",sync_status.snapshot_chunks_done as i64);
+		prometheus_gauge(r, "net_peers", "Total number of connected peers", sync_status.num_peers as i64);
+		prometheus_gauge(r, "net_active_peers", "Total number of active peers", sync_status.num_active_peers as i64);
+		prometheus_counter(r, "sync_blocks_recieved", "Number of blocks downloaded so far", sync_status.blocks_received as i64);
+		prometheus_counter(r, "sync_blocks_total", "Total number of blocks for the sync process", sync_status.blocks_total as i64);
+		prometheus_gauge(r, "sync_blocks_highest", "Highest block number in the download queue", sync_status.highest_block_number.unwrap_or(0) as i64);
+		prometheus_gauge(r, "sync_is_majorsync", "Are we in the middle of a major sync?", scalar(self.is_major_syncing()));
+		prometheus_gauge(r, "sync_mem_used", "Heap memory used in bytes", sync_status.mem_used  as i64);
+		prometheus_gauge(r, "snapshot_download_active", "1 if downloading snapshots", scalar(sync_status.is_snapshot_syncing()));
+		prometheus_gauge(r, "snapshot_download_chunks", "Snapshot chunks", sync_status.num_snapshot_chunks as i64);
+		prometheus_gauge(r, "snapshot_download_chunks_done", "Snapshot chunks downloaded", sync_status.snapshot_chunks_done as i64);
 
 		let restoration = self.eth_handler.snapshot_service.restoration_status();
 		let creation = self.eth_handler.snapshot_service.creation_status();
 
-		prometheus_gauge(r,"snapshot_create_block", "First block of the current snapshot creation", match creation {
+		prometheus_gauge(r, "snapshot_create_block",  "First block of the current snapshot creation",  match creation {
 			CreationStatus::Ongoing{block_number} => block_number as i64,
 			_ => 0,
 		});
-		prometheus_gauge(r,"snapshot_restore_block", "First block of the current snapshot restoration", match restoration {
+		prometheus_gauge(r, "snapshot_restore_block",  "First block of the current snapshot restoration",  match restoration {
 			RestorationStatus::Ongoing{block_number, ..} => block_number as i64,
 			_ => 0,
 		});

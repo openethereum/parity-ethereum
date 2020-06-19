@@ -24,28 +24,32 @@ use std::time::Instant;
 extern crate log;
 pub extern crate prometheus;
 
+/// Implements a prometheus metrics collector
 pub trait PrometheusMetrics {
 	fn prometheus_metrics(&self, registry: &mut prometheus::Registry);
 }
 
+/// Adds a new prometheus counter with the specified value
 pub fn prometheus_counter(reg: &mut prometheus::Registry, name: &str, help: &str, value: i64) {
-	let c = prometheus::IntCounter::new(name,help).expect("does not fail. qed.");
+	let c = prometheus::IntCounter::new(name,help).expect("name and help must be non-empty");
 	c.inc_by(value);
-	reg.register(Box::new(c)).expect("qed");
+	reg.register(Box::new(c)).expect("prometheus identifiers must be unique");
 }
 
+/// Adds a new prometheus gauge with the specified gauge
 pub fn prometheus_gauge(reg: &mut prometheus::Registry, name: &str, help: &str, value: i64) {
-	let g = prometheus::IntGauge::new(name,help).expect("does not fail. qed.");
+	let g = prometheus::IntGauge::new(name,help).expect("name and help must be non-empty");
 	g.set(value);
-	reg.register(Box::new(g)).expect("qed");
+	reg.register(Box::new(g)).expect("prometheus identifiers must be are unique");
 }
 
+/// Adds a new prometheus counter with the time spent in running the specified function
 pub fn prometheus_optime<T>(r: &mut prometheus::Registry, name: &str, f: &dyn Fn()->T ) -> T {
 	let start = Instant::now();
 	let t = f();
 	let elapsed = start.elapsed();
 	let ms = (elapsed.as_secs() as i64)*1000 + (elapsed.subsec_millis() as i64);
-	prometheus_gauge(r,&format!("optime_{}",name),&format!("Time to perform {}",name),ms);
+	prometheus_gauge(r, &format!("optime_{}",name), &format!("Time to perform {}",name), ms);
 	t
 }
 
