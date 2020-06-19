@@ -16,7 +16,7 @@ keccak-hash = "0.5.0"
 log = "0.4"
 num = "0.2"
 parity-bytes = "0.1"
-parity-crypto = { version = "0.6.1", features = ["publickey"] }
+parity-crypto = { version = "0.6.2", features = ["publickey"] }
 eth_pairings = { git = "https://github.com/matter-labs/eip1962.git", default-features = false, features = ["eip_2537"], rev = "ece6cbabc41948db4200e41f0bfdab7ab94c7af8" }
 
 [dev-dependencies]
