@@ -27,22 +27,11 @@ scrape_configs:
     - targets: ['localhost:9090']
 
   - job_name: openethereum
-    scrape_interval: 10s
+    scrape_interval: 15s
     metric_relabel_configs:
       - source_labels: [__name__]
         target_label: __name__
         replacement: "oe_${1}"
     static_configs:
     - targets:
-      - localhost:3000
-
-  - job_name: cadvisor
-    scrape_interval: 5s
-    static_configs:
-    - targets:
-      - cadvisor:8080
-
-  - job_name: nodeexporter
-    static_configs:
-    - targets:
-       - nodeexporter:9100
+      - openethereum:3000

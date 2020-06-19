@@ -267,7 +267,7 @@ pub struct Service<C: Send + Sync + 'static> {
 	client: Arc<C>,
 	progress: RwLock<Progress>,
 	taking_snapshot: AtomicBool,
-	taking_snapshot_num : AtomicUsize,
+	taking_snapshot_num: AtomicUsize,
 	restoring_snapshot: AtomicBool,
 }
 

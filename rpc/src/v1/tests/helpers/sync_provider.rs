@@ -22,7 +22,7 @@ use parking_lot::RwLock;
 use network::client_version::ClientVersion;
 use futures::sync::mpsc;
 use sync::{SyncProvider, EthProtocolInfo, SyncStatus, PeerInfo, TransactionStats, SyncState};
-use stats::{PrometheusMetrics,prometheus};
+use stats::{PrometheusMetrics, prometheus};
 
 /// TestSyncProvider config.
 pub struct Config {

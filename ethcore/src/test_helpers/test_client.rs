@@ -81,7 +81,7 @@ use spec::{Spec, self};
 use account_state::state::StateInfo;
 use state_db::StateDB;
 use trace::LocalizedTrace;
-use stats::{PrometheusMetrics,prometheus};
+use stats::{PrometheusMetrics, prometheus};
 
 /// Test client.
 pub struct TestBlockChainClient {

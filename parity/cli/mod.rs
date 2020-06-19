@@ -566,7 +566,7 @@ usage! {
 		["Metrics"]
 			FLAG flag_metrics: (bool) = false, or |c: &Config| c.metrics.as_ref()?.enable.clone(),
 			"--metrics",
-			"Enable prometheus metrics.",
+			"Enable prometheus metrics (only full client).",
 
 			ARG arg_metrics_port: (u16) = 3000u16, or |c: &Config| c.metrics.as_ref()?.port.clone(),
 			"--metrics-port=[PORT]",

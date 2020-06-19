@@ -21,4 +21,4 @@ providers:
     allowUiUpdates: false
     options:
       # <string, required> path to dashboard files on disk. Required when using the 'file' type
-      path: /etc/grafana
+      path: /etc/grafana/dashboards

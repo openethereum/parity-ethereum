@@ -53,7 +53,7 @@ fn handle_request(req: Request<Body>, state: &Arc<Mutex<State>>) -> Response<Bod
 
             let elapsed = start.elapsed();
             let ms = (elapsed.as_secs() as i64)*1000 + (elapsed.subsec_millis() as i64);
-            prometheus_gauge(&mut reg,"metrics_time","Time to perform rpc metrics",ms);
+            prometheus_gauge(&mut reg, "metrics_time", "Time to perform rpc metrics", ms);
 
             let mut buffer = vec![];
             let encoder = prometheus::TextEncoder::new();
@@ -78,7 +78,7 @@ pub fn start_prometheus_metrics(conf: &MetricsConfiguration, deps: &rpc::Depende
         return Ok(());
     }
 
-    let addr = format!("{}:{}",conf.interface,conf.port);
+    let addr = format!("{}:{}", conf.interface, conf.port);
     let addr = addr 
         .parse()
         .map_err(|err| format!("Failed to parse address '{}': {}", addr,err))?;
