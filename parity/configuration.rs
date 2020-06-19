@@ -53,6 +53,7 @@ use presale::ImportWallet;
 use account::{AccountCmd, NewAccount, ListAccounts, ImportAccounts, ImportFromGethAccounts};
 use snapshot_cmd::{self, SnapshotCommand};
 use network::{IpFilter, NatType};
+use metrics::MetricsConfiguration;
 
 const DEFAULT_MAX_PEERS: u16 = 50;
 const DEFAULT_MIN_PEERS: u16 = 25;
@@ -140,6 +141,7 @@ impl Configuration {
 		let experimental_rpcs = self.args.flag_jsonrpc_experimental;
 		let secretstore_conf = self.secretstore_config()?;
 		let format = self.format()?;
+		let metrics_conf = self.metrics_config()?;
 
 		let key_iterations = self.args.arg_keys_iterations;
 		if key_iterations == 0 {
@@ -414,6 +416,7 @@ impl Configuration {
 				on_demand_request_backoff_rounds_max: self.args.arg_on_demand_request_backoff_rounds_max,
 				on_demand_request_consecutive_failures: self.args.arg_on_demand_request_consecutive_failures,
 				sync_until: self.args.arg_sync_until,
+				metrics_conf,
 			};
 			Cmd::Run(run_cmd)
 		};
@@ -902,6 +905,15 @@ impl Configuration {
 		Ok(conf)
 	}
 
+	fn metrics_config(&self) -> Result<MetricsConfiguration, String> {
+		let conf = MetricsConfiguration {
+			enabled: self.metrics_enabled(),
+			interface: self.metrics_interface(),
+			port: self.args.arg_ports_shift + self.args.arg_metrics_port,
+		};
+		Ok(conf)
+	}
+
 	fn private_provider_config(&self) -> Result<(ProviderConfig, EncryptorConfig, bool), String> {
 		let dirs = self.directories();
 		let provider_conf = ProviderConfig {
@@ -1040,6 +1052,10 @@ impl Configuration {
 		self.interface(&self.args.arg_ws_interface)
 	}
 
+	fn metrics_interface(&self) -> String {
+		self.interface(&self.args.arg_metrics_interface)
+	}
+
 	fn secretstore_interface(&self) -> String {
 		self.interface(&self.args.arg_secretstore_interface)
 	}
@@ -1105,6 +1121,10 @@ impl Configuration {
 
 	fn ws_enabled(&self) -> bool {
 		!self.args.flag_no_ws
+	}
+
+	fn metrics_enabled(&self) -> bool {
+		self.args.flag_metrics
 	}
 
 	fn secretstore_enabled(&self) -> bool {
@@ -1455,6 +1475,7 @@ mod tests {
 			on_demand_request_backoff_rounds_max: None,
 			on_demand_request_consecutive_failures: None,
 			sync_until: None,
+			metrics_conf: MetricsConfiguration::default(),
 		};
 		expected.secretstore_conf.enabled = cfg!(feature = "secretstore");
 		expected.secretstore_conf.http_enabled = cfg!(feature = "secretstore");

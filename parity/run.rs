@@ -33,6 +33,7 @@ use hash_fetch::{self, fetch};
 use informant::{Informant, LightNodeInformantData, FullNodeInformantData};
 use journaldb::Algorithm;
 use light::Cache as LightDataCache;
+use metrics::{MetricsConfiguration,start_prometheus_metrics};
 use miner::external::ExternalMiner;
 use miner::work_notify::WorkPoster;
 use node_filter::NodeFilter;
@@ -138,6 +139,7 @@ pub struct RunCmd {
 	pub on_demand_request_backoff_rounds_max: Option<usize>,
 	pub on_demand_request_consecutive_failures: Option<usize>,
 	pub sync_until: Option<u64>,
+	pub metrics_conf: MetricsConfiguration,
 }
 
 // node info fetcher for the local store.
@@ -562,7 +564,7 @@ fn execute_impl<Cr, Rr>(
 	let private_tx_signer = account_utils::private_tx_signer(account_provider.clone(), &passwords)?;
 
 	// create client service.
-	let service = ClientService::1(
+	let service = ClientService::start(
 		client_config,
 		&spec,
 		client_db,
@@ -758,6 +760,9 @@ fn execute_impl<Cr, Rr>(
 	let ws_server = rpc::new_ws(cmd.ws_conf.clone(), &dependencies)?;
 	let ipc_server = rpc::new_ipc(cmd.ipc_conf, &dependencies)?;
 	let http_server = rpc::new_http("HTTP JSON-RPC", "jsonrpc", cmd.http_conf.clone(), &dependencies)?;
+
+	// start the prometheus metrics server
+	start_prometheus_metrics(&cmd.metrics_conf, &dependencies)?;
 
 	// secret store key server
 	let secretstore_deps = secretstore::Dependencies {

@@ -188,7 +188,6 @@ pub fn start_http<M, S, H, T>(
 		.cors(cors_domains)
 		.allowed_hosts(allowed_hosts)
 		.health_api(("/api/health", "parity_nodeStatus"))
-		.raw_api(("/metrics", "parity_nodeMetrics"))
 		.cors_allow_headers(AccessControlAllowHeaders::Any)
 		.max_request_body_size(max_payload * 1024 * 1024)
 		.start_http(addr)?)

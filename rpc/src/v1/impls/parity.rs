@@ -17,7 +17,6 @@
 //! Parity-specific rpc implementation.
 use std::sync::Arc;
 use std::collections::BTreeMap;
-use std::time::Instant;
 
 use crypto::DEFAULT_MAC;
 use ethereum_types::{H64, H160, H256, H512, U64, U256};
@@ -40,11 +39,7 @@ use types::{
 };
 use updater::{Service as UpdateService};
 use version::version_data;
-use stats::{
-	PrometheusMetrics,
-	prometheus_gauge,
-	prometheus::{self, Encoder}
-};
+use stats::PrometheusMetrics;
 
 use v1::helpers::{self, errors, fake_sign, NetworkSettings, verify_signature};
 use v1::helpers::external_signer::{SigningQueue, SignerService};
@@ -457,24 +452,6 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 		} else {
 			Err(errors::status_error(has_peers))
 		}
-	}
-
-	fn metrics(&self) -> Result<String> {
-		let start = Instant::now();
-		let mut reg = prometheus::Registry::new();
-
-		self.client.prometheus_metrics(&mut reg);
-		self.sync.prometheus_metrics(&mut reg);
-
-		let elapsed = start.elapsed();
-		let ms = (elapsed.as_secs() as i64)*1000 + (elapsed.subsec_millis() as i64);
-		prometheus_gauge(&mut reg,"metrics_time","Time to perform rpc metrics",ms);
-
-		let mut buffer = vec![];
-		let encoder = prometheus::TextEncoder::new();
-		let metric_families = reg.gather();
-		encoder.encode(&metric_families, &mut buffer).unwrap();
-		Ok(String::from_utf8(buffer).unwrap())
 	}
 
 	fn logs_no_tx_hash(&self, filter: Filter) -> BoxFuture<Vec<Log>> {

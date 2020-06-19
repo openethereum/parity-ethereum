@@ -391,10 +391,6 @@ where
 		}
 	}
 
-	fn metrics(&self) -> Result<String> {
-		Ok(String::from("none"))
-	}
-
 	fn logs_no_tx_hash(&self, filter: Filter) -> BoxFuture<Vec<Log>> {
 		let filter = match filter.try_into() {
 			Ok(value) => value,
