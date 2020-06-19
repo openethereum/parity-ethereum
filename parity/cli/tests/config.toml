@@ -37,6 +37,11 @@ server_threads = 13
 [ipc]
 apis = ["rpc", "eth"]
 
+[metrics]
+enable = true
+interface = "local"
+port = 4000
+
 [dapps]
 port = 8080
 user = "username"

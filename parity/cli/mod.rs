@@ -1454,7 +1454,7 @@ mod tests {
 	use super::{
 		Args, ArgsError,
 		Config, Operating, Account, Ui, Network, Ws, Rpc, Ipc, Dapps, Mining, Footprint,
-		Snapshots, Misc, Whisper, SecretStore, Light,
+		Snapshots, Misc, Whisper, SecretStore, Light, Metrics
 	};
 	use toml;
 	use clap::{ErrorKind as ClapErrorKind};
@@ -2114,6 +2114,11 @@ mod tests {
 				path: None,
 				chmod: None,
 				apis: Some(vec!["rpc".into(), "eth".into()]),
+			}),
+			metrics: Some(Metrics {
+				enable: Some(true),
+				interface: Some("local".to_string()),
+				port: Some(4000),
 			}),
 			dapps: Some(Dapps {
 				_legacy_disable: None,
