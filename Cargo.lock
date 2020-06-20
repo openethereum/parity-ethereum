@@ -3291,9 +3291,9 @@ checksum = "16b56e3a2420138bdb970f84dfb9c774aea80fa0e7371549eedec0d80c209c67"
 
 [[package]]
 name = "parity-crypto"
-version = "0.6.1"
+version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2b7f19c1acc7fc6c5256a2f4f0c5af022044b9bdfdd0a218ff79f8cbb29779a5"
+checksum = "88e15b5e11d7a4829490630a797c537a68c9e864a139f56fe7a1e6a51f0da25d"
 dependencies = [
  "aes",
  "aes-ctr",
