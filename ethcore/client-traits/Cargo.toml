@@ -9,7 +9,7 @@ license = "GPL-3.0"
 [dependencies]
 account-state = { path = "../account-state" }
 blockchain = { package = "ethcore-blockchain", path = "../blockchain" }
-bytes = { package = "parity-bytes", version = "0.1.0" }
+parity-bytes = "0.1"
 call-contract = { package = "ethcore-call-contract", path = "../call-contract" }
 common-types = { path = "../types" }
 ethcore-db = { path = "../db" }

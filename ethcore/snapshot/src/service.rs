@@ -25,7 +25,7 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::cmp;
 
 use blockchain::{BlockChain, BlockChainDB, BlockChainDBHandler};
-use bytes::Bytes;
+use parity_bytes::Bytes;
 use common_types::{
 	io_message::ClientIoMessage,
 	errors::{EthcoreError as Error, SnapshotError, SnapshotError::UnlinkedAncientBlockChain},

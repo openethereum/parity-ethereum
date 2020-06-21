@@ -9,7 +9,7 @@ license = "GPL-3.0"
 [dependencies]
 blockchain = { package = "ethcore-blockchain", path = "../blockchain" }
 builtin = { path = "../builtin", package = "ethcore-builtin" }
-bytes = { package = "parity-bytes", version = "0.1.0" }
+parity-bytes = "0.1"
 client-traits = { path = "../client-traits" }
 common-types = { path = "../types" }
 ethereum-types = "0.9.0"

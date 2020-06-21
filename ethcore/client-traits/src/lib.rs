@@ -21,7 +21,7 @@ use std::{
 
 use account_state::state::StateInfo;
 use blockchain::BlockProvider;
-use bytes::Bytes;
+use parity_bytes::Bytes;
 use call_contract::CallContract;
 use registrar::RegistrarClient;
 use common_types::{

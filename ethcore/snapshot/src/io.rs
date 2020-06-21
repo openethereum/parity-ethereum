@@ -25,7 +25,7 @@ use std::io::{self, Read, Seek, SeekFrom, Write};
 use std::fs::{self, File};
 use std::path::{Path, PathBuf};
 
-use bytes::Bytes;
+use parity_bytes::Bytes;
 use common_types::{
 	errors::{SnapshotError, EthcoreError},
 	snapshot::ManifestData,

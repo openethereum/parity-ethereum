@@ -16,7 +16,7 @@
 
 //! Provides CallContract trait
 
-use bytes::Bytes;
+use parity_bytes::Bytes;
 use ethereum_types::Address;
 use types::ids::BlockId;
 

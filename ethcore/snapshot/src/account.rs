@@ -19,7 +19,7 @@
 use std::collections::HashSet;
 
 use account_db::{AccountDB, AccountDBMut};
-use bytes::Bytes;
+use parity_bytes::Bytes;
 use common_types::{
 	basic_account::BasicAccount,
 	snapshot::Progress,

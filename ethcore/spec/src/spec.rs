@@ -36,7 +36,7 @@ use common_types::{
 use account_state::{Backend, State, backend::Basic as BasicBackend};
 use authority_round::AuthorityRound;
 use basic_authority::BasicAuthority;
-use bytes::Bytes;
+use parity_bytes::Bytes;
 use builtin::Builtin;
 use clique::Clique;
 use engine::Engine;

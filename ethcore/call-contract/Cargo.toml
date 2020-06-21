@@ -9,4 +9,4 @@ edition = "2018"
 [dependencies]
 types = { path = "../types", package = "common-types" }
 ethereum-types = "0.9.0"
-bytes = { version = "0.1", package = "parity-bytes" }
+parity-bytes = "0.1"

@@ -18,7 +18,7 @@
 
 use snapshot::test_helpers::AbridgedBlock;
 
-use bytes::Bytes;
+use parity_bytes::Bytes;
 use ethereum_types::{H256, U256, Address};
 use common_types::{
 	transaction::{Action, Transaction},

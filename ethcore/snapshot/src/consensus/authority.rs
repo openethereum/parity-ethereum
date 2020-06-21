@@ -23,7 +23,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use blockchain::{BlockChain, BlockChainDB, BlockProvider};
-use bytes::Bytes;
+use parity_bytes::Bytes;
 use common_types::{
 	encoded,
 	engines::epoch::Transition as EpochTransition,

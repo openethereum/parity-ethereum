@@ -28,7 +28,7 @@ use keccak_hash::{keccak, KECCAK_NULL_RLP, KECCAK_EMPTY};
 
 use account_db::{AccountDB, AccountDBMut};
 use blockchain::{BlockChain, BlockProvider};
-use bytes::Bytes;
+use parity_bytes::Bytes;
 use common_types::{
 	ids::BlockId,
 	header::Header,

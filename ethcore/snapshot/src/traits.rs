@@ -17,7 +17,7 @@
 use std::sync::{Arc, atomic::AtomicBool};
 
 use blockchain::{BlockChain, BlockChainDB};
-use bytes::Bytes;
+use parity_bytes::Bytes;
 use client_traits::{BlockChainClient, BlockInfo, DatabaseRestore, BlockChainReset};
 use common_types::{
 	ids::BlockId,

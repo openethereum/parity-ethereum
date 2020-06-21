@@ -22,7 +22,7 @@ use account_state::{
 	backend::{self, Backend},
 	state::State,
 };
-use bytes::Bytes;
+use parity_bytes::Bytes;
 use common_types::{
 	engines::machine::Executed as RawExecuted,
 	errors::{ExecutionError, EthcoreError as Error},

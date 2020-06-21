@@ -13,7 +13,7 @@ harness = false
 [dependencies]
 account-db = { path = "../account-db" }
 account-state = { path = "../account-state" }
-bytes = { package = "parity-bytes", version = "0.1.0" }
+parity-bytes = "0.1"
 common-types = { path = "../types" }
 ethereum-types = "0.9.0"
 hash-db = "0.15.0"

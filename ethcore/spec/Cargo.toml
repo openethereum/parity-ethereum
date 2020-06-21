@@ -11,7 +11,7 @@ account-state = { path = "../account-state" }
 authority-round = { path = "../engines/authority-round" }
 basic-authority = { path = "../engines/basic-authority" }
 builtin = { package = "ethcore-builtin", path = "../builtin" }
-bytes = { package = "parity-bytes", version = "0.1.0" }
+parity-bytes = "0.1"
 clique = { path = "../engines/clique" }
 common-types = { path = "../types" }
 engine = { path = "../engine" }

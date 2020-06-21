@@ -16,7 +16,7 @@
 
 //! Block RLP compression.
 
-use bytes::Bytes;
+use parity_bytes::Bytes;
 use common_types::{
 	block::Block,
 	header::Header,

@@ -9,7 +9,7 @@ accounts = { package = "ethcore-accounts", path = "../../../accounts" }
 account-db = { path = "../../account-db" }
 account-state = { path = "../../account-state" }
 blockchain = { package = "ethcore-blockchain", path = "../../blockchain" }
-bytes = { package = "parity-bytes", version = "0.1.0" }
+parity-bytes = "0.1"
 client-traits = { path = "../../client-traits" }
 common-types = { path = "../../types" }
 engine = { path = "../../engine", features = ["test-helpers"] }
