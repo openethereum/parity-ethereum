@@ -1863,7 +1863,7 @@ mod tests {
 			arg_usd_per_eth: "auto".into(),
 			arg_price_update_period: "hourly".into(),
 			arg_gas_floor_target: "12500000".into(),
-			arg_gas_cap: "10000000".into(),
+			arg_gas_cap: "15000000".into(),
 			arg_extra_data: Some("Parity".into()),
 			flag_tx_queue_no_unfamiliar_locals: false,
 			flag_tx_queue_no_early_reject: false,
