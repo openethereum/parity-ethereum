@@ -749,11 +749,11 @@ usage! {
 			"--price-update-period=[T]",
 			"T will be allowed to pass between each gas price update. T may be daily, hourly, a number of seconds, or a time string of the form \"2 days\", \"30 minutes\" etc..",
 
-			ARG arg_gas_floor_target: (String) = "8000000", or |c: &Config| c.mining.as_ref()?.gas_floor_target.clone(),
+			ARG arg_gas_floor_target: (String) = "12500000", or |c: &Config| c.mining.as_ref()?.gas_floor_target.clone(),
 			"--gas-floor-target=[GAS]",
 			"Amount of gas per block to target when sealing a new block.",
 
-			ARG arg_gas_cap: (String) = "10000000", or |c: &Config| c.mining.as_ref()?.gas_cap.clone(),
+			ARG arg_gas_cap: (String) = "15000000", or |c: &Config| c.mining.as_ref()?.gas_cap.clone(),
 			"--gas-cap=[GAS]",
 			"A cap on how large we will raise the gas limit per block due to transaction volume.",
 
@@ -1862,7 +1862,7 @@ mod tests {
 			arg_gas_price_percentile: 50usize,
 			arg_usd_per_eth: "auto".into(),
 			arg_price_update_period: "hourly".into(),
-			arg_gas_floor_target: "8000000".into(),
+			arg_gas_floor_target: "12500000".into(),
 			arg_gas_cap: "10000000".into(),
 			arg_extra_data: Some("Parity".into()),
 			flag_tx_queue_no_unfamiliar_locals: false,
