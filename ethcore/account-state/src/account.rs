@@ -20,13 +20,14 @@ use std::collections::{BTreeMap, HashMap};
 use std::fmt;
 use std::sync::Arc;
 
+use bytes::{Bytes, BytesMut};
 use ethereum_types::{Address, BigEndianHash, H256, U256};
 use hash_db::HashDB;
 use keccak_hash::{keccak, KECCAK_EMPTY, KECCAK_NULL_RLP};
 use kvdb::DBValue;
 use log::{trace, warn};
 use lru_cache::LruCache;
-use parity_bytes::{Bytes, ToPretty};
+use parity_bytes::{ToPretty};
 use rlp::{DecoderError, encode};
 use trie_db::{Recorder, Trie};
 use common_types::basic_account::BasicAccount;
@@ -70,7 +71,7 @@ pub struct Account {
 	// Size of the account code.
 	code_size: Option<usize>,
 	// Code cache of the account.
-	code_cache: Arc<Bytes>,
+	code_cache: Bytes,
 	// Version of the account.
 	code_version: U256,
 	// Account code new or has been modified.
@@ -90,7 +91,7 @@ impl From<BasicAccount> for Account {
 			storage_changes: HashMap::new(),
 			code_hash: basic.code_hash,
 			code_size: None,
-			code_cache: Arc::new(vec![]),
+			code_cache: Default::default(),
 			code_version: basic.code_version,
 			code_filth: Filth::Clean,
 			address_hash: Cell::new(None),
@@ -111,7 +112,7 @@ impl Account {
 			storage_changes: storage,
 			code_hash: keccak(&code),
 			code_size: Some(code.len()),
-			code_cache: Arc::new(code),
+			code_cache: code,
 			code_version: version,
 			code_filth: Filth::Dirty,
 			address_hash: Cell::new(None),
@@ -134,7 +135,7 @@ impl Account {
 			code_hash: pod.code.as_ref().map_or(KECCAK_EMPTY, |c| keccak(c)),
 			code_filth: Filth::Dirty,
 			code_size: Some(pod.code.as_ref().map_or(0, |c| c.len())),
-			code_cache: Arc::new(pod.code.map_or_else(|| { warn!("POD account with unknown code is being created! Assuming no code."); vec![] }, |c| c)),
+			code_cache: pod.code.map_or_else(|| { warn!("POD account with unknown code is being created! Assuming no code."); Default::default() }, |c| c.into()),
 			code_version: pod.version,
 			address_hash: Cell::new(None),
 		}
@@ -165,7 +166,7 @@ impl Account {
 			original_storage_cache: None,
 			storage_changes: HashMap::new(),
 			code_hash: KECCAK_EMPTY,
-			code_cache: Arc::new(vec![]),
+			code_cache: Default::default(),
 			code_size: Some(0),
 			code_version: U256::zero(),
 			code_filth: Filth::Clean,
@@ -194,7 +195,7 @@ impl Account {
 			},
 			storage_changes: HashMap::new(),
 			code_hash: KECCAK_EMPTY,
-			code_cache: Arc::new(vec![]),
+			code_cache: Default::default(),
 			code_size: None,
 			code_version: version,
 			code_filth: Filth::Clean,
@@ -206,7 +207,7 @@ impl Account {
 	/// NOTE: Account should have been created with `new_contract()`
 	pub fn init_code(&mut self, code: Bytes) {
 		self.code_hash = keccak(&code);
-		self.code_cache = Arc::new(code);
+		self.code_cache = code;
 		self.code_size = Some(self.code_cache.len());
 		self.code_filth = Filth::Dirty;
 	}
@@ -217,7 +218,7 @@ impl Account {
 	}
 
 	/// Reset this account's code and storage to given values.
-	pub fn reset_code_and_storage(&mut self, code: Arc<Bytes>, storage: HashMap<H256, H256>) {
+	pub fn reset_code_and_storage(&mut self, code: Bytes, storage: HashMap<H256, H256>) {
 		self.code_hash = keccak(&*code);
 		self.code_cache = code;
 		self.code_size = Some(self.code_cache.len());
@@ -348,7 +349,7 @@ impl Account {
 
 	/// returns the account's code. If `None` then the code cache isn't available -
 	/// get someone who knows to call `note_code`.
-	pub fn code(&self) -> Option<Arc<Bytes>> {
+	pub fn code(&self) -> Option<Bytes> {
 		if self.code_hash != KECCAK_EMPTY && self.code_cache.is_empty() {
 			return None;
 		}
@@ -366,7 +367,7 @@ impl Account {
 	pub fn note_code(&mut self, code: Bytes) -> Result<(), H256> {
 		let h = keccak(&code);
 		if self.code_hash == h {
-			self.code_cache = Arc::new(code);
+			self.code_cache = code;
 			self.code_size = Some(self.code_cache.len());
 			Ok(())
 		} else {
@@ -381,7 +382,7 @@ impl Account {
 
 	/// Provide a database to get `code_hash`. Should not be called if it is a contract without code. Returns the cached code, if successful.
 	#[must_use]
-	pub fn cache_code(&mut self, db: &dyn HashDB<KeccakHasher, DBValue>) -> Option<Arc<Bytes>> {
+	pub fn cache_code(&mut self, db: &dyn HashDB<KeccakHasher, DBValue>) -> Option<Bytes> {
 		// TODO: fill out self.code_cache;
 		trace!("Account::cache_code: ic={}; self.code_hash={:?}, self.code_cache={}", self.is_cached(), self.code_hash, self.code_cache.pretty());
 
@@ -390,7 +391,7 @@ impl Account {
 		match db.get(&self.code_hash, hash_db::EMPTY_PREFIX) {
 			Some(x) => {
 				self.code_size = Some(x.len());
-				self.code_cache = Arc::new(x);
+				self.code_cache = x;
 				Some(self.code_cache.clone())
 			},
 			_ => {
@@ -401,7 +402,7 @@ impl Account {
 	}
 
 	/// Provide code to cache. For correctness, should be the correct code for the account.
-	pub fn cache_given_code(&mut self, code: Arc<Bytes>) {
+	pub fn cache_given_code(&mut self, code: Bytes) {
 		trace!("Account::cache_given_code: ic={}; self.code_hash={:?}, self.code_cache={}", self.is_cached(), self.code_hash, self.code_cache.pretty());
 
 		self.code_size = Some(code.len());
@@ -539,7 +540,7 @@ impl Account {
 	}
 
 	/// Export to RLP.
-	pub fn rlp(&self) -> Bytes {
+	pub fn rlp(&self) -> BytesMut {
 		let basic = BasicAccount {
 			nonce: self.nonce,
 			balance: self.balance,
@@ -548,7 +549,7 @@ impl Account {
 			code_version: self.code_version,
 		};
 
-		rlp::encode(&basic)
+		rlp::encode(&basic).as_slice().into()
 	}
 
 	/// Clone basic account data
@@ -646,7 +647,6 @@ mod tests {
 	use std::str::FromStr;
 
 	use ethereum_types::{Address, H256};
-	use parity_bytes::Bytes;
 
 	use account_db::*;
 	use journaldb::new_memory_db;
@@ -756,7 +756,7 @@ mod tests {
 
 	#[test]
 	fn rlpio() {
-		let a = Account::new(69u8.into(), 0u8.into(), HashMap::new(), Bytes::new(), 0.into());
+		let a = Account::new(69u8.into(), 0u8.into(), HashMap::new(), Default::default(), 0.into());
 		let b = Account::from_rlp(&a.rlp()).unwrap();
 		assert_eq!(a.balance(), b.balance());
 		assert_eq!(a.nonce(), b.nonce());
@@ -766,7 +766,7 @@ mod tests {
 
 	#[test]
 	fn new_account() {
-		let a = Account::new(69u8.into(), 0u8.into(), HashMap::new(), Bytes::new(), 0.into());
+		let a = Account::new(69u8.into(), 0u8.into(), HashMap::new(), Default::default(), 0.into());
 		assert_eq!(a.rlp().to_hex(), "f8448045a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421a0c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470");
 		assert_eq!(*a.balance(), 69u8.into());
 		assert_eq!(*a.nonce(), 0u8.into());

@@ -487,7 +487,7 @@ mod tests {
 			author: Address::from_low_u64_be(0),
 			timestamp: 0,
 			difficulty: 0.into(),
-			last_hashes: Arc::new(vec![]),
+			last_hashes: Default::default(),
 			gas_used: 0.into(),
 			gas_limit: 0.into(),
 		}

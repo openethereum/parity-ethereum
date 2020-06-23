@@ -70,7 +70,7 @@ fn build_env_info(header: &Header) -> vm::EnvInfo {
 		timestamp: header.timestamp(),
 		difficulty: *header.difficulty(),
 		gas_limit: *header.gas_limit() * 10,
-		last_hashes: std::sync::Arc::new(vec![]),
+		last_hashes: std::sync::Default::default(),
 		gas_used: *header.gas_used(),
 	}
 }

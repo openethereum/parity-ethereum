@@ -379,10 +379,10 @@ impl<B: Backend> State<B> {
 	}
 
 	/// Destroy the current object and return single account data.
-	pub fn into_account(self, account: &Address) -> TrieResult<(Option<Arc<Bytes>>, HashMap<H256, H256>)> {
+	pub fn into_account(self, account: &Address) -> TrieResult<(Option<Bytes>, HashMap<H256, H256>)> {
 		// TODO: deconstruct without cloning.
 		let account = self.require(account, true)?;
-		Ok((account.code().clone(), account.storage_changes().clone()))
+		Ok((account.code(), account.storage_changes().clone()))
 	}
 
 	/// Return reference to root
