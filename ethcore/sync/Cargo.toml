@@ -26,7 +26,7 @@ light = { package = "ethcore-light", path = "../light" }
 log = "0.4"
 network = { package = "ethcore-network", path = "../../util/network" }
 num-traits = "0.2"
-parity-runtime = "0.1.1"
+parity-runtime = { git = "https://github.com/vorot93/parity-common", branch = "tokio-compat" }
 parity-crypto = { version = "0.6.2", features = ["publickey"] }
 parity-util-mem = "0.6.0"
 rand = "0.7.3"
