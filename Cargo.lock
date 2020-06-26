@@ -1179,6 +1179,7 @@ dependencies = [
  "executive-state",
  "fetch",
  "futures",
+ "globset",
  "hash-db",
  "itertools",
  "journaldb",
@@ -1221,6 +1222,7 @@ dependencies = [
  "using_queue",
  "verification",
  "vm",
+ "walkdir",
 ]
 
 [[package]]

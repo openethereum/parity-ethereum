@@ -1,0 +1,128 @@
+{
+	"chain": [
+		{
+			"path": "res/ethereum/tests/BlockchainTests",
+			"skip": [
+				{
+					"reference": "Issue https://github.com/openethereum/openethereum/issues/11616",
+					"names": [
+						"blockChainFrontierWithLargerTDvsHomesteadBlockchain2_FrontierToHomesteadAt5",
+						"UncleFromFrontierInHomestead_FrontierToHomesteadAt5",
+						"UnclePopulation_FrontierToHomesteadAt5",
+						"blockChainFrontierWithLargerTDvsHomesteadBlockchain_FrontierToHomesteadAt5",
+						"DaoTransactions_HomesteadToDaoAt5",
+						"DaoTransactions_UncleExtradata_HomesteadToDaoAt5",
+						"DaoTransactions_EmptyTransactionAndForkBlocksAhead_HomesteadToDaoAt5",
+						"DaoTransactions_XBlockm1_HomesteadToDaoAt5",
+						"HomesteadOverrideFrontier_FrontierToHomesteadAt5",
+						"CallContractThatCreateContractBeforeAndAfterSwitchover_FrontierToHomesteadAt5",
+						"ContractCreationFailsOnHomestead_FrontierToHomesteadAt5",
+						"EIP150Transition_HomesteadToEIP150At5"
+					],
+					"paths": []
+				},
+				{
+					"reference": "Tests that takes a lot of time to execute, ignored by geth",
+					"names": [],
+					"paths": [
+						"res/ethereum/tests/BlockchainTests/stTimeConsuming/*"
+					]
+				}
+			]
+		},
+		{
+			"path": "res/ethereum/tests/LegacyTests/Constantinople/BlockchainTests",
+			"skip": [
+				{
+					"reference": "Issue https://github.com/openethereum/openethereum/issues/11616",
+					"names": [
+						"blockChainFrontierWithLargerTDvsHomesteadBlockchain2_FrontierToHomesteadAt5",
+						"UncleFromFrontierInHomestead_FrontierToHomesteadAt5",
+						"UnclePopulation_FrontierToHomesteadAt5",
+						"blockChainFrontierWithLargerTDvsHomesteadBlockchain_FrontierToHomesteadAt5",
+						"DaoTransactions_HomesteadToDaoAt5",
+						"DaoTransactions_UncleExtradata_HomesteadToDaoAt5",
+						"DaoTransactions_EmptyTransactionAndForkBlocksAhead_HomesteadToDaoAt5",
+						"DaoTransactions_XBlockm1_HomesteadToDaoAt5",
+						"HomesteadOverrideFrontier_FrontierToHomesteadAt5",
+						"CallContractThatCreateContractBeforeAndAfterSwitchover_FrontierToHomesteadAt5",
+						"ContractCreationFailsOnHomestead_FrontierToHomesteadAt5",
+						"EIP150Transition_HomesteadToEIP150At5"
+					],
+					"paths": []
+				},
+				{
+					"reference": "Tests that takes a lot of time to execute, ignored by geth",
+					"names": [],
+					"paths": [
+						"res/ethereum/tests/LegacyTests/Constantinople/BlockchainTests/stTimeConsuming/*"
+					]
+				}
+			]
+		}
+	],
+	"state": [
+		{
+			"path": "res/ethereum/tests/GeneralStateTests",
+			"skip": [
+				{
+					"reference": "Tests that takes a lot of time to execute, ignored by geth",
+					"names": {},
+					"paths": [
+						"res/ethereum/tests/GeneralStateTests/stTimeConsuming/*",
+						"res/ethereum/tests/GeneralStateTests/stStaticCall/static_Call1MB1024Calldepth.json"
+					]
+				}
+			]
+		},
+		{
+			"path": "res/ethereum/tests/LegacyTests/Constantinople/GeneralStateTests",
+			"skip": [
+				{
+					"reference": "Tests that takes a lot of time to execute, ignored by geth",
+					"names": {},
+					"paths": [
+						"res/ethereum/tests/LegacyTests/GeneralStateTests/Constantinople/stTimeConsuming/*",
+						"res/ethereum/tests/LegacyTests/GeneralStateTests/Constantinople/stStaticCall/static_Call1MB1024Calldepth.json"
+					]
+				}
+			]
+		}
+	],
+	"difficulty": [
+		{
+			"path": [
+				"res/ethereum/tests/BasicTests/difficulty.json",
+				"res/ethereum/tests/BasicTests/difficultyMainNetwork.json"
+			],
+			"chainspec": "Foundation"
+		}
+	],
+	"executive": [
+		{
+			"path": "res/ethereum/tests/VMTests"
+		}
+	],
+	"transaction": [
+		{
+			"path": "res/ethereum/tests/TransactionTests"
+		}
+	],
+	"trie": [
+		{
+			"path": [
+				"res/ethereum/tests/TrieTests/trietest.json",
+				"res/ethereum/tests/TrieTests/trieanyorder.json"
+			],
+			"triespec": "Generic"
+		},
+		{
+			"path": [
+				"res/ethereum/tests/TrieTests/hex_encoded_securetrie_test.json",
+				"res/ethereum/tests/TrieTests/trietest_secureTrie.json",
+				"res/ethereum/tests/TrieTests/trieanyorder_secureTrie.json"
+			],
+			"triespec": "Secure"
+		}
+	]
+}

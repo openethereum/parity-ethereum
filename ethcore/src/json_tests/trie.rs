@@ -22,12 +22,11 @@ use ethereum_types::H256;
 
 use super::HookType;
 
-#[allow(dead_code)]
-fn test_trie<H: FnMut(&str, HookType)>(path: &Path, json: &[u8], trie: TrieSpec, start_stop_hook: &mut H) -> Vec<String> {
+pub fn test_trie<H: FnMut(&str, HookType)>(path: &Path, json: &[u8], trie: TrieSpec, start_stop_hook: &mut H) -> Vec<String> {
 	let tests = ethjson::test_helpers::trie::Test::load(json)
 		.expect(&format!("Could not parse JSON trie test data from {}", path.display()));
 	let factory = TrieFactory::new(trie, ethtrie::Layout);
-	let mut result = vec![];
+	let mut failed = vec![];
 
 	for (name, test) in tests.into_iter() {
 		start_stop_hook(&name, HookType::OnStart);
@@ -43,47 +42,14 @@ fn test_trie<H: FnMut(&str, HookType)>(path: &Path, json: &[u8], trie: TrieSpec,
 				.expect(&format!("Trie test '{:?}' failed due to internal error", name));
 		}
 
-		if *t.root() != test.root.into() {
-			result.push(format!("Trie test '{:?}' failed.", name));
+		if *t.root() == test.root.into() {
+			println!("   - trie: {}...OK", name);
+		} else {
+			println!("   - trie: {}...FAILED ({:?})",name,path);
+			failed.push(format!("{}", name));
 		}
-
 		start_stop_hook(&name, HookType::OnStop);
 	}
 
-	for i in &result {
-		println!("FAILED: {}", i);
-	}
-
-	result
-}
-
-mod generic {
-	use std::path::Path;
-	use trie::TrieSpec;
-
-	use super::HookType;
-
-	#[allow(dead_code)]
-	fn do_json_test<H: FnMut(&str, HookType)>(path: &Path, json: &[u8], h: &mut H) -> Vec<String> {
-		super::test_trie(path, json, TrieSpec::Generic, h)
-	}
-
-	declare_test!{TrieTests_trietest, "TrieTests/trietest.json"}
-	declare_test!{TrieTests_trieanyorder, "TrieTests/trieanyorder.json"}
-}
-
-mod secure {
-	use std::path::Path;
-	use trie::TrieSpec;
-
-	use super::HookType;
-
-	#[allow(dead_code)]
-	fn do_json_test<H: FnMut(&str, HookType)>(path: &Path, json: &[u8], h: &mut H) -> Vec<String> {
-		super::test_trie(path, json, TrieSpec::Secure, h)
-	}
-
-	declare_test!{TrieTests_hex_encoded_secure, "TrieTests/hex_encoded_securetrie_test.json"}
-	declare_test!{TrieTests_trietest_secure, "TrieTests/trietest_secureTrie.json"}
-	declare_test!{TrieTests_trieanyorder_secure, "TrieTests/trieanyorder_secureTrie.json"}
+	failed
 }

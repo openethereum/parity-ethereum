@@ -59,6 +59,15 @@ extern crate using_queue;
 extern crate verification;
 extern crate vm;
 
+#[cfg(feature = "json-tests")]
+extern crate globset;
+
+#[cfg(feature = "json-tests")]
+extern crate tempfile;
+
+#[cfg(feature = "json-tests")]
+extern crate walkdir;
+
 #[cfg(test)]
 extern crate account_db;
 #[cfg(test)]
@@ -78,9 +87,6 @@ extern crate ethjson;
 extern crate kvdb_memorydb;
 #[cfg(any(test, feature = "kvdb-rocksdb"))]
 extern crate kvdb_rocksdb;
-#[cfg(feature = "json-tests")]
-#[macro_use]
-extern crate lazy_static;
 #[cfg(any(test, feature = "test-helpers"))]
 extern crate pod;
 #[cfg(any(test, feature = "blooms-db"))]
@@ -89,8 +95,6 @@ extern crate blooms_db;
 extern crate env_logger;
 #[cfg(test)]
 extern crate serde_json;
-#[cfg(any(test, feature = "tempdir"))]
-extern crate tempfile;
 
 #[macro_use]
 extern crate log;

@@ -16,6 +16,8 @@
 
 //! Test structures for JSON deserialization.
 
+/// Ethereum core tests execution instruction
+pub mod ethspec;
 /// Blockchain test helpers
 pub mod blockchain;
 /// Difficulty test helpers
