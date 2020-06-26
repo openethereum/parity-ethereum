@@ -148,7 +148,6 @@ mod state_tests {
 	declare_test!{GeneralStateTest_stEIP150singleCodeGasPrices, "GeneralStateTests/stEIP150singleCodeGasPrices/"}
 	declare_test!{GeneralStateTest_stEIP150Specific, "GeneralStateTests/stEIP150Specific/"}
 	declare_test!{GeneralStateTest_stEIP158Specific, "GeneralStateTests/stEIP158Specific/"}
-	declare_test!{GeneralStateTest_stEWASMTests, "GeneralStateTests/stEWASMTests/"}
 	declare_test!{GeneralStateTest_stExample, "GeneralStateTests/stExample/"}
 	declare_test!{GeneralStateTest_stExtCodeHash, "GeneralStateTests/stExtCodeHash/"}
 	declare_test!{GeneralStateTest_stHomesteadSpecific, "GeneralStateTests/stHomesteadSpecific/"}
@@ -215,7 +214,6 @@ mod legacy_state_tests {
 	declare_test!{Constantinople_GeneralStateTests_stEIP150singleCodeGasPrices,"LegacyTests/Constantinople/GeneralStateTests/stEIP150singleCodeGasPrices/"}
 	declare_test!{Constantinople_GeneralStateTests_stEIP150Specific,"LegacyTests/Constantinople/GeneralStateTests/stEIP150Specific/"}
 	declare_test!{Constantinople_GeneralStateTests_stEIP158Specific,"LegacyTests/Constantinople/GeneralStateTests/stEIP158Specific/"}
-	declare_test!{Constantinople_GeneralStateTests_stEWASMTests,"LegacyTests/Constantinople/GeneralStateTests/stEWASMTests/"}
 	declare_test!{Constantinople_GeneralStateTests_stExample,"LegacyTests/Constantinople/GeneralStateTests/stExample/"}
 	declare_test!{Constantinople_GeneralStateTests_stExtCodeHash,"LegacyTests/Constantinople/GeneralStateTests/stExtCodeHash/"}
 	declare_test!{Constantinople_GeneralStateTests_stHomesteadSpecific,"LegacyTests/Constantinople/GeneralStateTests/stHomesteadSpecific/"}
