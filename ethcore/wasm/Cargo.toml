@@ -10,7 +10,7 @@ ethereum-types = "0.9.2"
 log = "0.4"
 parity-wasm = "0.31"
 libc = "0.2"
-pwasm-utils = "0.6.1"
+pwasm-utils = "0.6.2"
 vm = { path = "../vm" }
 wasmi = "0.3.0"
 

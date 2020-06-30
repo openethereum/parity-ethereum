@@ -64,7 +64,7 @@ const TWO_POW_248: U256 = U256([0, 0, 0, 0x100000000000000]); //0x1 00000000 000
 
 /// Maximal subroutine stack size as specified in
 /// https://eips.ethereum.org/EIPS/eip-2315.
-pub const MAX_SUB_STACK_SIZE : usize = 1024;
+pub const MAX_SUB_STACK_SIZE : usize = 1023;
 
 /// Abstraction over raw vector of Bytes. Easier state management of PC.
 struct CodeReader {
@@ -432,7 +432,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 					Err(e) => return InterpreterResult::Done(Err(e))
 				};
 				self.return_stack.push(self.reader.position);
-				self.reader.position = pos;
+				self.reader.position = pos + 1;
 			},	
 			InstructionResult::ReturnFromSubroutine(pos) => {
 				self.reader.position = pos;
@@ -553,7 +553,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 				// ignore
 			},
 			instructions::BEGINSUB => {
-				// ignore
+				return Err(vm::Error::InvalidSubEntry);
 			},
 			instructions::JUMPSUB => {
 				if self.return_stack.len() >= MAX_SUB_STACK_SIZE {

@@ -43,7 +43,7 @@ criterion = "0.3"
 ethcore = { path = "../", features = ["test-helpers"] }
 ethcore-io = { path = "../../util/io" }
 ethjson = { path = "../../json" }
-parity-crypto = { version = "0.6.1", features = ["publickey"] }
+parity-crypto = { version = "0.6.2", features = ["publickey"] }
 hex-literal = "0.2.1"
 spec = { path = "../spec" }
 tempfile = "3.1"

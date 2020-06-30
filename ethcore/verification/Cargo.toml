@@ -35,7 +35,7 @@ unexpected = { path = "../../util/unexpected" }
 common-types = { path = "../types", features = ["test-helpers"] }
 criterion = "0.3"
 ethcore = { path = "../", features = ["test-helpers"] }
-parity-crypto = { version = "0.6.1", features = ["publickey"] }
+parity-crypto = { version = "0.6.2", features = ["publickey"] }
 machine = { path = "../machine" }
 null-engine = { path = "../engines/null-engine" }
 spec = { path = "../spec" }

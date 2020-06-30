@@ -13,7 +13,7 @@ bytes = { package = "parity-bytes", version = "0.1" }
 client-traits = { path = "../client-traits" }
 common-types = { path = "../types" }
 devp2p = { package = "ethcore-network-devp2p", path = "../../util/network-devp2p" }
-enum_primitive = "0.1.1"
+enum-primitive-derive = "0.2"
 ethcore-io = { path = "../../util/io" }
 ethcore-private-tx = { path = "../private-tx" }
 ethereum-forkid = "0.2.1"
@@ -25,8 +25,9 @@ keccak-hash = "0.5.0"
 light = { package = "ethcore-light", path = "../light" }
 log = "0.4"
 network = { package = "ethcore-network", path = "../../util/network" }
+num-traits = "0.2"
 parity-runtime = "0.1.1"
-parity-crypto = { version = "0.6.1", features = ["publickey"] }
+parity-crypto = { version = "0.6.2", features = ["publickey"] }
 parity-util-mem = "0.7"
 rand = "0.7.3"
 parking_lot = "0.10.0"
