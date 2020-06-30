@@ -94,7 +94,8 @@ bundle_release_spec! {
 	"ethereum/rinkeby" => new_rinkeby,
 	"ethereum/ropsten" => new_ropsten,
 	"ethereum/volta" => new_volta,
-	"ethereum/xdai" => new_xdai
+	"ethereum/xdai" => new_xdai,
+	"ethereum/yolov1" => new_yolov1
 }
 
 bundle_test_spec! {
@@ -153,7 +154,7 @@ mod tests {
 	use tempfile::TempDir;
 	use ethcore::test_helpers::get_temp_state_db;
 
-	use super::{new_ropsten, new_foundation};
+	use super::{new_ropsten, new_foundation, new_berlin_test_machine};
 
 	#[test]
 	fn ensure_db_good() {
@@ -189,5 +190,10 @@ mod tests {
 		assert_eq!(frontier.state_root, "d7f8974fb5ac78d9ac099b9ad5018bedc2ce0a72dad1827a1709da30580f0544".parse().unwrap());
 		let genesis = frontier.genesis_block();
 		assert_eq!(view!(BlockView, &genesis).header_view().hash(), "d4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3".parse().unwrap());
+	}
+
+	#[test]
+	fn berlin_test_spec() {
+		let _ = new_berlin_test_machine();
 	}
 }

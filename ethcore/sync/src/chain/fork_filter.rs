@@ -140,4 +140,21 @@ mod tests {
 			],
 		)
 	}
+
+	#[test]
+	fn classic_spec() {
+		test_spec(
+			|| spec::new_classic(&String::new()),
+		vec![
+				1150000,
+				2500000,
+				3000000,
+				5000000,
+				5900000,
+				8772000,
+				9573000,
+				10500839,
+			],
+		)
+	}
 }

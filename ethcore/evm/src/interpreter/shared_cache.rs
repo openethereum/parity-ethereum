@@ -160,7 +160,7 @@ fn test_find_sub_entrypoints() {
 	// given
 
 	// see https://eips.ethereum.org/EIPS/eip-2315 for disassembly
-	let code = hex!("6800000000000000000cb300b26011b3b7b2b7");
+	let code = hex!("6800000000000000000c5e005c60115e5d5c5d");
 
 	// when
 	let cache_item = SharedCache::find_jump_and_sub_destinations(&code);
@@ -180,7 +180,7 @@ fn test_find_jump_and_sub_allowing_unknown_opcodes() {
 	// 0000 5B   JUMPDEST       
 	// 0001 CC   ???
 	// 0002 B2   BEGINSUB
-	let code = hex!("5BCCB2");
+	let code = hex!("5BCC5C");
 
 	// when
 	let cache_item = SharedCache::find_jump_and_sub_destinations(&code);

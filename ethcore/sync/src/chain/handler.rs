@@ -38,7 +38,7 @@ use crate::{
 };
 
 use bytes::Bytes;
-use enum_primitive::FromPrimitive;
+use num_traits::FromPrimitive;
 use ethereum_types::{H256, U256};
 use keccak_hash::keccak;
 use network::PeerId;
