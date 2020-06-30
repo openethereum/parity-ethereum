@@ -401,6 +401,9 @@ pub trait BlockChainClient:
 	/// Schedule state-altering transaction to be executed on the next pending
 	/// block with the given gas and nonce parameters.
 	fn transact(&self, tx_request: TransactionRequest) -> Result<(), transaction::Error>;
+	
+	/// Returns true, if underlying import queue is processing possible fork at the moment
+	fn is_processing_fork(&self) -> bool;
 }
 
 /// The data required for a `Client` to create a transaction.

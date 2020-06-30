@@ -13,6 +13,7 @@ bytes = { package = "parity-bytes", version = "0.1" }
 client-traits = { path = "../client-traits" }
 common-types = { path = "../types" }
 devp2p = { package = "ethcore-network-devp2p", path = "../../util/network-devp2p" }
+derive_more = "0.99"
 enum-primitive-derive = "0.2"
 ethcore-io = { path = "../../util/io" }
 ethcore-private-tx = { path = "../private-tx" }
