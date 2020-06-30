@@ -9,11 +9,11 @@ edition = "2018"
 [dependencies]
 account-state = { path = "../account-state" }
 common-types = { path = "../types"}
-ethereum-types = "0.9.1"
-hash-db = "0.15.0"
+ethereum-types = "0.9.2"
+hash-db = "0.15.2"
 keccak-hasher = { path = "../../util/keccak-hasher" }
 journaldb = { path = "../../util/journaldb" }
-kvdb = "0.6"
+kvdb = "0.7"
 log = "0.4.6"
 lru-cache = "0.1.2"
 memory-cache = { path = "../../util/memory-cache" }

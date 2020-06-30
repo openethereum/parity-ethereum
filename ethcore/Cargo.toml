@@ -23,17 +23,17 @@ ethcore-db = { path = "./db" }
 ethcore-io = { path = "../util/io" }
 ethcore-miner = { path = "../miner" }
 ethcore-stratum = { path = "../miner/stratum", optional = true }
-ethereum-types = "0.9.1"
+ethereum-types = "0.9.2"
 evm = { path = "evm" }
 executive-state = { path = "executive-state" }
 futures = "0.1"
-hash-db = "0.15.0"
+hash-db = "0.15.2"
 itertools = "0.8.2"
 journaldb = { path = "../util/journaldb" }
 keccak-hash = "0.5.0"
-kvdb = "0.6"
-kvdb-memorydb = { version = "0.6", optional = true }
-kvdb-rocksdb = { version = "0.8", optional = true }
+kvdb = "0.7"
+kvdb-memorydb = { version = "0.7", optional = true }
+kvdb-rocksdb = { version = "0.9", optional = true }
 lazy_static = { version = "1.3", optional = true }
 log = "0.4"
 machine = { path = "./machine" }
@@ -41,7 +41,7 @@ memory-cache = { path = "../util/memory-cache" }
 parity-bytes = "0.1"
 parking_lot = "0.10.0"
 pod = { path = "pod", optional = true }
-trie-db = "0.20.0"
+trie-db = "0.21.0"
 parity-crypto = { version = "0.6.1", features = ["publickey"], optional = true }
 patricia-trie-ethereum = { path = "../util/patricia-trie-ethereum" }
 rand = "0.7.3"
@@ -77,8 +77,8 @@ ethcore-builtin = { path = "./builtin" }
 ethjson = { path = "../json", features = ["test-helpers"] }
 parity-crypto = { version = "0.6.1", features = ["publickey"] }
 fetch = { path = "../util/fetch" }
-kvdb-memorydb = "0.6"
-kvdb-rocksdb = "0.8"
+kvdb-memorydb = "0.7"
+kvdb-rocksdb = "0.9"
 lazy_static = "1.3"
 machine = { path = "./machine", features = ["test-helpers"] }
 parity-runtime = "0.1.1"

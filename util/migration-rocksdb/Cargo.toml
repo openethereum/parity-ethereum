@@ -7,8 +7,8 @@ license = "GPL-3.0"
 
 [dependencies]
 log = "0.4"
-kvdb = "0.6"
-kvdb-rocksdb = "0.8"
+kvdb = "0.7"
+kvdb-rocksdb = "0.9"
 
 [dev-dependencies]
 tempfile = "3.1"

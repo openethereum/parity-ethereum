@@ -95,6 +95,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "ahash"
+version = "0.3.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e8fd72866655d1904d6b0997d0b07ba561047d070fbe29de039031c641b61217"
+
+[[package]]
 name = "aho-corasick"
 version = "0.7.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1583,9 +1589,8 @@ dependencies = [
 
 [[package]]
 name = "ethereum-forkid"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f890790a25bad7e0ce2ecca9c777d393dccf0771d17264070bc8e2b1d05b9d8b"
+version = "0.2.1"
+source = "git+https://github.com/rust-ethereum/forkid/?branch=dp/chore/upgrade-parity-util-mem#8b34558c4e86553c2f6618bbd6a7d00d842de24e"
 dependencies = [
  "crc",
  "ethereum-types",
@@ -1597,9 +1602,9 @@ dependencies = [
 
 [[package]]
 name = "ethereum-types"
-version = "0.9.1"
+version = "0.9.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8616dc6a7bc7d81ab8a6425635299ee3582975d4ddeb9312b8b0b8ea54dfecf8"
+checksum = "473aecff686bd8e7b9db0165cbbb53562376b39bf35b427f0c60446a9e1634b0"
 dependencies = [
  "ethbloom",
  "fixed-hash",
@@ -2003,8 +2008,7 @@ checksum = "65043da274378d68241eb9a8f8f8aa54e349136f7b8e12f63e3ef44043cc30e1"
 [[package]]
 name = "hash-db"
 version = "0.15.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d23bd4e7b5eda0d0f3a307e8b381fdc8ba9000f26fbe912250c0a4cc3956364a"
+source = "git+https://github.com/paritytech/trie?branch=dp/chore/update-deps-parity-util-mem-to-0.7.0#b23d998848c11b30beb3eb1786104c1ee4fd0d13"
 
 [[package]]
 name = "hash256-std-hasher"
@@ -2021,8 +2025,18 @@ version = "0.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8e6073d0ca812575946eb5f35ff68dbe519907b25c42530389ff946dc84c6ead"
 dependencies = [
- "ahash",
+ "ahash 0.2.18",
  "autocfg 0.1.7",
+]
+
+[[package]]
+name = "hashbrown"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ab9b7860757ce258c89fd48d28b68c41713e597a7b09e793f6c6a6e2ea37c827"
+dependencies = [
+ "ahash 0.3.8",
+ "autocfg 1.0.0",
 ]
 
 [[package]]
@@ -2517,9 +2531,9 @@ dependencies = [
 
 [[package]]
 name = "kvdb"
-version = "0.6.0"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e763b2a9b500ba47948061d1e8bc3b5f03a8a1f067dbcf822a4d2c84d2b54a3a"
+checksum = "0315ef2f688e33844400b31f11c263f2b3dc21d8b9355c6891c5f185fae43f9a"
 dependencies = [
  "parity-util-mem",
  "smallvec 1.2.0",
@@ -2527,9 +2541,9 @@ dependencies = [
 
 [[package]]
 name = "kvdb-memorydb"
-version = "0.6.0"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "73027d5e228de6f503b5b7335d530404fc26230a6ae3e09b33ec6e45408509a4"
+checksum = "73de822b260a3bdfb889dbbb65bb2d473eee2253973d6fa4a5d149a2a4a7c66e"
 dependencies = [
  "kvdb",
  "parity-util-mem",
@@ -2538,9 +2552,9 @@ dependencies = [
 
 [[package]]
 name = "kvdb-rocksdb"
-version = "0.8.0"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "84384eca250c7ff67877eda5336f28a86586aaee24acb945643590671f6bfce1"
+checksum = "7c341ef15cfb1f923fa3b5138bfbd2d4813a2c1640b473727a53351c7f0b0fa2"
 dependencies = [
  "fs-swap",
  "kvdb",
@@ -2676,11 +2690,11 @@ dependencies = [
 
 [[package]]
 name = "lru"
-version = "0.4.3"
+version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0609345ddee5badacf857d4f547e0e5a2e987db77085c24cd887f73573a04237"
+checksum = "297efb9401445cf7b6986a583d7ac194023334b46b294ff7da0d36662c1251c2"
 dependencies = [
- "hashbrown",
+ "hashbrown 0.6.3",
 ]
 
 [[package]]
@@ -2789,13 +2803,12 @@ dependencies = [
 
 [[package]]
 name = "memory-db"
-version = "0.20.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f58381b20ebe2c578e75dececd9da411414903415349548ccc46aac3209cdfbc"
+version = "0.21.1"
+source = "git+https://github.com/paritytech/trie?branch=dp/chore/update-deps-parity-util-mem-to-0.7.0#b23d998848c11b30beb3eb1786104c1ee4fd0d13"
 dependencies = [
- "ahash",
+ "ahash 0.2.18",
  "hash-db",
- "hashbrown",
+ "hashbrown 0.6.3",
  "parity-util-mem",
 ]
 
@@ -3218,9 +3231,9 @@ checksum = "16b56e3a2420138bdb970f84dfb9c774aea80fa0e7371549eedec0d80c209c67"
 
 [[package]]
 name = "parity-crypto"
-version = "0.6.1"
+version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2b7f19c1acc7fc6c5256a2f4f0c5af022044b9bdfdd0a218ff79f8cbb29779a5"
+checksum = "88e15b5e11d7a4829490630a797c537a68c9e864a139f56fe7a1e6a51f0da25d"
 dependencies = [
  "aes",
  "aes-ctr",
@@ -3416,7 +3429,7 @@ dependencies = [
 [[package]]
 name = "parity-secretstore"
 version = "1.0.0"
-source = "git+https://github.com/paritytech/secret-store?rev=ea2b0894f63294941dba05d699c2f4c24b463246#ea2b0894f63294941dba05d699c2f4c24b463246"
+source = "git+https://github.com/paritytech/secret-store?rev=e041c80d6f073ca653fec9f653236a11cc20fb56#e041c80d6f073ca653fec9f653236a11cc20fb56"
 dependencies = [
  "byteorder",
  "ethabi",
@@ -3496,13 +3509,13 @@ dependencies = [
 
 [[package]]
 name = "parity-util-mem"
-version = "0.6.1"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2c6e2583649a3ca84894d1d71da249abcfda54d5aca24733d72ca10d0f02361c"
+checksum = "297ff91fa36aec49ce183484b102f6b75b46776822bd81525bfc4cc9b0dd0f5c"
 dependencies = [
  "cfg-if",
  "ethereum-types",
- "hashbrown",
+ "hashbrown 0.8.0",
  "impl-trait-for-tuples",
  "jemallocator",
  "lru",
@@ -5228,12 +5241,12 @@ checksum = "aeb4b191d033a35edfce392a38cdcf9790b6cebcb30fa690c312c29da4dc433e"
 
 [[package]]
 name = "trie-db"
-version = "0.20.0"
+version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "de9222c50cc325855621271157c973da27a0dcd26fa06f8edf81020bd2333df0"
+checksum = "cb230c24c741993b04cfccbabb45acff6f6480c5f00d3ed8794ea43db3a9d727"
 dependencies = [
  "hash-db",
- "hashbrown",
+ "hashbrown 0.6.3",
  "log",
  "rustc-hex 2.1.0",
  "smallvec 1.2.0",

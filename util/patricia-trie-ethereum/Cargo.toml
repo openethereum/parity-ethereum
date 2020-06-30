@@ -6,16 +6,16 @@ description = "Merkle-Patricia Trie (Ethereum Style)"
 license = "GPL-3.0"
 
 [dependencies]
-trie-db = "0.20.0"
+trie-db = "0.21.0"
 keccak-hasher = { version = "0.1.1", path = "../keccak-hasher" }
-hash-db = "0.15.0"
+hash-db = "0.15.2"
 rlp = "0.4.5"
 parity-bytes = "0.1"
-ethereum-types = "0.9.1"
+ethereum-types = "0.9.2"
 elastic-array = "0.10"
 
 [dev-dependencies]
-memory-db = "0.20.0"
+memory-db = "0.21.1"
 keccak-hash = "0.5.0"
 journaldb = { path = "../journaldb" }
 criterion = "0.3"
