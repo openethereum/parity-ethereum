@@ -133,6 +133,6 @@ members = [
 ]
 
 [patch.crates-io]
-ethereum-forkid = { git = "https://github.com/rust-ethereum/forkid/", branch = "dp/chore/upgrade-parity-util-mem"}
+ethereum-forkid = { git = "https://github.com/rust-ethereum/forkid/" }
 memory-db = { git = "https://github.com/paritytech/trie", branch = "dp/chore/update-deps-parity-util-mem-to-0.7.0"}
 hash-db = { git = "https://github.com/paritytech/trie", branch = "dp/chore/update-deps-parity-util-mem-to-0.7.0"}

@@ -1620,7 +1620,7 @@ dependencies = [
 [[package]]
 name = "ethereum-forkid"
 version = "0.2.1"
-source = "git+https://github.com/rust-ethereum/forkid/?branch=dp/chore/upgrade-parity-util-mem#8b34558c4e86553c2f6618bbd6a7d00d842de24e"
+source = "git+https://github.com/rust-ethereum/forkid/#bf407dacb0cc1dc3b82a0e6d1af4511d029956e8"
 dependencies = [
  "crc",
  "ethereum-types",
