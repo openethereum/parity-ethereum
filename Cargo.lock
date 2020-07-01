@@ -1620,7 +1620,8 @@ dependencies = [
 [[package]]
 name = "ethereum-forkid"
 version = "0.2.1"
-source = "git+https://github.com/rust-ethereum/forkid/#bf407dacb0cc1dc3b82a0e6d1af4511d029956e8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3010d8372e3a76d4e2c44de0a080257ab62b6d108857ee7bd70fe8dfb2815f13"
 dependencies = [
  "crc",
  "ethereum-types",
