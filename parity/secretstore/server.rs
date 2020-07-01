@@ -19,7 +19,8 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use account_utils::AccountProvider;
+use crate::account_utils::AccountProvider;
+
 use dir::default_data_path;
 use dir::helpers::replace_home;
 use ethcore::client::Client;

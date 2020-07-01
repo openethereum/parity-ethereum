@@ -21,7 +21,20 @@ use std::path::PathBuf;
 use std::collections::{HashSet, BTreeMap};
 use std::iter::FromIterator;
 use std::cmp;
-use cli::{Args, ArgsError};
+use crate::cli::{Args, ArgsError};
+use crate::rpc::{IpcConfiguration, HttpConfiguration, WsConfiguration};
+use crate::cache::CacheConfig;
+use crate::helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, geth_ipc_path, parity_ipc_path, to_bootnodes, to_addresses, to_address, to_queue_strategy, to_queue_penalization};
+use crate::params::{ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras, SpecType};
+use crate::metrics::MetricsConfiguration;
+use crate::secretstore::{NodeSecretKey, Configuration as SecretStoreConfiguration, ContractAddress as SecretStoreContractAddress};
+use crate::run::RunCmd;
+use crate::blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, KillBlockchain, ExportState, ResetBlockchain};
+use crate::export_hardcoded_sync::ExportHsyncCmd;
+use crate::presale::ImportWallet;
+use crate::account::{AccountCmd, NewAccount, ListAccounts, ImportAccounts, ImportFromGethAccounts};
+use crate::snapshot_cmd::{self, SnapshotCommand};
+
 use hash::keccak;
 use ethereum_types::{U256, H256, Address};
 use parity_version::{version_data, version};
@@ -34,26 +47,14 @@ use snapshot::SnapshotConfiguration;
 use miner::pool;
 use verification::queue::VerifierSettings;
 
-use rpc::{IpcConfiguration, HttpConfiguration, WsConfiguration};
 use parity_rpc::NetworkSettings;
-use cache::CacheConfig;
-use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, geth_ipc_path, parity_ipc_path, to_bootnodes, to_addresses, to_address, to_queue_strategy, to_queue_penalization};
 use dir::helpers::{replace_home, replace_home_and_local};
-use params::{ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras, SpecType};
 use ethcore_logger::Config as LogConfig;
 use dir::{self, Directories, default_hypervisor_path, default_local_path, default_data_path};
 use ethcore_private_tx::{ProviderConfig, EncryptorConfig};
-use secretstore::{NodeSecretKey, Configuration as SecretStoreConfiguration, ContractAddress as SecretStoreContractAddress};
 use updater::{UpdatePolicy, UpdateFilter, ReleaseTrack};
-use run::RunCmd;
 use types::data_format::DataFormat;
-use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, KillBlockchain, ExportState, ResetBlockchain};
-use export_hardcoded_sync::ExportHsyncCmd;
-use presale::ImportWallet;
-use account::{AccountCmd, NewAccount, ListAccounts, ImportAccounts, ImportFromGethAccounts};
-use snapshot_cmd::{self, SnapshotCommand};
 use network::{IpFilter, NatType};
-use metrics::MetricsConfiguration;
 
 const DEFAULT_MAX_PEERS: u16 = 50;
 const DEFAULT_MIN_PEERS: u16 = 25;
@@ -151,7 +152,7 @@ impl Configuration {
 		let cmd = if self.args.flag_version {
 			Cmd::Version
 		} else if self.args.cmd_signer {
-			let authfile = ::signer::codes_path(&ws_conf.signer_path);
+			let authfile = crate::signer::codes_path(&ws_conf.signer_path);
 
 			if self.args.cmd_signer_new_token {
 				Cmd::SignerToken(ws_conf, logger_config.clone())

@@ -19,18 +19,21 @@ use std::io::{Write, BufReader, BufRead};
 use std::time::Duration;
 use std::fs::File;
 use std::collections::HashSet;
+
+use crate::cache::CacheConfig;
+use crate::upgrade::{upgrade, upgrade_data_paths};
+use crate::db::migrate;
+
 use ethereum_types::{U256, Address};
 use journaldb::Algorithm;
 use ethcore::client::{DatabaseCompactionProfile, ClientConfig};
 use ethcore::miner::{PendingSet, Penalization};
 use verification::VerifierType;
 use miner::pool::PrioritizationStrategy;
-use cache::CacheConfig;
+
 use dir::DatabaseDirectories;
 use dir::helpers::replace_home;
-use upgrade::{upgrade, upgrade_data_paths};
 use sync::{validate_node_url, self};
-use db::migrate;
 use path;
 use ethkey::Password;
 use types::{

@@ -16,11 +16,12 @@
 
 use std::sync::Arc;
 
+use crate::params::{SpecType, AccountsConfig};
+
 use dir::Directories;
 use ethereum_types::Address;
 use ethkey::Password;
 
-use params::{SpecType, AccountsConfig};
 
 #[cfg(not(feature = "accounts"))]
 mod accounts {
@@ -60,11 +61,11 @@ mod accounts {
 #[cfg(feature = "accounts")]
 mod accounts {
 	use super::*;
-	use upgrade::upgrade_key_location;
+	use crate::upgrade::upgrade_key_location;
 	use ethereum_types::{H160, H256};
 	use std::str::FromStr;
 
-	pub use accounts::AccountProvider;
+	pub use crate::accounts::AccountProvider;
 
 	/// Pops along with error messages when a password is missing or invalid.
 	const VERIFY_PASSWORD_HINT: &str = "Make sure valid password is present in files passed using `--password` or in the configuration file.";
@@ -73,7 +74,7 @@ mod accounts {
 	pub fn prepare_account_provider(spec: &SpecType, dirs: &Directories, data_dir: &str, cfg: AccountsConfig, passwords: &[Password]) -> Result<AccountProvider, String> {
 		use ethstore::EthStore;
 		use ethstore::accounts_dir::RootDiskDirectory;
-		use accounts::AccountProviderSettings;
+		use crate::accounts::AccountProviderSettings;
 
 		let path = dirs.keys_path(data_dir);
 		upgrade_key_location(&dirs.legacy_keys_path(cfg.testnet), &path);

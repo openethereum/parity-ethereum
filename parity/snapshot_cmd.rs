@@ -20,6 +20,12 @@ use std::time::Duration;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use crate::cache::CacheConfig;
+use crate::params::{SpecType, Pruning, Switch, tracing_switch_to_bool, fatdb_switch_to_bool};
+use crate::helpers::{to_client_config, execute_upgrades};
+use crate::user_defaults::UserDefaults;
+use crate::db;
+
 use hash::keccak;
 use snapshot::{SnapshotConfiguration, SnapshotService as SS, SnapshotClient};
 use snapshot::io::{SnapshotReader, PackedReader, PackedWriter};
@@ -35,13 +41,9 @@ use types::{
 	snapshot::RestorationStatus,
 };
 
-use cache::CacheConfig;
-use params::{SpecType, Pruning, Switch, tracing_switch_to_bool, fatdb_switch_to_bool};
-use helpers::{to_client_config, execute_upgrades};
+
 use dir::Directories;
-use user_defaults::UserDefaults;
 use ethcore_private_tx;
-use db;
 
 /// Kinds of snapshot commands.
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -270,7 +272,7 @@ impl SnapshotCommand {
 						let cur_size = progress.bytes();
 						if cur_size != last_size {
 							last_size = cur_size;
-							let bytes = ::informant::format_bytes(cur_size);
+							let bytes = crate::informant::format_bytes(cur_size);
 							info!("Snapshot: {} accounts (state), {} blocks, {} bytes", progress.accounts(), progress.blocks(), bytes);
 						}
 					} else {

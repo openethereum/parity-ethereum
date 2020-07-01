@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use params::SpecType;
+use crate::params::SpecType;
 
 #[derive(Debug, PartialEq)]
 pub enum AccountCmd {
@@ -68,7 +68,7 @@ mod command {
 	use accounts::{AccountProvider, AccountProviderSettings};
 	use ethstore::{EthStore, SecretStore, SecretVaultRef, import_account, import_accounts, read_geth_accounts};
 	use ethstore::accounts_dir::RootDiskDirectory;
-	use helpers::{password_prompt, password_from_file};
+	use crate::helpers::{password_prompt, password_from_file};
 
 	pub fn execute(cmd: AccountCmd) -> Result<String, String> {
 		match cmd {

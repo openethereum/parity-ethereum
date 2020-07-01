@@ -19,6 +19,26 @@ use std::sync::{Arc, Weak, atomic};
 use std::time::{Duration, Instant};
 use std::thread;
 
+use crate::informant::{Informant, LightNodeInformantData, FullNodeInformantData};
+use crate::metrics::{MetricsConfiguration, start_prometheus_metrics};
+use crate::miner::external::ExternalMiner;
+use crate::miner::work_notify::WorkPoster;
+use crate::params::{
+	SpecType, Pruning, AccountsConfig, GasPricerConfig, MinerExtras, Switch,
+	tracing_switch_to_bool, fatdb_switch_to_bool, mode_switch_to_bool
+};
+use crate::account_utils;
+use crate::helpers::{to_client_config, execute_upgrades, passwords_from_files};
+use crate::cache::CacheConfig;
+use crate::user_defaults::UserDefaults;
+use crate::jsonrpc_core;
+use crate::modules;
+use crate::rpc;
+use crate::rpc_apis;
+use crate::secretstore;
+use crate::signer;
+use crate::db;
+
 use ansi_term::Colour;
 use client_traits::{BlockInfo, BlockChainClient};
 use ethcore::client::{Client, DatabaseCompactionProfile};
@@ -30,12 +50,8 @@ use ethcore_logger::{Config as LogConfig, RotatingLogger};
 use ethcore_service::ClientService;
 use futures::Stream;
 use hash_fetch::{self, fetch};
-use informant::{Informant, LightNodeInformantData, FullNodeInformantData};
 use journaldb::Algorithm;
 use light::Cache as LightDataCache;
-use metrics::{MetricsConfiguration, start_prometheus_metrics};
-use miner::external::ExternalMiner;
-use miner::work_notify::WorkPoster;
 use node_filter::NodeFilter;
 use parity_runtime::Runtime;
 use sync::{self, SyncConfig, PrivateTxHandler};
@@ -50,22 +66,7 @@ use parity_rpc::{
 use updater::{UpdateFilter, UpdatePolicy, Updater};
 use parity_version::version;
 use ethcore_private_tx::{ProviderConfig, EncryptorConfig, SecretStoreEncryptor};
-use params::{
-	SpecType, Pruning, AccountsConfig, GasPricerConfig, MinerExtras, Switch,
-	tracing_switch_to_bool, fatdb_switch_to_bool, mode_switch_to_bool
-};
-use account_utils;
-use helpers::{to_client_config, execute_upgrades, passwords_from_files};
 use dir::{Directories, DatabaseDirectories};
-use cache::CacheConfig;
-use user_defaults::UserDefaults;
-use jsonrpc_core;
-use modules;
-use rpc;
-use rpc_apis;
-use secretstore;
-use signer;
-use db;
 use registrar::RegistrarClient;
 
 // How often we attempt to take a snapshot: only snapshot on blocknumbers that are multiples of this.
@@ -164,7 +165,7 @@ impl ::local_store::NodeInfo for FullNodeInfo {
 	}
 }
 
-type LightClient = ::light::client::Client<::light_helpers::EpochFetch>;
+type LightClient = crate::light::client::Client<crate::light_helpers::EpochFetch>;
 
 // helper for light execution.
 fn execute_light_impl<Cr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq: Cr) -> Result<RunningClient, String>
@@ -248,7 +249,7 @@ fn execute_light_impl<Cr>(cmd: RunCmd, logger: Arc<RotatingLogger>, on_client_rq
 	});
 
 	let sync_handle = Arc::new(RwLock::new(Weak::new()));
-	let fetch = ::light_helpers::EpochFetch {
+	let fetch = crate::light_helpers::EpochFetch {
 		on_demand: on_demand.clone(),
 		sync: sync_handle.clone(),
 	};

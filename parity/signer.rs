@@ -17,10 +17,11 @@
 use std::io;
 use std::path::{Path, PathBuf};
 
+use crate::rpc;
+use crate::rpc_apis;
+
 use ansi_term::Colour::White;
 use ethcore_logger::Config as LogConfig;
-use rpc;
-use rpc_apis;
 use parity_rpc;
 use path::restrict_permissions_owner;
 

@@ -19,14 +19,15 @@ use std::sync::Arc;
 use std::path::PathBuf;
 use std::collections::HashSet;
 
+use crate::rpc_apis::{self, ApiSet};
+use crate::helpers::parity_ipc_path;
+
 use dir::default_data_path;
 use dir::helpers::replace_home;
-use helpers::parity_ipc_path;
 use jsonrpc_core::MetaIoHandler;
 use parity_runtime::Executor;
 use parity_rpc::informant::{RpcStats, Middleware};
 use parity_rpc::{self as rpc, Metadata, DomainsValidation};
-use rpc_apis::{self, ApiSet};
 
 pub use parity_rpc::{IpcServer, HttpServer, RequestMiddleware};
 pub use parity_rpc::ws::{Server as WsServer, ws};
@@ -179,7 +180,7 @@ pub fn new_ws<D: rpc_apis::Dependencies>(
 	let signer_path;
 	let path = match conf.support_token_api {
 		true => {
-			signer_path = ::signer::codes_path(&conf.signer_path);
+			signer_path = crate::signer::codes_path(&conf.signer_path);
 			Some(signer_path.as_path())
 		},
 		false => None

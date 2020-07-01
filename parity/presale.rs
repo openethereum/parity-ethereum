@@ -14,11 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
+use crate::helpers::{password_prompt, password_from_file};
+use crate::params::SpecType;
 
 use ethkey::Password;
 use ethstore::PresaleWallet;
-use helpers::{password_prompt, password_from_file};
-use params::SpecType;
 
 #[derive(Debug, PartialEq)]
 pub struct ImportWallet {

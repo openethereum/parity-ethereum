@@ -1,13 +1,15 @@
 use std::{
     time::Instant,
-    sync::{Mutex, Arc}
+    sync::{Mutex, Arc},
+    str::FromStr,
 };
+use std::convert::Infallible;
 
-use hyper::{Method, Body, Request, Response, service::service_fn_ok};
+use crate::rpc;
+use crate::rpc_apis;
 
-use rpc;
-use rpc_apis;
-use futures::*;
+use hyper::{Method, Body, Request, Response, Server, service::{make_service_fn, service_fn}};
+use futures::prelude::*;
 
 use stats::{
 	PrometheusMetrics,
@@ -39,7 +41,7 @@ struct State {
 	rpc_apis: Arc<rpc_apis::FullDependencies>,
 }
 
-fn handle_request(req: Request<Body>, state: &Arc<Mutex<State>>) -> Response<Body> {
+async fn handle_request(req: Request<Body>, state: &Arc<Mutex<State>>) -> Result<Response<Body>,hyper::Error> {
     let (parts, _body) = req.into_parts();
     match (parts.method, parts.uri.path()) {
         (Method::GET, "/metrics") => {
@@ -61,15 +63,38 @@ fn handle_request(req: Request<Body>, state: &Arc<Mutex<State>>) -> Response<Bod
             encoder.encode(&metric_families, &mut buffer).unwrap();
             let text = String::from_utf8(buffer).unwrap();
 
-            Response::new(hyper::Body::from(text))
+            Ok(Response::new(hyper::Body::from(text)))
         },
         (_, _) => {
             let mut res = hyper::Response::new(hyper::Body::from("not found"));
             *res.status_mut() = hyper::StatusCode::NOT_FOUND;
-            res
+            Ok(res)
         }
     }
 }
+
+/*
+    let state = State {
+        rpc_apis: deps.apis.clone(),
+    };
+    let state = Arc::new(Mutex::new(state));
+    let hyper = hyper::Server::bind(&addr)
+    .serve(move || {
+        let inner = Arc::clone(&state);
+        Ok::<_,hyper::Error>::service_fn(move |req| handle_request(req, &inner))
+    })
+    .map_err(|err| eprintln!("server error: {}", err));
+
+    deps.executor.spawn(hyper);
+    */
+
+
+
+
+async fn handle(_req: Request<Body>) -> Result<Response<Body>, Infallible> {
+    Ok(Response::new(Body::from("Hello World")))
+}
+
 
 /// Start the prometheus metrics server accessible via GET <host>:<port>/metrics
 pub fn start_prometheus_metrics(conf: &MetricsConfiguration, deps: &rpc::Dependencies<rpc_apis::FullDependencies>) -> Result<(), String> {
@@ -79,23 +104,19 @@ pub fn start_prometheus_metrics(conf: &MetricsConfiguration, deps: &rpc::Depende
     }
 
     let addr = format!("{}:{}", conf.interface, conf.port);
-    let addr = addr 
+    let addr = addr
         .parse()
         .map_err(|err| format!("Failed to parse address '{}': {}", addr,err))?;
 
-    let state = State {
-        rpc_apis: deps.apis.clone(),
-    };
-    let state = Arc::new(Mutex::new(state));
+    // And a MakeService to handle each connection...
+    let make_service = make_service_fn(|_conn| async {
+        Ok::<_, Infallible>(service_fn(handle))
+    });
 
-    let hyper = hyper::Server::bind(&addr)
-    .serve(move || {
-        let inner = Arc::clone(&state);
-        service_fn_ok(move |req| handle_request(req, &inner))
-    })
-    .map_err(|err| eprintln!("server error: {}", err));
+    // Then bind and serve...
+    let server = Server::bind(&addr).serve(make_service);
 
-    deps.executor.spawn(hyper);
+    deps.executor.spawn_std( async { let _ =server.await; } );
 
     Ok(())
 }

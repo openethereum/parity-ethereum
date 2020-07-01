@@ -15,7 +15,7 @@
 // along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::fmt;
-use cli::Args;
+use crate::cli::Args;
 
 #[derive(Debug, PartialEq)]
 pub enum Deprecated {
