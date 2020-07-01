@@ -186,7 +186,7 @@ fn main_direct(force_can_restart: bool) -> i32 {
 
 	let mut conf = {
 		let args = std::env::args().collect::<Vec<_>>();
-		openethereum::Configuration::parse_cli(&args).unwrap_or_else(|e| e.exit())
+		openethereum::Configuration::parse_cli(&args).unwrap_or_else(|_| process::exit(2))
 	};
 
 	let logger = setup_log(&conf.logger_config()).unwrap_or_else(|e| {
@@ -195,7 +195,6 @@ fn main_direct(force_can_restart: bool) -> i32 {
 	});
 
 	if let Some(spec_override) = take_spec_name_override() {
-		conf.args.flag_testnet = false;
 		conf.args.arg_chain = spec_override;
 	}
 

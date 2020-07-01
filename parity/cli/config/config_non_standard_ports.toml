@@ -1,0 +1,160 @@
+[operating]
+no_download                     = false
+no_consensus                    = false
+light                           = false
+no_hardcoded_sync               = false
+force_direct                    = false
+mode                            = "last"
+mode_timeout                    = 300
+mode_alarm                      = 3600
+auto_update                     = "critical"
+auto_update_delay               = 100
+auto_update_check_frequency     = 20
+release_track                   = "current"
+chain                           = "foundation"
+keys_path                       = "$BASE/keys"
+identity                        = ""
+
+[convenience]
+unsafe_expose                   = false
+config                          = "$BASE/config.toml"
+ports_shift                     = 0
+
+[account]
+enable_signing_queue            = false
+fast_unlock                     = false
+keys_iterations                 = 10240
+accounts_refresh                = 5
+password                        = []
+
+[private_transactions]
+private_enabled                 = false
+private_state_offchain          = false
+
+[ui_options]
+ui_path                         = "$BASE/signer"
+
+[networking]
+no_warp                         = false
+no_discovery                    = false
+reserved_only                   = false
+no_ancient_blocks               = false
+no_serve_light                  = false
+interface                       = "all"
+snapshot_peers                  = 0
+nat                             = "any"
+allow_ips                       = "all"
+max_pending_peers               = 64
+
+# Preset specific change
+
+# Openethereum will listen for connections on port 30305
+port                            = 30305
+
+[ipc]
+ipc_chmod                       = "660"
+no_ipc                          = false
+ipc_apis                        = "web3,eth,pubsub,net,parity,parity_pubsub,parity_accounts,private,traces,rpc,parity_transactions_pool"
+
+[http_json_rpc]
+jsonrpc_allow_missing_blocks    = false
+no_jsonrpc                      = false
+jsonrpc_no_keep_alive           = false
+jsonrpc_experimental            = false
+jsonrpc_port                    = 8645
+jsonrpc_interface               = "local"
+jsonrpc_apis                    = "web3,eth,pubsub,net,parity,private,parity_pubsub,traces,rpc,parity_transactions_pool"
+jsonrpc_hosts                   = "none"
+jsonrpc_server_threads          = 4
+jsonrpc_cors                    = "none"
+poll_lifetime                   = 60
+
+# Preset specific change
+
+# JSON-RPC over HTTP will be available on port 8645
+port                            = 8645
+
+[light_client]
+
+[websockets]
+no_ws                           = false
+ws_port                         = 8546
+ws_interface                    = "local"
+ws_apis                         = "web3,eth,pubsub,net,parity,parity_pubsub,private,traces,rpc,parity_transactions_pool"
+ws_origins                      = "parity://*,chrome-extension://*,moz-extension://*"
+ws_hosts                        = "none"
+ws_max_connections              = 100
+
+[secret_store]
+no_secretstore                  = false
+no_secretstore_http             = false
+no_secretstore_auto_migrate     = false
+secretstore_http_cors           = "none"
+secretstore_acl_contract        = "registry"
+secretstore_nodes               = ""
+secretstore_server_set_contract = "registry"
+secretstore_interface           = "local"
+secretstore_port                = 8083
+secretstore_http_interface      = "local"
+secretstore_http_port           = 8082
+secretstore_path                = "$BASE/secretstore"
+
+[sealing_mining]
+force_sealing                   = false
+reseal_on_uncle                 = false
+remove_solved                   = false
+reseal_on_txs                   = "own"
+reseal_min_period               = 2000
+reseal_max_period               = 120000
+work_queue_size                 = 20
+relay_set                       = "cheap"
+usd_per_tx                      = "0.0001"
+usd_per_eth                     = "auto"
+price_update_period             = "hourly"
+gas_floor_target                = "8000000"
+gas_cap                         = "10000000"
+tx_queue_mem_limit              = 4
+tx_queue_size                   = 8192
+tx_queue_strategy               = "gas_price"
+stratum_interface               = "local"
+stratum_port                    = 8008
+gas_price_percentile            = 50
+max_round_blocks_to_import      = 12
+tx_queue_no_unfamiliar_locals   = false
+tx_queue_no_early_reject        = false
+refuse_service_transactions     = false
+infinite_pending_block          = false
+no_persistent_txqueue           = false
+stratum                         = false
+
+[internal]
+can_restart                     = false
+
+[miscellaneous]
+no_color                        = false
+no_config                       = false
+
+
+[footprint]
+scale_verifiers                 = false
+tracing                         = "auto"
+pruning                         = "auto"
+pruning_history                 = 128
+pruning_memory                  = 64
+cache_size_db                   = 128
+cache_size_blocks               = 8
+cache_size_queue                = 40
+cache_size_state                = 25
+db_compaction                   = "auto"
+fat_db                          = "auto"
+
+[import_export]
+no_seal_check                   = false
+
+[snapshot]
+no_periodic_snapshot            = false
+
+[legacy]
+geth                            = false
+import_geth_keys                = false
+

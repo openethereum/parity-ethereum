@@ -13,7 +13,7 @@ authors = [
 ansi_term = "0.11"
 atty = "0.2.8"
 blooms-db = { path = "util/blooms-db" }
-clap = "2"
+clap = { git = "https://github.com/clap-rs/clap" }
 cli-signer= { path = "cli-signer" }
 client-traits = { path = "ethcore/client-traits" }
 common-types = { path = "ethcore/types" }
@@ -78,6 +78,7 @@ spec = { path = "ethcore/spec" }
 term_size = "0.3"
 textwrap = "0.11.0"
 toml = "0.5.6"
+rust-embed = "5.5.1"
 verification = { path = "ethcore/verification" }
 
 [build-dependencies]
