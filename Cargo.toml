@@ -131,7 +131,3 @@ members = [
 	"ethcore/wasm/run",
 	"evmbin",
 ]
-
-[patch.crates-io]
-memory-db = { git = "https://github.com/paritytech/trie", branch = "dp/chore/update-deps-parity-util-mem-to-0.7.0"}
-hash-db = { git = "https://github.com/paritytech/trie", branch = "dp/chore/update-deps-parity-util-mem-to-0.7.0"}

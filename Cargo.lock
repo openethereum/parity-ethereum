@@ -2055,7 +2055,8 @@ checksum = "65043da274378d68241eb9a8f8f8aa54e349136f7b8e12f63e3ef44043cc30e1"
 [[package]]
 name = "hash-db"
 version = "0.15.2"
-source = "git+https://github.com/paritytech/trie?branch=dp/chore/update-deps-parity-util-mem-to-0.7.0#b23d998848c11b30beb3eb1786104c1ee4fd0d13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d23bd4e7b5eda0d0f3a307e8b381fdc8ba9000f26fbe912250c0a4cc3956364a"
 
 [[package]]
 name = "hash256-std-hasher"
@@ -2851,7 +2852,8 @@ dependencies = [
 [[package]]
 name = "memory-db"
 version = "0.21.1"
-source = "git+https://github.com/paritytech/trie?branch=dp/chore/update-deps-parity-util-mem-to-0.7.0#b23d998848c11b30beb3eb1786104c1ee4fd0d13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "24e20981dbe8b148b10d6151f448f5e38c5eed9f50a44599e4a70edb5c4f5aec"
 dependencies = [
  "ahash 0.2.18",
  "hash-db",
