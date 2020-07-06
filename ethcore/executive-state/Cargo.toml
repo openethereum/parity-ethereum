@@ -15,10 +15,10 @@ account-db = { path = "../account-db" }
 account-state = { path = "../account-state" }
 bytes = { package = "parity-bytes", version = "0.1.0" }
 common-types = { path = "../types" }
-ethereum-types = "0.9.0"
-hash-db = "0.15.0"
+ethereum-types = "0.9.2"
+hash-db = "0.15.2"
 keccak-hasher = { path = "../../util/keccak-hasher" }
-kvdb = "0.5.0"
+kvdb = "0.7"
 log = "0.4.8"
 machine = { path = "../machine" }
 trace = { path = "../trace" }
@@ -34,7 +34,7 @@ keccak-hash = "0.5.0"
 pod = { path = "../pod" }
 hex-literal = "0.2.1"
 spec = { path = "../spec" }
-trie-db = "0.20.0"
+trie-db = "0.21.0"
 ethtrie = { package = "patricia-trie-ethereum", path = "../../util/patricia-trie-ethereum" }
 # Benchmarks
 criterion = "0.3.1"

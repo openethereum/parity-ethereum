@@ -375,8 +375,6 @@ impl Importer {
 			}
 		}
 
-		let db = client.db.read();
-		db.key_value().flush().expect("DB flush failed.");
 		imported
 	}
 
@@ -493,10 +491,9 @@ impl Importer {
 			let mut batch = DBTransaction::new();
 			chain.insert_unordered_block(&mut batch, encoded::Block::new(unverified.bytes), receipts, None, false, true);
 			// Final commit to the DB
-			db.write_buffered(batch);
+			db.write(batch)?;
 			chain.commit();
 		}
-		db.flush().expect("DB flush failed.");
 		Ok(())
 	}
 
@@ -595,7 +592,7 @@ impl Importer {
 		let is_canon = route.enacted.last().map_or(false, |h| h == hash);
 		state.sync_cache(&route.enacted, &route.retracted, is_canon);
 		// Final commit to the DB
-		client.db.read().key_value().write_buffered(batch);
+		client.db.read().key_value().write(batch).expect("Low level database error writing a transaction. Some issue with the disk?");
 		chain.commit();
 
 		self.check_epoch_end(&header, &finalized, &chain, client);
@@ -837,12 +834,10 @@ impl Client {
 					proof,
 				});
 
-				client.db.read().key_value().write_buffered(batch);
+				client.db.read().key_value().write(batch)?;
 			}
 		}
 
-		// ensure buffered changes are flushed.
-		client.db.read().key_value().flush()?;
 		Ok(client)
 	}
 
@@ -998,8 +993,7 @@ impl Client {
 						Some(ancient_hash) => {
 							let mut batch = DBTransaction::new();
 							state_db.mark_canonical(&mut batch, earliest_era, &ancient_hash)?;
-							self.db.read().key_value().write_buffered(batch);
-							state_db.journal_db().flush();
+							self.db.read().key_value().write(batch)?;
 						}
 						None =>
 							debug!(target: "pruning", "Missing expected hash for block {}", earliest_era),
@@ -2468,7 +2462,6 @@ impl ImportSealedBlock for Client {
 				)
 			);
 		});
-		self.db.read().key_value().flush().expect("DB flush failed.");
 		Ok(hash)
 	}
 }

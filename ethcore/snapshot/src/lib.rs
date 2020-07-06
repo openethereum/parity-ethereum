@@ -452,7 +452,7 @@ impl StateRebuilder {
 
 		let mut batch = self.db.backing().transaction();
 		self.db.journal_under(&mut batch, era, &id)?;
-		self.db.backing().write_buffered(batch);
+		self.db.backing().write(batch)?;
 
 		Ok(self.db)
 	}

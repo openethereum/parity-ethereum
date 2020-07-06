@@ -85,7 +85,6 @@ pub struct Restoration {
 	snappy_buffer: Bytes,
 	final_state_root: H256,
 	guard: Guard,
-	db: Arc<dyn BlockChainDB>,
 }
 
 /// Params to initialise restoration
@@ -142,7 +141,6 @@ impl Restoration {
 			snappy_buffer: Vec::new(),
 			final_state_root,
 			guard: params.guard,
-			db: raw_db,
 		})
 	}
 
@@ -460,9 +458,8 @@ impl<C> Service<C> where C: SnapshotClient + ChainInfo {
 
 			// Writing changes to DB and logging every now and then
 			if block_number % 1_000 == 0 {
-				next_db.key_value().write_buffered(batch);
+				next_db.key_value().write(batch)?;
 				next_chain.commit();
-				next_db.key_value().flush().expect("DB flush failed.");
 				batch = DBTransaction::new();
 
 				if block_number % 10_000 == 0 {
@@ -472,9 +469,8 @@ impl<C> Service<C> where C: SnapshotClient + ChainInfo {
 		}
 
 		// Final commit to the DB
-		next_db.key_value().write_buffered(batch);
+		next_db.key_value().write(batch)?;
 		next_chain.commit();
-		next_db.key_value().flush().expect("DB flush failed.");
 
 		// Update best ancient block in the Next Chain
 		next_chain.update_best_ancient_block(&start_hash);
@@ -757,52 +753,36 @@ impl<C> Service<C> where C: SnapshotClient + ChainInfo {
 	}
 
 	/// Feed a chunk with the Restoration
-	fn feed_chunk_with_restoration(&self, restoration: &mut Option<Restoration>, hash: H256, chunk: &[u8], is_state: bool) -> Result<(), Error> {
-		let (result, db) = {
-			match self.status() {
-				RestorationStatus::Inactive | RestorationStatus::Failed | RestorationStatus::Finalizing => {
-					trace!(target: "snapshot", "Tried to restore chunk {:x} while inactive, failed or finalizing", hash);
-					return Ok(());
-				},
-				RestorationStatus::Ongoing { .. } | RestorationStatus::Initializing { .. } => {
-					let (res, db) = {
-						let rest = match *restoration {
-							Some(ref mut r) => r,
-							None => return Ok(()),
-						};
+	fn feed_chunk_with_restoration(
+		&self,
+		restoration: &mut Option<Restoration>,
+		hash: H256,
+		chunk: &[u8],
+		is_state: bool
+	) -> Result<(), Error> {
+		match self.status() {
+			RestorationStatus::Inactive | RestorationStatus::Failed | RestorationStatus::Finalizing => {
+				trace!(target: "snapshot", "Tried to restore chunk {:x} while inactive, failed or finalizing", hash);
+				Ok(())
+			},
 
-						(match is_state {
-							true => rest.feed_state(hash, chunk, &self.restoring_snapshot),
-							false => rest.feed_blocks(hash, chunk, &*self.engine, &self.restoring_snapshot),
-						}.map(|_| rest.is_done()), rest.db.clone())
-					};
+			RestorationStatus::Ongoing { .. } | RestorationStatus::Initializing { .. } => {
+				if let Some(ref mut rest) = *restoration {
+					if is_state {
+						rest.feed_state(hash, chunk , &self.restoring_snapshot)?;
+						self.state_chunks.fetch_add(1, Ordering::SeqCst);
+					} else {
+						rest.feed_blocks(hash, chunk, &*self.engine, &self.restoring_snapshot)?;
+						self.block_chunks.fetch_add(1, Ordering::SeqCst);
+					}
 
-					let res = match res {
-						Ok(is_done) => {
-							match is_state {
-								true => self.state_chunks.fetch_add(1, Ordering::SeqCst),
-								false => self.block_chunks.fetch_add(1, Ordering::SeqCst),
-							};
-
-							match is_done {
-								true => {
-									db.key_value().flush()?;
-									drop(db);
-									return self.finalize_restoration(&mut *restoration);
-								},
-								false => Ok(())
-							}
-						}
-						Err(e) => Err(e)
-					};
-					(res, db)
+					if rest.is_done() {
+						self.finalize_restoration(&mut *restoration)?;
+					}
 				}
+				Ok(())
 			}
-		};
-
-		result?;
-		db.key_value().flush()?;
-		Ok(())
+		}
 	}
 
 	/// Feed a state chunk to be processed synchronously.
