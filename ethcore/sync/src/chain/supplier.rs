@@ -29,6 +29,15 @@ use rlp::{Rlp, RlpStream};
 use common_types::{ids::BlockId, BlockNumber};
 
 use super::sync_packet::{PacketInfo, SyncPacket};
+// TODO draganrakita stuck bug
+use super::{
+	dbg_pop_read_lock,
+	dbg_push_read_lock,
+	dbg_set_write_lock,
+	dbg_sleep_thread,
+	DEBUG_READ_RWLOCK_WAIT_IN_SEC,
+	DEBUG_WRITE_RWLOCK_WAIT_IN_SEC,
+};
 use super::sync_packet::SyncPacket::{
 	StatusPacket,
 	TransactionsPacket,
@@ -110,7 +119,14 @@ impl SyncSupplier {
 					|e| format!("Error sending private state data: {:?}", e)),
 
 				StatusPacket => {
-					sync.write().on_packet(io, peer, packet_id, data);
+					//sync.write().on_packet(io, peer, packet_id, data);
+					// TODO draganrakita stuck bug
+					if let Some(ref mut sync) = sync.try_write_for(Duration::from_secs(DEBUG_WRITE_RWLOCK_WAIT_IN_SEC)) {
+						dbg_set_write_lock(String::from("dispatch_packet::status_package"));
+						sync.on_packet(io, peer, packet_id, data);
+					} else {
+						dbg_sleep_thread(String::from("dispatch_packet::status_package write"))
+					}
 					Ok(())
 				},
 				// Packets that require the peer to be confirmed
@@ -127,17 +143,40 @@ impl SyncSupplier {
 						},
 						TransactionsPacket => {
 							let res = {
-								let sync_ro = sync.read();
-								SyncHandler::on_peer_transactions(&*sync_ro, io, peer, rlp)
+								//let sync_ro = sync.read();
+								//SyncHandler::on_peer_transactions(&*sync_ro, io, peer, rlp)
+								// TODO draganrakita stuck bug
+								if let Some(ref mut sync_ro) = sync.try_read_for(Duration::from_secs(DEBUG_READ_RWLOCK_WAIT_IN_SEC)) {
+									dbg_push_read_lock(String::from("on_peer_transactions"));
+									let ret = SyncHandler::on_peer_transactions(&*sync_ro, io, peer, rlp);
+									dbg_pop_read_lock(String::from("on_peer_transactions"));
+									ret
+								} else {
+									dbg_sleep_thread(String::from("deactivate_peer read"))
+								}
 							};
 							if res.is_err() {
 								// peer sent invalid data, disconnect.
 								io.disable_peer(peer);
-								sync.write().deactivate_peer(io, peer);
+								//sync.write().deactivate_peer(io, peer);
+								// TODO draganrakita stuck bug
+								if let Some(ref mut sync) = sync.try_write_for(Duration::from_secs(DEBUG_WRITE_RWLOCK_WAIT_IN_SEC)) {
+									dbg_set_write_lock(String::from("deactivate_peer"));
+									sync.deactivate_peer(io, peer);
+								} else {
+									dbg_sleep_thread(String::from("deactivate_peer write"))
+								}
 							}
 						},
 						_ => {
-							sync.write().on_packet(io, peer, packet_id, data);
+							// sync.write().on_packet(io, peer, packet_id, data);
+							// TODO draganrakita stuck bug
+							if let Some(ref mut sync) = sync.try_write_for(Duration::from_secs(DEBUG_WRITE_RWLOCK_WAIT_IN_SEC)) {
+								dbg_set_write_lock(String::from("_ on_packet"));
+								sync.on_packet(io, peer, packet_id, data);
+							} else {
+								dbg_sleep_thread(String::from("_ on_packet write"))
+							}
 						}
 					}
 
@@ -147,7 +186,17 @@ impl SyncSupplier {
 
 			match result {
 				Err(PacketProcessError::Decoder(e)) => debug!(target:"sync", "{} -> Malformed packet {} : {}", peer, packet_id, e),
-				Err(PacketProcessError::ClientBusy) => sync.write().add_delayed_request(peer, packet_id, data),
+				Err(PacketProcessError::ClientBusy) => {
+					//sync.write().add_delayed_request(peer, packet_id, data)
+					// TODO draganrakita stuck bug
+					if let Some(ref mut sync) = sync.try_write_for(Duration::from_secs(DEBUG_WRITE_RWLOCK_WAIT_IN_SEC)) {
+						dbg_set_write_lock(String::from("ClientBusy"));
+						sync.add_delayed_request(peer, packet_id, data)
+					} else {
+						dbg_sleep_thread(String::from("ClientBusy"))
+					}
+					
+				},
 				Ok(()) => {}
 			}
 		}

@@ -99,6 +99,9 @@ use std::sync::{Arc, mpsc};
 use std::collections::{HashSet, HashMap, BTreeMap};
 use std::cmp;
 use std::time::{Duration, Instant};
+use std::thread;
+use std::collections::VecDeque;
+use lazy_static::lazy_static;
 
 use crate::{
 	ETH_PROTOCOL, EthProtocolInfo as PeerInfoDigest, PriorityTask, SyncConfig, WarpSync, WARP_SYNC_PROTOCOL_ID,
@@ -123,6 +126,7 @@ use network::client_version::ClientVersion;
 use network::{self, PeerId};
 use parity_util_mem::{MallocSizeOfExt, malloc_size_of_is_0};
 use parking_lot::{Mutex, RwLock, RwLockWriteGuard};
+use std::sync::Mutex as stdMutex;
 use rand::{Rng, seq::SliceRandom};
 use rlp::{RlpStream, DecoderError};
 use common_types::{
@@ -147,6 +151,71 @@ use self::requester::SyncRequester;
 pub(crate) use self::supplier::SyncSupplier;
 
 malloc_size_of_is_0!(PeerInfo);
+
+//TODO draganrakita stuck bug debug structures
+lazy_static! {
+	static ref DEBUG_CURRENT_READ_LOCKS: stdMutex<(HashMap<String,i32>,VecDeque<(String,Instant,TypesOfLock)>)> = stdMutex::new((HashMap::new(),VecDeque::new()));
+	//static ref TEST_ID : stdMutex<i32> = stdMutex::new(0);
+}
+
+static DEBUG_READ_RWLOCK_WAIT_IN_SEC: u64  =930;
+static DEBUG_WRITE_RWLOCK_WAIT_IN_SEC: u64 = 900;
+
+#[derive(Debug, Display)]
+enum TypesOfLock {
+	LockRead,
+	UnlockRead,
+	LockWrite,
+}
+
+fn dbg_push_to_vecd(vecd: &mut VecDeque<(String,Instant,TypesOfLock)>, name: &str, lock_type: TypesOfLock) {
+	if vecd.len() > 100 {
+		vecd.pop_back();
+	}
+	vecd.push_front((format!("{} {:?}",name,thread::current().id()),Instant::now(),lock_type));
+}
+
+pub fn dbg_push_read_lock(name: String) {
+	let mut contex = DEBUG_CURRENT_READ_LOCKS.lock().expect("Could not lock RW mutex");
+	let count = contex.0.entry(name.clone()).or_insert(0);
+	 *count += 1;
+	dbg_push_to_vecd(&mut contex.1, &name,TypesOfLock::LockRead);
+	// let mut id = TEST_ID.lock().expect("test failed");
+	// *id += 1;
+	// if *id > 30 {
+	// 	thread::sleep(Duration::from_secs(14));
+	// }
+}
+
+pub fn dbg_pop_read_lock(name: String) {
+	let mut contex = DEBUG_CURRENT_READ_LOCKS.lock().expect("Could not lock RW mutex");
+	let count = contex.0.get_mut(&name).unwrap();
+	*count -= 1;
+	if *count == 0 {
+		contex.0.remove(&name);
+	}
+	dbg_push_to_vecd(&mut contex.1, &name ,TypesOfLock::UnlockRead);
+}
+
+pub fn dbg_set_write_lock(name: String) {
+	let mut contex = DEBUG_CURRENT_READ_LOCKS.lock().expect("Could not lock mutex");
+	dbg_push_to_vecd(&mut contex.1,&name,TypesOfLock::LockWrite);
+}
+
+pub fn dbg_sleep_thread(name: String) -> ! {
+	let locks = DEBUG_CURRENT_READ_LOCKS.lock().expect("DBGCRL could not lock");
+	warn!("{} {:?} timeouted after ~5min.: \n current_read:{:?}\n history:{:?} \n ",
+		name,
+		thread::current().id(),
+		locks.0,
+		locks.1);
+	thread::sleep(Duration::from_secs(172800));
+	panic!("test abort after 2 days")
+}
+
+////////
+
+
 
 /// Possible errors during packet's processing
 #[derive(Debug, Display)]
@@ -457,27 +526,64 @@ impl ChainSyncApi {
 	}
 
 	/// Gives `write` access to underlying `ChainSync`
-	pub fn write(&self) -> RwLockWriteGuard<ChainSync> {
-		self.sync.write()
+	pub fn write(&self, id: i32) -> RwLockWriteGuard<ChainSync> {
+		//self.sync.write()
+		// TODO draganrakita stuck bug. Remove id from function
+		if let Some(sync) = self.sync.try_write_for(Duration::from_secs(DEBUG_WRITE_RWLOCK_WAIT_IN_SEC)) {
+			dbg_set_write_lock(format!("write{}",id));
+			sync
+		} else {
+			dbg_sleep_thread(format!("write{}",id));
+		}
 	}
 
 	/// Returns info about given list of peers
 	pub fn peer_info(&self, ids: &[PeerId]) -> Vec<Option<PeerInfoDigest>> {
-		let sync = self.sync.read();
-		ids.iter().map(|id| sync.peer_info(id)).collect()
+		//let sync = self.sync.read();
+		//ids.iter().map(|id| sync.peer_info(id)).collect()
+		// TODO draganrakita stuck bug
+		if let Some(ref sync) = self.sync.try_read_for(Duration::from_secs(DEBUG_READ_RWLOCK_WAIT_IN_SEC)) {
+			dbg_push_read_lock(String::from("peer_info"));
+			let ret  = ids.iter().map(|id| sync.peer_info(id)).collect();
+			dbg_pop_read_lock(String::from("peer_info"));
+			ret
+		} else {
+			dbg_sleep_thread(String::from("Peer info read"));
+		}
 	}
 
 	/// Returns synchonization status
 	pub fn status(&self) -> SyncStatus {
-		self.sync.read().status()
+		//self.sync.read().status()
+		// TODO draganrakita stuck bug
+		if let Some(ref sync) = self.sync.try_read_for(Duration::from_secs(DEBUG_READ_RWLOCK_WAIT_IN_SEC)) {
+			dbg_push_read_lock(String::from("sync_status"));
+			let ret = sync.status();
+			dbg_pop_read_lock(String::from("sync_status"));
+			ret
+		} else {
+			dbg_sleep_thread(String::from("Sync status read"));
+		}
 	}
 
 	/// Returns transactions propagation statistics
 	pub fn transactions_stats(&self) -> BTreeMap<H256, crate::api::TransactionStats> {
-		self.sync.read().transactions_stats()
-			.iter()
-			.map(|(hash, stats)| (*hash, stats.into()))
-			.collect()
+		// self.sync.read().transactions_stats()
+		// 	.iter()
+		// 	.map(|(hash, stats)| (*hash, stats.into()))
+		// 	.collect()
+		// TODO draganrakita stuck bug
+		if let Some(ref sync) = self.sync.try_read_for(Duration::from_secs(DEBUG_READ_RWLOCK_WAIT_IN_SEC)) {
+			dbg_push_read_lock(String::from("transactions_stats"));
+			let ret = sync.transactions_stats()
+				.iter()
+				.map(|(hash, stats)| (*hash, stats.into()))
+				.collect();
+			dbg_pop_read_lock(String::from("transactions_stats"));
+			ret
+		} else {
+			dbg_sleep_thread(String::from("Sync transactions_stats read"));
+		}
 	}
 
 	/// Dispatch incoming requests and responses
@@ -487,7 +593,14 @@ impl ChainSyncApi {
 
 	/// Process the queue with requests, that were delayed with response.
 	pub fn process_delayed_requests(&self, io: &mut dyn SyncIo) {
-		let requests = self.sync.write().retrieve_delayed_requests();
+		//let requests = self.sync.write().retrieve_delayed_requests();
+		// TODO draganrakita stuck bug
+		let requests = if let Some(ref mut sync) = self.sync.try_write_for(Duration::from_secs(DEBUG_WRITE_RWLOCK_WAIT_IN_SEC)) {
+			dbg_set_write_lock(String::from("process_delayed_requests"));
+			sync.retrieve_delayed_requests()
+		} else {
+			dbg_sleep_thread(String::from("Sync process_delayed_requests write"));
+		};
 		if !requests.is_empty() {
 			debug!(target: "sync", "Processing {} delayed requests", requests.len());
 			for (peer_id, packet_id, packet_data) in requests {
@@ -525,6 +638,8 @@ impl ChainSyncApi {
 			// wait for the sync lock until deadline,
 			// note we might drop the task here if we won't manage to acquire the lock.
 			let mut sync = self.sync.try_write_until(deadline)?;
+			//TODO draganrakita stuck bug remove log
+			dbg_set_write_lock(String::from("process_priority_queue"));
 			// since we already have everything let's use a different deadline
 			// to do the rest of the job now, so that previous work is not wasted.
 			let deadline = Instant::now() + PRIORITY_TASK_DEADLINE;

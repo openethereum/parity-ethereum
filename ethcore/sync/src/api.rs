@@ -366,7 +366,7 @@ impl EthSync {
 
 		{
 			// spawn task that constantly updates EthSync.is_major_sync
-			let notifications = sync.write().sync_notifications();
+			let notifications = sync.write(14).sync_notifications();
 			let moved_client = Arc::downgrade(&params.chain);
 			let moved_is_major_syncing = is_major_syncing.clone();
 
@@ -453,7 +453,7 @@ impl SyncProvider for EthSync {
 	}
 
 	fn sync_notification(&self) -> Notification<SyncState> {
-		self.eth_handler.sync.write().sync_notifications()
+		self.eth_handler.sync.write(15).sync_notifications()
 	}
 
 	fn is_major_syncing(&self) -> bool {
@@ -511,7 +511,7 @@ impl NetworkProtocolHandler for SyncProtocolHandler {
 		let warp_protocol = io.protocol_version(WARP_SYNC_PROTOCOL_ID, *peer).unwrap_or(0) != 0;
 		let warp_context = io.subprotocol_name() == WARP_SYNC_PROTOCOL_ID;
 		if warp_protocol == warp_context {
-			self.sync.write().on_peer_connected(&mut NetSyncIo::new(io,
+			self.sync.write(1).on_peer_connected(&mut NetSyncIo::new(io,
 			&*self.chain,
 			&*self.snapshot_service,
 			&self.overlay,
@@ -523,7 +523,7 @@ impl NetworkProtocolHandler for SyncProtocolHandler {
 	fn disconnected(&self, io: &dyn NetworkContext, peer: &PeerId) {
 		trace_time!("sync::disconnected");
 		if io.subprotocol_name() != WARP_SYNC_PROTOCOL_ID {
-			self.sync.write().on_peer_aborting(&mut NetSyncIo::new(io,
+			self.sync.write(2).on_peer_aborting(&mut NetSyncIo::new(io,
 				&*self.chain,
 				&*self.snapshot_service,
 				&self.overlay,
@@ -536,10 +536,10 @@ impl NetworkProtocolHandler for SyncProtocolHandler {
 		trace_time!("sync::timeout");
 		let mut io = NetSyncIo::new(io, &*self.chain, &*self.snapshot_service, &self.overlay, self.private_state.clone());
 		match timer {
-			PEERS_TIMER => self.sync.write().maintain_peers(&mut io),
-			MAINTAIN_SYNC_TIMER => self.sync.write().maintain_sync(&mut io),
-			CONTINUE_SYNC_TIMER => self.sync.write().continue_sync(&mut io),
-			TX_TIMER => self.sync.write().propagate_new_transactions(&mut io),
+			PEERS_TIMER => self.sync.write(3).maintain_peers(&mut io),
+			MAINTAIN_SYNC_TIMER => self.sync.write(4).maintain_sync(&mut io),
+			CONTINUE_SYNC_TIMER => self.sync.write(5).continue_sync(&mut io),
+			TX_TIMER => self.sync.write(6).propagate_new_transactions(&mut io),
 			PRIORITY_TIMER => self.sync.process_priority_queue(&mut io),
 			DELAYED_PROCESSING_TIMER => self.sync.process_delayed_requests(&mut io),
 			_ => warn!("Unknown timer {} triggered.", timer),
@@ -571,7 +571,7 @@ impl ChainNotify for EthSync {
 				&*self.eth_handler.snapshot_service,
 				&self.eth_handler.overlay,
 				self.eth_handler.private_state.clone());
-			self.eth_handler.sync.write().chain_new_blocks(
+			self.eth_handler.sync.write(7).chain_new_blocks(
 				&mut sync_io,
 				&new_blocks.imported,
 				&new_blocks.invalid,
@@ -640,19 +640,20 @@ impl ChainNotify for EthSync {
 				&self.eth_handler.overlay,
 				self.eth_handler.private_state.clone());
 			match message_type {
-				ChainMessageType::Consensus(message) => self.eth_handler.sync.write().propagate_consensus_packet(&mut sync_io, message),
+				ChainMessageType::Consensus(message) => self.eth_handler.sync.write(8).propagate_consensus_packet(&mut sync_io, message),
 				ChainMessageType::PrivateTransaction(transaction_hash, message) =>
-					self.eth_handler.sync.write().propagate_private_transaction(&mut sync_io, transaction_hash, PrivateTransactionPacket, message),
+					self.eth_handler.sync.write(9).propagate_private_transaction(&mut sync_io, transaction_hash, PrivateTransactionPacket, message),
 				ChainMessageType::SignedPrivateTransaction(transaction_hash, message) =>
-					self.eth_handler.sync.write().propagate_private_transaction(&mut sync_io, transaction_hash, SignedPrivateTransactionPacket, message),
+					self.eth_handler.sync.write(10).propagate_private_transaction(&mut sync_io, transaction_hash, SignedPrivateTransactionPacket, message),
 				ChainMessageType::PrivateStateRequest(hash) =>
-					self.eth_handler.sync.write().request_private_state(&mut sync_io, &hash),
+					self.eth_handler.sync.write(11).request_private_state(&mut sync_io, &hash),
 			}
+
 		});
 	}
 
 	fn transactions_received(&self, txs: &[UnverifiedTransaction], peer_id: PeerId) {
-		let mut sync = self.eth_handler.sync.write();
+		let mut sync = self.eth_handler.sync.write(12);
 		sync.transactions_received(txs, peer_id);
 	}
 }
@@ -716,7 +717,7 @@ impl ManageNetwork for EthSync {
 				&*self.eth_handler.snapshot_service,
 				&self.eth_handler.overlay,
 				self.eth_handler.private_state.clone());
-			self.eth_handler.sync.write().abort(&mut sync_io);
+			self.eth_handler.sync.write(13).abort(&mut sync_io);
 		});
 
 		if let Some(light_proto) = self.light_proto.as_ref() {
