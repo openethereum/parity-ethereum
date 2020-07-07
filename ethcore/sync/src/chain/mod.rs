@@ -204,7 +204,7 @@ pub fn dbg_set_write_lock(name: String) {
 
 pub fn dbg_sleep_thread(name: String) -> ! {
 	let locks = DEBUG_CURRENT_READ_LOCKS.lock().expect("DBGCRL could not lock");
-	warn!("{} {:?} timeouted after ~5min.: \n current_read:{:?}\n history:{:?} \n ",
+	warn!("{} {:?} timeouted after ~15min.: \n current_read:{:?}\n history:{:?} \n ",
 		name,
 		thread::current().id(),
 		locks.0,
