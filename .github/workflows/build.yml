@@ -240,8 +240,8 @@ jobs:
       - name:                   Copy files to S3 with the AWS CLI
         run: |
           # Deploy zip artifacts to S3 bucket to a directory whose name is the tagged release version.
-          # If deletion of files not available on "." (local directory) is required, add --delete to the aws-cli command below.
-          aws s3 sync . s3://${{ env.AWS_S3_ARTIFACTS_BUCKET }}/${{ env.RELEASE_VERSION }} --include "*.zip"
+          # Deploy macos binary artifact (if required, add more `aws s3 cp` commands to deploy specific OS versions)
+          aws s3 cp macos-artifacts/openethereum s3://${{ env.AWS_S3_ARTIFACTS_BUCKET }}/${{ env.RELEASE_VERSION }}/macos/
 
     outputs:
       linux-artifact:           ${{ steps.create_zip_linux.outputs.LINUX_ARTIFACT }}
