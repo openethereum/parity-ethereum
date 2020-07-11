@@ -9,136 +9,8 @@
 		],
 		"name": "setOwner",
 		"outputs": [],
-		"type": "function"
-	},
-	{
-		"constant": false,
-		"inputs": [
-			{
-				"name": "_name",
-				"type": "string"
-			}
-		],
-		"name": "confirmReverse",
-		"outputs": [
-			{
-				"name": "success",
-				"type": "bool"
-			}
-		],
-		"type": "function"
-	},
-	{
-		"constant": false,
-		"inputs": [
-			{
-				"name": "_name",
-				"type": "bytes32"
-			}
-		],
-		"name": "reserve",
-		"outputs": [
-			{
-				"name": "success",
-				"type": "bool"
-			}
-		],
-		"type": "function"
-	},
-	{
-		"constant": false,
-		"inputs": [
-			{
-				"name": "_name",
-				"type": "bytes32"
-			},
-			{
-				"name": "_key",
-				"type": "string"
-			},
-			{
-				"name": "_value",
-				"type": "bytes32"
-			}
-		],
-		"name": "set",
-		"outputs": [
-			{
-				"name": "success",
-				"type": "bool"
-			}
-		],
-		"type": "function"
-	},
-	{
-		"constant": false,
-		"inputs": [
-			{
-				"name": "_name",
-				"type": "bytes32"
-			}
-		],
-		"name": "drop",
-		"outputs": [
-			{
-				"name": "success",
-				"type": "bool"
-			}
-		],
-		"type": "function"
-	},
-	{
-		"constant": true,
-		"inputs": [
-			{
-				"name": "_name",
-				"type": "bytes32"
-			},
-			{
-				"name": "_key",
-				"type": "string"
-			}
-		],
-		"name": "getAddress",
-		"outputs": [
-			{
-				"name": "",
-				"type": "address"
-			}
-		],
-		"type": "function"
-	},
-	{
-		"constant": false,
-		"inputs": [
-			{
-				"name": "_amount",
-				"type": "uint256"
-			}
-		],
-		"name": "setFee",
-		"outputs": [],
-		"type": "function"
-	},
-	{
-		"constant": false,
-		"inputs": [
-			{
-				"name": "_name",
-				"type": "bytes32"
-			},
-			{
-				"name": "_to",
-				"type": "address"
-			}
-		],
-		"name": "transfer",
-		"outputs": [
-			{
-				"name": "success",
-				"type": "bool"
-			}
-		],
+		"payable": false,
+		"stateMutability": "nonpayable",
 		"type": "function"
 	},
 	{
@@ -151,93 +23,8 @@
 				"type": "address"
 			}
 		],
-		"type": "function"
-	},
-	{
-		"constant": true,
-		"inputs": [
-			{
-				"name": "_name",
-				"type": "bytes32"
-			}
-		],
-		"name": "reserved",
-		"outputs": [
-			{
-				"name": "reserved",
-				"type": "bool"
-			}
-		],
-		"type": "function"
-	},
-	{
-		"constant": false,
-		"inputs": [],
-		"name": "drain",
-		"outputs": [],
-		"type": "function"
-	},
-	{
-		"constant": false,
-		"inputs": [
-			{
-				"name": "_name",
-				"type": "string"
-			},
-			{
-				"name": "_who",
-				"type": "address"
-			}
-		],
-		"name": "proposeReverse",
-		"outputs": [
-			{
-				"name": "success",
-				"type": "bool"
-			}
-		],
-		"type": "function"
-	},
-	{
-		"constant": true,
-		"inputs": [
-			{
-				"name": "_name",
-				"type": "bytes32"
-			},
-			{
-				"name": "_key",
-				"type": "string"
-			}
-		],
-		"name": "getUint",
-		"outputs": [
-			{
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"type": "function"
-	},
-	{
-		"constant": true,
-		"inputs": [
-			{
-				"name": "_name",
-				"type": "bytes32"
-			},
-			{
-				"name": "_key",
-				"type": "string"
-			}
-		],
-		"name": "get",
-		"outputs": [
-			{
-				"name": "",
-				"type": "bytes32"
-			}
-		],
+		"payable": false,
+		"stateMutability": "view",
 		"type": "function"
 	},
 	{
@@ -250,80 +37,8 @@
 				"type": "uint256"
 			}
 		],
-		"type": "function"
-	},
-	{
-		"constant": true,
-		"inputs": [
-			{
-				"name": "",
-				"type": "address"
-			}
-		],
-		"name": "reverse",
-		"outputs": [
-			{
-				"name": "",
-				"type": "string"
-			}
-		],
-		"type": "function"
-	},
-	{
-		"constant": false,
-		"inputs": [
-			{
-				"name": "_name",
-				"type": "bytes32"
-			},
-			{
-				"name": "_key",
-				"type": "string"
-			},
-			{
-				"name": "_value",
-				"type": "uint256"
-			}
-		],
-		"name": "setUint",
-		"outputs": [
-			{
-				"name": "success",
-				"type": "bool"
-			}
-		],
-		"type": "function"
-	},
-	{
-		"constant": false,
-		"inputs": [],
-		"name": "removeReverse",
-		"outputs": [],
-		"type": "function"
-	},
-	{
-		"constant": false,
-		"inputs": [
-			{
-				"name": "_name",
-				"type": "bytes32"
-			},
-			{
-				"name": "_key",
-				"type": "string"
-			},
-			{
-				"name": "_value",
-				"type": "address"
-			}
-		],
-		"name": "setAddress",
-		"outputs": [
-			{
-				"name": "success",
-				"type": "bool"
-			}
-		],
+		"payable": false,
+		"stateMutability": "view",
 		"type": "function"
 	},
 	{
@@ -348,6 +63,57 @@
 			}
 		],
 		"name": "FeeChanged",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"name": "name",
+				"type": "string"
+			},
+			{
+				"indexed": true,
+				"name": "reverse",
+				"type": "address"
+			}
+		],
+		"name": "ReverseProposed",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"name": "name",
+				"type": "string"
+			},
+			{
+				"indexed": true,
+				"name": "reverse",
+				"type": "address"
+			}
+		],
+		"name": "ReverseConfirmed",
+		"type": "event"
+	},
+	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"name": "name",
+				"type": "string"
+			},
+			{
+				"indexed": true,
+				"name": "reverse",
+				"type": "address"
+			}
+		],
+		"name": "ReverseRemoved",
 		"type": "event"
 	},
 	{
@@ -415,68 +181,17 @@
 				"type": "bytes32"
 			},
 			{
-				"indexed": true,
-				"name": "owner",
-				"type": "address"
+				"indexed": false,
+				"name": "key",
+				"type": "string"
 			},
 			{
-				"indexed": true,
-				"name": "key",
+				"indexed": false,
+				"name": "plainKey",
 				"type": "string"
 			}
 		],
 		"name": "DataChanged",
-		"type": "event"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": true,
-				"name": "name",
-				"type": "string"
-			},
-			{
-				"indexed": true,
-				"name": "reverse",
-				"type": "address"
-			}
-		],
-		"name": "ReverseProposed",
-		"type": "event"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": true,
-				"name": "name",
-				"type": "string"
-			},
-			{
-				"indexed": true,
-				"name": "reverse",
-				"type": "address"
-			}
-		],
-		"name": "ReverseConfirmed",
-		"type": "event"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": true,
-				"name": "name",
-				"type": "string"
-			},
-			{
-				"indexed": true,
-				"name": "reverse",
-				"type": "address"
-			}
-		],
-		"name": "ReverseRemoved",
 		"type": "event"
 	},
 	{
@@ -495,5 +210,437 @@
 		],
 		"name": "NewOwner",
 		"type": "event"
+	},
+	{
+		"constant": false,
+		"inputs": [
+			{
+				"name": "_name",
+				"type": "bytes32"
+			}
+		],
+		"name": "reserve",
+		"outputs": [
+			{
+				"name": "success",
+				"type": "bool"
+			}
+		],
+		"payable": true,
+		"stateMutability": "payable",
+		"type": "function"
+	},
+	{
+		"constant": false,
+		"inputs": [
+			{
+				"name": "_name",
+				"type": "bytes32"
+			},
+			{
+				"name": "_to",
+				"type": "address"
+			}
+		],
+		"name": "transfer",
+		"outputs": [
+			{
+				"name": "success",
+				"type": "bool"
+			}
+		],
+		"payable": false,
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"constant": false,
+		"inputs": [
+			{
+				"name": "_name",
+				"type": "bytes32"
+			}
+		],
+		"name": "drop",
+		"outputs": [
+			{
+				"name": "success",
+				"type": "bool"
+			}
+		],
+		"payable": false,
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"constant": false,
+		"inputs": [
+			{
+				"name": "_name",
+				"type": "bytes32"
+			},
+			{
+				"name": "_key",
+				"type": "string"
+			},
+			{
+				"name": "_value",
+				"type": "bytes32"
+			}
+		],
+		"name": "setData",
+		"outputs": [
+			{
+				"name": "success",
+				"type": "bool"
+			}
+		],
+		"payable": false,
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"constant": false,
+		"inputs": [
+			{
+				"name": "_name",
+				"type": "bytes32"
+			},
+			{
+				"name": "_key",
+				"type": "string"
+			},
+			{
+				"name": "_value",
+				"type": "address"
+			}
+		],
+		"name": "setAddress",
+		"outputs": [
+			{
+				"name": "success",
+				"type": "bool"
+			}
+		],
+		"payable": false,
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"constant": false,
+		"inputs": [
+			{
+				"name": "_name",
+				"type": "bytes32"
+			},
+			{
+				"name": "_key",
+				"type": "string"
+			},
+			{
+				"name": "_value",
+				"type": "uint256"
+			}
+		],
+		"name": "setUint",
+		"outputs": [
+			{
+				"name": "success",
+				"type": "bool"
+			}
+		],
+		"payable": false,
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"constant": false,
+		"inputs": [
+			{
+				"name": "_name",
+				"type": "string"
+			},
+			{
+				"name": "_who",
+				"type": "address"
+			}
+		],
+		"name": "proposeReverse",
+		"outputs": [
+			{
+				"name": "success",
+				"type": "bool"
+			}
+		],
+		"payable": false,
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"constant": false,
+		"inputs": [
+			{
+				"name": "_name",
+				"type": "string"
+			}
+		],
+		"name": "confirmReverse",
+		"outputs": [
+			{
+				"name": "success",
+				"type": "bool"
+			}
+		],
+		"payable": false,
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"constant": false,
+		"inputs": [
+			{
+				"name": "_name",
+				"type": "string"
+			},
+			{
+				"name": "_who",
+				"type": "address"
+			}
+		],
+		"name": "confirmReverseAs",
+		"outputs": [
+			{
+				"name": "success",
+				"type": "bool"
+			}
+		],
+		"payable": false,
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"constant": false,
+		"inputs": [],
+		"name": "removeReverse",
+		"outputs": [],
+		"payable": false,
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"constant": false,
+		"inputs": [
+			{
+				"name": "_amount",
+				"type": "uint256"
+			}
+		],
+		"name": "setFee",
+		"outputs": [
+			{
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"payable": false,
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"constant": false,
+		"inputs": [],
+		"name": "drain",
+		"outputs": [
+			{
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"payable": false,
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [
+			{
+				"name": "_name",
+				"type": "bytes32"
+			},
+			{
+				"name": "_key",
+				"type": "string"
+			}
+		],
+		"name": "getData",
+		"outputs": [
+			{
+				"name": "",
+				"type": "bytes32"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [
+			{
+				"name": "_name",
+				"type": "bytes32"
+			},
+			{
+				"name": "_key",
+				"type": "string"
+			}
+		],
+		"name": "getAddress",
+		"outputs": [
+			{
+				"name": "",
+				"type": "address"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [
+			{
+				"name": "_name",
+				"type": "bytes32"
+			},
+			{
+				"name": "_key",
+				"type": "string"
+			}
+		],
+		"name": "getUint",
+		"outputs": [
+			{
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [
+			{
+				"name": "_name",
+				"type": "bytes32"
+			}
+		],
+		"name": "getOwner",
+		"outputs": [
+			{
+				"name": "",
+				"type": "address"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [
+			{
+				"name": "_name",
+				"type": "bytes32"
+			}
+		],
+		"name": "hasReverse",
+		"outputs": [
+			{
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [
+			{
+				"name": "_name",
+				"type": "bytes32"
+			}
+		],
+		"name": "getReverse",
+		"outputs": [
+			{
+				"name": "",
+				"type": "address"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [
+			{
+				"name": "_data",
+				"type": "address"
+			}
+		],
+		"name": "canReverse",
+		"outputs": [
+			{
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [
+			{
+				"name": "_data",
+				"type": "address"
+			}
+		],
+		"name": "reverse",
+		"outputs": [
+			{
+				"name": "",
+				"type": "string"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"constant": true,
+		"inputs": [
+			{
+				"name": "_name",
+				"type": "bytes32"
+			}
+		],
+		"name": "reserved",
+		"outputs": [
+			{
+				"name": "",
+				"type": "bool"
+			}
+		],
+		"payable": false,
+		"stateMutability": "view",
+		"type": "function"
 	}
 ]
