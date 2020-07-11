@@ -45,7 +45,7 @@ pub trait RegistrarClient: CallContract + Send + Sync {
 		if address_bytes.is_empty() {
 			return Ok(None)
 		}
-		let address = decode_output(&address_bytes).map_err(|e| format!("Failed to decode address: {}", e))?;
+		let address = decode_output(&address_bytes).map_err(|e| format!("Failed to decode address: {}: {:02x}", e, address_bytes))?;
 		if address.is_zero() {
 			Ok(None)
 		} else {
