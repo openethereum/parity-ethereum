@@ -100,7 +100,7 @@ impl ServiceTransactionChecker {
 		let contract_address_fetch = client.get_address(
 			SERVICE_TRANSACTION_CONTRACT_REGISTRY_NAME,
 			BlockId::Latest
-		)?;
+		).map_err(|e| format!("failed to get service transaction contract address: {}", e))?;
 
 		if let Some(contract_address) = contract_address_fetch {
 			let addresses: Vec<_> = cache.keys().collect();
