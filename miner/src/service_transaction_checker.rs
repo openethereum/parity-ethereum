@@ -73,7 +73,7 @@ impl ServiceTransactionChecker {
 		) {
 			Ok(Some(addr)) => addr,
 			Ok(None) => return Err("contract is not configured".to_owned()),
-			Err(e) => return Err(e)
+			Err(e) => return Err(format!("failed to get service transaction contract address: {}", e)),
 		};
 
 		self.call_contract(client, contract_address, sender).and_then(|allowed| {
