@@ -826,6 +826,10 @@ usage! {
 			"Maximal number of blocks to import for each import round.",
 
 		["Internal Options"]
+			FLAG flag_sanity_checker: (bool) = false, or |_| None,
+			"--sanity-checker",
+			"Enable internal checks that will restart the client in case of a freeze",
+
 			FLAG flag_can_restart: (bool) = false, or |_| None,
 			"--can-restart",
 			"Executable will auto-restart if exiting with 69",
@@ -1965,6 +1969,7 @@ mod tests {
 			flag_dapps_apis_all: false,
 
 			// -- Internal Options
+			flag_sanity_checker: false,
 			flag_can_restart: false,
 
 			// -- Miscellaneous Options
