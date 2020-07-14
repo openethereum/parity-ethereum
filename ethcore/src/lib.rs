@@ -22,6 +22,7 @@ extern crate account_state;
 extern crate ansi_term;
 extern crate client_traits;
 extern crate common_types as types;
+extern crate downcast_rs;
 extern crate engine;
 extern crate ethcore_blockchain as blockchain;
 extern crate ethcore_call_contract as call_contract;

@@ -60,6 +60,7 @@ extern crate jsonrpc_ipc_server as ipc;
 extern crate jsonrpc_pubsub;
 
 extern crate client_traits;
+extern crate clique;
 extern crate common_types as types;
 extern crate ethash;
 extern crate ethcore;

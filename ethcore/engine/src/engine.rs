@@ -18,6 +18,7 @@
 
 use std::sync::{Weak, Arc};
 use std::collections::BTreeMap;
+use downcast_rs::*;
 
 use builtin::Builtin;
 use common_types::{
@@ -143,7 +144,7 @@ pub enum EpochChange {
 
 /// A consensus mechanism for the chain. Generally either proof-of-work or proof-of-stake-based.
 /// Provides hooks into each of the major parts of block import.
-pub trait Engine: Sync + Send {
+pub trait Engine: Sync + Send + 'static + DowncastSync {
 	/// The name of this engine.
 	fn name(&self) -> &str;
 
@@ -430,6 +431,8 @@ pub trait EpochVerifier: Send + Sync {
 		None
 	}
 }
+
+impl_downcast!(sync Engine);
 
 /// Special "no-op" verifier for stateless, epoch-less engines.
 pub struct NoOp;

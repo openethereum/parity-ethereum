@@ -15,6 +15,7 @@
 // along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use bytes::Bytes;
+use downcast_rs::*;
 use ethereum_types::{H256, U256, Address};
 use types::{
 	transaction::{SignedTransaction, CallError},
@@ -46,10 +47,12 @@ pub trait Call {
 }
 
 /// Provides `engine` method
-pub trait EngineInfo {
+pub trait EngineInfo: Downcast {
 	/// Get underlying engine object
 	fn engine(&self) -> &dyn Engine;
 }
+
+impl_downcast!(EngineInfo);
 
 /// Provides `reopen_block` method
 pub trait ReopenBlock {

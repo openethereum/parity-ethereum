@@ -81,7 +81,6 @@ use machine::{
 	Machine,
 };
 use parking_lot::RwLock;
-use rand::Rng;
 use unexpected::{Mismatch, OutOfBounds};
 use time_utils::CheckedSystemTime;
 use common_types::{
@@ -358,6 +357,30 @@ impl Clique {
 			}
 		}
 	}
+
+	/// Vote to include or kick signer
+	pub fn vote(&self, address: Address, vote: Option<VoteType>) -> Result<(), &'static str> {
+		let mut proposals = self.proposals.write();
+		let signer = self.signer.read();
+
+		if let Some(vote) = vote {
+			// Check that we can actually vote for the signer.
+			if signer.is_none() {
+				return Err("Signer not set, cannot vote.");
+			}
+
+			proposals.insert(address, vote);
+		} else {
+			proposals.remove(&address);
+		}
+
+		Ok(())
+	}
+
+	/// Current proposals the node is voting on
+	pub fn proposals(&self) -> HashMap<Address, VoteType> {
+		self.proposals.read().clone()
+	}
 }
 
 impl Engine for Clique {
@@ -408,21 +431,18 @@ impl Engine for Clique {
 
 		// Cast a random Vote if not checkpoint
 		if !is_checkpoint {
-			// TODO(niklasad1): this will always be false because `proposals` is never written to
-			let votes = self.proposals.read().iter()
+			let mut proposals = self.proposals.write();
+
+			if let Some((beneficiary, vote_type)) = proposals.iter()
 				.filter(|(address, vote_type)| state.is_valid_vote(*address, **vote_type))
 				.map(|(address, vote_type)| (*address, *vote_type))
-				.collect::<Vec<_>>();
-
-			if !votes.is_empty() {
-				// Pick a random vote.
-				let random_vote = rand::thread_rng().gen_range(0 as usize, votes.len());
-				let (beneficiary, vote_type) = votes[random_vote];
-
+				.next() {
 				trace!(target: "engine", "Casting vote: beneficiary {}, type {:?} ", beneficiary, vote_type);
 
 				header.set_author(beneficiary);
 				header.set_seal(vote_type.as_rlp());
+
+				proposals.remove(&beneficiary);
 			}
 		}
 

@@ -16,6 +16,7 @@ blooms-db = { path = "util/blooms-db" }
 clap = "2"
 cli-signer= { path = "cli-signer" }
 client-traits = { path = "ethcore/client-traits" }
+clique = { path = "ethcore/engines/clique" }
 common-types = { path = "ethcore/types" }
 ctrlc = { version = "3.1.4", features = ["termination"] }
 dir = { path = "util/dir" }

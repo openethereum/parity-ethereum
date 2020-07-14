@@ -38,7 +38,7 @@ use miner::external::ExternalMiner;
 use parity_rpc::dispatch::{FullDispatcher, LightDispatcher};
 use parity_rpc::informant::{ActivityNotifier, ClientNotifier};
 use parity_rpc::{Host, Metadata, NetworkSettings};
-use parity_rpc::v1::traits::TransactionsPool;
+use parity_rpc::v1::traits::{Clique, TransactionsPool};
 use parity_runtime::Executor;
 use parking_lot::{Mutex, RwLock};
 use sync::{LightSync, ManageNetwork, SyncProvider};
@@ -74,6 +74,8 @@ pub enum Api {
 	ParitySet,
 	/// SecretStore (UNSAFE: arbitrary hash signing)
 	SecretStore,
+	/// Clique (UNSAFE: affects whole network state)
+	Clique,
 	/// Geth-compatible (best-effort) debug API (Potentially UNSAFE)
 	/// NOTE We don't aim to support all methods, only the ones that are useful.
 	Debug,
@@ -90,6 +92,7 @@ impl FromStr for Api {
 		use self::Api::*;
 
 		match s {
+			"clique" => Ok(Clique),
 			"debug" => Ok(Debug),
 			"eth" => Ok(Eth),
 			"net" => Ok(Net),
@@ -173,6 +176,7 @@ fn to_modules(apis: &HashSet<Api>) -> BTreeMap<String, String> {
 	let mut modules = BTreeMap::new();
 	for api in apis {
 		let (name, version) = match *api {
+			Api::Clique => ("clique", "1.0"),
 			Api::Debug => ("debug", "1.0"),
 			Api::Eth => ("eth", "1.0"),
 			Api::EthPubSub => ("pubsub", "1.0"),
@@ -282,6 +286,13 @@ impl FullDependencies {
 
 		for api in apis {
 			match *api {
+				Api::Clique => {
+					if self.client.engine().downcast_ref::<clique::Clique>().is_some() {
+						handler.extend_with(CliqueClient::new(self.client.clone()).to_delegate());
+					} else {
+						warn!(target: "clique", "Clique API is only available when Clique consensus engine is enabled.");
+					}
+				}
 				Api::Debug => {
 					handler.extend_with(DebugClient::new(self.client.clone()).to_delegate());
 				}
@@ -527,6 +538,9 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
 
 		for api in apis {
 			match *api {
+				Api::Clique => {
+					warn!(target: "clique", "Clique API is not available in light client mode.")
+				}
 				Api::Debug => {
 					warn!(target: "rpc", "Debug API is not available in light client mode.")
 				}
@@ -718,12 +732,14 @@ impl ApiSet {
 				.cloned()
 				.collect(),
 			ApiSet::UnsafeContext => {
+				public_list.insert(Api::Clique);
 				public_list.insert(Api::Traces);
 				public_list.insert(Api::ParityPubSub);
 				public_list.insert(Api::ParityTransactionsPool);
 				public_list
 			}
 			ApiSet::IpcContext => {
+				public_list.insert(Api::Clique);
 				public_list.insert(Api::Traces);
 				public_list.insert(Api::ParityPubSub);
 				public_list.insert(Api::ParityAccounts);
@@ -731,6 +747,7 @@ impl ApiSet {
 				public_list
 			}
 			ApiSet::All => {
+				public_list.insert(Api::Clique);
 				public_list.insert(Api::Debug);
 				public_list.insert(Api::Traces);
 				public_list.insert(Api::ParityPubSub);

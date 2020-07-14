@@ -16,6 +16,7 @@
 
 //! Ethereum rpc interface implementation.
 
+mod clique;
 mod debug;
 mod eth;
 mod eth_filter;
@@ -41,6 +42,7 @@ mod web3;
 
 pub mod light;
 
+pub use self::clique::CliqueClient;
 pub use self::debug::DebugClient;
 pub use self::eth::{EthClient, EthClientOptions};
 pub use self::eth_filter::EthFilterClient;
