@@ -24,6 +24,7 @@ mod block;
 mod block_number;
 mod bytes;
 mod call_request;
+mod clique;
 mod confirmations;
 mod consensus_status;
 mod derivation;
@@ -55,6 +56,7 @@ pub use self::bytes::Bytes;
 pub use self::block::{RichBlock, Block, BlockTransactions, Header, RichHeader, Rich};
 pub use self::block_number::{BlockNumber, LightBlockNumber, block_number_to_id};
 pub use self::call_request::CallRequest;
+pub use self::clique::{Snapshot as CliqueSnapshot, Status as CliqueStatus};
 pub use self::confirmations::{
 	ConfirmationPayload, ConfirmationRequest, ConfirmationResponse, ConfirmationResponseWithToken,
 	TransactionModification, EIP191SignRequest, EthSignRequest, DecryptRequest, Either

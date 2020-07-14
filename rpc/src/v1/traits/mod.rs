@@ -16,6 +16,7 @@
 
 //! Ethereum rpc interfaces.
 
+pub mod clique;
 pub mod debug;
 pub mod eth;
 pub mod eth_pubsub;
@@ -35,6 +36,7 @@ pub mod traces;
 pub mod transactions_pool;
 pub mod web3;
 
+pub use self::clique::Clique;
 pub use self::debug::Debug;
 pub use self::eth::{Eth, EthFilter};
 pub use self::eth_pubsub::EthPubSub;
