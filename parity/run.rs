@@ -800,21 +800,19 @@ fn execute_impl<Cr, Rr>(
 	});
 
 	// the watcher must be kept alive.
-	let watcher = match cmd.snapshot_conf.no_periodic {
-		true => None,
-		false => {
-			let sync = sync_provider.clone();
-			let watcher = Arc::new(snapshot::Watcher::new(
-				service.client(),
-				move || sync.is_major_syncing(),
-				service.io().channel(),
-				SNAPSHOT_PERIOD,
-				SNAPSHOT_HISTORY,
-			));
+	let mut watcher = None;
+	if cmd.snapshot_conf.enable {
+		let sync = sync_provider.clone();
+		let w = Arc::new(snapshot::Watcher::new(
+			service.client(),
+			move || sync.is_major_syncing(),
+			service.io().channel(),
+			SNAPSHOT_PERIOD,
+			SNAPSHOT_HISTORY,
+		));
 
-			service.add_notify(watcher.clone());
-			Some(watcher)
-		},
+		service.add_notify(w.clone());
+		watcher = Some(w);
 	};
 
 	client.set_exit_handler(on_client_rq);
