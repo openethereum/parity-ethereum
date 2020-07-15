@@ -77,7 +77,6 @@ bundle_release_spec! {
 	"ethereum/classic" => new_classic,
 	"ethereum/classic_no_phoenix" => new_classic_no_phoenix,
 	"ethereum/ellaism" => new_ellaism,
-	"ethereum/ethercore" => new_ethercore,
 	"ethereum/evancore" => new_evancore,
 	"ethereum/evantestcore" => new_evantestcore,
 	"ethereum/ewc" => new_ewc,
