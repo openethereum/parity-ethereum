@@ -70,6 +70,8 @@ use crate::{
 /// the removed key is not present in the history overlay.
 /// 7. Delete ancient record from memory and disk.
 
+use log::info;
+
 #[derive(Clone)]
 pub struct OverlayRecentDB {
 	transaction_overlay: super::MemoryDB,
@@ -250,14 +252,18 @@ impl JournalDB for OverlayRecentDB {
 
 	fn mem_used(&self) -> usize {
 		let mut ops = new_malloc_size_ops();
-		let mut mem = self.transaction_overlay.size_of(&mut ops);
+		let transaction_overlay = self.transaction_overlay.size_of(&mut ops);
 		let overlay = self.journal_overlay.read();
 
-		mem += overlay.cumulative_size; //This does not present real HashMap memory footprint but we are doing shrink_to_size after removal so this is good approximation.
-		mem += overlay.pending_overlay.size_of(&mut ops);
-		mem += overlay.journal.size_of(&mut ops);
+		let backing_overlay = overlay.backing_overlay.size_of(&mut ops);
+		let pending_overlay = overlay.pending_overlay.size_of(&mut ops);
+		let journal = overlay.journal.size_of(&mut ops);
 
-		mem
+		info!("JournalDB mem usage: {} transaction_overlay, {} backing_overlay({} comulative), {} pending_overlay, {}journal",
+			transaction_overlay, backing_overlay, overlay.cumulative_size, pending_overlay, journal);
+
+
+		transaction_overlay + backing_overlay + pending_overlay + journal
 	}
 
 	fn journal_size(&self) -> usize {

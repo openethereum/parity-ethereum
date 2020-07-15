@@ -32,6 +32,7 @@ use common_types::BlockNumber;
 use journaldb::JournalDB;
 use keccak_hasher::KeccakHasher;
 use memory_cache::MemoryLruCache;
+use log::info;
 
 const STATE_CACHE_BLOCKS: usize = 12;
 
@@ -296,11 +297,12 @@ impl StateDB {
 	/// Heap size used.
 	pub fn mem_used(&self) -> usize {
 		// TODO: account for LRU-cache overhead; this is a close approximation.
-		self.db.mem_used() + {
-			let accounts = self.account_cache.lock().accounts.len();
-			let code_size = self.code_cache.lock().current_size();
-			code_size + accounts * ::std::mem::size_of::<Option<Account>>()
-		}
+		let jurnal_db = self.db.mem_used();
+		let accounts = self.account_cache.lock().accounts.len() * ::std::mem::size_of::<Option<Account>>();
+		let code_size = self.code_cache.lock().current_size();
+		let mem_used = jurnal_db + code_size + accounts;
+		info!("StateDB memory usage {} JournalDB, {} accounts, {} code_size",jurnal_db,accounts,code_size);
+		mem_used
 	}
 
 	/// Returns underlying `JournalDB`.

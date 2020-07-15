@@ -131,10 +131,22 @@ impl SyncSupplier {
 				},
 				// Packets that require the peer to be confirmed
 				_ => {
-					if !sync.read().peers.contains_key(&peer) {
-						debug!(target:"sync", "Unexpected packet {} from unregistered peer: {}:{}", packet_id, peer, io.peer_version(peer));
-						return;
+					//if !sync.read().peers.contains_key(&peer) {
+					//	debug!(target:"sync", "Unexpected packet {} from unregistered peer: {}:{}", packet_id, peer, io.peer_version(peer));
+					//	return;
+					//}
+					//TODO draganrakita stuck bug
+					if let Some(ref mut sync) = sync.try_read_for(Duration::from_secs(DEBUG_READ_RWLOCK_WAIT_IN_SEC)) {
+						dbg_push_read_lock(String::from("check_if_peer_registered"));
+						if !sync.peers.contains_key(&peer) {
+							debug!(target:"sync", "Unexpected packet {} from unregistered peer: {}:{}", packet_id, peer, io.peer_version(peer));
+							return;
+						}
+						dbg_pop_read_lock(String::from("check_if_peer_registered"));
+					} else {
+						dbg_sleep_thread(String::from("check_if_peer_registered read"))
 					}
+
 					trace!(target: "sync", "{} -> Dispatching packet: {}", peer, packet_id);
 
 					match id {
