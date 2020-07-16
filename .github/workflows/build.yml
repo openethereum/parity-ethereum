@@ -13,6 +13,8 @@ jobs:
     env:
       SCCACHE_CACHE_SIZE:       "1G"
       SCCACHE_IDLE_TIMEOUT:     0
+      AWS_S3_ARTIFACTS_BUCKET:  "openethereum-releases"
+      AWS_REGION:               "us-east-1"
     strategy:
       matrix:
         platform:
@@ -200,9 +202,10 @@ jobs:
           echo ::set-output name=WINDOWS_ARTIFACT::openethereum-windows-${{ env.RELEASE_VERSION }}.zip
           echo ::set-output name=WINDOWS_SHASUM::$(shasum -a 256 openethereum-windows-${{ env.RELEASE_VERSION }}.zip | awk '{print $1}')
 
-      # ==============================
-      #       Upload artifacts
-      # ==============================
+      # =======================================================================
+      # Upload artifacts
+      # This is required to share artifacts between different jobs
+      # =======================================================================
 
       - name:                   Upload artifacts
         uses:                   actions/upload-artifact@v2
@@ -221,6 +224,24 @@ jobs:
         with:
           name:                 openethereum-windows-${{ env.RELEASE_VERSION }}.zip
           path:                 openethereum-windows-${{ env.RELEASE_VERSION }}.zip
+
+      # =======================================================================
+      # Upload artifacts to S3
+      # This is required by some software distribution systems which require
+      # artifacts to be downloadable, like Brew on MacOS.
+      # =======================================================================
+      - name:                   Configure AWS credentials
+        uses:                   aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region:            ${{ env.AWS_REGION }}
+
+      - name:                   Copy files to S3 with the AWS CLI
+        run: |
+          # Deploy zip artifacts to S3 bucket to a directory whose name is the tagged release version.
+          # Deploy macos binary artifact (if required, add more `aws s3 cp` commands to deploy specific OS versions)
+          aws s3 cp macos-artifacts/openethereum s3://${{ env.AWS_S3_ARTIFACTS_BUCKET }}/${{ env.RELEASE_VERSION }}/macos/
 
     outputs:
       linux-artifact:           ${{ steps.create_zip_linux.outputs.LINUX_ARTIFACT }}
