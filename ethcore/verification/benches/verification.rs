@@ -45,8 +45,6 @@ fn ethash_params() -> EthashParams {
 		difficulty_hardfork_bound_divisor: U256::from(2048),
 		bomb_defuse_transition: u64::max_value(),
 		eip100b_transition: 4370000,
-		ecip1010_pause_transition: u64::max_value(),
-		ecip1010_continue_transition: u64::max_value(),
 		ecip1017_era_rounds: u64::max_value(),
 		block_reward: {
 			let mut m = BTreeMap::<u64, U256>::new();

@@ -21,7 +21,7 @@ for spec in ethcore/res/ethereum/*.json; do
 done
 
 echo -e "\n*** Checking mainnet EIPs against test specifications:"
-for spec in "ethcore/res/ethereum/foundation.json" "ethcore/res/ethereum/classic.json"; do
+for spec in "ethcore/res/ethereum/foundation.json"; do
     for fork in "frontier" "homestead" "byzantium" "constantinople" "st_peters" "istanbul"; do
         for eip in $(grep --only-matching "eip.*Transition" ethcore/res/ethereum/test-specs/${fork}_test.json); do
             if ! grep -q $eip $spec; then
