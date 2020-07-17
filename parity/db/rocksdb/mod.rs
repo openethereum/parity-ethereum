@@ -35,7 +35,6 @@ use self::ethcore_blockchain::{BlockChainDBHandler, BlockChainDB};
 use self::kvdb_rocksdb::{Database, DatabaseConfig};
 
 
-mod blooms;
 mod migration;
 mod helpers;
 

@@ -938,7 +938,7 @@ impl Configuration {
 
 	fn snapshot_config(&self) -> Result<SnapshotConfiguration, String> {
 		let mut conf = SnapshotConfiguration::default();
-		conf.no_periodic = self.args.flag_no_periodic_snapshot;
+		conf.enable = self.args.flag_enable_snapshotting;
 		if let Some(threads) = self.args.arg_snapshot_threads {
 			if threads > 0 {
 				conf.processing_threads = threads;

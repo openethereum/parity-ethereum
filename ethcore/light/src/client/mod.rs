@@ -346,12 +346,8 @@ impl<T: ChainDataFetcher> Client<T> {
 				}
 			};
 
-			self.db.write_buffered(tx);
+			self.db.write(tx).expect("Low level database error writing a transaction. Some issue with the disk?");
 			self.chain.apply_pending(pending);
-		}
-
-		if let Err(e) = self.db.flush() {
-			panic!("Database flush failed: {}. Check disk health and space.", e);
 		}
 
 		self.queue.mark_as_bad(&bad);
@@ -510,7 +506,7 @@ impl<T: ChainDataFetcher> Client<T> {
 		self.chain.insert_pending_transition(&mut batch, header.hash(), &PendingTransition {
 			proof,
 		});
-		self.db.write_buffered(batch);
+		self.db.write(batch).expect("Low level database error writing a transaction. Some issue with the disk?");
 		Ok(())
 	}
 }

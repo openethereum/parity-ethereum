@@ -31,7 +31,7 @@ use crate::{
 				SnapshotDataPacket, SnapshotManifestPacket, StatusPacket,
 			}
 		},
-		BlockSet, ChainSync, ForkConfirmation, PacketDecodeError, PeerAsking, PeerInfo, SyncRequester,
+		BlockSet, ChainSync, ForkConfirmation, PacketProcessError, PeerAsking, PeerInfo, SyncRequester,
 		SyncState, ETH_PROTOCOL_VERSION_63, ETH_PROTOCOL_VERSION_64, MAX_NEW_BLOCK_AGE, MAX_NEW_HASHES,
 		PAR_PROTOCOL_VERSION_1, PAR_PROTOCOL_VERSION_3, PAR_PROTOCOL_VERSION_4,
 	}
@@ -114,6 +114,7 @@ impl SyncHandler {
 			debug!(target: "sync", "Disconnected {}", peer_id);
 			sync.clear_peer_download(peer_id);
 			sync.peers.remove(&peer_id);
+			sync.delayed_requests.retain(|(request_peer_id, _, _)| *request_peer_id != peer_id);
 			sync.active_peers.remove(&peer_id);
 
 			if sync.state == SyncState::SnapshotManifest {
@@ -149,12 +150,6 @@ impl SyncHandler {
 			trace!(target: "sync", "Ignoring new block from unconfirmed peer {}", peer_id);
 			return Ok(());
 		}
-		let difficulty: U256 = r.val_at(1)?;
-		if let Some(ref mut peer) = sync.peers.get_mut(&peer_id) {
-			if peer.difficulty.map_or(true, |pd| difficulty > pd) {
-				peer.difficulty = Some(difficulty);
-			}
-		}
 		let block = Unverified::from_rlp(r.at(0)?.as_raw().to_vec())?;
 		let hash = block.header.hash();
 		let number = block.header.number();
@@ -162,10 +157,20 @@ impl SyncHandler {
 		if number > sync.highest_block.unwrap_or(0) {
 			sync.highest_block = Some(number);
 		}
+		let parent_hash = block.header.parent_hash();
+		let difficulty: U256 = r.val_at(1)?;
+		// Most probably the sent block is being imported by peer right now
+		// Use td and hash, that peer must have for now
+		let parent_td = difficulty.checked_sub(*block.header.difficulty());
+		if let Some(ref mut peer) = sync.peers.get_mut(&peer_id) {
+			if peer.difficulty.map_or(true, |pd| parent_td.map_or(false, |td| td > pd)) {
+				peer.difficulty = parent_td;
+			}
+		}
 		let mut unknown = false;
 
 		if let Some(ref mut peer) = sync.peers.get_mut(&peer_id) {
-			peer.latest_hash = hash;
+			peer.latest_hash = *parent_hash;
 		}
 
 		let last_imported_number = sync.new_blocks.last_imported_block_number();
@@ -675,7 +680,7 @@ impl SyncHandler {
 	}
 
 	/// Called when peer sends us new transactions
-	pub fn on_peer_transactions(sync: &ChainSync, io: &mut dyn SyncIo, peer_id: PeerId, tx_rlp: Rlp) -> Result<(), PacketDecodeError> {
+	pub fn on_peer_transactions(sync: &ChainSync, io: &mut dyn SyncIo, peer_id: PeerId, tx_rlp: Rlp) -> Result<(), PacketProcessError> {
 		// Accept transactions only when fully synced
 		if !io.is_chain_queue_empty() || (sync.state != SyncState::Idle && sync.state != SyncState::NewBlocks) {
 			trace!(target: "sync", "{} Ignoring transactions while syncing", peer_id);

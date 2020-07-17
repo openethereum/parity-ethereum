@@ -14,8 +14,8 @@ call-contract = { package = "ethcore-call-contract", path = "../call-contract" }
 common-types = { path = "../types" }
 ethcore-db = { path = "../db" }
 ethcore-miner = { path = "../../miner" }
-ethereum-types = "0.9.0"
-kvdb = "0.5.0"
+ethereum-types = "0.9.2"
+kvdb = "0.7"
 registrar = { path = "../../util/registrar" }
 stats = { path = "../../util/stats" }
 trace = { path = "../trace" }

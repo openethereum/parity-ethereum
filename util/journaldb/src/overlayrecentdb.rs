@@ -1045,28 +1045,28 @@ mod tests {
 		let _key = jdb.insert(EMPTY_PREFIX, b"hello!");
 		let mut batch = jdb.backing().transaction();
 		jdb.journal_under(&mut batch, 0, &keccak(b"0")).unwrap();
-		jdb.backing().write_buffered(batch);
+		jdb.backing().write(batch).expect("rocksdb works");
 
 		assert_eq!(jdb.earliest_era(), Some(0));
 
 		// second journalled era.
 		let mut batch = jdb.backing().transaction();
 		jdb.journal_under(&mut batch, 1, &keccak(b"1")).unwrap();
-		jdb.backing().write_buffered(batch);
+		jdb.backing().write(batch).expect("rocksdb works");
 
 		assert_eq!(jdb.earliest_era(), Some(0));
 
 		// single journalled era.
 		let mut batch = jdb.backing().transaction();
 		jdb.mark_canonical(&mut batch, 0, &keccak(b"0")).unwrap();
-		jdb.backing().write_buffered(batch);
+		jdb.backing().write(batch).expect("rocksdb works");
 
 		assert_eq!(jdb.earliest_era(), Some(1));
 
 		// no journalled eras.
 		let mut batch = jdb.backing().transaction();
 		jdb.mark_canonical(&mut batch, 1, &keccak(b"1")).unwrap();
-		jdb.backing().write_buffered(batch);
+		jdb.backing().write(batch).expect("rocksdb works");
 
 		assert_eq!(jdb.earliest_era(), Some(1));
 

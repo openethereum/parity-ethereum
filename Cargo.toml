@@ -36,7 +36,7 @@ ethcore-network = { path = "util/network" }
 ethcore-private-tx = { path = "ethcore/private-tx" }
 ethcore-service = { path = "ethcore/service" }
 ethcore-sync = { path = "ethcore/sync" }
-ethereum-types = "0.9.0"
+ethereum-types = "0.9.2"
 ethkey = { path = "accounts/ethkey" }
 ethstore = { path = "accounts/ethstore" }
 fdlimit = "0.1"
@@ -45,8 +45,8 @@ hyper = { version = "0.13" }
 journaldb = { path = "util/journaldb" }
 jsonrpc-core = "14.0.3"
 keccak-hash = "0.5.0"
-kvdb = "0.5.0"
-kvdb-rocksdb = "0.7.0"
+kvdb = "0.7"
+kvdb-rocksdb = "0.9"
 log = "0.4"
 migration-rocksdb = { path = "util/migration-rocksdb" }
 node-filter = { path = "ethcore/node-filter" }
@@ -54,7 +54,7 @@ num_cpus = "1.2"
 number_prefix = "0.2"
 panic_hook = { path = "util/panic-hook" }
 parity-bytes = "0.1"
-parity-crypto = { version = "0.6.1", features = ["publickey"] }
+parity-crypto = { version = "0.6.2", features = ["publickey"] }
 parity-daemonize = "0.3"
 parity-hash-fetch = { path = "updater/hash-fetch" }
 parity-local-store = { path = "miner/local-store" }
@@ -63,7 +63,7 @@ parity-rpc = { path = "rpc" }
 parity-runtime = "0.1.2"
 parity-secretstore = { git = "https://github.com/paritytech/secret-store", branch = "v1.x", optional = true }
 parity-updater = { path = "updater" }
-parity-util-mem = { version = "0.6.0", features = ["jemalloc-global"] }
+parity-util-mem = { version = "0.7", features = ["jemalloc-global"] }
 parity-version = { path = "util/version" }
 parking_lot = "0.10.0"
 regex = "1.0"

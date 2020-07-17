@@ -113,13 +113,14 @@ use crate::{
 
 use bytes::Bytes;
 use client_traits::BlockChainClient;
+use derive_more::Display;
 use ethereum_types::{H256, U256};
 use fastmap::{H256FastMap, H256FastSet};
 use futures::sync::mpsc as futures_mpsc;
 use keccak_hash::keccak;
 use log::{error, trace, debug, warn};
 use network::client_version::ClientVersion;
-use network::{self, PeerId, PacketId};
+use network::{self, PeerId};
 use parity_util_mem::{MallocSizeOfExt, malloc_size_of_is_0};
 use parking_lot::{Mutex, RwLock, RwLockWriteGuard};
 use rand::{Rng, seq::SliceRandom};
@@ -147,7 +148,23 @@ pub(crate) use self::supplier::SyncSupplier;
 
 malloc_size_of_is_0!(PeerInfo);
 
-pub type PacketDecodeError = DecoderError;
+/// Possible errors during packet's processing
+#[derive(Debug, Display)]
+pub enum PacketProcessError {
+	/// Error of RLP decoder
+	#[display(fmt = "Decoder Error: {}", _0)]
+	Decoder(DecoderError),
+	/// Underlying client is busy and cannot process the packet
+	/// The packet should be postponed for later response
+	#[display(fmt = "Underlying client is busy")]
+	ClientBusy,
+}
+
+impl From<DecoderError> for PacketProcessError {
+	fn from(err: DecoderError) -> Self {
+		PacketProcessError::Decoder(err).into()
+	}
+}
 
 /// Version 64 of the Ethereum protocol and number of packet IDs reserved by the protocol (packet count).
 pub const ETH_PROTOCOL_VERSION_64: (u8, u8) = (64, 0x11);
@@ -411,7 +428,7 @@ pub mod random {
 	}
 }
 
-pub type RlpResponseResult = Result<Option<(PacketId, RlpStream)>, PacketDecodeError>;
+pub type RlpResponseResult = Result<Option<(SyncPacket, RlpStream)>, PacketProcessError>;
 pub type Peers = HashMap<PeerId, PeerInfo>;
 
 /// Thread-safe wrapper for `ChainSync`.
@@ -466,6 +483,17 @@ impl ChainSyncApi {
 	/// Dispatch incoming requests and responses
 	pub fn dispatch_packet(&self, io: &mut dyn SyncIo, peer: PeerId, packet_id: u8, data: &[u8]) {
 		SyncSupplier::dispatch_packet(&self.sync, io, peer, packet_id, data)
+	}
+
+	/// Process the queue with requests, that were delayed with response.
+	pub fn process_delayed_requests(&self, io: &mut dyn SyncIo) {
+		let requests = self.sync.write().retrieve_delayed_requests();
+		if !requests.is_empty() {
+			debug!(target: "sync", "Processing {} delayed requests", requests.len());
+			for (peer_id, packet_id, packet_data) in requests {
+				SyncSupplier::dispatch_delayed_request(&self.sync, io, peer_id, packet_id, &packet_data);
+			}
+		}
 	}
 
 	/// Process a priority propagation queue.
@@ -672,6 +700,10 @@ pub struct ChainSync {
 	/// Connected peers pending Status message.
 	/// Value is request timestamp.
 	handshaking_peers: HashMap<PeerId, Instant>,
+	/// Requests, that can not be processed at the moment
+	delayed_requests: Vec<(PeerId, u8, Vec<u8>)>,
+	/// Ids of delayed requests, used for lookup, id is composed from peer id and packet id
+	delayed_requests_ids: HashSet<(PeerId, u8)>,
 	/// Sync start timestamp. Measured when first peer is connected
 	sync_start_time: Option<Instant>,
 	/// Transactions propagation statistics
@@ -707,6 +739,8 @@ impl ChainSync {
 			peers: HashMap::new(),
 			handshaking_peers: HashMap::new(),
 			active_peers: HashSet::new(),
+			delayed_requests: Vec::new(),
+			delayed_requests_ids: HashSet::new(),
 			new_blocks: BlockDownloader::new(BlockSet::NewBlocks, &chain_info.best_block_hash, chain_info.best_block_number),
 			old_blocks: None,
 			last_sent_block_number: 0,
@@ -819,6 +853,22 @@ impl ChainSync {
 		// Reactivate peers only if some progress has been made
 		// since the last sync round of if starting fresh.
 		self.active_peers = self.peers.keys().cloned().collect();
+	}
+
+	/// Add a request for later processing
+	pub fn add_delayed_request(&mut self, peer: PeerId, packet_id: u8, data: &[u8]) {
+		// Ignore the request, if there is a request already in queue with the same id
+		if !self.delayed_requests_ids.contains(&(peer, packet_id)) {
+			self.delayed_requests_ids.insert((peer, packet_id));
+			self.delayed_requests.push((peer, packet_id, data.to_vec()));
+			debug!(target: "sync", "Delayed request with packet id {} from peer {} added", packet_id, peer);
+		}
+	}
+
+	/// Drain and return all delayed requests
+	pub fn retrieve_delayed_requests(&mut self) -> Vec<(PeerId, u8, Vec<u8>)> {
+		self.delayed_requests_ids.clear();
+		self.delayed_requests.drain(..).collect()
 	}
 
 	/// Restart sync
@@ -1261,7 +1311,7 @@ impl ChainSync {
 		packet.append(&chain.total_difficulty);
 		packet.append(&chain.best_block_hash);
 		packet.append(&chain.genesis_hash);
-		if eth_protocol_version >= ETH_PROTOCOL_VERSION_64.0 { 
+		if eth_protocol_version >= ETH_PROTOCOL_VERSION_64.0 {
 			packet.append(&self.fork_filter.current(io.chain()));
 		}
 		if warp_protocol {

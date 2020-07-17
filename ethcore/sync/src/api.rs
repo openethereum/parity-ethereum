@@ -513,6 +513,7 @@ const MAINTAIN_SYNC_TIMER: TimerToken = 1;
 const CONTINUE_SYNC_TIMER: TimerToken = 2;
 const TX_TIMER: TimerToken = 3;
 const PRIORITY_TIMER: TimerToken = 4;
+const DELAYED_PROCESSING_TIMER: TimerToken = 5;
 
 pub(crate) const PRIORITY_TIMER_INTERVAL: Duration = Duration::from_millis(250);
 
@@ -536,6 +537,7 @@ impl NetworkProtocolHandler for SyncProtocolHandler {
 			io.register_timer(MAINTAIN_SYNC_TIMER, Duration::from_millis(1100)).expect("Error registering sync timer");
 			io.register_timer(CONTINUE_SYNC_TIMER, Duration::from_millis(2500)).expect("Error registering sync timer");
 			io.register_timer(TX_TIMER, Duration::from_millis(1300)).expect("Error registering transactions timer");
+			io.register_timer(DELAYED_PROCESSING_TIMER, Duration::from_millis(2100)).expect("Error registering delayed processing timer");
 
 			io.register_timer(PRIORITY_TIMER, PRIORITY_TIMER_INTERVAL).expect("Error registering peers timer");
 		}
@@ -586,6 +588,7 @@ impl NetworkProtocolHandler for SyncProtocolHandler {
 			CONTINUE_SYNC_TIMER => self.sync.write().continue_sync(&mut io),
 			TX_TIMER => self.sync.write().propagate_new_transactions(&mut io),
 			PRIORITY_TIMER => self.sync.process_priority_queue(&mut io),
+			DELAYED_PROCESSING_TIMER => self.sync.process_delayed_requests(&mut io),
 			_ => warn!("Unknown timer {} triggered.", timer),
 		}
 	}

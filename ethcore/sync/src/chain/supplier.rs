@@ -53,7 +53,7 @@ use super::{
 	ChainSync,
 	SyncHandler,
 	RlpResponseResult,
-	PacketDecodeError,
+	PacketProcessError,
 	MAX_BODIES_TO_SEND,
 	MAX_HEADERS_TO_SEND,
 	MAX_NODE_DATA_TO_SEND,
@@ -145,14 +145,47 @@ impl SyncSupplier {
 				}
 			};
 
-			result.unwrap_or_else(|e| {
-				debug!(target:"sync", "{} -> Malformed packet {} : {}", peer, packet_id, e);
-			})
+			match result {
+				Err(PacketProcessError::Decoder(e)) => debug!(target:"sync", "{} -> Malformed packet {} : {}", peer, packet_id, e),
+				Err(PacketProcessError::ClientBusy) => sync.write().add_delayed_request(peer, packet_id, data),
+				Ok(()) => {}
+			}
+		}
+	}
+
+	/// Dispatch delayed request
+	/// The main difference with dispatch packet is the direct send of the responses to the peer
+	pub fn dispatch_delayed_request(sync: &RwLock<ChainSync>, io: &mut dyn SyncIo, peer: PeerId, packet_id: u8, data: &[u8]) {
+		let rlp = Rlp::new(data);
+
+		if let Some(id) = SyncPacket::from_u8(packet_id) {
+			let result = match id {
+				GetBlockHeadersPacket => SyncSupplier::send_rlp(
+					io, &rlp, peer,
+					SyncSupplier::return_block_headers,
+					|e| format!("Error sending block headers: {:?}", e)),
+
+				_ => {
+					debug!(target:"sync", "Unexpected packet {} was dispatched for delayed processing", packet_id);
+					Ok(())
+				}
+			};
+
+			match result {
+				Err(PacketProcessError::Decoder(e)) => debug!(target:"sync", "{} -> Malformed packet {} : {}", peer, packet_id, e),
+				Err(PacketProcessError::ClientBusy) => sync.write().add_delayed_request(peer, packet_id, data),
+				Ok(()) => {}
+			}
 		}
 	}
 
 	/// Respond to GetBlockHeaders request
 	fn return_block_headers(io: &dyn SyncIo, r: &Rlp, peer_id: PeerId) -> RlpResponseResult {
+		// Cannot return blocks, if forks processing is in progress,
+		// The request should be postponed for later processing
+		if io.chain().is_processing_fork() {
+			return Err(PacketProcessError::ClientBusy);
+		}
 		let payload_soft_limit = io.payload_soft_limit();
 		// Packet layout:
 		// [ block: { P , B_32 }, maxHeaders: P, skip: P, reverse: P in { 0 , 1 } ]
@@ -175,11 +208,11 @@ impl SyncSupplier {
 						trace!(target:"sync", "Returning single header: {:?}", hash);
 						let mut rlp = RlpStream::new_list(1);
 						rlp.append_raw(&hdr.into_inner(), 1);
-						return Ok(Some((BlockHeadersPacket.id(), rlp)));
+						return Ok(Some((BlockHeadersPacket, rlp)));
 					}
 					number
 				}
-				None => return Ok(Some((BlockHeadersPacket.id(), RlpStream::new_list(0)))) //no such header, return nothing
+				None => return Ok(Some((BlockHeadersPacket, RlpStream::new_list(0)))) //no such header, return nothing
 			}
 		} else {
 			let number = r.val_at::<BlockNumber>(0)?;
@@ -229,7 +262,7 @@ impl SyncSupplier {
 		let mut rlp = RlpStream::new_list(count as usize);
 		rlp.append_raw(&data, count as usize);
 		trace!(target: "sync", "{} -> GetBlockHeaders: returned {} entries", peer_id, count);
-		Ok(Some((BlockHeadersPacket.id(), rlp)))
+		Ok(Some((BlockHeadersPacket, rlp)))
 	}
 
 	/// Respond to GetBlockBodies request
@@ -256,7 +289,7 @@ impl SyncSupplier {
 		let mut rlp = RlpStream::new_list(added);
 		rlp.append_raw(&data, added);
 		trace!(target: "sync", "{} -> GetBlockBodies: returned {} entries", peer_id, added);
-		Ok(Some((BlockBodiesPacket.id(), rlp)))
+		Ok(Some((BlockBodiesPacket, rlp)))
 	}
 
 	/// Respond to GetNodeData request
@@ -302,7 +335,7 @@ impl SyncSupplier {
 		for d in data {
 			rlp.append(&d);
 		}
-		Ok(Some((NodeDataPacket.id(), rlp)))
+		Ok(Some((NodeDataPacket, rlp)))
 	}
 
 	fn return_receipts(io: &dyn SyncIo, rlp: &Rlp, peer_id: PeerId) -> RlpResponseResult {
@@ -328,7 +361,7 @@ impl SyncSupplier {
 		}
 		let mut rlp_result = RlpStream::new_list(added_headers);
 		rlp_result.append_raw(&data, added_headers);
-		Ok(Some((ReceiptsPacket.id(), rlp_result)))
+		Ok(Some((ReceiptsPacket, rlp_result)))
 	}
 
 	/// Respond to GetSnapshotManifest request
@@ -351,7 +384,7 @@ impl SyncSupplier {
 				RlpStream::new_list(0)
 			}
 		};
-		Ok(Some((SnapshotManifestPacket.id(), rlp)))
+		Ok(Some((SnapshotManifestPacket, rlp)))
 	}
 
 	/// Respond to GetSnapshotData request
@@ -370,7 +403,7 @@ impl SyncSupplier {
 				RlpStream::new_list(0)
 			}
 		};
-		Ok(Some((SnapshotDataPacket.id(), rlp)))
+		Ok(Some((SnapshotDataPacket, rlp)))
 	}
 
 	/// Respond to GetPrivateStatePacket
@@ -387,13 +420,25 @@ impl SyncSupplier {
 				Ok(bytes) => {
 					let mut rlp = RlpStream::new_list(1);
 					rlp.append(&bytes);
-					Ok(Some((PrivateStatePacket.id(), rlp)))
+					Ok(Some((PrivateStatePacket, rlp)))
 				}
 			}
 		})
 	}
 
-	fn return_rlp<FRlp, FError>(io: &mut dyn SyncIo, rlp: &Rlp, peer: PeerId, rlp_func: FRlp, error_func: FError) -> Result<(), PacketDecodeError>
+	fn return_rlp<FRlp, FError>(io: &mut dyn SyncIo, rlp: &Rlp, peer: PeerId, rlp_func: FRlp, error_func: FError) -> Result<(), PacketProcessError>
+		where FRlp : Fn(&dyn SyncIo, &Rlp, PeerId) -> RlpResponseResult,
+			FError : FnOnce(network::Error) -> String
+	{
+		let response = rlp_func(io, rlp, peer);
+		if let Some((packet_id, rlp_stream)) = response? {
+			io.respond(packet_id.id(), rlp_stream.out()).unwrap_or_else(
+				|e| debug!(target: "sync", "{:?}", error_func(e)));
+		}
+		Ok(())
+	}
+
+	fn send_rlp<FRlp, FError>(io: &mut dyn SyncIo, rlp: &Rlp, peer: PeerId, rlp_func: FRlp, error_func: FError) -> Result<(), PacketProcessError>
 		where FRlp : Fn(&dyn SyncIo, &Rlp, PeerId) -> RlpResponseResult,
 			FError : FnOnce(network::Error) -> String
 	{
@@ -401,7 +446,7 @@ impl SyncSupplier {
 		match response {
 			Err(e) => Err(e),
 			Ok(Some((packet_id, rlp_stream))) => {
-				io.respond(packet_id, rlp_stream.out()).unwrap_or_else(
+				io.send(peer, packet_id, rlp_stream.out()).unwrap_or_else(
 					|e| debug!(target: "sync", "{:?}", error_func(e)));
 				Ok(())
 			}
