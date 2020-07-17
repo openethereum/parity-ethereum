@@ -1207,7 +1207,7 @@ dependencies = [
  "memory-cache",
  "parity-bytes",
  "parity-crypto",
- "parity-runtime 0.1.1 (git+https://github.com/vorot93/parity-common?branch=tokio-compat)",
+ "parity-runtime",
  "parking_lot 0.10.0",
  "patricia-trie-ethereum",
  "pod",
@@ -1426,7 +1426,7 @@ dependencies = [
  "linked-hash-map",
  "log",
  "parity-crypto",
- "parity-runtime 0.1.1 (git+https://github.com/vorot93/parity-common?branch=tokio-compat)",
+ "parity-runtime",
  "parity-util-mem",
  "parking_lot 0.10.0",
  "price-info",
@@ -1613,7 +1613,7 @@ dependencies = [
  "num-traits",
  "parity-bytes",
  "parity-crypto",
- "parity-runtime 0.1.1 (git+https://github.com/vorot93/parity-common?branch=tokio-compat)",
+ "parity-runtime",
  "parity-util-mem",
  "parking_lot 0.10.0",
  "rand 0.7.3",
@@ -3396,7 +3396,7 @@ dependencies = [
  "parity-local-store",
  "parity-path",
  "parity-rpc",
- "parity-runtime 0.1.1 (git+https://github.com/vorot93/parity-common?branch=tokio-compat)",
+ "parity-runtime",
  "parity-secretstore",
  "parity-updater",
  "parity-util-mem",
@@ -3521,7 +3521,7 @@ dependencies = [
  "mime",
  "mime_guess",
  "parity-bytes",
- "parity-runtime 0.1.1 (git+https://github.com/vorot93/parity-common?branch=tokio-compat)",
+ "parity-runtime",
  "parking_lot 0.10.0",
  "rand 0.7.3",
  "registrar",
@@ -3596,7 +3596,7 @@ dependencies = [
  "order-stat",
  "parity-bytes",
  "parity-crypto",
- "parity-runtime 0.1.1 (git+https://github.com/vorot93/parity-common?branch=tokio-compat)",
+ "parity-runtime",
  "parity-updater",
  "parity-version",
  "parking_lot 0.10.0",
@@ -3642,23 +3642,14 @@ dependencies = [
 
 [[package]]
 name = "parity-runtime"
-version = "0.1.1"
-source = "git+https://github.com/vorot93/parity-common?branch=tokio-compat#0d2e58b3346c13770c6811522216badb952ba279"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "486214cb6d1fc274248f735a3edfd7eea94fd928db1e0c4118b7c9ecde06fd4b"
 dependencies = [
  "futures 0.1.29",
  "futures 0.3.5",
  "tokio 0.2.21",
  "tokio-compat",
-]
-
-[[package]]
-name = "parity-runtime"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "710e8d8e9769827952aa83a44d33bc993658cccd97e15e3b5eb070d1a70d1a3a"
-dependencies = [
- "futures 0.1.29",
- "tokio 0.1.22",
 ]
 
 [[package]]
@@ -3694,7 +3685,7 @@ dependencies = [
  "log",
  "parity-bytes",
  "parity-crypto",
- "parity-runtime 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parity-runtime",
  "parking_lot 0.10.0",
  "percent-encoding 2.1.0",
  "rustc-hex 1.0.0",
@@ -4050,7 +4041,7 @@ dependencies = [
  "fetch",
  "futures 0.1.29",
  "log",
- "parity-runtime 0.1.1 (git+https://github.com/vorot93/parity-common?branch=tokio-compat)",
+ "parity-runtime",
  "serde_json",
 ]
 

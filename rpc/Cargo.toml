@@ -57,7 +57,7 @@ ethkey = { path = "../accounts/ethkey" }
 ethstore = { path = "../accounts/ethstore" }
 fetch = { path = "../util/fetch" }
 keccak-hash = "0.5.0"
-parity-runtime = { git = "https://github.com/vorot93/parity-common", branch = "tokio-compat", features = ["test-helpers"] }
+parity-runtime = { version = "0.1.2", features = ["test-helpers"] }
 parity-updater = { path = "../updater" }
 parity-version = { path = "../util/version" }
 rlp = "0.4.5"

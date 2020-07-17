@@ -60,7 +60,7 @@ parity-hash-fetch = { path = "updater/hash-fetch" }
 parity-local-store = { path = "miner/local-store" }
 parity-path = "0.1"
 parity-rpc = { path = "rpc" }
-parity-runtime = { git = "https://github.com/vorot93/parity-common", branch = "tokio-compat" }
+parity-runtime = "0.1.2"
 parity-secretstore = { git = "https://github.com/paritytech/secret-store", branch = "v1.x", optional = true }
 parity-updater = { path = "updater" }
 parity-util-mem = { version = "0.6.0", features = ["jemalloc-global"] }
