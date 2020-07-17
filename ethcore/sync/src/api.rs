@@ -451,9 +451,10 @@ impl PrometheusMetrics for EthSync {
 		} else {
 			0
 		});
-		prometheus_gauge(r, "snapshot_restore_block", "First block of the current snapshot restoration",  match restoration {
-			RestorationStatus::Ongoing{block_number, ..} => block_number as i64,
-			_ => 0,
+		prometheus_gauge(r, "snapshot_restore_block", "First block of the current snapshot restoration",  if let RestorationStatus::Ongoing { block_number, ..} = restoration {
+			block_number as i64
+		} else {
+			0
 		});
 	}
 }
