@@ -2872,7 +2872,7 @@ impl PrometheusMetrics for Client {
 		prometheus_gauge(r, "statedb_mem_used", "State DB memory used", state_db.mem_used() as i64);
 		prometheus_gauge(r, "statedb_cache_size", "State DB cache size", state_db.cache_size() as i64);
 
-		// blockchain caché
+		// blockchain cache
 		let blockchain_cache_info = self.blockchain_cache_info();
 		prometheus_gauge(r, "blockchaincache_block_details", "BlockDetails cache size", blockchain_cache_info.block_details as i64);
 		prometheus_gauge(r, "blockchaincache_block_recipts", "Block receipts size", blockchain_cache_info.block_receipts as i64);
