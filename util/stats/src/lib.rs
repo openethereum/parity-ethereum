@@ -44,7 +44,7 @@ pub fn prometheus_gauge(reg: &mut prometheus::Registry, name: &str, help: &str, 
 }
 
 /// Adds a new prometheus counter with the time spent in running the specified function
-pub fn prometheus_optime<T>(r: &mut prometheus::Registry, name: &str, f: &dyn Fn()->T ) -> T {
+pub fn prometheus_optime<F: Fn() -> T, T>(r: &mut prometheus::Registry, name: &str, f: &F ) -> T {
 	let start = Instant::now();
 	let t = f();
 	let elapsed = start.elapsed();
