@@ -858,11 +858,12 @@ impl<C: Send + Sync> SnapshotService for Service<C> {
 	}
 
 	fn creation_status(&self) -> CreationStatus {
-		match self.taking_snapshot.load(Ordering::SeqCst) {
-			false => CreationStatus::Inactive,
-			true => CreationStatus::Ongoing {
+		if self.taking_snapshot.load(Ordering::SeqCst) {
+			CreationStatus::Ongoing {
 				block_number: self.taking_snapshot_num.load(Ordering::SeqCst) as u32
-			},
+			}
+		} else {
+			CreationStatus::Inactive
 		}
 	}
 
