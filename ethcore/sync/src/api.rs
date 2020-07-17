@@ -446,9 +446,10 @@ impl PrometheusMetrics for EthSync {
 		let restoration = self.eth_handler.snapshot_service.restoration_status();
 		let creation = self.eth_handler.snapshot_service.creation_status();
 
-		prometheus_gauge(r, "snapshot_create_block", "First block of the current snapshot creation",  match creation {
-			CreationStatus::Ongoing{block_number} => block_number as i64,
-			_ => 0,
+		prometheus_gauge(r, "snapshot_create_block", "First block of the current snapshot creation",  if let CreationStatus::Ongoing { block_number } = creation {
+			block_number as i64
+		} else {
+			0
 		});
 		prometheus_gauge(r, "snapshot_restore_block", "First block of the current snapshot restoration",  match restoration {
 			RestorationStatus::Ongoing{block_number, ..} => block_number as i64,
