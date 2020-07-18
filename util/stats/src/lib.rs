@@ -53,7 +53,7 @@ pub fn prometheus_optime<F: Fn() -> T, T>(r: &mut prometheus::Registry, name: &s
 	t
 }
 
-/// Sorted corpus of data.1
+/// Sorted corpus of data.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Corpus<T>(Vec<T>);
 
