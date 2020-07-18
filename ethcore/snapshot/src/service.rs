@@ -265,7 +265,7 @@ pub struct Service<C: Send + Sync + 'static> {
 	client: Arc<C>,
 	progress: RwLock<Progress>,
 	taking_snapshot: AtomicBool,
-	taking_snapshot_num: AtomicUsize,
+	taking_snapshot_at: AtomicUsize,
 	restoring_snapshot: AtomicBool,
 }
 
@@ -287,7 +287,7 @@ impl<C> Service<C> where C: SnapshotClient + ChainInfo {
 			client: params.client,
 			progress: RwLock::new(Progress::new()),
 			taking_snapshot: AtomicBool::new(false),
-			taking_snapshot_num: AtomicUsize::new(0),
+			taking_snapshot_at: AtomicUsize::new(0),
 			restoring_snapshot: AtomicBool::new(false),
 		};
 
@@ -507,7 +507,7 @@ impl<C> Service<C> where C: SnapshotClient + ChainInfo {
 
 		info!("Taking snapshot at #{}", num);
 		{
-			self.taking_snapshot_num.store(num as usize, Ordering::SeqCst);
+			self.taking_snapshot_at.store(num as usize, Ordering::SeqCst);
 			scopeguard::defer! {{
 				self.taking_snapshot.store(false, Ordering::SeqCst);
 			}}
@@ -840,7 +840,7 @@ impl<C: Send + Sync> SnapshotService for Service<C> {
 	fn creation_status(&self) -> CreationStatus {
 		if self.taking_snapshot.load(Ordering::SeqCst) {
 			CreationStatus::Ongoing {
-				block_number: self.taking_snapshot_num.load(Ordering::SeqCst) as u32
+				block_number: self.taking_snapshot_at.load(Ordering::SeqCst) as u32
 			}
 		} else {
 			CreationStatus::Inactive
