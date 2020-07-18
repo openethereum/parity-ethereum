@@ -58,8 +58,7 @@ async fn handle_request(req: Request<Body>, state: Arc<Mutex<State>>) -> Respons
                 state.rpc_apis.client.prometheus_metrics(&mut reg);
                 state.rpc_apis.sync.prometheus_metrics(&mut reg);
                 let elapsed = start.elapsed();
-                let ms = (elapsed.as_secs() as i64)*1000 + (elapsed.subsec_millis() as i64);
-                prometheus_gauge(&mut reg, "metrics_time", "Time to perform rpc metrics", ms);
+                prometheus_gauge(&mut reg, "metrics_time", "Time to perform rpc metrics", elapsed.as_millis()  as i64);
     
                 let mut buffer = vec![];
                 let encoder = prometheus::TextEncoder::new();

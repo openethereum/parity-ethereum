@@ -48,8 +48,7 @@ pub fn prometheus_optime<F: Fn() -> T, T>(r: &mut prometheus::Registry, name: &s
 	let start = Instant::now();
 	let t = f();
 	let elapsed = start.elapsed();
-	let ms = (elapsed.as_secs() as i64)*1000 + (elapsed.subsec_millis() as i64);
-	prometheus_gauge(r, &format!("optime_{}",name), &format!("Time to perform {}",name), ms);
+	prometheus_gauge(r, &format!("optime_{}",name), &format!("Time to perform {}",name), elapsed.as_millis() as i64);
 	t
 }
 
