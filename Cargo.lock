@@ -3430,6 +3430,7 @@ dependencies = [
  "tempfile",
  "term_size",
  "textwrap",
+ "tokio 0.2.21",
  "toml",
  "verification",
  "winapi 0.3.8",

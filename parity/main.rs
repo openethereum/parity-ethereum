@@ -28,6 +28,7 @@ extern crate openethereum;
 extern crate parking_lot;
 extern crate parity_daemonize;
 extern crate ansi_term;
+extern crate tokio;
 
 #[cfg(windows)] extern crate winapi;
 extern crate ethcore_logger;

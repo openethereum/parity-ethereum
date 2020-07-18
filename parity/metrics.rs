@@ -45,32 +45,33 @@ struct State {
 	rpc_apis: Arc<rpc_apis::FullDependencies>,
 }
 
-fn handle_request(req: Request<Body>, state: &Arc<Mutex<State>>) -> Response<Body> {
+async fn handle_request(req: Request<Body>, state: Arc<Mutex<State>>) -> Response<Body> {
     let (parts, _body) = req.into_parts();
     match (parts.method, parts.uri.path()) {
         (Method::GET, "/metrics") => {
-            let start = Instant::now();
-            let mut reg = prometheus::Registry::new();
 
-            let state = state.lock();
+            tokio::task::spawn_blocking(move || {
+                let start = Instant::now();
 
-            state.rpc_apis.client.prometheus_metrics(&mut reg);
-            state.rpc_apis.sync.prometheus_metrics(&mut reg);
+                let mut reg = prometheus::Registry::new();
+                let state = state.lock();
+                state.rpc_apis.client.prometheus_metrics(&mut reg);
+                state.rpc_apis.sync.prometheus_metrics(&mut reg);
+                let elapsed = start.elapsed();
+                let ms = (elapsed.as_secs() as i64)*1000 + (elapsed.subsec_millis() as i64);
+                prometheus_gauge(&mut reg, "metrics_time", "Time to perform rpc metrics", ms);
+    
+                let mut buffer = vec![];
+                let encoder = prometheus::TextEncoder::new();
+                let metric_families = reg.gather();
+    
+                encoder.encode(&metric_families, &mut buffer).expect("all source of metrics are static; qed");
+                let text = String::from_utf8(buffer).expect("metrics encoding is ASCII; qed");
+    
+                Response::new(Body::from(text))
+    
+            }).await.expect("The prometheus collection has panicked")
 
-            drop(state);
-
-            let elapsed = start.elapsed();
-            let ms = (elapsed.as_secs() as i64)*1000 + (elapsed.subsec_millis() as i64);
-            prometheus_gauge(&mut reg, "metrics_time", "Time to perform rpc metrics", ms);
-
-            let mut buffer = vec![];
-            let encoder = prometheus::TextEncoder::new();
-            let metric_families = reg.gather();
-
-            encoder.encode(&metric_families, &mut buffer).expect("all source of metrics are static; qed");
-            let text = String::from_utf8(buffer).expect("metrics encoding is ASCII; qed");
-
-            Response::new(Body::from(text))
         },
         (_, _) => {
             let mut res = Response::new(Body::from("not found"));
@@ -98,12 +99,12 @@ pub fn start_prometheus_metrics(conf: &MetricsConfiguration, deps: &rpc::Depende
     let state = Arc::new(Mutex::new(state));
 
     deps.executor.spawn_std( async move {
-        let make_service = make_service_fn(move |_| {
-            let state = state.clone();
-            async move {
-                Ok::<_, hyper::Error>(service_fn(move |req| {
-                    let response = handle_request(req,&state);
-                    async move { Ok::<_, hyper::Error>(response) }
+            let make_service = make_service_fn(move |_| {
+                let state = state.clone();
+                async move {
+                    Ok::<_, hyper::Error>(service_fn(move |req| {
+                    let response = handle_request(req, state.clone());
+                    async move { Ok::<_, hyper::Error>(response.await) }
                 }))
             }
         });
