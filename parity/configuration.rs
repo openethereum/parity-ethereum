@@ -1200,16 +1200,16 @@ mod tests {
 	use updater::{UpdatePolicy, UpdateFilter, ReleaseTrack};
 	use types::ids::BlockId;
 	use types::data_format::DataFormat;
-	use account::{AccountCmd, NewAccount, ImportAccounts, ListAccounts};
-	use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, ExportState};
-	use cli::Args;
+	use crate::account::{AccountCmd, NewAccount, ImportAccounts, ListAccounts};
+	use crate::blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, ExportState};
+	use crate::cli::Args;
 	use dir::{Directories, default_hypervisor_path};
-	use helpers::{default_network_config};
-	use params::SpecType;
-	use presale::ImportWallet;
-	use rpc::WsConfiguration;
-	use rpc_apis::ApiSet;
-	use run::RunCmd;
+	use crate::helpers::{default_network_config};
+	use crate::params::SpecType;
+	use crate::presale::ImportWallet;
+	use crate::rpc::WsConfiguration;
+	use crate::rpc_apis::ApiSet;
+	use crate::run::RunCmd;
 
 	use network::{AllowIP, IpFilter};
 

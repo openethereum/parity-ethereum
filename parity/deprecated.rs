@@ -248,7 +248,7 @@ pub fn find_deprecated(args: &Args) -> Vec<Deprecated> {
 
 #[cfg(test)]
 mod tests {
-	use cli::Args;
+	use crate::cli::Args;
 	use super::{Deprecated, find_deprecated};
 
 	#[test]
