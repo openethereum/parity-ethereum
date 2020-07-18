@@ -62,8 +62,9 @@ fn handle_request(req: Request<Body>, state: &Arc<Mutex<State>>) -> Response<Bod
             let mut buffer = vec![];
             let encoder = prometheus::TextEncoder::new();
             let metric_families = reg.gather();
-            encoder.encode(&metric_families, &mut buffer).unwrap();
-            let text = String::from_utf8(buffer).unwrap();
+
+            encoder.encode(&metric_families, &mut buffer).expect("all source of metrics are static; qed");
+            let text = String::from_utf8(buffer).expect("metrics encoding is ASCII; qed");
 
             Response::new(Body::from(text))
         },
@@ -102,8 +103,8 @@ pub fn start_prometheus_metrics(conf: &MetricsConfiguration, deps: &rpc::Depende
                 }))
             }
         });
-        let server = Server::bind(&addr).serve(make_service);
-        let _ =server.await;
+        Server::bind(&addr).serve(make_service).await
+            .expect("unable to create prometheus service.");
     });
 
     Ok(())
