@@ -1,12 +1,14 @@
 use std::{
     time::Instant,
-    sync::{Mutex, Arc}
+    sync::Arc
 };
 
 use crate::{
     rpc,
     rpc_apis
 };
+
+use parking_lot::Mutex;
 
 use hyper::{
     Method, Body, Request, Response, Server, StatusCode,
@@ -50,10 +52,12 @@ fn handle_request(req: Request<Body>, state: &Arc<Mutex<State>>) -> Response<Bod
             let start = Instant::now();
             let mut reg = prometheus::Registry::new();
 
-            let state = state.lock().unwrap();
+            let state = state.lock();
 
             state.rpc_apis.client.prometheus_metrics(&mut reg);
             state.rpc_apis.sync.prometheus_metrics(&mut reg);
+
+            drop(state);
 
             let elapsed = start.elapsed();
             let ms = (elapsed.as_secs() as i64)*1000 + (elapsed.subsec_millis() as i64);
