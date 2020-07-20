@@ -253,7 +253,7 @@ impl JournalDB for OverlayRecentDB {
 		let mut mem = self.transaction_overlay.size_of(&mut ops);
 		let overlay = self.journal_overlay.read();
 
-		mem += overlay.backing_overlay.size_of(&mut ops);
+		mem += overlay.cumulative_size; //This does not present real HashMap memory footprint but we are doing shrink_to_size after removal so this is good approximation.
 		mem += overlay.pending_overlay.size_of(&mut ops);
 		mem += overlay.journal.size_of(&mut ops);
 
@@ -393,6 +393,10 @@ impl JournalDB for OverlayRecentDB {
 			trace!(target: "journaldb", "Set earliest_era to {}", end_era + 1);
 			journal_overlay.earliest_era = Some(end_era + 1);
 		}
+
+		//garbage collection on MemoryDB and journal HashMaps;
+		journal_overlay.backing_overlay.shrink_to_fit();
+		journal_overlay.journal.shrink_to_fit();
 
 		Ok(ops as u32)
 	}

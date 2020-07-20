@@ -19,7 +19,7 @@ keccak-hasher = { path = "../../util/keccak-hasher" }
 kvdb = "0.7"
 log = "0.4"
 lru-cache = "0.1.2"
-memory-db = "0.21.1"
+memory-db = "0.24.1"
 parity-bytes = "0.1.0"
 parity-util-mem = "0.7"
 parking_lot = "0.10.0"
