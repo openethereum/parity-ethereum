@@ -279,7 +279,7 @@ impl JournalDB for OverlayRecentDB {
 	fn latest_era(&self) -> Option<u64> { self.journal_overlay.read().latest_era }
 
 	fn journal_under(&mut self, batch: &mut DBTransaction, now: u64, id: &H256) -> io::Result<u32> {
-		trace!(target: "journaldb", "entry: #{} ({})", now, id);
+		info!(target: "journaldb", "entry: #{} ({})", now, id);
 
 		let mut journal_overlay = self.journal_overlay.write();
 
@@ -320,13 +320,13 @@ impl JournalDB for OverlayRecentDB {
 
 		batch.put_vec(self.column, &encode(&db_key), encoded_value.to_vec());
 		if journal_overlay.latest_era.map_or(true, |e| now > e) {
-			trace!(target: "journaldb", "Set latest era to {}", now);
+			info!(target: "journaldb", "Set latest era to {}", now);
 			batch.put_vec(self.column, &LATEST_ERA_KEY, encode(&now).to_vec());
 			journal_overlay.latest_era = Some(now);
 		}
 
 		if journal_overlay.earliest_era.map_or(true, |e| e > now) {
-			trace!(target: "journaldb", "Set earliest era to {}", now);
+			info!(target: "journaldb", "Set earliest era to {}", now);
 			journal_overlay.earliest_era = Some(now);
 		}
 

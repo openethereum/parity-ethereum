@@ -294,6 +294,7 @@ impl Importer {
 				return 0;
 			}
 			trace_time!("import_verified_blocks");
+			info!("import verified blocks");
 			let start = Instant::now();
 
 			for (block, block_bytes) in blocks {
@@ -304,15 +305,18 @@ impl Importer {
 				// LockedBlock. See https://github.com/openethereum/openethereum/issues/11603
 				let preverified_header = block.header.clone();
 				let hash = block.header.hash();
+				info!("Verified blocks that we want to insert is: n0:{} size:{}", preverified_header.number(), block_bytes.len());
 
 				let is_invalid = invalid_blocks.contains(block.header.parent_hash());
 				if is_invalid {
+					info!("Block is invalid");
 					invalid_blocks.insert(hash);
 					continue;
 				}
 
 				match self.check_and_lock_block(block, client) {
 					Ok((locked_block, pending)) => {
+						info!("CheckAndLock passed OK");
 						if let Some(sync_until_block_nr) = client.config.sync_until {
 							if locked_block.header.number() > sync_until_block_nr {
 								info!("Sync target reached at block: #{}. Going offline.", sync_until_block_nr);
@@ -324,6 +328,7 @@ impl Importer {
 						imported_blocks.push(hash);
 						let transactions_len = locked_block.transactions.len();
 						let gas_used = *locked_block.header.gas_used();
+						info!("Go to commit block");
 						let route = self.commit_block(
 							locked_block,
 							&preverified_header,
@@ -335,6 +340,7 @@ impl Importer {
 						client.report.write().accrue_block(gas_used, transactions_len);
 					}
 					Err(err) => {
+						info!("Check for block failed");
 						self.bad_blocks.report(block_bytes, err.to_string());
 						invalid_blocks.insert(hash);
 					},
@@ -560,7 +566,8 @@ impl Importer {
 		if let Some(pending) = pending {
 			chain.insert_pending_transition(&mut batch, hash, pending);
 		}
-
+		
+		info!("Call juornal under to save block");
 		state.journal_under(&mut batch, number, hash).expect("DB commit failed");
 
 		let finalized: Vec<_> = ancestry_actions.into_iter().map(|ancestry_action| {
