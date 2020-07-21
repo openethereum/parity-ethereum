@@ -758,7 +758,20 @@ impl Client {
 		let chain = Arc::new(BlockChain::new(config.blockchain.clone(), &gb, db.clone()));
 		let tracedb = RwLock::new(TraceDB::new(config.tracing.clone(), db.clone(), chain.clone()));
 
-		debug!(target: "client", "Cleanup journal: DB Earliest = {:?}, Latest = {:?}", state_db.journal_db().earliest_era(), state_db.journal_db().latest_era());
+		let earliest_era = state_db.journal_db().earliest_era();
+		let latest_era = state_db.journal_db().latest_era();
+		info!(target: "client", "Cleanup journal: DB Earliest = {:?}, Latest = {:?}", earliest_era, latest_era);
+
+		if earliest_era.is_some() && earliest_era != latest_era {
+			match chain.block_hash(earliest_era.unwrap()) {
+				Some(ancient_hash) => {
+					let mut batch = DBTransaction::new();
+					state_db.mark_canonical(&mut batch, earliest_era.unwrap(), &ancient_hash)?;
+					db.key_value().write(batch)?;
+				}
+				None => info!(target: "pruning", "Missing expected hash for block {:?}", earliest_era),
+			}
+		}
 
 		let history = if config.history < MIN_HISTORY_SIZE {
 			info!(target: "client", "Ignoring pruning history parameter of {} , falling back to minimum of {}",
