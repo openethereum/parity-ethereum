@@ -33,7 +33,6 @@ use self::kvdb_rocksdb::{Database, DatabaseConfig};
 
 use cache::CacheConfig;
 
-mod blooms;
 mod migration;
 mod helpers;
 

@@ -300,7 +300,7 @@ usage! {
 
 			ARG arg_chain: (String) = "foundation", or |c: &Config| c.parity.as_ref()?.chain.clone(),
 			"--chain=[CHAIN]",
-			"Specify the blockchain type. CHAIN may be either a JSON chain specification file or ethereum, classic, classic-no-phoenix, poacore, xdai, volta, ewc, musicoin, ellaism, mix, callisto, ethercore, mordor, ropsten, kovan, rinkeby, goerli, kotti, poasokol, testnet, evantestcore, evancore or dev.",
+			"Specify the blockchain type. CHAIN may be either a JSON chain specification file or ethereum, poacore, xdai, volta, ewc, musicoin, ellaism, mix, callisto, ethercore, ropsten, kovan, rinkeby, goerli, poasokol, testnet, evantestcore, evancore or dev.",
 
 			ARG arg_keys_path: (String) = "$BASE/keys", or |c: &Config| c.parity.as_ref()?.keys_path.clone(),
 			"--keys-path=[PATH]",
@@ -910,9 +910,9 @@ usage! {
 			"Skip block seal check.",
 
 		["Snapshot Options"]
-			FLAG flag_no_periodic_snapshot: (bool) = false, or |c: &Config| c.snapshots.as_ref()?.disable_periodic.clone(),
-			"--no-periodic-snapshot",
-			"Disable automated snapshots which usually occur once every 5000 blocks.",
+			FLAG flag_enable_snapshotting: (bool) = false, or |c: &Config| c.snapshots.as_ref()?.enable.clone(),
+			"--enable-snapshotting",
+			"Enable automated snapshots which usually occur once every 5000 blocks.",
 
 			ARG arg_snapshot_threads: (Option<usize>) = None, or |c: &Config| c.snapshots.as_ref()?.processing_threads,
 			"--snapshot-threads=[NUM]",
@@ -1396,7 +1396,7 @@ struct Footprint {
 #[derive(Default, Debug, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Snapshots {
-	disable_periodic: Option<bool>,
+	enable: Option<bool>,
 	processing_threads: Option<usize>,
 }
 
@@ -1546,14 +1546,14 @@ mod tests {
 		// given
 		let mut config = Config::default();
 		let mut operating = Operating::default();
-		operating.chain = Some("mordor".into());
+		operating.chain = Some("goerli".into());
 		config.parity = Some(operating);
 
 		// when
 		let args = Args::parse_with_config(&["parity"], config).unwrap();
 
 		// then
-		assert_eq!(args.arg_chain, "mordor".to_owned());
+		assert_eq!(args.arg_chain, "goerli".to_owned());
 	}
 
 	#[test]
@@ -1561,7 +1561,7 @@ mod tests {
 		// given
 		let mut config = Config::default();
 		let mut operating = Operating::default();
-		operating.chain = Some("mordor".into());
+		operating.chain = Some("goerli".into());
 		config.parity = Some(operating);
 
 		// when
@@ -1913,7 +1913,7 @@ mod tests {
 			// -- Snapshot Optons
 			arg_export_state_at: "latest".into(),
 			arg_snapshot_at: "latest".into(),
-			flag_no_periodic_snapshot: false,
+			flag_enable_snapshotting: false,
 			arg_snapshot_threads: None,
 
 			// -- Light options.
@@ -2178,7 +2178,7 @@ mod tests {
 				on_demand_request_consecutive_failures: Some(1),
 			}),
 			snapshots: Some(Snapshots {
-				disable_periodic: Some(true),
+				enable: Some(false),
 				processing_threads: None,
 			}),
 			misc: Some(Misc {

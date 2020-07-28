@@ -95,8 +95,8 @@ const MAX_SNAPSHOT_SUBPARTS: usize = 256;
 /// Configuration for the Snapshot service
 #[derive(Debug, Clone, PartialEq)]
 pub struct SnapshotConfiguration {
-	/// If `true`, no periodic snapshots will be created
-	pub no_periodic: bool,
+	/// Enable creation of periodic snapshots
+	pub enable: bool,
 	/// Number of threads for creating snapshots
 	pub processing_threads: usize,
 }
@@ -104,7 +104,7 @@ pub struct SnapshotConfiguration {
 impl Default for SnapshotConfiguration {
 	fn default() -> Self {
 		SnapshotConfiguration {
-			no_periodic: false,
+			enable: false,
 			processing_threads: ::std::cmp::max(1, num_cpus::get_physical() / 2),
 		}
 	}
@@ -452,7 +452,7 @@ impl StateRebuilder {
 
 		let mut batch = self.db.backing().transaction();
 		self.db.journal_under(&mut batch, era, &id)?;
-		self.db.backing().write_buffered(batch);
+		self.db.backing().write(batch)?;
 
 		Ok(self.db)
 	}

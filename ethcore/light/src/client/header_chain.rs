@@ -333,7 +333,7 @@ impl HeaderChain {
 											hardcoded block ; falling back to non-hardcoded sync \
 											mode");
 				} else {
-					db.write_buffered(batch);
+					db.write(batch)?;
 					chain.apply_pending(pending);
 				}
 			}

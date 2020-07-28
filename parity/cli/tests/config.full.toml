@@ -160,7 +160,7 @@ on_demand_request_backoff_rounds_max = 100
 on_demand_request_consecutive_failures = 1
 
 [snapshots]
-disable_periodic = false
+enable = false
 
 [misc]
 logging = "own_tx=trace"

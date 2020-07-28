@@ -294,7 +294,7 @@ impl Rebuilder for PowRebuilder {
 			} else {
 				self.chain.insert_unordered_block(&mut batch, block_bytes, receipts, None, is_best, false);
 			}
-			self.db.write_buffered(batch);
+			self.db.write(batch)?;
 			self.chain.commit();
 
 			parent_hash = block.header.hash();
@@ -329,7 +329,7 @@ impl Rebuilder for PowRebuilder {
 			proof: vec![],
 		});
 
-		self.db.write_buffered(batch);
+		self.db.write(batch)?;
 		Ok(())
 	}
 }

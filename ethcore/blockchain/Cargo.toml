@@ -12,11 +12,11 @@ ansi_term = "0.11"
 blooms-db = { path = "../../util/blooms-db" }
 common-types = { path = "../types" }
 ethcore-db = { path = "../db" }
-ethereum-types = "0.9.0"
+ethereum-types = "0.9.2"
 keccak-hash = "0.5.0"
-parity-util-mem = "0.6.0"
+parity-util-mem = "0.7"
 itertools = "0.8.2"
-kvdb = "0.5.0"
+kvdb = "0.7"
 log = "0.4"
 parity-bytes = "0.1"
 rand = "0.7.3"
@@ -29,7 +29,7 @@ triehash-ethereum = { version = "0.2",  path = "../../util/triehash-ethereum" }
 
 [dev-dependencies]
 env_logger = "0.5"
-parity-crypto = { version = "0.6.1", features = ["publickey"] }
+parity-crypto = { version = "0.6.2", features = ["publickey"] }
 rustc-hex = "2.1.0"
 tempfile = "3.1"
-kvdb-memorydb = "0.5.0"
+kvdb-memorydb = "0.7"

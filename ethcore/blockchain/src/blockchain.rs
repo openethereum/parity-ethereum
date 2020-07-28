@@ -1006,7 +1006,7 @@ impl BlockChain {
 	/// This will only return transitions within the canonical chain.
 	pub fn epoch_transitions(&self) -> EpochTransitionIter {
 		debug!(target: "blockchain", "Iterating over all epoch transitions");
-		let iter = self.db.key_value().iter_from_prefix(db::COL_EXTRA, &EPOCH_KEY_PREFIX[..]);
+		let iter = self.db.key_value().iter_with_prefix(db::COL_EXTRA, &EPOCH_KEY_PREFIX[..]);
 		EpochTransitionIter {
 			chain: self,
 			prefix_iter: iter,
