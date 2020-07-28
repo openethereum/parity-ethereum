@@ -24,7 +24,8 @@ use num_traits::FromPrimitive;
 use ethereum_types::H256;
 use log::{debug, trace, warn};
 use network::{self, PeerId};
-use parking_lot::RwLock;
+//use parking_lot::RwLock;
+use std::sync::{RwLock as StdRwLock};
 use rlp::{Rlp, RlpStream};
 use common_types::{ids::BlockId, BlockNumber};
 
@@ -69,7 +70,7 @@ impl SyncSupplier {
 	/// Dispatch incoming requests and responses
 	// Take a u8 and not a SyncPacketId because this is the entry point
 	// to chain sync from the outside world.
-	pub fn dispatch_packet(sync: &RwLock<ChainSync>, io: &mut dyn SyncIo, peer: PeerId, packet_id: u8, data: &[u8]) {
+	pub fn dispatch_packet(sync: &StdRwLock<ChainSync>, io: &mut dyn SyncIo, peer: PeerId, packet_id: u8, data: &[u8]) {
 		let rlp = Rlp::new(data);
 
 		if let Some(id) = SyncPacket::from_u8(packet_id) {
@@ -110,12 +111,12 @@ impl SyncSupplier {
 					|e| format!("Error sending private state data: {:?}", e)),
 
 				StatusPacket => {
-					sync.write().on_packet(io, peer, packet_id, data);
+					sync.write().unwrap().on_packet(io, peer, packet_id, data);
 					Ok(())
 				},
 				// Packets that require the peer to be confirmed
 				_ => {
-					if !sync.read().peers.contains_key(&peer) {
+					if !sync.read().unwrap().peers.contains_key(&peer) {
 						debug!(target:"sync", "Unexpected packet {} from unregistered peer: {}:{}", packet_id, peer, io.peer_version(peer));
 						return;
 					}
@@ -127,17 +128,17 @@ impl SyncSupplier {
 						},
 						TransactionsPacket => {
 							let res = {
-								let sync_ro = sync.read();
+								let sync_ro = sync.read().unwrap();
 								SyncHandler::on_peer_transactions(&*sync_ro, io, peer, rlp)
 							};
 							if res.is_err() {
 								// peer sent invalid data, disconnect.
 								io.disable_peer(peer);
-								sync.write().deactivate_peer(io, peer);
+								sync.write().unwrap().deactivate_peer(io, peer);
 							}
 						},
 						_ => {
-							sync.write().on_packet(io, peer, packet_id, data);
+							sync.write().unwrap().on_packet(io, peer, packet_id, data);
 						}
 					}
 
@@ -147,7 +148,7 @@ impl SyncSupplier {
 
 			match result {
 				Err(PacketProcessError::Decoder(e)) => debug!(target:"sync", "{} -> Malformed packet {} : {}", peer, packet_id, e),
-				Err(PacketProcessError::ClientBusy) => sync.write().add_delayed_request(peer, packet_id, data),
+				Err(PacketProcessError::ClientBusy) => sync.write().unwrap().add_delayed_request(peer, packet_id, data),
 				Ok(()) => {}
 			}
 		}
@@ -155,7 +156,7 @@ impl SyncSupplier {
 
 	/// Dispatch delayed request
 	/// The main difference with dispatch packet is the direct send of the responses to the peer
-	pub fn dispatch_delayed_request(sync: &RwLock<ChainSync>, io: &mut dyn SyncIo, peer: PeerId, packet_id: u8, data: &[u8]) {
+	pub fn dispatch_delayed_request(sync: &StdRwLock<ChainSync>, io: &mut dyn SyncIo, peer: PeerId, packet_id: u8, data: &[u8]) {
 		let rlp = Rlp::new(data);
 
 		if let Some(id) = SyncPacket::from_u8(packet_id) {
@@ -173,7 +174,7 @@ impl SyncSupplier {
 
 			match result {
 				Err(PacketProcessError::Decoder(e)) => debug!(target:"sync", "{} -> Malformed packet {} : {}", peer, packet_id, e),
-				Err(PacketProcessError::ClientBusy) => sync.write().add_delayed_request(peer, packet_id, data),
+				Err(PacketProcessError::ClientBusy) => sync.write().unwrap().add_delayed_request(peer, packet_id, data),
 				Ok(()) => {}
 			}
 		}
@@ -477,6 +478,7 @@ mod test {
 	use ethcore::test_helpers::{EachBlockWith, TestBlockChainClient};
 	use ethereum_types::H256;
 	use parking_lot::RwLock;
+	use std::sync::{RwLock as StdRwLock};
 	use rlp::{Rlp, RlpStream};
 
 	#[test]
@@ -609,7 +611,7 @@ mod test {
 
 		io.sender = Some(2usize);
 
-		SyncSupplier::dispatch_packet(&RwLock::new(sync), &mut io, 0usize, GetNodeDataPacket.id(), &node_request);
+		SyncSupplier::dispatch_packet(&StdRwLock::new(sync), &mut io, 0usize, GetNodeDataPacket.id(), &node_request);
 		assert_eq!(1, io.packets.len());
 	}
 
@@ -651,7 +653,7 @@ mod test {
 		assert_eq!(603, rlp_result.unwrap().1.out().len());
 
 		io.sender = Some(2usize);
-		SyncSupplier::dispatch_packet(&RwLock::new(sync), &mut io, 0usize, GetReceiptsPacket.id(), &receipts_request);
+		SyncSupplier::dispatch_packet(&StdRwLock::new(sync), &mut io, 0usize, GetReceiptsPacket.id(), &receipts_request);
 		assert_eq!(1, io.packets.len());
 	}
 }

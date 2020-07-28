@@ -122,7 +122,9 @@ use log::{error, trace, debug, warn};
 use network::client_version::ClientVersion;
 use network::{self, PeerId};
 use parity_util_mem::{MallocSizeOfExt, malloc_size_of_is_0};
-use parking_lot::{Mutex, RwLock, RwLockWriteGuard};
+use parking_lot::{Mutex};//, RwLock, RwLockWriteGuard};
+use std::sync::{RwLock as StdRwLock, RwLockWriteGuard as StdRwLockWriteGuard};
+use std::sync::atomic::{AtomicBool, Ordering};
 use rand::{Rng, seq::SliceRandom};
 use rlp::{RlpStream, DecoderError};
 use common_types::{
@@ -437,8 +439,10 @@ pub type Peers = HashMap<PeerId, PeerInfo>;
 pub struct ChainSyncApi {
 	/// Priority tasks queue
 	priority_tasks: Mutex<mpsc::Receiver<PriorityTask>>,
+	/// Gate for executing only one priority timer.
+	priority_tasks_gate: AtomicBool,
 	/// The rest of sync data
-	sync: RwLock<ChainSync>,
+	sync: StdRwLock<ChainSync>,
 }
 
 impl ChainSyncApi {
@@ -451,30 +455,31 @@ impl ChainSyncApi {
 		priority_tasks: mpsc::Receiver<PriorityTask>,
 	) -> Self {
 		ChainSyncApi {
-			sync: RwLock::new(ChainSync::new(config, chain, fork_filter, private_tx_handler)),
+			sync: StdRwLock::new(ChainSync::new(config, chain, fork_filter, private_tx_handler)),
 			priority_tasks: Mutex::new(priority_tasks),
+			priority_tasks_gate: AtomicBool::new(false),
 		}
 	}
 
 	/// Gives `write` access to underlying `ChainSync`
-	pub fn write(&self) -> RwLockWriteGuard<ChainSync> {
-		self.sync.write()
+	pub fn write(&self) -> StdRwLockWriteGuard<ChainSync> {
+		self.sync.write().unwrap()
 	}
 
 	/// Returns info about given list of peers
 	pub fn peer_info(&self, ids: &[PeerId]) -> Vec<Option<PeerInfoDigest>> {
-		let sync = self.sync.read();
+		let sync = self.sync.read().unwrap();
 		ids.iter().map(|id| sync.peer_info(id)).collect()
 	}
 
 	/// Returns synchonization status
 	pub fn status(&self) -> SyncStatus {
-		self.sync.read().status()
+		self.sync.read().unwrap().status()
 	}
 
 	/// Returns transactions propagation statistics
 	pub fn transactions_stats(&self) -> BTreeMap<H256, crate::api::TransactionStats> {
-		self.sync.read().transactions_stats()
+		self.sync.read().unwrap().transactions_stats()
 			.iter()
 			.map(|(hash, stats)| (*hash, stats.into()))
 			.collect()
@@ -487,7 +492,7 @@ impl ChainSyncApi {
 
 	/// Process the queue with requests, that were delayed with response.
 	pub fn process_delayed_requests(&self, io: &mut dyn SyncIo) {
-		let requests = self.sync.write().retrieve_delayed_requests();
+		let requests = self.sync.write().unwrap().retrieve_delayed_requests();
 		if !requests.is_empty() {
 			debug!(target: "sync", "Processing {} delayed requests", requests.len());
 			for (peer_id, packet_id, packet_data) in requests {
@@ -513,6 +518,10 @@ impl ChainSyncApi {
 			}
 		}
 
+		if self.priority_tasks_gate.compare_and_swap(false,true,Ordering::AcqRel) {
+			return;
+		}
+
 		// deadline to get the task from the queue
 		let deadline = Instant::now() + PRIORITY_TIMER_INTERVAL;
 		let mut work = || {
@@ -524,7 +533,7 @@ impl ChainSyncApi {
 			task.starting();
 			// wait for the sync lock until deadline,
 			// note we might drop the task here if we won't manage to acquire the lock.
-			let mut sync = self.sync.try_write_until(deadline)?;
+			let mut sync = self.sync.write().unwrap(); // .try_write_until(deadline)?; //TODO CHECK FOR TIMINGS ON THIS
 			// since we already have everything let's use a different deadline
 			// to do the rest of the job now, so that previous work is not wasted.
 			let deadline = Instant::now() + PRIORITY_TASK_DEADLINE;
@@ -566,6 +575,7 @@ impl ChainSyncApi {
 		// Process as many items as we can until the deadline is reached.
 		loop {
 			if work().is_none() {
+				self.priority_tasks_gate.store(false,Ordering::Release);
 				return;
 			}
 		}
