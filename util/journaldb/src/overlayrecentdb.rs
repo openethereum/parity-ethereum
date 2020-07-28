@@ -253,7 +253,7 @@ impl JournalDB for OverlayRecentDB {
 		let mut mem = self.transaction_overlay.size_of(&mut ops);
 		let overlay = self.journal_overlay.read();
 
-		mem += overlay.cumulative_size; //This does not present real HashMap memory footprint but we are doing shrink_to_size after removal so this is good approximation.
+		mem += overlay.backing_overlay.size_of(&mut ops);
 		mem += overlay.pending_overlay.size_of(&mut ops);
 		mem += overlay.journal.size_of(&mut ops);
 
