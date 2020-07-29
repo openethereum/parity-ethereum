@@ -279,7 +279,7 @@ impl Manager {
                 "Not implemented. Make sure the Ledger Ethereum Wallet app is running.",
             )),
             0x6faa => Err(Error::Protocol("Your Ledger need to be unplugged")),
-            0x6f00...0x6fff => Err(Error::Protocol("Internal error")),
+            0x6f00..=0x6fff => Err(Error::Protocol("Internal error")),
             0x9000 => Ok(()),
             _ => Err(Error::Protocol("Unknown error")),
         }?;

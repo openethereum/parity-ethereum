@@ -66,9 +66,9 @@ fn num_padding_length_bytes(padding_len: usize) -> Option<usize> {
     let bits = 64 - (padding_len as u64).leading_zeros();
     match bits {
         0 => Some(0),
-        0...8 => Some(1),
-        0...16 => Some(2),
-        0...24 => Some(3),
+        1..=8 => Some(1),
+        9..=16 => Some(2),
+        17..=24 => Some(3),
         _ => None,
     }
 }

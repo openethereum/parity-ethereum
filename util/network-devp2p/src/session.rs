@@ -453,7 +453,7 @@ impl Session {
             }
             PACKET_GET_PEERS => Ok(SessionData::None), //TODO;
             PACKET_PEERS => Ok(SessionData::None),
-            PACKET_USER...PACKET_LAST => {
+            PACKET_USER..=PACKET_LAST => {
                 let mut i = 0usize;
                 while packet_id
                     >= self.info.capabilities[i].id_offset + self.info.capabilities[i].packet_count
