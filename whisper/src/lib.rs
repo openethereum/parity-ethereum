@@ -18,6 +18,7 @@
 //! interface.
 
 #![cfg_attr(feature = "time_checked_add", feature(time_checked_add))]
+#![allow(deprecated)]
 
 extern crate byteorder;
 extern crate ethcore_network as network;
