@@ -18,9 +18,6 @@ jobs:
         uses:                   actions/checkout@master
         with:
           submodules:           true
-      # https://github.com/actions/cache/issues/133
-      - name:                   Fixup the owner of ~/.cargo/
-        run:                    sudo chown -R $(whoami):$(id -ng) ~/.cargo/
       - name:                   Install stable toolchain
         uses:                   actions-rs/toolchain@v1
         with:
