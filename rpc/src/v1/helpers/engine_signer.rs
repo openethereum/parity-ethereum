@@ -44,7 +44,7 @@ impl ethcore::engines::EngineSigner for EngineSigner {
             .sign(self.address, Some(self.password.clone()), message)
         {
             Ok(ok) => Ok(ok),
-            Err(e) => Err(ethkey::Error::InvalidSecret),
+            Err(_e) => Err(ethkey::Error::InvalidSecret),
         }
     }
 

@@ -15,14 +15,6 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Cost schedule and other parameterisations for the EVM.
-use ethereum_types::U256;
-use std::collections::HashMap;
-
-/// Definition of schedules that can be applied to a version.
-#[derive(Debug)]
-pub enum VersionedSchedule {
-    PWasm,
-}
 
 /// Definition of the cost schedule and other parameterisations for the EVM.
 #[derive(Debug)]

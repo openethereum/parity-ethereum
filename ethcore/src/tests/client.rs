@@ -33,7 +33,7 @@ use hash::keccak;
 use io::IoChannel;
 use miner::{Miner, MinerService, PendingOrdering};
 use rustc_hex::ToHex;
-use spec::{self, Spec};
+use spec::Spec;
 use state::{self, CleanupMode, State, StateInfo};
 use tempdir::TempDir;
 use test_helpers::{

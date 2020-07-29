@@ -2002,8 +2002,6 @@ mod tests {
         block: encoded::Block,
         receipts: Vec<Receipt>,
     ) -> ImportRoute {
-        use crate::ExtrasInsert;
-
         let fork_choice = {
             let header = block.header_view();
             let parent_hash = header.parent_hash();

@@ -163,7 +163,6 @@ pub fn restore(
     reader: &dyn SnapshotReader,
     genesis: &[u8],
 ) -> Result<(), ::error::Error> {
-    use snappy;
     use std::sync::atomic::AtomicBool;
 
     let flag = AtomicBool::new(true);

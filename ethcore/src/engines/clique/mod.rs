@@ -67,7 +67,6 @@ use std::{
 
 use super::signer::EngineSigner;
 use block::ExecutedBlock;
-use bytes::Bytes;
 use client::{traits::ForceUpdateSealing, BlockId, EngineClient};
 use engines::{
     clique::util::{extract_signers, recover_creator},

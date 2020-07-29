@@ -61,7 +61,6 @@ extern crate ansi_term;
 extern crate byteorder;
 extern crate common_types as types;
 extern crate crossbeam_utils;
-extern crate eip_152;
 extern crate ethabi;
 extern crate ethash;
 extern crate ethcore_blockchain as blockchain;
@@ -81,7 +80,6 @@ extern crate journaldb;
 extern crate keccak_hash as hash;
 extern crate keccak_hasher;
 extern crate kvdb;
-extern crate kvdb_memorydb;
 extern crate len_caching_lock;
 extern crate lru_cache;
 extern crate memory_cache;
@@ -121,9 +119,6 @@ extern crate kvdb_rocksdb;
 extern crate rlp_compress;
 #[cfg(any(test, feature = "tempdir"))]
 extern crate tempdir;
-#[cfg(test)]
-#[macro_use]
-extern crate hex_literal;
 
 #[macro_use]
 extern crate ethabi_derive;

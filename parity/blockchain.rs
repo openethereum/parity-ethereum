@@ -30,12 +30,12 @@ use db;
 use dir::Directories;
 use ethcore::{
     client::{
-        Balance, BlockChainClient, BlockChainReset, BlockId, BlockInfo, DatabaseCompactionProfile,
-        ImportBlock, ImportExportBlocks, Mode, Nonce, VMType,
+        Balance, BlockChainClient, BlockChainReset, BlockId, DatabaseCompactionProfile,
+        ImportExportBlocks, Mode, Nonce, VMType,
     },
     error::{Error as EthcoreError, ErrorKind as EthcoreErrorKind, ImportErrorKind},
     miner::Miner,
-    verification::queue::{kind::blocks::Unverified, VerifierSettings},
+    verification::queue::VerifierSettings,
 };
 use ethcore_private_tx;
 use ethcore_service::ClientService;

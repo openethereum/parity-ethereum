@@ -152,7 +152,6 @@ mod tests {
     };
     use macros::map;
     use serde_json;
-    use uint::Uint;
 
     #[test]
     fn builtin_deserialization() {

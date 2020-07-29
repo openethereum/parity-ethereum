@@ -17,7 +17,6 @@
 use parking_lot::{Mutex, RwLock};
 use std::{
     collections::{BTreeMap, HashMap},
-    mem,
     num::NonZeroU32,
     path::PathBuf,
     time::{Duration, Instant},
@@ -454,7 +453,7 @@ impl EthMultiStore {
             }
         }
 
-        mem::replace(&mut *cache, new_accounts);
+        *cache = new_accounts;
         Ok(())
     }
 

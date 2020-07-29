@@ -556,19 +556,16 @@ impl ClusterSessionsContainerState {
     pub fn on_session_starting(&mut self, is_exclusive_session: bool) -> Result<(), Error> {
         match *self {
             ClusterSessionsContainerState::Idle if is_exclusive_session => {
-                ::std::mem::replace(self, ClusterSessionsContainerState::Exclusive);
+                *self = ClusterSessionsContainerState::Exclusive;
             }
             ClusterSessionsContainerState::Idle => {
-                ::std::mem::replace(self, ClusterSessionsContainerState::Active(1));
+                *self = ClusterSessionsContainerState::Active(1);
             }
             ClusterSessionsContainerState::Active(_) if is_exclusive_session => {
                 return Err(Error::HasActiveSessions)
             }
             ClusterSessionsContainerState::Active(sessions_count) => {
-                ::std::mem::replace(
-                    self,
-                    ClusterSessionsContainerState::Active(sessions_count + 1),
-                );
+                *self = ClusterSessionsContainerState::Active(sessions_count + 1);
             }
             ClusterSessionsContainerState::Exclusive => return Err(Error::ExclusiveSessionActive),
         }
@@ -581,13 +578,13 @@ impl ClusterSessionsContainerState {
 			ClusterSessionsContainerState::Idle =>
 				unreachable!("idle means that there are no active sessions; on_session_completed is only called once after active session is completed; qed"),
 			ClusterSessionsContainerState::Active(sessions_count) if sessions_count == 1 => {
-				::std::mem::replace(self, ClusterSessionsContainerState::Idle);
+				*self = ClusterSessionsContainerState::Idle;
 			},
 			ClusterSessionsContainerState::Active(sessions_count) => {
-				::std::mem::replace(self, ClusterSessionsContainerState::Active(sessions_count - 1));
+				*self = ClusterSessionsContainerState::Active(sessions_count - 1);
 			}
 			ClusterSessionsContainerState::Exclusive => {
-				::std::mem::replace(self, ClusterSessionsContainerState::Idle);
+				*self = ClusterSessionsContainerState::Idle;
 			},
 		}
     }

@@ -21,7 +21,7 @@ use std::{
     io::{BufRead, BufReader},
     str::{from_utf8, FromStr},
     sync::{
-        atomic::{AtomicBool, AtomicI64, AtomicUsize, Ordering as AtomicOrdering},
+        atomic::{AtomicBool, AtomicI64, Ordering as AtomicOrdering},
         Arc, Weak,
     },
     time::{Duration, Instant},
@@ -75,7 +75,7 @@ use engines::{
 };
 use error::{
     BlockError, CallError, Error as EthcoreError, ErrorKind as EthcoreErrorKind, EthcoreResult,
-    ExecutionError, ImportError, ImportErrorKind, QueueError, QueueErrorKind,
+    ExecutionError, ImportErrorKind,
 };
 use executive::{contract_address, Executed, Executive, TransactOptions};
 use factory::{Factories, VmFactory};
@@ -3196,10 +3196,7 @@ impl IoChannelQueue {
 mod tests {
     use blockchain::{BlockProvider, ExtrasInsert};
     use spec::Spec;
-    use test_helpers::{
-        generate_dummy_client, generate_dummy_client_with_data,
-        generate_dummy_client_with_spec_and_data, get_good_dummy_block_hash,
-    };
+    use test_helpers::generate_dummy_client_with_spec_and_data;
 
     #[test]
     fn should_not_cache_details_before_commit() {

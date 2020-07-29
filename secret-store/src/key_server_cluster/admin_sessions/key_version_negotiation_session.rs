@@ -767,7 +767,7 @@ mod tests {
         ContinueAction, FailedContinueAction, FastestResultComputer, LargestSupportResultComputer,
         SessionImpl, SessionParams, SessionResultComputer, SessionState, SessionTransport,
     };
-    use ethereum_types::{Address, H160, H512};
+    use ethereum_types::{H160, H512};
     use ethkey::public_to_address;
     use key_server_cluster::{
         admin_sessions::ShareChangeSessionMeta,

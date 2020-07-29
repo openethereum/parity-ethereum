@@ -1990,7 +1990,6 @@ mod tests {
         use ethcore_miner::gas_price_calibrator::{GasPriceCalibrator, GasPriceCalibratorOptions};
         use fetch::Client as FetchClient;
         use parity_runtime::Executor;
-        use std::time::Duration;
 
         // Don't really care about any of these settings since
         // the gas pricer is never actually going to be used
