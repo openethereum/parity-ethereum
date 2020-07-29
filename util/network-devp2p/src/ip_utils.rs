@@ -16,6 +16,8 @@
 
 // Based on original work by David Levy https://raw.githubusercontent.com/dlevy47/rust-interfaces
 
+#![allow(unstable_name_collisions)]
+
 use igd::{search_gateway_from_timeout, PortMappingProtocol};
 use ipnetwork::IpNetwork;
 use node_table::NodeEndpoint;
