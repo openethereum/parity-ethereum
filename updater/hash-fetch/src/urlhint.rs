@@ -214,7 +214,7 @@ fn guess_mime_type(url: &str) -> Option<Mime> {
         }
     }
     url.and_then(|url| url.split('.').last())
-        .and_then(|extension| mime_guess::get_mime_type_opt(extension))
+        .and_then(|extension| mime_guess::from_ext(extension).first())
 }
 
 #[cfg(test)]
