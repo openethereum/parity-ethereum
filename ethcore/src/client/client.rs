@@ -302,7 +302,7 @@ impl Importer {
         ) = {
             let mut imported_blocks = Vec::with_capacity(max_blocks_to_import);
             let mut invalid_blocks = HashSet::new();
-            let mut proposed_blocks = Vec::with_capacity(max_blocks_to_import);
+            let proposed_blocks = Vec::with_capacity(max_blocks_to_import);
             let mut import_results = Vec::with_capacity(max_blocks_to_import);
 
             let _import_lock = self.import_lock.lock();

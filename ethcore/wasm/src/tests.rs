@@ -48,7 +48,7 @@ macro_rules! reqrep_test {
         fake_ext.info = $info;
         fake_ext.blockhashes = $block_hashes;
 
-        let mut interpreter = wasm_interpreter(params);
+        let interpreter = wasm_interpreter(params);
         interpreter
             .exec(&mut fake_ext)
             .ok()
@@ -91,7 +91,7 @@ fn empty() {
     let mut ext = FakeExt::new().with_wasm();
 
     let gas_left = {
-        let mut interpreter = wasm_interpreter(params);
+        let interpreter = wasm_interpreter(params);
         test_finalize(interpreter.exec(&mut ext).ok().unwrap()).unwrap()
     };
 
@@ -120,7 +120,7 @@ fn logger() {
     let mut ext = FakeExt::new().with_wasm();
 
     let gas_left = {
-        let mut interpreter = wasm_interpreter(params);
+        let interpreter = wasm_interpreter(params);
         test_finalize(interpreter.exec(&mut ext).ok().unwrap()).unwrap()
     };
 
@@ -195,7 +195,7 @@ fn identity() {
     let mut ext = FakeExt::new().with_wasm();
 
     let (gas_left, result) = {
-        let mut interpreter = wasm_interpreter(params);
+        let interpreter = wasm_interpreter(params);
         let result = interpreter
             .exec(&mut ext)
             .ok()
@@ -238,7 +238,7 @@ fn dispersion() {
     let mut ext = FakeExt::new().with_wasm();
 
     let (gas_left, result) = {
-        let mut interpreter = wasm_interpreter(params);
+        let interpreter = wasm_interpreter(params);
         let result = interpreter
             .exec(&mut ext)
             .ok()
@@ -271,7 +271,7 @@ fn suicide_not() {
     let mut ext = FakeExt::new().with_wasm();
 
     let (gas_left, result) = {
-        let mut interpreter = wasm_interpreter(params);
+        let interpreter = wasm_interpreter(params);
         let result = interpreter
             .exec(&mut ext)
             .ok()
@@ -313,7 +313,7 @@ fn suicide() {
     let mut ext = FakeExt::new().with_wasm();
 
     let gas_left = {
-        let mut interpreter = wasm_interpreter(params);
+        let interpreter = wasm_interpreter(params);
         let result = interpreter
             .exec(&mut ext)
             .ok()
@@ -345,7 +345,7 @@ fn create() {
     ext.schedule.wasm.as_mut().unwrap().have_create2 = true;
 
     let gas_left = {
-        let mut interpreter = wasm_interpreter(params);
+        let interpreter = wasm_interpreter(params);
         let result = interpreter
             .exec(&mut ext)
             .ok()
@@ -414,7 +414,7 @@ fn call_msg() {
         .insert(receiver.clone(), U256::from(10000000000u64));
 
     let gas_left = {
-        let mut interpreter = wasm_interpreter(params);
+        let interpreter = wasm_interpreter(params);
         let result = interpreter
             .exec(&mut ext)
             .ok()
@@ -471,7 +471,7 @@ fn call_msg_gasleft() {
         .insert(receiver.clone(), U256::from(10000000000u64));
 
     let gas_left = {
-        let mut interpreter = wasm_interpreter(params);
+        let interpreter = wasm_interpreter(params);
         let result = interpreter
             .exec(&mut ext)
             .ok()
@@ -522,7 +522,7 @@ fn call_code() {
     let mut ext = FakeExt::new().with_wasm();
 
     let (gas_left, result) = {
-        let mut interpreter = wasm_interpreter(params);
+        let interpreter = wasm_interpreter(params);
         let result = interpreter
             .exec(&mut ext)
             .ok()
@@ -578,7 +578,7 @@ fn call_static() {
     let mut ext = FakeExt::new().with_wasm();
 
     let (gas_left, result) = {
-        let mut interpreter = wasm_interpreter(params);
+        let interpreter = wasm_interpreter(params);
         let result = interpreter
             .exec(&mut ext)
             .ok()
@@ -627,7 +627,7 @@ fn realloc() {
     let mut ext = FakeExt::new().with_wasm();
 
     let (gas_left, result) = {
-        let mut interpreter = wasm_interpreter(params);
+        let interpreter = wasm_interpreter(params);
         let result = interpreter
             .exec(&mut ext)
             .ok()
@@ -659,7 +659,7 @@ fn alloc() {
     let mut ext = FakeExt::new().with_wasm();
 
     let (gas_left, result) = {
-        let mut interpreter = wasm_interpreter(params);
+        let interpreter = wasm_interpreter(params);
         let result = interpreter
             .exec(&mut ext)
             .ok()
@@ -699,7 +699,7 @@ fn storage_read() {
     );
 
     let (gas_left, result) = {
-        let mut interpreter = wasm_interpreter(params);
+        let interpreter = wasm_interpreter(params);
         let result = interpreter
             .exec(&mut ext)
             .ok()
@@ -735,7 +735,7 @@ fn keccak() {
     let mut ext = FakeExt::new().with_wasm();
 
     let (gas_left, result) = {
-        let mut interpreter = wasm_interpreter(params);
+        let interpreter = wasm_interpreter(params);
         let result = interpreter
             .exec(&mut ext)
             .ok()
@@ -883,7 +883,7 @@ fn storage_metering() {
     ]);
 
     let gas_left = {
-        let mut interpreter = wasm_interpreter(params);
+        let interpreter = wasm_interpreter(params);
         test_finalize(interpreter.exec(&mut ext).ok().unwrap()).unwrap()
     };
 
@@ -905,7 +905,7 @@ fn storage_metering() {
     ]);
 
     let gas_left = {
-        let mut interpreter = wasm_interpreter(params);
+        let interpreter = wasm_interpreter(params);
         test_finalize(interpreter.exec(&mut ext).ok().unwrap()).unwrap()
     };
 
@@ -1064,7 +1064,7 @@ fn embedded_keccak() {
     let mut ext = FakeExt::new().with_wasm();
 
     let (gas_left, result) = {
-        let mut interpreter = wasm_interpreter(params);
+        let interpreter = wasm_interpreter(params);
         let result = interpreter
             .exec(&mut ext)
             .ok()
@@ -1105,7 +1105,7 @@ fn events() {
     let mut ext = FakeExt::new().with_wasm();
 
     let (gas_left, result) = {
-        let mut interpreter = wasm_interpreter(params);
+        let interpreter = wasm_interpreter(params);
         let result = interpreter
             .exec(&mut ext)
             .ok()

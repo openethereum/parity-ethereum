@@ -294,7 +294,7 @@ impl Clique {
 						"Back-filling block state. last_checkpoint_number: {}, target: {}({}).",
 						last_checkpoint_number, header.number(), header.hash());
 
-                let mut chain: &mut VecDeque<Header> = &mut VecDeque::with_capacity(
+                let chain: &mut VecDeque<Header> = &mut VecDeque::with_capacity(
                     (header.number() - last_checkpoint_number + 1) as usize,
                 );
 

@@ -137,7 +137,7 @@ impl<P: PostSign> Future for ProspectiveSigner<P> {
                     );
                 }
                 WaitForPostSign => {
-                    if let Some(mut fut) = self.post_sign_future.as_mut() {
+                    if let Some(fut) = self.post_sign_future.as_mut() {
                         match fut.poll()? {
                             Async::Ready(item) => {
                                 let nonce = self.ready.take().expect(

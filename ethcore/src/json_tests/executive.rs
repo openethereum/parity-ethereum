@@ -325,7 +325,7 @@ fn do_json_test_for<H: FnMut(&str, HookType)>(
                 &mut tracer,
                 &mut vm_tracer,
             ));
-            let mut evm = vm_factory.create(params, &schedule, 0);
+            let evm = vm_factory.create(params, &schedule, 0);
             let res = evm
                 .exec(&mut ex)
                 .ok()

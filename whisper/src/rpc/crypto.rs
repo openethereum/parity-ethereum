@@ -79,7 +79,7 @@ impl EncryptionInstance {
         match self.0 {
             EncryptionInner::AES(key, nonce, encode) => match encode {
                 AesEncode::AppendedNonce => {
-                    let mut enc = Encryptor::aes_256_gcm(&*key).ok()?;
+                    let enc = Encryptor::aes_256_gcm(&*key).ok()?;
                     let mut buf = enc.encrypt(&nonce, plain.to_vec()).ok()?;
                     buf.extend(&nonce[..]);
                     Some(buf)
