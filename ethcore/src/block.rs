@@ -303,7 +303,7 @@ impl<'x> OpenBlock<'x> {
                 warn!(
                     "Heavy ({} ms) transaction in block {:?}: {:?}",
                     took_ms,
-                    self.block.header().number(),
+                    self.block.header.number(),
                     hash
                 );
             }

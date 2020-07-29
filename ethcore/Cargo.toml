@@ -112,7 +112,7 @@ ci-skip-tests = []
 # Run memory/cpu heavy tests.
 test-heavy = []
 # Compile test helpers
-test-helpers = ["tempdir", "kvdb-rocksdb", "blooms-db"]
+test-helpers = ["tempdir", "kvdb-rocksdb", "blooms-db", "common-types/test-helpers"]
 # Enables slow 'to-pod-full' method for use in tests and evmbin.
 to-pod-full = []
 
