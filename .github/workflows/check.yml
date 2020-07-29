@@ -1,0 +1,86 @@
+name:                           Check
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+      - stable
+jobs:
+  check:
+    name:                       Check
+    runs-on:                    ubuntu-20.04
+    env:
+      SCCACHE_CACHE_SIZE:       "1G"
+      SCCACHE_IDLE_TIMEOUT:     0    
+    steps:
+      - name:                   Checkout sources
+        uses:                   actions/checkout@master
+        with:
+          submodules:           true
+      - name:                   Install stable toolchain
+        uses:                   actions-rs/toolchain@v1
+        with:
+          toolchain:            stable
+          profile:              minimal
+          override:             true
+      - name:                   Cache cargo registry
+        uses:                   actions/cache@v2
+        with:
+          path:                 ~/.cargo/registry
+          key:                  ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+      - name:                   Cache cargo index
+        uses:                   actions/cache@v2
+        with:
+          path:                 ~/.cargo/git
+          key:                  ${{ runner.os }}-cargo-git-${{ hashFiles('**/Cargo.lock') }}
+      - name:                   Cache cargo build
+        uses:                   actions/cache@v2
+        with:
+          path:                 target
+          key:                  ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
+      # Install sccache based on https://github.com/denoland/rusty_v8/blob/master/.github/workflows/ci.yml#L69
+      - name:                   Cache sccache
+        uses:                   actions/cache@v2
+        with:
+          path:                 "/home/runner/.cache/sccache"
+          key:                  ${{ runner.os }}-sccache-check-${{ hashFiles('**/Cargo.lock') }}
+      - name:                   Install sccache for Linux
+        shell:                  pwsh
+        run:                    pwsh scripts/actions/install-sccache.ps1 ${{ runner.os}}
+      - name:                   Sccache statistics
+        run:                    sccache --show-stats
+      - name:                   Run cargo check 1/3
+        uses:                   actions-rs/cargo@v1
+        with:
+          command:              check
+          args:                 --locked --no-default-features --verbose
+      - name:                   Run cargo check 2/3
+        uses:                   actions-rs/cargo@v1
+        with:
+          command:              check
+          args:                 --locked --manifest-path util/io/Cargo.toml --no-default-features --verbose
+      - name:                   Run cargo check 3/3
+        uses:                   actions-rs/cargo@v1
+        with:
+          command:              check
+          args:                 --locked --manifest-path util/io/Cargo.toml --features "mio" --verbose
+      - name:                   Run cargo check evmbin
+        uses:                   actions-rs/cargo@v1
+        with:
+          command:              check
+          args:                 --locked -p evmbin --verbose
+      - name:                   Run cargo check benches
+        uses:                   actions-rs/cargo@v1
+        with:
+          command:              check
+          args:                 --locked --all --benches --verbose
+      - name:                   Run validate chainspecs
+        run:                    ./scripts/actions/validate-chainspecs.sh
+      - name:                   Stop sccache
+        if:                     always()
+        run:                    sccache --stop-server
+        continue-on-error:      true
+      - name:                   Prepare build directory for cache
+        shell: bash
+        run:                    bash scripts/actions/clean-target.sh
