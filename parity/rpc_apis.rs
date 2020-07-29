@@ -743,7 +743,7 @@ impl ApiSet {
             Api::WhisperPubSub,
             Api::Private,
         ]
-        .into_iter()
+        .iter()
         .cloned()
         .collect();
 
@@ -778,7 +778,7 @@ impl ApiSet {
                 Api::ParitySet,
                 Api::Traces,
             ]
-            .into_iter()
+            .iter()
             .cloned()
             .collect(),
         }

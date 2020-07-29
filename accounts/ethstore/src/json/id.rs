@@ -41,7 +41,7 @@ impl<'a> Into<String> for &'a Uuid {
         let d4 = &self.0[8..10];
         let d5 = &self.0[10..16];
         [d1, d2, d3, d4, d5]
-            .into_iter()
+            .iter()
             .map(|d| d.to_hex())
             .collect::<Vec<String>>()
             .join("-")
