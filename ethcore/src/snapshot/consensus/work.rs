@@ -85,9 +85,9 @@ impl SnapshotComponents for PowSnapshot {
     fn rebuilder(
         &self,
         chain: BlockChain,
-        db: Arc<BlockChainDB>,
+        db: Arc<dyn BlockChainDB>,
         manifest: &ManifestData,
-    ) -> Result<Box<Rebuilder>, ::error::Error> {
+    ) -> Result<Box<dyn Rebuilder>, ::error::Error> {
         PowRebuilder::new(
             chain,
             db.key_value().clone(),
@@ -221,7 +221,7 @@ impl<'a> PowWorker<'a> {
 /// After all chunks have been submitted, we "glue" the chunks together.
 pub struct PowRebuilder {
     chain: BlockChain,
-    db: Arc<KeyValueDB>,
+    db: Arc<dyn KeyValueDB>,
     rng: OsRng,
     disconnected: Vec<(u64, H256)>,
     best_number: u64,
@@ -235,7 +235,7 @@ impl PowRebuilder {
     /// Create a new PowRebuilder.
     fn new(
         chain: BlockChain,
-        db: Arc<KeyValueDB>,
+        db: Arc<dyn KeyValueDB>,
         manifest: &ManifestData,
         snapshot_blocks: u64,
     ) -> Result<Self, ::error::Error> {
@@ -259,7 +259,7 @@ impl Rebuilder for PowRebuilder {
     fn feed(
         &mut self,
         chunk: &[u8],
-        engine: &EthEngine,
+        engine: &dyn EthEngine,
         abort_flag: &AtomicBool,
     ) -> Result<(), ::error::Error> {
         use ethereum_types::U256;
@@ -354,7 +354,7 @@ impl Rebuilder for PowRebuilder {
     }
 
     /// Glue together any disconnected chunks and check that the chain is complete.
-    fn finalize(&mut self, _: &EthEngine) -> Result<(), ::error::Error> {
+    fn finalize(&mut self, _: &dyn EthEngine) -> Result<(), ::error::Error> {
         let mut batch = self.db.transaction();
 
         for (first_num, first_hash) in self.disconnected.drain(..) {

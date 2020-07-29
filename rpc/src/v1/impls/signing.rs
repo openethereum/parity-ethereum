@@ -95,7 +95,7 @@ fn schedule(
 /// Implementation of functions that require signing when no trusted signer is used.
 pub struct SigningQueueClient<D> {
     signer: Arc<SignerService>,
-    accounts: Arc<dispatch::Accounts>,
+    accounts: Arc<dyn dispatch::Accounts>,
     dispatcher: D,
     executor: Executor,
     // None here means that the request hasn't yet been confirmed
@@ -109,7 +109,7 @@ impl<D: Dispatcher + 'static> SigningQueueClient<D> {
         signer: &Arc<SignerService>,
         dispatcher: D,
         executor: Executor,
-        accounts: &Arc<dispatch::Accounts>,
+        accounts: &Arc<dyn dispatch::Accounts>,
     ) -> Self {
         SigningQueueClient {
             signer: signer.clone(),

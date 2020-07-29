@@ -93,9 +93,9 @@ struct SessionCore {
     /// Servers set change session meta (id is computed from new_nodes_set).
     pub meta: ShareChangeSessionMeta,
     /// Cluster which allows this node to send messages to other nodes in the cluster.
-    pub cluster: Arc<Cluster>,
+    pub cluster: Arc<dyn Cluster>,
     /// Keys storage.
-    pub key_storage: Arc<KeyStorage>,
+    pub key_storage: Arc<dyn KeyStorage>,
     /// Session-level nonce.
     pub nonce: u64,
     /// All known nodes.
@@ -154,9 +154,9 @@ pub struct SessionParams {
     /// Session meta (artificial).
     pub meta: ShareChangeSessionMeta,
     /// Cluster.
-    pub cluster: Arc<Cluster>,
+    pub cluster: Arc<dyn Cluster>,
     /// Keys storage.
-    pub key_storage: Arc<KeyStorage>,
+    pub key_storage: Arc<dyn KeyStorage>,
     /// Session nonce.
     pub nonce: u64,
     /// All known nodes.
@@ -176,7 +176,7 @@ struct ServersSetChangeConsensusTransport {
     /// Migration id (if part of auto-migration process).
     migration_id: Option<H256>,
     /// Cluster.
-    cluster: Arc<Cluster>,
+    cluster: Arc<dyn Cluster>,
 }
 
 /// Unknown sessions job transport.
@@ -186,7 +186,7 @@ struct UnknownSessionsJobTransport {
     /// Session-level nonce.
     nonce: u64,
     /// Cluster.
-    cluster: Arc<Cluster>,
+    cluster: Arc<dyn Cluster>,
 }
 
 /// Key version negotiation transport.
@@ -196,7 +196,7 @@ struct ServersSetChangeKeyVersionNegotiationTransport {
     /// Session-level nonce.
     nonce: u64,
     /// Cluster.
-    cluster: Arc<Cluster>,
+    cluster: Arc<dyn Cluster>,
 }
 
 impl SessionImpl {

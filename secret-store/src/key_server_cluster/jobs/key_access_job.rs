@@ -30,13 +30,13 @@ pub struct KeyAccessJob {
     /// Has key share?
     has_key_share: bool,
     /// ACL storage.
-    acl_storage: Arc<AclStorage>,
+    acl_storage: Arc<dyn AclStorage>,
     /// Requester data.
     requester: Option<Requester>,
 }
 
 impl KeyAccessJob {
-    pub fn new_on_slave(id: SessionId, acl_storage: Arc<AclStorage>) -> Self {
+    pub fn new_on_slave(id: SessionId, acl_storage: Arc<dyn AclStorage>) -> Self {
         KeyAccessJob {
             id: id,
             has_key_share: true,
@@ -47,7 +47,7 @@ impl KeyAccessJob {
 
     pub fn new_on_master(
         id: SessionId,
-        acl_storage: Arc<AclStorage>,
+        acl_storage: Arc<dyn AclStorage>,
         requester: Requester,
     ) -> Self {
         KeyAccessJob {

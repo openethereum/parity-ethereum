@@ -40,7 +40,7 @@ use self::{contract::ValidatorContract, multi::Multi, safe_contract::ValidatorSa
 use super::SystemCall;
 
 /// Creates a validator set from spec.
-pub fn new_validator_set(spec: ValidatorSpec) -> Box<ValidatorSet> {
+pub fn new_validator_set(spec: ValidatorSpec) -> Box<dyn ValidatorSet> {
     match spec {
         ValidatorSpec::List(list) => {
             Box::new(SimpleList::new(list.into_iter().map(Into::into).collect()))
@@ -168,5 +168,5 @@ pub trait ValidatorSet: Send + Sync + 'static {
     /// Notifies about benign misbehaviour.
     fn report_benign(&self, _validator: &Address, _set_block: BlockNumber, _block: BlockNumber) {}
     /// Allows blockchain state access.
-    fn register_client(&self, _client: Weak<EngineClient>) {}
+    fn register_client(&self, _client: Weak<dyn EngineClient>) {}
 }

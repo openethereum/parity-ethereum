@@ -31,7 +31,7 @@ pub use self::signing_queue::{
 pub struct SignerService {
     is_enabled: bool,
     queue: Arc<ConfirmationsQueue>,
-    generate_new_token: Box<Fn() -> Result<String, String> + Send + Sync + 'static>,
+    generate_new_token: Box<dyn Fn() -> Result<String, String> + Send + Sync + 'static>,
 }
 
 impl SignerService {

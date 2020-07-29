@@ -26,7 +26,7 @@ use tokio::net::{tcp::ConnectFuture, TcpStream};
 /// Create future for connecting to other node.
 pub fn connect(
     address: &SocketAddr,
-    self_key_pair: Arc<NodeKeyPair>,
+    self_key_pair: Arc<dyn NodeKeyPair>,
     trusted_nodes: BTreeSet<NodeId>,
 ) -> Deadline<Connect> {
     let connect = Connect {
@@ -49,7 +49,7 @@ enum ConnectState {
 pub struct Connect {
     state: ConnectState,
     address: SocketAddr,
-    self_key_pair: Arc<NodeKeyPair>,
+    self_key_pair: Arc<dyn NodeKeyPair>,
     trusted_nodes: BTreeSet<NodeId>,
 }
 

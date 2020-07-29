@@ -444,7 +444,7 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
         engines::ConstructedVerifier::Trusted(Box::new(self.clone()))
     }
 
-    fn snapshot_components(&self) -> Option<Box<::snapshot::SnapshotComponents>> {
+    fn snapshot_components(&self) -> Option<Box<dyn crate::snapshot::SnapshotComponents>> {
         Some(Box::new(::snapshot::PowSnapshot::new(
             SNAPSHOT_BLOCKS,
             MAX_SNAPSHOT_BLOCKS,

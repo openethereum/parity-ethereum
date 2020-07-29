@@ -31,7 +31,7 @@ impl<C: BlockInfo + CallContract> Verifier<C> for CanonVerifier {
         &self,
         header: &Header,
         parent: &Header,
-        engine: &EthEngine,
+        engine: &dyn EthEngine,
         do_full: Option<verification::FullFamilyParams<C>>,
     ) -> Result<(), Error> {
         verification::verify_block_family(header, parent, engine, do_full)
@@ -41,7 +41,7 @@ impl<C: BlockInfo + CallContract> Verifier<C> for CanonVerifier {
         verification::verify_block_final(expected, got)
     }
 
-    fn verify_block_external(&self, header: &Header, engine: &EthEngine) -> Result<(), Error> {
+    fn verify_block_external(&self, header: &Header, engine: &dyn EthEngine) -> Result<(), Error> {
         engine.verify_block_external(header)
     }
 }

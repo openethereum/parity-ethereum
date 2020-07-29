@@ -48,8 +48,8 @@ pub trait ChainDataFetcher: Send + Sync + 'static {
     fn epoch_transition(
         &self,
         _hash: H256,
-        _engine: Arc<EthEngine>,
-        _checker: Arc<StateDependentProof<EthereumMachine>>,
+        _engine: Arc<dyn EthEngine>,
+        _checker: Arc<dyn StateDependentProof<EthereumMachine>>,
     ) -> Self::Transition;
 }
 
@@ -79,8 +79,8 @@ impl ChainDataFetcher for Unavailable {
     fn epoch_transition(
         &self,
         _hash: H256,
-        _engine: Arc<EthEngine>,
-        _checker: Arc<StateDependentProof<EthereumMachine>>,
+        _engine: Arc<dyn EthEngine>,
+        _checker: Arc<dyn StateDependentProof<EthereumMachine>>,
     ) -> Self::Transition {
         Err("fetching epoch transition proofs unavailable")
     }

@@ -81,7 +81,7 @@ impl Default for Config {
 /// Trait for interacting with the header chain abstractly.
 pub trait LightChainClient: Send + Sync {
     /// Adds a new `LightChainNotify` listener.
-    fn add_listener(&self, listener: Weak<LightChainNotify>);
+    fn add_listener(&self, listener: Weak<dyn LightChainNotify>);
 
     /// Get chain info.
     fn chain_info(&self) -> BlockChainInfo;
@@ -103,7 +103,10 @@ pub trait LightChainClient: Send + Sync {
     fn score(&self, id: BlockId) -> Option<U256>;
 
     /// Get an iterator over a block and its ancestry.
-    fn ancestry_iter<'a>(&'a self, start: BlockId) -> Box<Iterator<Item = encoded::Header> + 'a>;
+    fn ancestry_iter<'a>(
+        &'a self,
+        start: BlockId,
+    ) -> Box<dyn Iterator<Item = encoded::Header> + 'a>;
 
     /// Get the signing chain ID.
     fn signing_chain_id(&self) -> Option<u64>;
@@ -113,7 +116,7 @@ pub trait LightChainClient: Send + Sync {
     fn env_info(&self, id: BlockId) -> Option<EnvInfo>;
 
     /// Get a handle to the consensus engine.
-    fn engine(&self) -> &Arc<EthEngine>;
+    fn engine(&self) -> &Arc<dyn EthEngine>;
 
     /// Query whether a block is known.
     fn is_known(&self, hash: &H256) -> bool;
@@ -163,23 +166,23 @@ impl<T: LightChainClient> AsLightClient for T {
 /// Light client implementation.
 pub struct Client<T> {
     queue: HeaderQueue,
-    engine: Arc<EthEngine>,
+    engine: Arc<dyn EthEngine>,
     chain: HeaderChain,
     report: RwLock<ClientReport>,
     import_lock: Mutex<()>,
-    db: Arc<KeyValueDB>,
-    listeners: RwLock<Vec<Weak<LightChainNotify>>>,
+    db: Arc<dyn KeyValueDB>,
+    listeners: RwLock<Vec<Weak<dyn LightChainNotify>>>,
     fetcher: T,
     verify_full: bool,
     /// A closure to call when we want to restart the client
-    exit_handler: Mutex<Option<Box<Fn(String) + 'static + Send>>>,
+    exit_handler: Mutex<Option<Box<dyn Fn(String) + 'static + Send>>>,
 }
 
 impl<T: ChainDataFetcher> Client<T> {
     /// Create a new `Client`.
     pub fn new(
         config: Config,
-        db: Arc<KeyValueDB>,
+        db: Arc<dyn KeyValueDB>,
         chain_col: Option<u32>,
         spec: &Spec,
         fetcher: T,
@@ -221,7 +224,7 @@ impl<T: ChainDataFetcher> Client<T> {
     }
 
     /// Adds a new `LightChainNotify` listener.
-    pub fn add_listener(&self, listener: Weak<LightChainNotify>) {
+    pub fn add_listener(&self, listener: Weak<dyn LightChainNotify>) {
         self.listeners.write().push(listener);
     }
 
@@ -398,7 +401,7 @@ impl<T: ChainDataFetcher> Client<T> {
     }
 
     /// Get a handle to the verification engine.
-    pub fn engine(&self) -> &Arc<EthEngine> {
+    pub fn engine(&self) -> &Arc<dyn EthEngine> {
         &self.engine
     }
 
@@ -439,7 +442,7 @@ impl<T: ChainDataFetcher> Client<T> {
         Arc::new(v)
     }
 
-    fn notify<F: Fn(&LightChainNotify)>(&self, f: F) {
+    fn notify<F: Fn(&dyn LightChainNotify)>(&self, f: F) {
         for listener in &*self.listeners.read() {
             if let Some(listener) = listener.upgrade() {
                 f(&*listener)
@@ -567,7 +570,7 @@ impl<T: ChainDataFetcher> Client<T> {
 }
 
 impl<T: ChainDataFetcher> LightChainClient for Client<T> {
-    fn add_listener(&self, listener: Weak<LightChainNotify>) {
+    fn add_listener(&self, listener: Weak<dyn LightChainNotify>) {
         Client::add_listener(self, listener)
     }
 
@@ -595,7 +598,10 @@ impl<T: ChainDataFetcher> LightChainClient for Client<T> {
         Client::score(self, id)
     }
 
-    fn ancestry_iter<'a>(&'a self, start: BlockId) -> Box<Iterator<Item = encoded::Header> + 'a> {
+    fn ancestry_iter<'a>(
+        &'a self,
+        start: BlockId,
+    ) -> Box<dyn Iterator<Item = encoded::Header> + 'a> {
         Box::new(Client::ancestry_iter(self, start))
     }
 
@@ -607,7 +613,7 @@ impl<T: ChainDataFetcher> LightChainClient for Client<T> {
         Client::env_info(self, id)
     }
 
-    fn engine(&self) -> &Arc<EthEngine> {
+    fn engine(&self) -> &Arc<dyn EthEngine> {
         Client::engine(self)
     }
 
@@ -668,7 +674,7 @@ impl<T: ChainDataFetcher> ::ethcore::client::EngineClient for Client<T> {
             })
     }
 
-    fn as_full_client(&self) -> Option<&::ethcore::client::BlockChainClient> {
+    fn as_full_client(&self) -> Option<&dyn crate::ethcore::client::BlockChainClient> {
         None
     }
 

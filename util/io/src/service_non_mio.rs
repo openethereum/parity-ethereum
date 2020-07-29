@@ -222,7 +222,7 @@ where
     Message: Send + Sync + 'static,
 {
     // All the I/O handlers that have been registered.
-    handlers: RwLock<Slab<Arc<IoHandler<Message>>>>,
+    handlers: RwLock<Slab<Arc<dyn IoHandler<Message>>>>,
     // All the background threads, so that we can unpark them.
     threads: RwLock<Vec<thread::Thread>>,
     // Used to create timeouts.
@@ -317,7 +317,10 @@ where
     }
 
     /// Register an IO handler with the event loop.
-    pub fn register_handler(&self, handler: Arc<IoHandler<Message> + Send>) -> Result<(), IoError> {
+    pub fn register_handler(
+        &self,
+        handler: Arc<dyn IoHandler<Message> + Send>,
+    ) -> Result<(), IoError> {
         let id = self.shared.handlers.write().insert(handler.clone());
         assert!(id <= MAX_HANDLERS, "Too many handlers registered");
         let ctxt = IoContext {

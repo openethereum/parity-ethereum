@@ -55,7 +55,7 @@ enum FilterEntry {
 pub struct Manager {
     key_store: Arc<RwLock<KeyStore>>,
     filters: RwLock<HashMap<H256, FilterEntry>>,
-    tx: Mutex<mpsc::Sender<Box<Fn() + Send>>>,
+    tx: Mutex<mpsc::Sender<Box<dyn Fn() + Send>>>,
     join: Option<thread::JoinHandle<()>>,
     exit: Arc<AtomicBool>,
 }
@@ -64,7 +64,7 @@ impl Manager {
     /// Create a new filter manager that will dispatch decryption tasks onto
     /// the given thread pool.
     pub fn new() -> ::std::io::Result<Self> {
-        let (tx, rx) = mpsc::channel::<Box<Fn() + Send>>();
+        let (tx, rx) = mpsc::channel::<Box<dyn Fn() + Send>>();
         let exit = Arc::new(AtomicBool::new(false));
         let e = exit.clone();
 

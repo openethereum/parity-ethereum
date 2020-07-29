@@ -92,21 +92,23 @@ pub use types::{
 /// Start new key server instance
 pub fn start(
     client: Arc<Client>,
-    sync: Arc<SyncProvider>,
+    sync: Arc<dyn SyncProvider>,
     miner: Arc<Miner>,
-    self_key_pair: Arc<NodeKeyPair>,
+    self_key_pair: Arc<dyn NodeKeyPair>,
     mut config: ServiceConfiguration,
-    db: Arc<KeyValueDB>,
+    db: Arc<dyn KeyValueDB>,
     executor: Executor,
-) -> Result<Box<KeyServer>, Error> {
+) -> Result<Box<dyn KeyServer>, Error> {
     let trusted_client =
         trusted_client::TrustedClient::new(self_key_pair.clone(), client.clone(), sync, miner);
-    let acl_storage: Arc<acl_storage::AclStorage> = match config.acl_check_contract_address.take() {
-        Some(acl_check_contract_address) => {
-            acl_storage::OnChainAclStorage::new(trusted_client.clone(), acl_check_contract_address)?
-        }
-        None => Arc::new(acl_storage::DummyAclStorage::default()),
-    };
+    let acl_storage: Arc<dyn acl_storage::AclStorage> =
+        match config.acl_check_contract_address.take() {
+            Some(acl_check_contract_address) => acl_storage::OnChainAclStorage::new(
+                trusted_client.clone(),
+                acl_check_contract_address,
+            )?,
+            None => Arc::new(acl_storage::DummyAclStorage::default()),
+        };
 
     let key_server_set = key_server_set::OnChainKeyServerSet::new(
         trusted_client.clone(),
@@ -125,7 +127,7 @@ pub fn start(
         executor.clone(),
     )?);
     let cluster = key_server.cluster();
-    let key_server: Arc<KeyServer> = key_server;
+    let key_server: Arc<dyn KeyServer> = key_server;
 
     // prepare HTTP listener
     let http_listener = match config.listener_address {
@@ -148,7 +150,7 @@ pub fn start(
         ))
     };
 
-    let mut contracts: Vec<Arc<listener::service_contract::ServiceContract>> = Vec::new();
+    let mut contracts: Vec<Arc<dyn listener::service_contract::ServiceContract>> = Vec::new();
     config
         .service_contract_address
         .map(|address| {
@@ -212,7 +214,9 @@ pub fn start(
         })
         .map(|l| contracts.push(l));
 
-    let contract: Option<Arc<listener::service_contract::ServiceContract>> = match contracts.len() {
+    let contract: Option<Arc<dyn listener::service_contract::ServiceContract>> = match contracts
+        .len()
+    {
         0 => None,
         1 => Some(contracts.pop().expect("contract.len() is 1; qed")),
         _ => Some(Arc::new(

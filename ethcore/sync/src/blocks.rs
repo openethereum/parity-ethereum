@@ -619,7 +619,7 @@ mod test {
         client.add_blocks(100, EachBlockWith::Nothing);
         let hashes = (0..100)
             .map(|i| {
-                (&client as &BlockChainClient)
+                (&client as &dyn BlockChainClient)
                     .block_hash(BlockId::Number(i))
                     .unwrap()
             })
@@ -639,7 +639,7 @@ mod test {
         client.add_blocks(nblocks, EachBlockWith::Nothing);
         let blocks: Vec<_> = (0..nblocks)
             .map(|i| {
-                (&client as &BlockChainClient)
+                (&client as &dyn BlockChainClient)
                     .block(BlockId::Number(i as BlockNumber))
                     .unwrap()
                     .into_inner()
@@ -719,7 +719,7 @@ mod test {
         client.add_blocks(nblocks, EachBlockWith::Nothing);
         let blocks: Vec<_> = (0..nblocks)
             .map(|i| {
-                (&client as &BlockChainClient)
+                (&client as &dyn BlockChainClient)
                     .block(BlockId::Number(i as BlockNumber))
                     .unwrap()
                     .into_inner()
@@ -755,7 +755,7 @@ mod test {
         client.add_blocks(nblocks, EachBlockWith::Nothing);
         let blocks: Vec<_> = (0..nblocks)
             .map(|i| {
-                (&client as &BlockChainClient)
+                (&client as &dyn BlockChainClient)
                     .block(BlockId::Number(i as BlockNumber))
                     .unwrap()
                     .into_inner()

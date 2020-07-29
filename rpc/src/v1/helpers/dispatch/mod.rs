@@ -126,7 +126,7 @@ pub trait Dispatcher: Send + Sync + Clone {
     fn sign<P>(
         &self,
         filled: FilledTransactionRequest,
-        signer: &Arc<Accounts>,
+        signer: &Arc<dyn Accounts>,
         password: SignWith,
         post_sign: P,
     ) -> BoxFuture<P::Item>
@@ -311,7 +311,7 @@ impl<T: Debug> From<(T, Option<AccountToken>)> for WithToken<T> {
 /// Execute a confirmation payload.
 pub fn execute<D: Dispatcher + 'static>(
     dispatcher: D,
-    signer: &Arc<Accounts>,
+    signer: &Arc<dyn Accounts>,
     payload: ConfirmationPayload,
     pass: SignWith,
 ) -> BoxFuture<WithToken<ConfirmationResponse>> {

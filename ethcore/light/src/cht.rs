@@ -82,7 +82,7 @@ impl<DB: HashDB<KeccakHasher, DBValue>> CHT<DB> {
         }
 
         let mut recorder = Recorder::with_depth(from_level);
-        let db: &HashDB<_, _> = &self.db;
+        let db: &dyn HashDB<_, _> = &self.db;
         let t = TrieDB::new(&db, &self.root)?;
         t.get_with(&key!(num), &mut recorder)?;
 

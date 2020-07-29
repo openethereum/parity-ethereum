@@ -38,7 +38,7 @@ pub trait HashFetch: Send + Sync + 'static {
         &self,
         hash: H256,
         abort: fetch::Abort,
-        on_done: Box<Fn(Result<PathBuf, Error>) + Send>,
+        on_done: Box<dyn Fn(Result<PathBuf, Error>) + Send>,
     );
 }
 
@@ -120,13 +120,13 @@ pub struct Client<F: Fetch + 'static = fetch::Client> {
     contract: URLHintContract,
     fetch: F,
     executor: Executor,
-    random_path: Arc<Fn() -> PathBuf + Sync + Send>,
+    random_path: Arc<dyn Fn() -> PathBuf + Sync + Send>,
 }
 
 impl<F: Fetch + 'static> Client<F> {
     /// Creates new instance of the `Client` given on-chain contract client, fetch service and task runner.
     pub fn with_fetch(
-        contract: Arc<RegistrarClient<Call = Asynchronous>>,
+        contract: Arc<dyn RegistrarClient<Call = Asynchronous>>,
         fetch: F,
         executor: Executor,
     ) -> Self {
@@ -144,7 +144,7 @@ impl<F: Fetch + 'static> HashFetch for Client<F> {
         &self,
         hash: H256,
         abort: fetch::Abort,
-        on_done: Box<Fn(Result<PathBuf, Error>) + Send>,
+        on_done: Box<dyn Fn(Result<PathBuf, Error>) + Send>,
     ) {
         debug!(target: "fetch", "Fetching: {:?}", hash);
 

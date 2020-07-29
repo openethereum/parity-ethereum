@@ -61,7 +61,7 @@ use types::{
 /// maintain the system `state()`. We also archive execution receipts in preparation for later block creation.
 pub struct OpenBlock<'x> {
     block: ExecutedBlock,
-    engine: &'x EthEngine,
+    engine: &'x dyn EthEngine,
 }
 
 /// Just like `OpenBlock`, except that we've applied `Engine::on_close_block`, finished up the non-seal header fields,
@@ -163,7 +163,7 @@ pub trait Drain {
 impl<'x> OpenBlock<'x> {
     /// Create a new `OpenBlock` ready for transaction pushing.
     pub fn new<'a, I: IntoIterator<Item = ExtendedHeader>>(
-        engine: &'x EthEngine,
+        engine: &'x dyn EthEngine,
         factories: Factories,
         tracing: bool,
         db: StateDB,
@@ -421,7 +421,7 @@ impl ClosedBlock {
     }
 
     /// Given an engine reference, reopen the `ClosedBlock` into an `OpenBlock`.
-    pub fn reopen(self, engine: &EthEngine) -> OpenBlock {
+    pub fn reopen(self, engine: &dyn EthEngine) -> OpenBlock {
         // revert rewards (i.e. set state back at last transaction's state).
         let mut block = self.block;
         block.state = self.unclosed_state;
@@ -451,7 +451,7 @@ impl LockedBlock {
     /// Provide a valid seal in order to turn this into a `SealedBlock`.
     ///
     /// NOTE: This does not check the validity of `seal` with the engine.
-    pub fn seal(self, engine: &EthEngine, seal: Vec<Bytes>) -> Result<SealedBlock, Error> {
+    pub fn seal(self, engine: &dyn EthEngine, seal: Vec<Bytes>) -> Result<SealedBlock, Error> {
         let expected_seal_fields = engine.seal_fields(&self.header);
         let mut s = self;
         if seal.len() != expected_seal_fields {
@@ -472,7 +472,7 @@ impl LockedBlock {
     /// This does check the validity of `seal` with the engine.
     /// Returns the `ClosedBlock` back again if the seal is no good.
     /// TODO(https://github.com/paritytech/parity-ethereum/issues/10407): This is currently only used in POW chain call paths, we should really merge it with seal() above.
-    pub fn try_seal(self, engine: &EthEngine, seal: Vec<Bytes>) -> Result<SealedBlock, Error> {
+    pub fn try_seal(self, engine: &dyn EthEngine, seal: Vec<Bytes>) -> Result<SealedBlock, Error> {
         let mut s = self;
         s.block.header.set_seal(seal);
         s.block.header.compute_hash();
@@ -511,14 +511,14 @@ pub(crate) fn enact(
     header: Header,
     transactions: Vec<SignedTransaction>,
     uncles: Vec<Header>,
-    engine: &EthEngine,
+    engine: &dyn EthEngine,
     tracing: bool,
     db: StateDB,
     parent: &Header,
     last_hashes: Arc<LastHashes>,
     factories: Factories,
     is_epoch_begin: bool,
-    ancestry: &mut Iterator<Item = ExtendedHeader>,
+    ancestry: &mut dyn Iterator<Item = ExtendedHeader>,
 ) -> Result<LockedBlock, Error> {
     // For trace log
     let trace_state = if log_enabled!(target: "enact", ::log::Level::Trace) {
@@ -569,14 +569,14 @@ pub(crate) fn enact(
 /// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header
 pub fn enact_verified(
     block: PreverifiedBlock,
-    engine: &EthEngine,
+    engine: &dyn EthEngine,
     tracing: bool,
     db: StateDB,
     parent: &Header,
     last_hashes: Arc<LastHashes>,
     factories: Factories,
     is_epoch_begin: bool,
-    ancestry: &mut Iterator<Item = ExtendedHeader>,
+    ancestry: &mut dyn Iterator<Item = ExtendedHeader>,
 ) -> Result<LockedBlock, Error> {
     enact(
         block.header,
@@ -610,7 +610,7 @@ mod tests {
     /// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header
     fn enact_bytes(
         block_bytes: Vec<u8>,
-        engine: &EthEngine,
+        engine: &dyn EthEngine,
         tracing: bool,
         db: StateDB,
         parent: &Header,
@@ -667,7 +667,7 @@ mod tests {
     /// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header. Seal the block aferwards
     fn enact_and_seal(
         block_bytes: Vec<u8>,
-        engine: &EthEngine,
+        engine: &dyn EthEngine,
         tracing: bool,
         db: StateDB,
         parent: &Header,

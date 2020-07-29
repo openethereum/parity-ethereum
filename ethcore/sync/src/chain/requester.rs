@@ -40,7 +40,7 @@ impl SyncRequester {
     /// Perform block download request`
     pub fn request_blocks(
         sync: &mut ChainSync,
-        io: &mut SyncIo,
+        io: &mut dyn SyncIo,
         peer_id: PeerId,
         request: BlockRequest,
         block_set: BlockSet,
@@ -63,7 +63,7 @@ impl SyncRequester {
     /// Request block bodies from a peer
     fn request_bodies(
         sync: &mut ChainSync,
-        io: &mut SyncIo,
+        io: &mut dyn SyncIo,
         peer_id: PeerId,
         hashes: Vec<H256>,
         set: BlockSet,
@@ -89,7 +89,7 @@ impl SyncRequester {
     /// Request headers from a peer by block number
     pub fn request_fork_header(
         sync: &mut ChainSync,
-        io: &mut SyncIo,
+        io: &mut dyn SyncIo,
         peer_id: PeerId,
         n: BlockNumber,
     ) {
@@ -110,7 +110,7 @@ impl SyncRequester {
     }
 
     /// Find some headers or blocks to download for a peer.
-    pub fn request_snapshot_data(sync: &mut ChainSync, io: &mut SyncIo, peer_id: PeerId) {
+    pub fn request_snapshot_data(sync: &mut ChainSync, io: &mut dyn SyncIo, peer_id: PeerId) {
         // find chunk data to download
         if let Some(hash) = sync.snapshot.needed_chunk() {
             if let Some(ref mut peer) = sync.peers.get_mut(&peer_id) {
@@ -121,7 +121,7 @@ impl SyncRequester {
     }
 
     /// Request snapshot manifest from a peer.
-    pub fn request_snapshot_manifest(sync: &mut ChainSync, io: &mut SyncIo, peer_id: PeerId) {
+    pub fn request_snapshot_manifest(sync: &mut ChainSync, io: &mut dyn SyncIo, peer_id: PeerId) {
         trace!(target: "sync", "{} <- GetSnapshotManifest", peer_id);
         let rlp = RlpStream::new_list(0);
         SyncRequester::send_request(
@@ -137,7 +137,7 @@ impl SyncRequester {
     /// Request headers from a peer by block hash
     fn request_headers_by_hash(
         sync: &mut ChainSync,
-        io: &mut SyncIo,
+        io: &mut dyn SyncIo,
         peer_id: PeerId,
         h: &H256,
         count: u64,
@@ -167,7 +167,7 @@ impl SyncRequester {
     /// Request block receipts from a peer
     fn request_receipts(
         sync: &mut ChainSync,
-        io: &mut SyncIo,
+        io: &mut dyn SyncIo,
         peer_id: PeerId,
         hashes: Vec<H256>,
         set: BlockSet,
@@ -193,7 +193,7 @@ impl SyncRequester {
     /// Request snapshot chunk from a peer.
     fn request_snapshot_chunk(
         sync: &mut ChainSync,
-        io: &mut SyncIo,
+        io: &mut dyn SyncIo,
         peer_id: PeerId,
         chunk: &H256,
     ) {
@@ -213,7 +213,7 @@ impl SyncRequester {
     /// Generic request sender
     fn send_request(
         sync: &mut ChainSync,
-        io: &mut SyncIo,
+        io: &mut dyn SyncIo,
         peer_id: PeerId,
         asking: PeerAsking,
         packet_id: SyncPacket,

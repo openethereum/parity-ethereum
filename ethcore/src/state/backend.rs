@@ -38,10 +38,10 @@ use state::Account;
 /// State backend. See module docs for more details.
 pub trait Backend: Send {
     /// Treat the backend as a read-only hashdb.
-    fn as_hash_db(&self) -> &HashDB<KeccakHasher, DBValue>;
+    fn as_hash_db(&self) -> &dyn HashDB<KeccakHasher, DBValue>;
 
     /// Treat the backend as a writeable hashdb.
-    fn as_hash_db_mut(&mut self) -> &mut HashDB<KeccakHasher, DBValue>;
+    fn as_hash_db_mut(&mut self) -> &mut dyn HashDB<KeccakHasher, DBValue>;
 
     /// Add an account entry to the cache.
     fn add_to_account_cache(&mut self, addr: Address, data: Option<Account>, modified: bool);
@@ -121,19 +121,19 @@ impl HashDB<KeccakHasher, DBValue> for ProofCheck {
 }
 
 impl AsHashDB<KeccakHasher, DBValue> for ProofCheck {
-    fn as_hash_db(&self) -> &HashDB<KeccakHasher, DBValue> {
+    fn as_hash_db(&self) -> &dyn HashDB<KeccakHasher, DBValue> {
         self
     }
-    fn as_hash_db_mut(&mut self) -> &mut HashDB<KeccakHasher, DBValue> {
+    fn as_hash_db_mut(&mut self) -> &mut dyn HashDB<KeccakHasher, DBValue> {
         self
     }
 }
 
 impl Backend for ProofCheck {
-    fn as_hash_db(&self) -> &HashDB<KeccakHasher, DBValue> {
+    fn as_hash_db(&self) -> &dyn HashDB<KeccakHasher, DBValue> {
         self
     }
-    fn as_hash_db_mut(&mut self) -> &mut HashDB<KeccakHasher, DBValue> {
+    fn as_hash_db_mut(&mut self) -> &mut dyn HashDB<KeccakHasher, DBValue> {
         self
     }
     fn add_to_account_cache(&mut self, _addr: Address, _data: Option<Account>, _modified: bool) {}
@@ -168,7 +168,7 @@ pub struct Proving<H> {
 }
 
 impl<AH: AsKeyedHashDB + Send + Sync> AsKeyedHashDB for Proving<AH> {
-    fn as_keyed_hash_db(&self) -> &journaldb::KeyedHashDB {
+    fn as_keyed_hash_db(&self) -> &dyn journaldb::KeyedHashDB {
         self
     }
 }
@@ -176,10 +176,10 @@ impl<AH: AsKeyedHashDB + Send + Sync> AsKeyedHashDB for Proving<AH> {
 impl<AH: AsHashDB<KeccakHasher, DBValue> + Send + Sync> AsHashDB<KeccakHasher, DBValue>
     for Proving<AH>
 {
-    fn as_hash_db(&self) -> &HashDB<KeccakHasher, DBValue> {
+    fn as_hash_db(&self) -> &dyn HashDB<KeccakHasher, DBValue> {
         self
     }
-    fn as_hash_db_mut(&mut self) -> &mut HashDB<KeccakHasher, DBValue> {
+    fn as_hash_db_mut(&mut self) -> &mut dyn HashDB<KeccakHasher, DBValue> {
         self
     }
 }
@@ -226,11 +226,11 @@ impl<H: AsHashDB<KeccakHasher, DBValue> + Send + Sync> HashDB<KeccakHasher, DBVa
 }
 
 impl<H: AsHashDB<KeccakHasher, DBValue> + Send + Sync> Backend for Proving<H> {
-    fn as_hash_db(&self) -> &HashDB<KeccakHasher, DBValue> {
+    fn as_hash_db(&self) -> &dyn HashDB<KeccakHasher, DBValue> {
         self
     }
 
-    fn as_hash_db_mut(&mut self) -> &mut HashDB<KeccakHasher, DBValue> {
+    fn as_hash_db_mut(&mut self) -> &mut dyn HashDB<KeccakHasher, DBValue> {
         self
     }
 
@@ -291,11 +291,11 @@ impl<H: AsHashDB<KeccakHasher, DBValue> + Clone> Clone for Proving<H> {
 pub struct Basic<H>(pub H);
 
 impl<H: AsHashDB<KeccakHasher, DBValue> + Send + Sync> Backend for Basic<H> {
-    fn as_hash_db(&self) -> &HashDB<KeccakHasher, DBValue> {
+    fn as_hash_db(&self) -> &dyn HashDB<KeccakHasher, DBValue> {
         self.0.as_hash_db()
     }
 
-    fn as_hash_db_mut(&mut self) -> &mut HashDB<KeccakHasher, DBValue> {
+    fn as_hash_db_mut(&mut self) -> &mut dyn HashDB<KeccakHasher, DBValue> {
         self.0.as_hash_db_mut()
     }
 

@@ -79,7 +79,7 @@ pub trait ClusterSessionCreator<S: ClusterSession, D> {
     /// Create cluster session.
     fn create(
         &self,
-        cluster: Arc<Cluster>,
+        cluster: Arc<dyn Cluster>,
         master: NodeId,
         nonce: Option<u64>,
         id: S::Id,
@@ -97,9 +97,9 @@ pub struct SessionCreatorCore {
     /// Self node id.
     self_node_id: NodeId,
     /// Reference to key storage
-    key_storage: Arc<KeyStorage>,
+    key_storage: Arc<dyn KeyStorage>,
     /// Reference to ACL storage
-    acl_storage: Arc<AclStorage>,
+    acl_storage: Arc<dyn AclStorage>,
     /// Always-increasing sessions counter. Is used as session nonce to prevent replay attacks:
     /// 1) during handshake, KeyServers generate new random key to encrypt messages
     /// => there's no way to use messages from previous connections for replay attacks
@@ -180,7 +180,7 @@ impl ClusterSessionCreator<GenerationSessionImpl, ()> for GenerationSessionCreat
 
     fn create(
         &self,
-        cluster: Arc<Cluster>,
+        cluster: Arc<dyn Cluster>,
         master: NodeId,
         nonce: Option<u64>,
         id: SessionId,
@@ -228,7 +228,7 @@ impl ClusterSessionCreator<EncryptionSessionImpl, ()> for EncryptionSessionCreat
 
     fn create(
         &self,
-        cluster: Arc<Cluster>,
+        cluster: Arc<dyn Cluster>,
         master: NodeId,
         nonce: Option<u64>,
         id: SessionId,
@@ -286,7 +286,7 @@ impl ClusterSessionCreator<DecryptionSessionImpl, Requester> for DecryptionSessi
 
     fn create(
         &self,
-        cluster: Arc<Cluster>,
+        cluster: Arc<dyn Cluster>,
         master: NodeId,
         nonce: Option<u64>,
         id: SessionIdWithSubSession,
@@ -357,7 +357,7 @@ impl ClusterSessionCreator<SchnorrSigningSessionImpl, Requester> for SchnorrSign
 
     fn create(
         &self,
-        cluster: Arc<Cluster>,
+        cluster: Arc<dyn Cluster>,
         master: NodeId,
         nonce: Option<u64>,
         id: SessionIdWithSubSession,
@@ -426,7 +426,7 @@ impl ClusterSessionCreator<EcdsaSigningSessionImpl, Requester> for EcdsaSigningS
 
     fn create(
         &self,
-        cluster: Arc<Cluster>,
+        cluster: Arc<dyn Cluster>,
         master: NodeId,
         nonce: Option<u64>,
         id: SessionIdWithSubSession,
@@ -483,7 +483,7 @@ impl ClusterSessionCreator<KeyVersionNegotiationSessionImpl<VersionNegotiationTr
 
     fn create(
         &self,
-        cluster: Arc<Cluster>,
+        cluster: Arc<dyn Cluster>,
         master: NodeId,
         nonce: Option<u64>,
         id: SessionIdWithSubSession,
@@ -530,7 +530,8 @@ pub struct AdminSessionCreator {
     /// Administrator public.
     pub admin_public: Option<Public>,
     /// Servers set change sessions creator connector.
-    pub servers_set_change_session_creator_connector: Arc<ServersSetChangeSessionCreatorConnector>,
+    pub servers_set_change_session_creator_connector:
+        Arc<dyn ServersSetChangeSessionCreatorConnector>,
 }
 
 impl ClusterSessionCreator<AdminSession, AdminSessionCreationData> for AdminSessionCreator {
@@ -580,7 +581,7 @@ impl ClusterSessionCreator<AdminSession, AdminSessionCreationData> for AdminSess
 
     fn create(
         &self,
-        cluster: Arc<Cluster>,
+        cluster: Arc<dyn Cluster>,
         master: NodeId,
         nonce: Option<u64>,
         id: SessionId,

@@ -19,7 +19,7 @@ use std::{io, time::Duration};
 use tokio::timer::timeout::{Error as TimeoutError, Timeout};
 
 type DeadlineBox<F> = Box<
-    Future<
+    dyn Future<
             Item = DeadlineStatus<<F as Future>::Item>,
             Error = TimeoutError<<F as Future>::Error>,
         > + Send,

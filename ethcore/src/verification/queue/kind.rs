@@ -62,14 +62,14 @@ pub trait Kind: 'static + Sized + Send + Sync {
     /// Attempt to create the `Unverified` item from the input.
     fn create(
         input: Self::Input,
-        engine: &EthEngine,
+        engine: &dyn EthEngine,
         check_seal: bool,
     ) -> Result<Self::Unverified, (Self::Input, Error)>;
 
     /// Attempt to verify the `Unverified` item using the given engine.
     fn verify(
         unverified: Self::Unverified,
-        engine: &EthEngine,
+        engine: &dyn EthEngine,
         check_seal: bool,
     ) -> Result<Self::Verified, Error>;
 }
@@ -97,7 +97,7 @@ pub mod blocks {
 
         fn create(
             input: Self::Input,
-            engine: &EthEngine,
+            engine: &dyn EthEngine,
             check_seal: bool,
         ) -> Result<Self::Unverified, (Self::Input, Error)> {
             match verify_block_basic(&input, engine, check_seal) {
@@ -115,7 +115,7 @@ pub mod blocks {
 
         fn verify(
             un: Self::Unverified,
-            engine: &EthEngine,
+            engine: &dyn EthEngine,
             check_seal: bool,
         ) -> Result<Self::Verified, Error> {
             let hash = un.hash();
@@ -245,7 +245,7 @@ pub mod headers {
 
         fn create(
             input: Self::Input,
-            engine: &EthEngine,
+            engine: &dyn EthEngine,
             check_seal: bool,
         ) -> Result<Self::Unverified, (Self::Input, Error)> {
             match verify_header_params(&input, engine, true, check_seal) {
@@ -256,7 +256,7 @@ pub mod headers {
 
         fn verify(
             unverified: Self::Unverified,
-            engine: &EthEngine,
+            engine: &dyn EthEngine,
             check_seal: bool,
         ) -> Result<Self::Verified, Error> {
             match check_seal {

@@ -335,7 +335,7 @@ where
         Some(&self.path)
     }
 
-    fn as_vault_provider(&self) -> Option<&VaultKeyDirectoryProvider> {
+    fn as_vault_provider(&self) -> Option<&dyn VaultKeyDirectoryProvider> {
         Some(self)
     }
 
@@ -348,12 +348,12 @@ impl<T> VaultKeyDirectoryProvider for DiskDirectory<T>
 where
     T: KeyFileManager,
 {
-    fn create(&self, name: &str, key: VaultKey) -> Result<Box<VaultKeyDirectory>, Error> {
+    fn create(&self, name: &str, key: VaultKey) -> Result<Box<dyn VaultKeyDirectory>, Error> {
         let vault_dir = VaultDiskDirectory::create(&self.path, name, key)?;
         Ok(Box::new(vault_dir))
     }
 
-    fn open(&self, name: &str, key: VaultKey) -> Result<Box<VaultKeyDirectory>, Error> {
+    fn open(&self, name: &str, key: VaultKey) -> Result<Box<dyn VaultKeyDirectory>, Error> {
         let vault_dir = VaultDiskDirectory::at(&self.path, name, key)?;
         Ok(Box::new(vault_dir))
     }

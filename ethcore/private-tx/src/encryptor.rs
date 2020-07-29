@@ -77,7 +77,7 @@ pub struct SecretStoreEncryptor {
     config: EncryptorConfig,
     client: FetchClient,
     sessions: Mutex<HashMap<Address, EncryptionSession>>,
-    signer: Arc<Signer>,
+    signer: Arc<dyn Signer>,
 }
 
 impl SecretStoreEncryptor {
@@ -85,7 +85,7 @@ impl SecretStoreEncryptor {
     pub fn new(
         config: EncryptorConfig,
         client: FetchClient,
-        signer: Arc<Signer>,
+        signer: Arc<dyn Signer>,
     ) -> Result<Self, Error> {
         Ok(SecretStoreEncryptor {
             config,

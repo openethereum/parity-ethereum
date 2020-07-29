@@ -287,19 +287,19 @@ pub struct Host {
     sessions: Arc<RwLock<Slab<SharedSession>>>,
     discovery: Mutex<Option<Discovery<'static>>>,
     nodes: RwLock<NodeTable>,
-    handlers: RwLock<HashMap<ProtocolId, Arc<NetworkProtocolHandler + Sync>>>,
+    handlers: RwLock<HashMap<ProtocolId, Arc<dyn NetworkProtocolHandler + Sync>>>,
     timers: RwLock<HashMap<TimerToken, ProtocolTimer>>,
     timer_counter: RwLock<usize>,
     reserved_nodes: RwLock<HashSet<NodeId>>,
     stopping: AtomicBool,
-    filter: Option<Arc<ConnectionFilter>>,
+    filter: Option<Arc<dyn ConnectionFilter>>,
 }
 
 impl Host {
     /// Create a new instance
     pub fn new(
         mut config: NetworkConfiguration,
-        filter: Option<Arc<ConnectionFilter>>,
+        filter: Option<Arc<dyn ConnectionFilter>>,
     ) -> Result<Host, Error> {
         let mut listen_address = match config.listen_address {
             None => SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(0, 0, 0, 0), DEFAULT_PORT)),
@@ -1130,7 +1130,7 @@ impl Host {
 
     pub fn with_context<F>(&self, protocol: ProtocolId, io: &IoContext<NetworkIoMessage>, action: F)
     where
-        F: FnOnce(&NetworkContextTrait),
+        F: FnOnce(&dyn NetworkContextTrait),
     {
         let reserved = { self.reserved_nodes.read() };
 
@@ -1145,7 +1145,7 @@ impl Host {
         action: F,
     ) -> T
     where
-        F: FnOnce(&NetworkContextTrait) -> T,
+        F: FnOnce(&dyn NetworkContextTrait) -> T,
     {
         let reserved = { self.reserved_nodes.read() };
 

@@ -231,7 +231,7 @@ impl Manager {
         &self,
         device: &hidapi::HidDevice,
         msg_type: MessageType,
-        msg: &Message,
+        msg: &dyn Message,
     ) -> Result<usize, Error> {
         let msg_id = msg_type as u16;
         let mut message = msg.write_to_bytes()?;

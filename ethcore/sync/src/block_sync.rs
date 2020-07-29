@@ -231,7 +231,7 @@ impl BlockDownloader {
     /// Add new block headers.
     pub fn import_headers(
         &mut self,
-        io: &mut SyncIo,
+        io: &mut dyn SyncIo,
         r: &Rlp,
         expected_hash: H256,
     ) -> Result<DownloadAction, BlockDownloaderImportError> {
@@ -463,7 +463,7 @@ impl BlockDownloader {
         Ok(())
     }
 
-    fn start_sync_round(&mut self, io: &mut SyncIo) {
+    fn start_sync_round(&mut self, io: &mut dyn SyncIo) {
         self.state = State::ChainHead;
         trace_sync!(
             self,
@@ -541,7 +541,7 @@ impl BlockDownloader {
     pub fn request_blocks(
         &mut self,
         peer_id: PeerId,
-        io: &mut SyncIo,
+        io: &mut dyn SyncIo,
         num_active_peers: usize,
     ) -> Option<BlockRequest> {
         match self.state {
@@ -610,7 +610,11 @@ impl BlockDownloader {
 
     /// Checks if there are blocks fully downloaded that can be imported into the blockchain and does the import.
     /// Returns DownloadAction::Reset if it is imported all the the blocks it can and all downloading peers should be reset
-    pub fn collect_blocks(&mut self, io: &mut SyncIo, allow_out_of_order: bool) -> DownloadAction {
+    pub fn collect_blocks(
+        &mut self,
+        io: &mut dyn SyncIo,
+        allow_out_of_order: bool,
+    ) -> DownloadAction {
         let mut download_action = DownloadAction::None;
         let mut imported = HashSet::new();
         let blocks = self.blocks.drain();
@@ -748,7 +752,7 @@ mod tests {
     fn import_headers(
         headers: &[BlockHeader],
         downloader: &mut BlockDownloader,
-        io: &mut SyncIo,
+        io: &mut dyn SyncIo,
     ) -> Result<DownloadAction, BlockDownloaderImportError> {
         let mut stream = RlpStream::new();
         stream.append_list(headers);
@@ -761,7 +765,7 @@ mod tests {
     fn import_headers_ok(
         headers: &[BlockHeader],
         downloader: &mut BlockDownloader,
-        io: &mut SyncIo,
+        io: &mut dyn SyncIo,
     ) {
         let res = import_headers(headers, downloader, io);
         assert!(res.is_ok());

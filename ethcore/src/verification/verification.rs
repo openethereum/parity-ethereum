@@ -66,7 +66,7 @@ impl HeapSizeOf for PreverifiedBlock {
 /// Phase 1 quick block verification. Only does checks that are cheap. Operates on a single block
 pub fn verify_block_basic(
     block: &Unverified,
-    engine: &EthEngine,
+    engine: &dyn EthEngine,
     check_seal: bool,
 ) -> Result<(), Error> {
     verify_header_params(&block.header, engine, true, check_seal)?;
@@ -95,7 +95,7 @@ pub fn verify_block_basic(
 /// Returns a `PreverifiedBlock` structure populated with transactions
 pub fn verify_block_unordered(
     block: Unverified,
-    engine: &EthEngine,
+    engine: &dyn EthEngine,
     check_seal: bool,
 ) -> Result<PreverifiedBlock, Error> {
     let header = block.header;
@@ -140,7 +140,7 @@ pub struct FullFamilyParams<'a, C: BlockInfo + CallContract + 'a> {
     pub block: &'a PreverifiedBlock,
 
     /// Block provider to use during verification
-    pub block_provider: &'a BlockProvider,
+    pub block_provider: &'a dyn BlockProvider,
 
     /// Engine client to use during verification
     pub client: &'a C,
@@ -150,7 +150,7 @@ pub struct FullFamilyParams<'a, C: BlockInfo + CallContract + 'a> {
 pub fn verify_block_family<C: BlockInfo + CallContract>(
     header: &Header,
     parent: &Header,
-    engine: &EthEngine,
+    engine: &dyn EthEngine,
     do_full: Option<FullFamilyParams<C>>,
 ) -> Result<(), Error> {
     // TODO: verify timestamp
@@ -177,8 +177,8 @@ pub fn verify_block_family<C: BlockInfo + CallContract>(
 
 fn verify_uncles(
     block: &PreverifiedBlock,
-    bc: &BlockProvider,
-    engine: &EthEngine,
+    bc: &dyn BlockProvider,
+    engine: &dyn EthEngine,
 ) -> Result<(), Error> {
     let header = &block.header;
     let num_uncles = block.uncles.len();
@@ -319,7 +319,7 @@ pub fn verify_block_final(expected: &Header, got: &Header) -> Result<(), Error> 
 /// Check basic header parameters.
 pub fn verify_header_params(
     header: &Header,
-    engine: &EthEngine,
+    engine: &dyn EthEngine,
     is_full: bool,
     check_seal: bool,
 ) -> Result<(), Error> {
@@ -418,7 +418,7 @@ pub fn verify_header_params(
 }
 
 /// Check header parameters agains parent header.
-fn verify_parent(header: &Header, parent: &Header, engine: &EthEngine) -> Result<(), Error> {
+fn verify_parent(header: &Header, parent: &Header, engine: &dyn EthEngine) -> Result<(), Error> {
     assert!(
         header.parent_hash().is_zero() || &parent.hash() == header.parent_hash(),
         "Parent hash should already have been verified; qed"
@@ -661,12 +661,12 @@ mod tests {
         }
     }
 
-    fn basic_test(bytes: &[u8], engine: &EthEngine) -> Result<(), Error> {
+    fn basic_test(bytes: &[u8], engine: &dyn EthEngine) -> Result<(), Error> {
         let unverified = Unverified::from_rlp(bytes.to_vec())?;
         verify_block_basic(&unverified, engine, true)
     }
 
-    fn family_test<BC>(bytes: &[u8], engine: &EthEngine, bc: &BC) -> Result<(), Error>
+    fn family_test<BC>(bytes: &[u8], engine: &dyn EthEngine, bc: &BC) -> Result<(), Error>
     where
         BC: BlockProvider,
     {
@@ -697,13 +697,13 @@ mod tests {
 
         let full_params = FullFamilyParams {
             block: &block,
-            block_provider: bc as &BlockProvider,
+            block_provider: bc as &dyn BlockProvider,
             client: &client,
         };
         verify_block_family(&block.header, &parent, engine, Some(full_params))
     }
 
-    fn unordered_test(bytes: &[u8], engine: &EthEngine) -> Result<(), Error> {
+    fn unordered_test(bytes: &[u8], engine: &dyn EthEngine) -> Result<(), Error> {
         let un = Unverified::from_rlp(bytes.to_vec())?;
         verify_block_unordered(un, engine, false)?;
         Ok(())

@@ -47,7 +47,7 @@ use tokio::{
 use tokio_io::IoFuture;
 
 /// Empty future.
-pub type BoxedEmptyFuture = Box<Future<Item = (), Error = ()> + Send>;
+pub type BoxedEmptyFuture = Box<dyn Future<Item = (), Error = ()> + Send>;
 
 /// Maintain interval (seconds). Every MAINTAIN_INTERVAL seconds node:
 /// 1) checks if connected nodes are responding to KeepAlive messages
@@ -88,11 +88,11 @@ struct NetConnectionsData {
     /// Reference to tokio task executor.
     executor: Executor,
     /// Key pair of this node.
-    self_key_pair: Arc<NodeKeyPair>,
+    self_key_pair: Arc<dyn NodeKeyPair>,
     /// Network messages processor.
-    message_processor: Arc<MessageProcessor>,
+    message_processor: Arc<dyn MessageProcessor>,
     /// Connections trigger.
-    trigger: Mutex<Box<ConnectionTrigger>>,
+    trigger: Mutex<Box<dyn ConnectionTrigger>>,
     /// Mutable connection data.
     container: Arc<RwLock<NetConnectionsContainer>>,
 }
@@ -130,8 +130,8 @@ impl NetConnectionsManager {
     /// Create new network connections manager.
     pub fn new(
         executor: Executor,
-        message_processor: Arc<MessageProcessor>,
-        trigger: Box<ConnectionTrigger>,
+        message_processor: Arc<dyn MessageProcessor>,
+        trigger: Box<dyn ConnectionTrigger>,
         container: Arc<RwLock<NetConnectionsContainer>>,
         config: &ClusterConfiguration,
         net_config: NetConnectionsManagerConfig,
@@ -161,7 +161,7 @@ impl NetConnectionsManager {
 }
 
 impl ConnectionManager for NetConnectionsManager {
-    fn provider(&self) -> Arc<ConnectionProvider> {
+    fn provider(&self) -> Arc<dyn ConnectionProvider> {
         self.data.container.clone()
     }
 
@@ -190,7 +190,7 @@ impl ConnectionProvider for RwLock<NetConnectionsContainer> {
             .collect()
     }
 
-    fn connection(&self, node: &NodeId) -> Option<Arc<Connection>> {
+    fn connection(&self, node: &NodeId) -> Option<Arc<dyn Connection>> {
         match self.read().connections.get(node).cloned() {
             Some(connection) => Some(connection),
             None => None,

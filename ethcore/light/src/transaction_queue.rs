@@ -129,7 +129,7 @@ pub enum ImportDestination {
     Future,
 }
 
-type Listener = Box<Fn(&[H256]) + Send + Sync>;
+type Listener = Box<dyn Fn(&[H256]) + Send + Sync>;
 
 /// Light transaction queue. See module docs for more details.
 #[derive(Default)]

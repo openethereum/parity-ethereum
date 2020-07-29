@@ -23,7 +23,7 @@ use txpool::{self, VerifiedTransaction};
 
 use pool::VerifiedTransaction as Transaction;
 
-type Listener = Box<Fn(&[H256]) + Send + Sync>;
+type Listener = Box<dyn Fn(&[H256]) + Send + Sync>;
 
 /// Manages notifications to pending transaction listeners.
 #[derive(Default)]

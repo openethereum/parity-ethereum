@@ -119,14 +119,14 @@ struct CachedContract {
     /// Previous confirm migration transaction.
     confirm_migration_tx: Option<PreviousMigrationTransaction>,
     /// This node key pair.
-    self_key_pair: Arc<NodeKeyPair>,
+    self_key_pair: Arc<dyn NodeKeyPair>,
 }
 
 impl OnChainKeyServerSet {
     pub fn new(
         trusted_client: TrustedClient,
         contract_address_source: Option<ContractAddress>,
-        self_key_pair: Arc<NodeKeyPair>,
+        self_key_pair: Arc<dyn NodeKeyPair>,
         auto_migrate_enabled: bool,
         key_servers: BTreeMap<Public, NodeAddress>,
     ) -> Result<Arc<Self>, Error> {
@@ -253,7 +253,7 @@ impl CachedContract {
     pub fn new(
         client: TrustedClient,
         contract_address_source: Option<ContractAddress>,
-        self_key_pair: Arc<NodeKeyPair>,
+        self_key_pair: Arc<dyn NodeKeyPair>,
         auto_migrate_enabled: bool,
         key_servers: BTreeMap<Public, NodeAddress>,
     ) -> Result<Self, Error> {
@@ -556,7 +556,7 @@ impl CachedContract {
         key_servers
     }
 
-    fn update_number_of_confirmations_if_required(&mut self, client: &BlockChainClient) {
+    fn update_number_of_confirmations_if_required(&mut self, client: &dyn BlockChainClient) {
         if !self.auto_migrate_enabled {
             return;
         }
@@ -682,11 +682,11 @@ fn update_last_transaction_block(
     true
 }
 
-fn latest_block_hash(client: &BlockChainClient) -> H256 {
+fn latest_block_hash(client: &dyn BlockChainClient) -> H256 {
     client.block_hash(BlockId::Latest).unwrap_or_default()
 }
 
-fn block_confirmations(client: &BlockChainClient, block: H256) -> Option<u64> {
+fn block_confirmations(client: &dyn BlockChainClient, block: H256) -> Option<u64> {
     client
         .block_number(BlockId::Hash(block))
         .and_then(|block| {

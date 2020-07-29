@@ -67,7 +67,7 @@ struct SessionCore {
     /// Key share.
     pub key_share: Option<DocumentKeyShare>,
     /// Cluster which allows this node to send messages to other nodes in the cluster.
-    pub cluster: Arc<Cluster>,
+    pub cluster: Arc<dyn Cluster>,
     /// Session-level nonce.
     pub nonce: u64,
     /// SessionImpl completion condvar.
@@ -121,9 +121,9 @@ pub struct SessionParams {
     /// Key share.
     pub key_share: Option<DocumentKeyShare>,
     /// ACL storage.
-    pub acl_storage: Arc<AclStorage>,
+    pub acl_storage: Arc<dyn AclStorage>,
     /// Cluster
-    pub cluster: Arc<Cluster>,
+    pub cluster: Arc<dyn Cluster>,
     /// Session nonce.
     pub nonce: u64,
 }
@@ -139,7 +139,7 @@ struct SigningConsensusTransport {
     /// Selected key version (on master node).
     version: Option<H256>,
     /// Cluster.
-    cluster: Arc<Cluster>,
+    cluster: Arc<dyn Cluster>,
 }
 
 /// Signing key generation transport.
@@ -147,7 +147,7 @@ struct SessionKeyGenerationTransport {
     /// Session access key.
     access_key: Secret,
     /// Cluster.
-    cluster: Arc<Cluster>,
+    cluster: Arc<dyn Cluster>,
     /// Session-level nonce.
     nonce: u64,
     /// Other nodes ids.
@@ -163,7 +163,7 @@ struct SigningJobTransport {
     /// Session-level nonce.
     nonce: u64,
     /// Cluster.
-    cluster: Arc<Cluster>,
+    cluster: Arc<dyn Cluster>,
 }
 
 /// Session delegation status.

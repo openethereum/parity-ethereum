@@ -54,7 +54,7 @@ impl SyncHandler {
     /// Handle incoming packet from peer
     pub fn on_packet(
         sync: &mut ChainSync,
-        io: &mut SyncIo,
+        io: &mut dyn SyncIo,
         peer: PeerId,
         packet_id: u8,
         data: &[u8],
@@ -102,13 +102,13 @@ impl SyncHandler {
     }
 
     /// Called when peer sends us new consensus packet
-    pub fn on_consensus_packet(io: &mut SyncIo, peer_id: PeerId, r: &Rlp) {
+    pub fn on_consensus_packet(io: &mut dyn SyncIo, peer_id: PeerId, r: &Rlp) {
         trace!(target: "sync", "Received consensus packet from {:?}", peer_id);
         io.chain().queue_consensus_message(r.as_raw().to_vec());
     }
 
     /// Called by peer when it is disconnecting
-    pub fn on_peer_aborting(sync: &mut ChainSync, io: &mut SyncIo, peer_id: PeerId) {
+    pub fn on_peer_aborting(sync: &mut ChainSync, io: &mut dyn SyncIo, peer_id: PeerId) {
         trace!(target: "sync", "== Disconnecting {}: {}", peer_id, io.peer_version(peer_id));
         sync.handshaking_peers.remove(&peer_id);
         if sync.peers.contains_key(&peer_id) {
@@ -139,7 +139,7 @@ impl SyncHandler {
     }
 
     /// Called when a new peer is connected
-    pub fn on_peer_connected(sync: &mut ChainSync, io: &mut SyncIo, peer: PeerId) {
+    pub fn on_peer_connected(sync: &mut ChainSync, io: &mut dyn SyncIo, peer: PeerId) {
         trace!(target: "sync", "== Connected {}: {}", peer, io.peer_version(peer));
         if let Err(e) = sync.send_status(io, peer) {
             debug!(target:"sync", "Error sending status request: {:?}", e);
@@ -152,7 +152,7 @@ impl SyncHandler {
     /// Called by peer once it has new block bodies
     pub fn on_peer_new_block(
         sync: &mut ChainSync,
-        io: &mut SyncIo,
+        io: &mut dyn SyncIo,
         peer_id: PeerId,
         r: &Rlp,
     ) -> Result<(), DownloaderImportError> {
@@ -221,7 +221,7 @@ impl SyncHandler {
     /// Handles `NewHashes` packet. Initiates headers download for any unknown hashes.
     pub fn on_peer_new_hashes(
         sync: &mut ChainSync,
-        io: &mut SyncIo,
+        io: &mut dyn SyncIo,
         peer_id: PeerId,
         r: &Rlp,
     ) -> Result<(), DownloaderImportError> {
@@ -305,7 +305,7 @@ impl SyncHandler {
     /// Called by peer once it has new block bodies
     fn on_peer_block_bodies(
         sync: &mut ChainSync,
-        io: &mut SyncIo,
+        io: &mut dyn SyncIo,
         peer_id: PeerId,
         r: &Rlp,
     ) -> Result<(), DownloaderImportError> {
@@ -360,7 +360,7 @@ impl SyncHandler {
 
     fn on_peer_fork_header(
         sync: &mut ChainSync,
-        io: &mut SyncIo,
+        io: &mut dyn SyncIo,
         peer_id: PeerId,
         r: &Rlp,
     ) -> Result<(), DownloaderImportError> {
@@ -404,7 +404,7 @@ impl SyncHandler {
     /// Called by peer once it has new block headers during sync
     fn on_peer_block_headers(
         sync: &mut ChainSync,
-        io: &mut SyncIo,
+        io: &mut dyn SyncIo,
         peer_id: PeerId,
         r: &Rlp,
     ) -> Result<(), DownloaderImportError> {
@@ -484,7 +484,7 @@ impl SyncHandler {
     /// Called by peer once it has new block receipts
     fn on_peer_block_receipts(
         sync: &mut ChainSync,
-        io: &mut SyncIo,
+        io: &mut dyn SyncIo,
         peer_id: PeerId,
         r: &Rlp,
     ) -> Result<(), DownloaderImportError> {
@@ -539,7 +539,7 @@ impl SyncHandler {
     /// Called when snapshot manifest is downloaded from a peer.
     fn on_snapshot_manifest(
         sync: &mut ChainSync,
-        io: &mut SyncIo,
+        io: &mut dyn SyncIo,
         peer_id: PeerId,
         r: &Rlp,
     ) -> Result<(), DownloaderImportError> {
@@ -580,7 +580,7 @@ impl SyncHandler {
     /// Called when snapshot data is downloaded from a peer.
     fn on_snapshot_data(
         sync: &mut ChainSync,
-        io: &mut SyncIo,
+        io: &mut dyn SyncIo,
         peer_id: PeerId,
         r: &Rlp,
     ) -> Result<(), DownloaderImportError> {
@@ -653,7 +653,7 @@ impl SyncHandler {
     /// Called by peer to report status
     fn on_peer_status(
         sync: &mut ChainSync,
-        io: &mut SyncIo,
+        io: &mut dyn SyncIo,
         peer_id: PeerId,
         r: &Rlp,
     ) -> Result<(), DownloaderImportError> {
@@ -768,7 +768,7 @@ impl SyncHandler {
     /// Called when peer sends us new transactions
     pub fn on_peer_transactions(
         sync: &ChainSync,
-        io: &mut SyncIo,
+        io: &mut dyn SyncIo,
         peer_id: PeerId,
         r: &Rlp,
     ) -> Result<(), PacketDecodeError> {
@@ -799,7 +799,7 @@ impl SyncHandler {
     /// Called when peer sends us signed private transaction packet
     fn on_signed_private_transaction(
         sync: &mut ChainSync,
-        _io: &mut SyncIo,
+        _io: &mut dyn SyncIo,
         peer_id: PeerId,
         r: &Rlp,
     ) -> Result<(), DownloaderImportError> {
@@ -832,7 +832,7 @@ impl SyncHandler {
     /// Called when peer sends us new private transaction packet
     fn on_private_transaction(
         sync: &mut ChainSync,
-        _io: &mut SyncIo,
+        _io: &mut dyn SyncIo,
         peer_id: PeerId,
         r: &Rlp,
     ) -> Result<(), DownloaderImportError> {

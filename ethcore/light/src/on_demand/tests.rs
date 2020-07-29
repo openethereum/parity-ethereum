@@ -51,7 +51,7 @@ impl EventContext for Context {
         }
     }
 
-    fn as_basic(&self) -> &BasicContext {
+    fn as_basic(&self) -> &dyn BasicContext {
         self
     }
 }

@@ -56,7 +56,7 @@ use verification::queue::{kind::blocks::Unverified, QueueInfo as BlockQueueInfo}
 /// State information to be used during client query
 pub enum StateOrBlock {
     /// State to be used, may be pending
-    State(Box<StateInfo>),
+    State(Box<dyn StateInfo>),
 
     /// Id of an existing block from a chain to get state from
     Block(BlockId),
@@ -68,8 +68,8 @@ impl<S: StateInfo + 'static> From<S> for StateOrBlock {
     }
 }
 
-impl From<Box<StateInfo>> for StateOrBlock {
-    fn from(info: Box<StateInfo>) -> StateOrBlock {
+impl From<Box<dyn StateInfo>> for StateOrBlock {
+    fn from(info: Box<dyn StateInfo>) -> StateOrBlock {
         StateOrBlock::State(info)
     }
 }
@@ -203,7 +203,7 @@ pub trait Call {
 /// Provides `engine` method
 pub trait EngineInfo {
     /// Get underlying engine object
-    fn engine(&self) -> &EthEngine;
+    fn engine(&self) -> &dyn EthEngine;
 }
 
 /// IO operations that should off-load heavy work to another thread.
@@ -353,7 +353,7 @@ pub trait BlockChainClient:
         &self,
         block: BlockId,
         analytics: CallAnalytics,
-    ) -> Result<Box<Iterator<Item = (H256, Executed)>>, CallError>;
+    ) -> Result<Box<dyn Iterator<Item = (H256, Executed)>>, CallError>;
 
     /// Returns traces matching given filter.
     fn filter_traces(&self, filter: TraceFilter) -> Option<Vec<LocalizedTrace>>;
@@ -501,7 +501,7 @@ pub trait EngineClient: Sync + Send + ChainInfo {
     fn epoch_transition_for(&self, parent_hash: H256) -> Option<::engines::EpochTransition>;
 
     /// Attempt to cast the engine client to a full client.
-    fn as_full_client(&self) -> Option<&BlockChainClient>;
+    fn as_full_client(&self) -> Option<&dyn BlockChainClient>;
 
     /// Get a block number by ID.
     fn block_number(&self, id: BlockId) -> Option<BlockNumber>;

@@ -105,7 +105,7 @@ where
 {
     /// Creates a new `EthPubSubClient` for `LightClient`.
     pub fn light(
-        client: Arc<LightChainClient>,
+        client: Arc<dyn LightChainClient>,
         on_demand: Arc<OD>,
         sync: Arc<S>,
         cache: Arc<Mutex<Cache>>,

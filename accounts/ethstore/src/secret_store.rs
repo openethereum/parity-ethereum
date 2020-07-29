@@ -195,7 +195,7 @@ pub trait SecretStore: SimpleSecretStore {
     /// Copies account between stores and vaults.
     fn copy_account(
         &self,
-        new_store: &SimpleSecretStore,
+        new_store: &dyn SimpleSecretStore,
         new_vault: SecretVaultRef,
         account: &StoreAccountRef,
         password: &Password,

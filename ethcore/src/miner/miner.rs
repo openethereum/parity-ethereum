@@ -206,7 +206,7 @@ pub enum Author {
     /// Sealing block is external and we only need a reward beneficiary (i.e. PoW)
     External(Address),
     /// Sealing is done internally, we need a way to create signatures to seal block (i.e. PoA)
-    Sealer(Box<EngineSigner>),
+    Sealer(Box<dyn EngineSigner>),
 }
 
 impl Author {
@@ -242,14 +242,14 @@ pub struct Miner {
     sealing: Mutex<SealingWork>,
     params: RwLock<AuthoringParams>,
     #[cfg(feature = "work-notify")]
-    listeners: RwLock<Vec<Box<NotifyWork>>>,
+    listeners: RwLock<Vec<Box<dyn NotifyWork>>>,
     nonce_cache: NonceCache,
     gas_pricer: Mutex<GasPricer>,
     options: MinerOptions,
     // TODO [ToDr] Arc is only required because of price updater
     transaction_queue: Arc<TransactionQueue>,
-    engine: Arc<EthEngine>,
-    accounts: Arc<LocalAccounts>,
+    engine: Arc<dyn EthEngine>,
+    accounts: Arc<dyn LocalAccounts>,
     io_channel: RwLock<Option<IoChannel<ClientIoMessage>>>,
     service_transaction_checker: Option<ServiceTransactionChecker>,
 }
@@ -257,13 +257,13 @@ pub struct Miner {
 impl Miner {
     /// Push listener that will handle new jobs
     #[cfg(feature = "work-notify")]
-    pub fn add_work_listener(&self, notifier: Box<NotifyWork>) {
+    pub fn add_work_listener(&self, notifier: Box<dyn NotifyWork>) {
         self.listeners.write().push(notifier);
         self.sealing.lock().enabled = true;
     }
 
     /// Set a callback to be notified about imported transactions' hashes.
-    pub fn add_transactions_listener(&self, f: Box<Fn(&[H256]) + Send + Sync>) {
+    pub fn add_transactions_listener(&self, f: Box<dyn Fn(&[H256]) + Send + Sync>) {
         self.transaction_queue.add_listener(f);
     }
 

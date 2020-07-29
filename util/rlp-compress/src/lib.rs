@@ -39,7 +39,7 @@ pub trait Decompressor {
 }
 
 /// Call this function to compress rlp.
-pub fn compress(c: &[u8], swapper: &Compressor) -> ElasticArray1024<u8> {
+pub fn compress(c: &[u8], swapper: &dyn Compressor) -> ElasticArray1024<u8> {
     let rlp = Rlp::new(c);
     if rlp.is_data() {
         ElasticArray1024::from_slice(
@@ -53,7 +53,7 @@ pub fn compress(c: &[u8], swapper: &Compressor) -> ElasticArray1024<u8> {
 }
 
 /// Call this function to decompress rlp.
-pub fn decompress(c: &[u8], swapper: &Decompressor) -> ElasticArray1024<u8> {
+pub fn decompress(c: &[u8], swapper: &dyn Decompressor) -> ElasticArray1024<u8> {
     let rlp = Rlp::new(c);
     if rlp.is_data() {
         ElasticArray1024::from_slice(

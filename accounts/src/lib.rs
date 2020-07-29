@@ -77,7 +77,7 @@ pub struct AccountProvider {
     /// Address book.
     address_book: RwLock<AddressBook>,
     /// Accounts on disk
-    sstore: Box<SecretStore>,
+    sstore: Box<dyn SecretStore>,
     /// Accounts unlocked with rolling tokens
     transient_sstore: EthMultiStore,
     /// Accounts in hardware wallets.
@@ -96,7 +96,7 @@ fn transient_sstore() -> EthMultiStore {
 
 impl AccountProvider {
     /// Creates new account provider.
-    pub fn new(sstore: Box<SecretStore>, settings: AccountProviderSettings) -> Self {
+    pub fn new(sstore: Box<dyn SecretStore>, settings: AccountProviderSettings) -> Self {
         let mut hardware_store = None;
 
         if settings.enable_hardware_wallets {

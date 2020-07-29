@@ -81,9 +81,9 @@ pub trait ServiceContract: Send + Sync {
     /// Update contract when new blocks are enacted. Returns true if contract is installed && up-to-date (i.e. chain is synced).
     fn update(&self) -> bool;
     /// Read recent contract logs. Returns topics of every entry.
-    fn read_logs(&self) -> Box<Iterator<Item = ServiceTask>>;
+    fn read_logs(&self) -> Box<dyn Iterator<Item = ServiceTask>>;
     /// Publish generated key.
-    fn read_pending_requests(&self) -> Box<Iterator<Item = (bool, ServiceTask)>>;
+    fn read_pending_requests(&self) -> Box<dyn Iterator<Item = (bool, ServiceTask)>>;
     /// Publish generated server key.
     fn publish_generated_server_key(
         &self,
@@ -158,7 +158,7 @@ pub struct OnChainServiceContract {
     /// Blockchain client.
     client: TrustedClient,
     /// This node key pair.
-    self_key_pair: Arc<NodeKeyPair>,
+    self_key_pair: Arc<dyn NodeKeyPair>,
     /// Contract registry name (if any).
     name: String,
     /// Contract address source.
@@ -201,7 +201,7 @@ impl OnChainServiceContract {
         client: TrustedClient,
         name: String,
         address_source: ContractAddress,
-        self_key_pair: Arc<NodeKeyPair>,
+        self_key_pair: Arc<dyn NodeKeyPair>,
     ) -> Self {
         let contract = OnChainServiceContract {
             mask: mask,
@@ -265,7 +265,7 @@ impl OnChainServiceContract {
         C: 'static + Fn(&Client, &Address, &BlockId) -> Result<U256, String>,
         R: 'static
             + Fn(
-                &NodeKeyPair,
+                &dyn NodeKeyPair,
                 &Client,
                 &Address,
                 &BlockId,
@@ -278,7 +278,7 @@ impl OnChainServiceContract {
         block: &BlockId,
         get_count: C,
         read_item: R,
-    ) -> Box<Iterator<Item = (bool, ServiceTask)>> {
+    ) -> Box<dyn Iterator<Item = (bool, ServiceTask)>> {
         get_count(&*client, contract_address, block)
             .map(|count| {
                 let client = client.clone();
@@ -297,7 +297,7 @@ impl OnChainServiceContract {
                     },
                     index: 0.into(),
                     length: count,
-                }) as Box<Iterator<Item = (bool, ServiceTask)>>
+                }) as Box<dyn Iterator<Item = (bool, ServiceTask)>>
             })
             .map_err(|error| {
                 warn!(target: "secretstore", "{}: creating pending requests iterator failed: {}",
@@ -330,7 +330,7 @@ impl ServiceContract for OnChainServiceContract {
         self.update_contract_address() && self.client.get().is_some()
     }
 
-    fn read_logs(&self) -> Box<Iterator<Item = ServiceTask>> {
+    fn read_logs(&self) -> Box<dyn Iterator<Item = ServiceTask>> {
         let client = match self.client.get() {
             Some(client) => client,
             None => {
@@ -416,7 +416,7 @@ impl ServiceContract for OnChainServiceContract {
         )
     }
 
-    fn read_pending_requests(&self) -> Box<Iterator<Item = (bool, ServiceTask)>> {
+    fn read_pending_requests(&self) -> Box<dyn Iterator<Item = (bool, ServiceTask)>> {
         let client = match self.client.get() {
             Some(client) => client,
             None => return Box::new(::std::iter::empty()),
@@ -439,7 +439,7 @@ impl ServiceContract for OnChainServiceContract {
                                 &ServerKeyGenerationService::read_pending_requests_count,
                                 &ServerKeyGenerationService::read_pending_request,
                             ))
-                                as Box<Iterator<Item = (bool, ServiceTask)>>,
+                                as Box<dyn Iterator<Item = (bool, ServiceTask)>>,
                             false => Box::new(::std::iter::empty()),
                         };
                         let iter = match self.mask.server_key_retrieval_requests {
@@ -787,7 +787,7 @@ impl ServerKeyGenerationService {
 
     /// Read pending request.
     fn read_pending_request(
-        self_key_pair: &NodeKeyPair,
+        self_key_pair: &dyn NodeKeyPair,
         client: &Client,
         contract_address: &Address,
         block: &BlockId,
@@ -881,7 +881,7 @@ impl ServerKeyRetrievalService {
 
     /// Read pending request.
     fn read_pending_request(
-        self_key_pair: &NodeKeyPair,
+        self_key_pair: &dyn NodeKeyPair,
         client: &Client,
         contract_address: &Address,
         block: &BlockId,
@@ -966,7 +966,7 @@ impl DocumentKeyStoreService {
 
     /// Read pending request.
     fn read_pending_request(
-        self_key_pair: &NodeKeyPair,
+        self_key_pair: &dyn NodeKeyPair,
         client: &Client,
         contract_address: &Address,
         block: &BlockId,
@@ -1118,7 +1118,7 @@ impl DocumentKeyShadowRetrievalService {
 
     /// Read pending request.
     fn read_pending_request(
-        self_key_pair: &NodeKeyPair,
+        self_key_pair: &dyn NodeKeyPair,
         client: &Client,
         contract_address: &Address,
         block: &BlockId,
@@ -1237,11 +1237,11 @@ pub mod tests {
             true
         }
 
-        fn read_logs(&self) -> Box<Iterator<Item = ServiceTask>> {
+        fn read_logs(&self) -> Box<dyn Iterator<Item = ServiceTask>> {
             Box::new(self.logs.clone().into_iter())
         }
 
-        fn read_pending_requests(&self) -> Box<Iterator<Item = (bool, ServiceTask)>> {
+        fn read_pending_requests(&self) -> Box<dyn Iterator<Item = (bool, ServiceTask)>> {
             Box::new(self.pending_requests.clone().into_iter())
         }
 

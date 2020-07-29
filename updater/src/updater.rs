@@ -141,11 +141,11 @@ pub struct Updater<
     // Useful environmental stuff.
     update_policy: UpdatePolicy,
     weak_self: Mutex<Weak<Updater<O, F, T, R>>>,
-    client: Weak<BlockChainClient>,
-    sync: Option<Weak<SyncProvider>>,
+    client: Weak<dyn BlockChainClient>,
+    sync: Option<Weak<dyn SyncProvider>>,
     fetcher: F,
     operations_client: O,
-    exit_handler: Mutex<Option<Box<Fn() + 'static + Send>>>,
+    exit_handler: Mutex<Option<Box<dyn Fn() + 'static + Send>>>,
 
     time_provider: T,
     rng: R,
@@ -194,11 +194,11 @@ pub trait OperationsClient: Send + Sync + 'static {
 
 /// `OperationsClient` that delegates calls to the operations contract.
 pub struct OperationsContractClient {
-    client: Weak<BlockChainClient>,
+    client: Weak<dyn BlockChainClient>,
 }
 
 impl OperationsContractClient {
-    fn new(client: Weak<BlockChainClient>) -> Self {
+    fn new(client: Weak<dyn BlockChainClient>) -> Self {
         OperationsContractClient { client }
     }
 
@@ -395,8 +395,8 @@ impl GenRange for ThreadRngGenRange {
 impl Updater {
     /// `Updater` constructor
     pub fn new(
-        client: &Weak<BlockChainClient>,
-        sync: &Weak<SyncProvider>,
+        client: &Weak<dyn BlockChainClient>,
+        sync: &Weak<dyn SyncProvider>,
         update_policy: UpdatePolicy,
         fetcher: fetch::Client,
     ) -> Arc<Updater> {
@@ -880,7 +880,7 @@ pub mod tests {
 
     #[derive(Clone)]
     struct FakeFetch {
-        on_done: Arc<Mutex<Option<Box<Fn(Result<PathBuf, Error>) + Send>>>>,
+        on_done: Arc<Mutex<Option<Box<dyn Fn(Result<PathBuf, Error>) + Send>>>>,
     }
 
     impl FakeFetch {
@@ -902,7 +902,7 @@ pub mod tests {
             &self,
             _hash: H256,
             _abort: fetch::Abort,
-            on_done: Box<Fn(Result<PathBuf, Error>) + Send>,
+            on_done: Box<dyn Fn(Result<PathBuf, Error>) + Send>,
         ) {
             *self.on_done.lock() = Some(on_done);
         }

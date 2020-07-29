@@ -136,7 +136,7 @@ mod tests {
     }
 
     fn should_replace(
-        replace: &ShouldReplace<VerifiedTransaction>,
+        replace: &dyn ShouldReplace<VerifiedTransaction>,
         old: VerifiedTransaction,
         new: VerifiedTransaction,
     ) -> Choice {

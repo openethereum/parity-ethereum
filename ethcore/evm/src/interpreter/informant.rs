@@ -96,7 +96,7 @@ mod inner {
             instruction: Instruction,
             info: &InstructionInfo,
             current_gas: &Cost,
-            stack: &Stack<U256>,
+            stack: &dyn Stack<U256>,
         ) {
             let time = self.last_instruction.elapsed();
             self.last_instruction = Instant::now();

@@ -702,7 +702,7 @@ impl<B: Backend> State<B> {
     ) -> TrieResult<H256>
     where
         FCachedStorageAt: Fn(&Account, &H256) -> Option<H256>,
-        FStorageAt: Fn(&Account, &HashDB<KeccakHasher, DBValue>, &H256) -> TrieResult<H256>,
+        FStorageAt: Fn(&Account, &dyn HashDB<KeccakHasher, DBValue>, &H256) -> TrieResult<H256>,
     {
         // Storage key search and update works like this:
         // 1. If there's an entry for the account in the local cache check for the key and return it if found.
@@ -1287,7 +1287,7 @@ impl<B: Backend> State<B> {
         require: RequireCache,
         account: &mut Account,
         state_db: &B,
-        db: &HashDB<KeccakHasher, DBValue>,
+        db: &dyn HashDB<KeccakHasher, DBValue>,
     ) -> bool {
         if let RequireCache::None = require {
             return true;

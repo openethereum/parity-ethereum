@@ -83,7 +83,7 @@ struct SessionCore<T: SessionTransport> {
     /// Session transport to communicate to other cluster nodes.
     pub transport: T,
     /// Key storage.
-    pub key_storage: Arc<KeyStorage>,
+    pub key_storage: Arc<dyn KeyStorage>,
     /// Administrator public key.
     pub admin_public: Option<Public>,
     /// SessionImpl completion condvar.
@@ -146,7 +146,7 @@ pub struct SessionParams<T: SessionTransport> {
     /// Session transport.
     pub transport: T,
     /// Key storage.
-    pub key_storage: Arc<KeyStorage>,
+    pub key_storage: Arc<dyn KeyStorage>,
     /// Administrator public key.
     pub admin_public: Option<Public>,
     /// Session nonce.
@@ -169,7 +169,7 @@ pub struct IsolatedSessionTransport {
     /// Id numbers of all new nodes.
     id_numbers: Option<BTreeMap<NodeId, Option<Secret>>>,
     /// Cluster.
-    cluster: Arc<Cluster>,
+    cluster: Arc<dyn Cluster>,
 }
 
 impl<T> SessionImpl<T>
@@ -1058,7 +1058,7 @@ impl IsolatedSessionTransport {
         session_id: SessionId,
         version: Option<H256>,
         nonce: u64,
-        cluster: Arc<Cluster>,
+        cluster: Arc<dyn Cluster>,
     ) -> Self {
         IsolatedSessionTransport {
             session: session_id,

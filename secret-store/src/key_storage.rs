@@ -77,17 +77,17 @@ pub trait KeyStorage: Send + Sync {
     /// Check if storage contains document encryption key
     fn contains(&self, document: &ServerKeyId) -> bool;
     /// Iterate through storage
-    fn iter<'a>(&'a self) -> Box<Iterator<Item = (ServerKeyId, DocumentKeyShare)> + 'a>;
+    fn iter<'a>(&'a self) -> Box<dyn Iterator<Item = (ServerKeyId, DocumentKeyShare)> + 'a>;
 }
 
 /// Persistent document encryption keys storage
 pub struct PersistentKeyStorage {
-    db: Arc<KeyValueDB>,
+    db: Arc<dyn KeyValueDB>,
 }
 
 /// Persistent document encryption keys storage iterator
 pub struct PersistentKeyStorageIterator<'a> {
-    iter: Box<Iterator<Item = (Box<[u8]>, Box<[u8]>)> + 'a>,
+    iter: Box<dyn Iterator<Item = (Box<[u8]>, Box<[u8]>)> + 'a>,
 }
 
 /// V0 of encrypted key share, as it is stored by key storage on the single key server.
@@ -172,14 +172,14 @@ type SerializableDocumentKeyShareVersionV3 = SerializableDocumentKeyShareVersion
 
 impl PersistentKeyStorage {
     /// Create new persistent document encryption keys storage
-    pub fn new(db: Arc<KeyValueDB>) -> Result<Self, Error> {
+    pub fn new(db: Arc<dyn KeyValueDB>) -> Result<Self, Error> {
         let db = upgrade_db(db)?;
 
         Ok(PersistentKeyStorage { db: db })
     }
 }
 
-fn upgrade_db(db: Arc<KeyValueDB>) -> Result<Arc<KeyValueDB>, Error> {
+fn upgrade_db(db: Arc<dyn KeyValueDB>) -> Result<Arc<dyn KeyValueDB>, Error> {
     let version = db.get(None, DB_META_KEY_VERSION)?;
     let version = version.and_then(|v| v.get(0).cloned()).unwrap_or(0);
     match version {
@@ -331,7 +331,7 @@ impl KeyStorage for PersistentKeyStorage {
             .unwrap_or(false)
     }
 
-    fn iter<'a>(&'a self) -> Box<Iterator<Item = (ServerKeyId, DocumentKeyShare)> + 'a> {
+    fn iter<'a>(&'a self) -> Box<dyn Iterator<Item = (ServerKeyId, DocumentKeyShare)> + 'a> {
         Box::new(PersistentKeyStorageIterator {
             iter: self.db.iter(None),
         })
@@ -506,7 +506,7 @@ pub mod tests {
             self.keys.read().contains_key(document)
         }
 
-        fn iter<'a>(&'a self) -> Box<Iterator<Item = (ServerKeyId, DocumentKeyShare)> + 'a> {
+        fn iter<'a>(&'a self) -> Box<dyn Iterator<Item = (ServerKeyId, DocumentKeyShare)> + 'a> {
             Box::new(self.keys.read().clone().into_iter())
         }
     }

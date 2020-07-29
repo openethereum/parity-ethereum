@@ -94,7 +94,7 @@ impl PodAccount {
     /// Place additional data into given hash DB.
     pub fn insert_additional(
         &self,
-        db: &mut HashDB<KeccakHasher, DBValue>,
+        db: &mut dyn HashDB<KeccakHasher, DBValue>,
         factory: &TrieFactory<KeccakHasher, RlpCodec>,
     ) {
         match self.code {

@@ -202,7 +202,7 @@ pub struct HeaderChain {
     candidates: RwLock<BTreeMap<u64, Entry>>,
     best_block: RwLock<BlockDescriptor>,
     live_epoch_proofs: RwLock<H256FastMap<EpochTransition>>,
-    db: Arc<KeyValueDB>,
+    db: Arc<dyn KeyValueDB>,
     col: Option<u32>,
     cache: Arc<Mutex<Cache>>,
 }
@@ -210,7 +210,7 @@ pub struct HeaderChain {
 impl HeaderChain {
     /// Create a new header chain given this genesis block and database to read from.
     pub fn new(
-        db: Arc<KeyValueDB>,
+        db: Arc<dyn KeyValueDB>,
         col: Option<u32>,
         spec: &Spec,
         cache: Arc<Mutex<Cache>>,
@@ -955,7 +955,7 @@ mod tests {
     use parking_lot::Mutex;
     use std::time::Duration;
 
-    fn make_db() -> Arc<KeyValueDB> {
+    fn make_db() -> Arc<dyn KeyValueDB> {
         Arc::new(kvdb_memorydb::create(0))
     }
 

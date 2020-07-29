@@ -22,7 +22,7 @@ use ethkey::Address;
 use Error;
 
 /// Import an account from a file.
-pub fn import_account(path: &Path, dst: &KeyDirectory) -> Result<Address, Error> {
+pub fn import_account(path: &Path, dst: &dyn KeyDirectory) -> Result<Address, Error> {
     let key_manager = DiskKeyFileManager::default();
     let existing_accounts = dst
         .load()?
@@ -45,7 +45,10 @@ pub fn import_account(path: &Path, dst: &KeyDirectory) -> Result<Address, Error>
 }
 
 /// Import all accounts from one directory to the other.
-pub fn import_accounts(src: &KeyDirectory, dst: &KeyDirectory) -> Result<Vec<Address>, Error> {
+pub fn import_accounts(
+    src: &dyn KeyDirectory,
+    dst: &dyn KeyDirectory,
+) -> Result<Vec<Address>, Error> {
     let accounts = src.load()?;
     let existing_accounts = dst
         .load()?
@@ -74,7 +77,7 @@ pub fn read_geth_accounts(testnet: bool) -> Vec<Address> {
 
 /// Import specific `desired` accounts from the Geth keystore into `dst`.
 pub fn import_geth_accounts(
-    dst: &KeyDirectory,
+    dst: &dyn KeyDirectory,
     desired: HashSet<Address>,
     testnet: bool,
 ) -> Result<Vec<Address>, Error> {

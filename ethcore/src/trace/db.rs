@@ -64,7 +64,7 @@ where
     /// hashes of cached traces
     cache_manager: RwLock<CacheManager<H256>>,
     /// db
-    db: Arc<BlockChainDB>,
+    db: Arc<dyn BlockChainDB>,
     /// tracing enabled
     enabled: bool,
     /// extras
@@ -76,7 +76,7 @@ where
     T: DatabaseExtras,
 {
     /// Creates new instance of `TraceDB`.
-    pub fn new(config: Config, db: Arc<BlockChainDB>, extras: Arc<T>) -> Self {
+    pub fn new(config: Config, db: Arc<dyn BlockChainDB>, extras: Arc<T>) -> Self {
         let mut batch = DBTransaction::new();
         let genesis = extras
             .block_hash(0)

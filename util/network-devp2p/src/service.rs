@@ -48,14 +48,14 @@ pub struct NetworkService {
     host: RwLock<Option<Arc<Host>>>,
     host_handler: Arc<HostHandler>,
     config: NetworkConfiguration,
-    filter: Option<Arc<ConnectionFilter>>,
+    filter: Option<Arc<dyn ConnectionFilter>>,
 }
 
 impl NetworkService {
     /// Starts IO event loop
     pub fn new(
         config: NetworkConfiguration,
-        filter: Option<Arc<ConnectionFilter>>,
+        filter: Option<Arc<dyn ConnectionFilter>>,
     ) -> Result<NetworkService, Error> {
         let host_handler = Arc::new(HostHandler {
             public_url: RwLock::new(None),
@@ -75,7 +75,7 @@ impl NetworkService {
     /// Register a new protocol handler with the event loop.
     pub fn register_protocol(
         &self,
-        handler: Arc<NetworkProtocolHandler + Send + Sync>,
+        handler: Arc<dyn NetworkProtocolHandler + Send + Sync>,
         protocol: ProtocolId,
         // version id + packet count
         versions: &[(u8, u8)],
@@ -192,7 +192,7 @@ impl NetworkService {
     /// Executes action in the network context
     pub fn with_context<F>(&self, protocol: ProtocolId, action: F)
     where
-        F: FnOnce(&NetworkContext),
+        F: FnOnce(&dyn NetworkContext),
     {
         let io = IoContext::new(self.io_service.channel(), 0);
         let host = self.host.read();
@@ -204,7 +204,7 @@ impl NetworkService {
     /// Evaluates function in the network context
     pub fn with_context_eval<F, T>(&self, protocol: ProtocolId, action: F) -> Option<T>
     where
-        F: FnOnce(&NetworkContext) -> T,
+        F: FnOnce(&dyn NetworkContext) -> T,
     {
         let io = IoContext::new(self.io_service.channel(), 0);
         let host = self.host.read();

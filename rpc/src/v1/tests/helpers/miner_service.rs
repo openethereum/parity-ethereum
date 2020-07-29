@@ -63,7 +63,7 @@ pub struct TestMinerService {
     /// Minimum gas price
     pub min_gas_price: RwLock<Option<U256>>,
     /// Signer (if any)
-    pub signer: RwLock<Option<Box<EngineSigner>>>,
+    pub signer: RwLock<Option<Box<dyn EngineSigner>>>,
 
     authoring_params: RwLock<AuthoringParams>,
 }
@@ -110,7 +110,7 @@ impl StateClient for TestMinerService {
 }
 
 impl EngineInfo for TestMinerService {
-    fn engine(&self) -> &EthEngine {
+    fn engine(&self) -> &dyn EthEngine {
         unimplemented!()
     }
 }

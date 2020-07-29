@@ -721,26 +721,26 @@ impl<T: MessageHandler> Network<T> {
 }
 
 impl<T: MessageHandler> ::network::NetworkProtocolHandler for Network<T> {
-    fn initialize(&self, io: &NetworkContext) {
+    fn initialize(&self, io: &dyn NetworkContext) {
         // set up broadcast timer (< 1s)
         io.register_timer(RALLY_TOKEN, RALLY_TIMEOUT)
             .expect("Failed to initialize message rally timer");
     }
 
-    fn read(&self, io: &NetworkContext, peer: &PeerId, packet_id: u8, data: &[u8]) {
+    fn read(&self, io: &dyn NetworkContext, peer: &PeerId, packet_id: u8, data: &[u8]) {
         self.on_packet(io, peer, packet_id, data)
     }
 
-    fn connected(&self, io: &NetworkContext, peer: &PeerId) {
+    fn connected(&self, io: &dyn NetworkContext, peer: &PeerId) {
         // peer with higher ID should begin rallying.
         self.on_connect(io, peer)
     }
 
-    fn disconnected(&self, _io: &NetworkContext, peer: &PeerId) {
+    fn disconnected(&self, _io: &dyn NetworkContext, peer: &PeerId) {
         self.on_disconnect(peer)
     }
 
-    fn timeout(&self, io: &NetworkContext, timer: TimerToken) {
+    fn timeout(&self, io: &dyn NetworkContext, timer: TimerToken) {
         // rally with each peer and handle timeouts.
         match timer {
             RALLY_TOKEN => self.rally(io),
@@ -754,13 +754,13 @@ impl<T: MessageHandler> ::network::NetworkProtocolHandler for Network<T> {
 pub struct ParityExtensions;
 
 impl ::network::NetworkProtocolHandler for ParityExtensions {
-    fn initialize(&self, _io: &NetworkContext) {}
+    fn initialize(&self, _io: &dyn NetworkContext) {}
 
-    fn read(&self, _io: &NetworkContext, _peer: &PeerId, _id: u8, _msg: &[u8]) {}
+    fn read(&self, _io: &dyn NetworkContext, _peer: &PeerId, _id: u8, _msg: &[u8]) {}
 
-    fn connected(&self, _io: &NetworkContext, _peer: &PeerId) {}
+    fn connected(&self, _io: &dyn NetworkContext, _peer: &PeerId) {}
 
-    fn disconnected(&self, _io: &NetworkContext, _peer: &PeerId) {}
+    fn disconnected(&self, _io: &dyn NetworkContext, _peer: &PeerId) {}
 
-    fn timeout(&self, _io: &NetworkContext, _timer: TimerToken) {}
+    fn timeout(&self, _io: &dyn NetworkContext, _timer: TimerToken) {}
 }

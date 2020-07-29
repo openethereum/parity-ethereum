@@ -691,7 +691,7 @@ where
     let private_tx_provider = private_tx_service.provider();
     let connection_filter = connection_filter_address.map(|a| {
         Arc::new(NodeFilter::new(
-            Arc::downgrade(&client) as Weak<BlockChainClient>,
+            Arc::downgrade(&client) as Weak<dyn BlockChainClient>,
             a,
         ))
     });
@@ -762,8 +762,8 @@ where
         None
     };
 
-    let private_tx_sync: Option<Arc<PrivateTxHandler>> = match cmd.private_tx_enabled {
-        true => Some(private_tx_service.clone() as Arc<PrivateTxHandler>),
+    let private_tx_sync: Option<Arc<dyn PrivateTxHandler>> = match cmd.private_tx_enabled {
+        true => Some(private_tx_service.clone() as Arc<dyn PrivateTxHandler>),
         false => None,
     };
 
@@ -779,7 +779,7 @@ where
         attached_protos,
         connection_filter
             .clone()
-            .map(|f| f as Arc<::sync::ConnectionFilter + 'static>),
+            .map(|f| f as Arc<dyn crate::sync::ConnectionFilter + 'static>),
     )
     .map_err(|e| format!("Sync error: {}", e))?;
 
@@ -840,7 +840,7 @@ where
     // the updater service
     let updater_fetch = fetch.clone();
     let updater = Updater::new(
-        &Arc::downgrade(&(service.client() as Arc<BlockChainClient>)),
+        &Arc::downgrade(&(service.client() as Arc<dyn BlockChainClient>)),
         &Arc::downgrade(&sync_provider),
         update_policy,
         hash_fetch::Client::with_fetch(contract_client.clone(), updater_fetch, runtime.executor()),
@@ -1002,7 +1002,7 @@ enum RunningClientInner {
         >,
         informant: Arc<Informant<LightNodeInformantData>>,
         client: Arc<LightClient>,
-        keep_alive: Box<Any>,
+        keep_alive: Box<dyn Any>,
     },
     Full {
         rpc:
@@ -1010,7 +1010,7 @@ enum RunningClientInner {
         informant: Arc<Informant<FullNodeInformantData>>,
         client: Arc<Client>,
         client_service: Arc<ClientService>,
-        keep_alive: Box<Any>,
+        keep_alive: Box<dyn Any>,
     },
 }
 

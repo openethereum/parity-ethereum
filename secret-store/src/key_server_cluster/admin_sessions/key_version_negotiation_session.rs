@@ -93,7 +93,7 @@ struct SessionCore<T: SessionTransport> {
     /// Key share.
     pub key_share: Option<DocumentKeyShare>,
     /// Session result computer.
-    pub result_computer: Arc<SessionResultComputer>,
+    pub result_computer: Arc<dyn SessionResultComputer>,
     /// Session transport.
     pub transport: T,
     /// Session nonce.
@@ -129,7 +129,7 @@ pub struct SessionParams<T: SessionTransport> {
     /// Key share.
     pub key_share: Option<DocumentKeyShare>,
     /// Session result computer.
-    pub result_computer: Arc<SessionResultComputer>,
+    pub result_computer: Arc<dyn SessionResultComputer>,
     /// Session transport to communicate to other cluster nodes.
     pub transport: T,
     /// Session nonce.
@@ -150,7 +150,7 @@ enum SessionState {
 /// Isolated session transport.
 pub struct IsolatedSessionTransport {
     /// Cluster.
-    pub cluster: Arc<Cluster>,
+    pub cluster: Arc<dyn Cluster>,
     /// Key id.
     pub key_id: SessionId,
     /// Sub session id.

@@ -44,7 +44,7 @@ pub struct ApiMask {
 
 /// Combined HTTP + service contract listener.
 pub struct Listener {
-    key_server: Arc<KeyServer>,
+    key_server: Arc<dyn KeyServer>,
     _http: Option<http_listener::KeyServerHttpListener>,
     _contract: Option<Arc<service_contract_listener::ServiceContractListener>>,
 }
@@ -64,7 +64,7 @@ impl ApiMask {
 impl Listener {
     /// Create new listener.
     pub fn new(
-        key_server: Arc<KeyServer>,
+        key_server: Arc<dyn KeyServer>,
         http: Option<http_listener::KeyServerHttpListener>,
         contract: Option<Arc<service_contract_listener::ServiceContractListener>>,
     ) -> Self {

@@ -52,7 +52,7 @@ use tokio_io::{AsyncRead, AsyncWrite};
 /// Start handshake procedure with another node from the cluster.
 pub fn handshake<A>(
     a: A,
-    self_key_pair: Arc<NodeKeyPair>,
+    self_key_pair: Arc<dyn NodeKeyPair>,
     trusted_nodes: BTreeSet<NodeId>,
 ) -> Handshake<A>
 where
@@ -70,7 +70,7 @@ where
 pub fn handshake_with_init_data<A>(
     a: A,
     init_data: Result<(H256, KeyPair), Error>,
-    self_key_pair: Arc<NodeKeyPair>,
+    self_key_pair: Arc<dyn NodeKeyPair>,
     trusted_nodes: BTreeSet<NodeId>,
 ) -> Handshake<A>
 where
@@ -118,7 +118,7 @@ where
 }
 
 /// Wait for handshake procedure to be started by another node from the cluster.
-pub fn accept_handshake<A>(a: A, self_key_pair: Arc<NodeKeyPair>) -> Handshake<A>
+pub fn accept_handshake<A>(a: A, self_key_pair: Arc<dyn NodeKeyPair>) -> Handshake<A>
 where
     A: AsyncWrite + AsyncRead,
 {
@@ -173,7 +173,7 @@ pub struct Handshake<A> {
     is_active: bool,
     error: Option<(A, Result<HandshakeResult, Error>)>,
     state: HandshakeState<A>,
-    self_key_pair: Arc<NodeKeyPair>,
+    self_key_pair: Arc<dyn NodeKeyPair>,
     self_session_key_pair: Option<KeyPair>,
     self_confirmation_plain: H256,
     trusted_nodes: Option<BTreeSet<NodeId>>,
@@ -221,7 +221,7 @@ where
     }
 
     fn make_private_key_signature_message(
-        self_key_pair: &NodeKeyPair,
+        self_key_pair: &dyn NodeKeyPair,
         confirmation_plain: &H256,
     ) -> Result<Message, Error> {
         Ok(Message::Cluster(ClusterMessage::NodePrivateKeySignature(

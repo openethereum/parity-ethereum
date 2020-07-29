@@ -26,7 +26,7 @@ use tokio::net::TcpStream;
 /// Create future for accepting incoming connection.
 pub fn accept_connection(
     stream: TcpStream,
-    self_key_pair: Arc<NodeKeyPair>,
+    self_key_pair: Arc<dyn NodeKeyPair>,
 ) -> Deadline<AcceptConnection> {
     // TODO: This could fail so it would be better either to accept the
     // address as a separate argument or return a result.

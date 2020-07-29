@@ -123,7 +123,11 @@ impl whisper::rpc::PoolHandle for WhisperPoolHandle {
 }
 
 impl WhisperPoolHandle {
-    fn with_proto_context(&self, proto: net::ProtocolId, f: &mut FnMut(&net::NetworkContext)) {
+    fn with_proto_context(
+        &self,
+        proto: net::ProtocolId,
+        f: &mut dyn FnMut(&dyn net::NetworkContext),
+    ) {
         self.net.with_context_eval(proto, f);
     }
 }
