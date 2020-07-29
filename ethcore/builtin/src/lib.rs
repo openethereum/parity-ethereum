@@ -16,7 +16,7 @@
 
 //! Standard built-in contracts.
 
-#![warn(missing_docs)]
+#![allow(missing_docs)]
 
 use std::{
     cmp::{max, min},

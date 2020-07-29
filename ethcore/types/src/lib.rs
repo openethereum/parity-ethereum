@@ -31,7 +31,8 @@
 //! we should try to dissolve that crate in favour of more fine-grained crates,
 //! by moving the types closer to where they are actually required.
 
-#![warn(missing_docs, unused_extern_crates)]
+#![allow(missing_docs)]
+#![warn(unused_extern_crates)]
 
 extern crate ethereum_types;
 extern crate ethjson;
