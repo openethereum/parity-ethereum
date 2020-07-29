@@ -251,7 +251,7 @@ impl Fetcher {
                 }
 
                 // state transition not triggered until drain is finished.
-                (SyncRound::Fetch(self))
+                SyncRound::Fetch(self)
             }
         }
     }

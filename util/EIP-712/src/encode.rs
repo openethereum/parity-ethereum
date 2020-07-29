@@ -45,7 +45,7 @@ fn check_hex(string: &str) -> Result<()> {
 fn build_dependencies<'a>(
     message_type: &'a str,
     message_types: &'a MessageTypes,
-) -> Option<(HashSet<&'a str>)> {
+) -> Option<HashSet<&'a str>> {
     if message_types.get(message_type).is_none() {
         return None;
     }
