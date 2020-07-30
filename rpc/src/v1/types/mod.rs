@@ -49,9 +49,7 @@ mod work;
 pub mod pubsub;
 
 pub use self::{
-    account_info::{
-        AccountInfo, EthAccount, ExtAccountInfo, HwAccountInfo, RecoveredAccount, StorageProof,
-    },
+    account_info::{AccountInfo, EthAccount, ExtAccountInfo, RecoveredAccount, StorageProof},
     block::{Block, BlockTransactions, Header, Rich, RichBlock, RichHeader},
     block_number::{block_number_to_id, BlockNumber, LightBlockNumber},
     bytes::Bytes,

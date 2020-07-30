@@ -60,15 +60,6 @@ pub struct ExtAccountInfo {
     pub uuid: Option<String>,
 }
 
-/// Hardware wallet information.
-#[derive(Debug, Default, Clone, PartialEq, Serialize)]
-pub struct HwAccountInfo {
-    /// Device name.
-    pub name: String,
-    /// Device manufacturer.
-    pub manufacturer: String,
-}
-
 /// account derived from a signature
 /// as well as information that tells if it is valid for
 /// the current chain
