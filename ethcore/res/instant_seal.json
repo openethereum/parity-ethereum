@@ -27,6 +27,11 @@
 		"eip145Transition": "0x0",
 		"eip1014Transition": "0x0",
 		"eip1052Transition": "0x0",
+		"eip1283Transition": "0x0",
+		"eip1344Transition": "0x0",
+		"eip1706Transition": "0x0",
+		"eip1884Transition": "0x0",
+		"eip2028Transition": "0x0",
 		"wasmActivationTransition": "0x0"
 	},
 	"genesis": {
