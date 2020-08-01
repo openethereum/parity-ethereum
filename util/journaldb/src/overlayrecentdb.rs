@@ -394,6 +394,10 @@ impl JournalDB for OverlayRecentDB {
 			journal_overlay.earliest_era = Some(end_era + 1);
 		}
 
+		//garbage collection on MemoryDB and journal HashMaps;
+		journal_overlay.backing_overlay.shrink_to_fit();
+		journal_overlay.journal.shrink_to_fit();
+
 		Ok(ops as u32)
 	}
 

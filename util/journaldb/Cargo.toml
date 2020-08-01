@@ -14,7 +14,7 @@ parity-util-mem = "0.7"
 keccak-hasher = { path = "../keccak-hasher" }
 kvdb = "0.7"
 log = "0.4"
-memory-db = "0.21.1"
+memory-db = "0.24.1"
 parking_lot = "0.10.0"
 fastmap = { path = "../../util/fastmap" }
 rlp = "0.4.5"

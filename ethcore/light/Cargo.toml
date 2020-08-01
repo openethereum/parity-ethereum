@@ -18,7 +18,7 @@ ethcore-blockchain = { path = "../blockchain" }
 ethereum-types = "0.9.2"
 executive-state = { path = "../executive-state" }
 machine = { path = "../machine" }
-memory-db = "0.21.1"
+memory-db = "0.24.1"
 trie-db = "0.21.0"
 patricia-trie-ethereum = { path = "../../util/patricia-trie-ethereum" }
 ethcore-network = { path = "../../util/network" }

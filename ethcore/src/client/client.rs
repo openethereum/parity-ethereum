@@ -970,7 +970,8 @@ impl Client {
 		// If a snapshot is under way, no pruning happens and memory consumption is allowed to
 		// increase above the memory target until the snapshot has finished.
 		loop {
-			let needs_pruning = state_db.journal_db().journal_size() >= self.config.history_mem;
+			let journal_size = state_db.journal_db().journal_size();
+			let needs_pruning = journal_size >= self.config.history_mem;
 
 			if !needs_pruning {
 				break
@@ -983,12 +984,12 @@ impl Client {
 						// Note: journal_db().mem_used() can be used for a more accurate memory
 						// consumption measurement but it can be expensive so sticking with the
 						// faster `journal_size()` instead.
-						trace!(target: "pruning", "Pruning is paused at era {} (snapshot under way); earliest era={}, latest era={}, journal_size={} – Not pruning.",
-						       freeze_at, earliest_era, latest_era, state_db.journal_db().journal_size());
+						info!(target: "pruning", "Pruning is paused at era {} (snapshot under way); earliest era={}, latest era={}, journal_size={} – Not pruning.",
+						       freeze_at, earliest_era, latest_era, journal_size);
 						break;
 					}
-					trace!(target: "pruning", "Pruning state for ancient era #{}; latest era={}, journal_size={}",
-					       earliest_era, latest_era, state_db.journal_db().journal_size());
+					info!(target: "pruning", "Pruning state for ancient era #{}; latest era={}, journal_size={}",
+					       earliest_era, latest_era, journal_size);
 					match chain.block_hash(earliest_era) {
 						Some(ancient_hash) => {
 							let mut batch = DBTransaction::new();
@@ -2611,7 +2612,7 @@ impl SnapshotClient for Client {
 		self.snapshotting_at.store(actual_block_nr, Ordering::SeqCst);
 		{
 			scopeguard::defer! {{
-				trace!(target: "snapshot", "Re-enabling pruning.");
+				info!(target: "snapshot", "Re-enabling pruning.");
 				self.snapshotting_at.store(0, Ordering::SeqCst)
 			}};
 			let chunker = snapshot::chunker(self.engine.snapshot_mode()).ok_or_else(|| SnapshotError::SnapshotsUnsupported)?;
