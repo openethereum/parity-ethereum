@@ -2,6 +2,18 @@
 
 ```docker build -f docker/ubuntu/Dockerfile --tag ethcore/openethereum:branch_or_tag_name .```
 
+## Usage - Alpine
+
+Builds a lightweight non-root OpenEthereum docker image:
+```
+git clone https://github.com/openethereum/openethereum.git
+cd openethereum
+
+OPENETHEREUM_IMAGE_REPO=eth1.0:openethereum \
+OPENETHEREUM_IMAGE_TAG=eth1.0-openethereum \
+./scripts/docker/alpine/build.sh
+```
+
 ## Usage - CentOS
 
 Builds a lightweight non-root OpenEthereum docker image:
