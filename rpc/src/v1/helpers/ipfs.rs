@@ -16,17 +16,17 @@
 
 //! IPFS utility functions
 
-use multihash;
+use super::errors;
 use cid::{Cid, Codec, Version};
 use crypto::digest;
 use jsonrpc_core::Error;
+use multihash;
 use v1::types::Bytes;
-use super::errors;
 
 /// Compute CIDv0 from protobuf encoded bytes.
 pub fn cid(content: Bytes) -> Result<String, Error> {
-	let hash = digest::sha256(&content.0);
-	let mh = multihash::encode(multihash::Hash::SHA2256, &*hash).map_err(errors::encoding)?;
-	let cid = Cid::new(Codec::DagProtobuf, Version::V0, &mh);
-	Ok(cid.to_string())
+    let hash = digest::sha256(&content.0);
+    let mh = multihash::encode(multihash::Hash::SHA2256, &*hash).map_err(errors::encoding)?;
+    let cid = Cid::new(Codec::DagProtobuf, Version::V0, &mh);
+    Ok(cid.to_string())
 }

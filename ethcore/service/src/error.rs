@@ -19,13 +19,13 @@
 #![allow(deprecated)]
 
 use ethcore;
-use io;
 use ethcore_private_tx;
+use io;
 
 error_chain! {
-	foreign_links {
-		Ethcore(ethcore::error::Error);
-		IoError(io::IoError);
-		PrivateTransactions(ethcore_private_tx::Error);
-	}
+    foreign_links {
+        Ethcore(ethcore::error::Error);
+        IoError(io::IoError);
+        PrivateTransactions(ethcore_private_tx::Error);
+    }
 }

@@ -14,45 +14,54 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::fmt;
-use serde::{Serialize, Serializer, Deserialize, Deserializer};
-use serde::de::{Error as SerdeError, Visitor};
 use super::Error;
+use serde::{
+    de::{Error as SerdeError, Visitor},
+    Deserialize, Deserializer, Serialize, Serializer,
+};
+use std::fmt;
 
 #[derive(Debug, PartialEq)]
 pub enum Version {
-	V3,
+    V3,
 }
 
 impl Serialize for Version {
-	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-	where S: Serializer {
-		match *self {
-			Version::V3 => serializer.serialize_u64(3)
-		}
-	}
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match *self {
+            Version::V3 => serializer.serialize_u64(3),
+        }
+    }
 }
 
 impl<'a> Deserialize<'a> for Version {
-	fn deserialize<D>(deserializer: D) -> Result<Version, D::Error>
-	where D: Deserializer<'a> {
-		deserializer.deserialize_any(VersionVisitor)
-	}
+    fn deserialize<D>(deserializer: D) -> Result<Version, D::Error>
+    where
+        D: Deserializer<'a>,
+    {
+        deserializer.deserialize_any(VersionVisitor)
+    }
 }
 
 struct VersionVisitor;
 
 impl<'a> Visitor<'a> for VersionVisitor {
-	type Value = Version;
+    type Value = Version;
 
-	fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-		write!(formatter, "a valid key version identifier")
-	}
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        write!(formatter, "a valid key version identifier")
+    }
 
-	fn visit_u64<E>(self, value: u64) -> Result<Self::Value, E> where E: SerdeError {
-		match value {
-			3 => Ok(Version::V3),
-			_ => Err(SerdeError::custom(Error::UnsupportedVersion))
-		}
-	}
+    fn visit_u64<E>(self, value: u64) -> Result<Self::Value, E>
+    where
+        E: SerdeError,
+    {
+        match value {
+            3 => Ok(Version::V3),
+            _ => Err(SerdeError::custom(Error::UnsupportedVersion)),
+        }
+    }
 }

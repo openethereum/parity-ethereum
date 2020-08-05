@@ -22,34 +22,44 @@ use parking_lot::Mutex;
 
 /// Mocked snapshot service (used for sync info extensions).
 pub struct TestSnapshotService {
-	status: Mutex<RestorationStatus>,
+    status: Mutex<RestorationStatus>,
 }
 
 impl TestSnapshotService {
-	/// Create a test snapshot service. Only the `status` function matters -- it'll
-	/// return `Inactive` by default.
-	pub fn new() -> Self {
-		TestSnapshotService {
-			status: Mutex::new(RestorationStatus::Inactive),
-		}
-	}
+    /// Create a test snapshot service. Only the `status` function matters -- it'll
+    /// return `Inactive` by default.
+    pub fn new() -> Self {
+        TestSnapshotService {
+            status: Mutex::new(RestorationStatus::Inactive),
+        }
+    }
 
-	/// Set the restoration status.
-	pub fn set_status(&self, status: RestorationStatus) {
-		*self.status.lock() = status;
-	}
+    /// Set the restoration status.
+    pub fn set_status(&self, status: RestorationStatus) {
+        *self.status.lock() = status;
+    }
 }
 
 impl SnapshotService for TestSnapshotService {
-	fn manifest(&self) -> Option<ManifestData> { None }
-	fn supported_versions(&self) -> Option<(u64, u64)> { None }
-	fn completed_chunks(&self) -> Option<Vec<H256>> { Some(vec![]) }
-	fn chunk(&self, _hash: H256) -> Option<Bytes> { None }
-	fn status(&self) -> RestorationStatus { self.status.lock().clone() }
-	fn begin_restore(&self, _manifest: ManifestData) { }
-	fn abort_restore(&self) { }
-	fn abort_snapshot(&self) {}
-	fn restore_state_chunk(&self, _hash: H256, _chunk: Bytes) { }
-	fn restore_block_chunk(&self, _hash: H256, _chunk: Bytes) { }
-	fn shutdown(&self) { }
+    fn manifest(&self) -> Option<ManifestData> {
+        None
+    }
+    fn supported_versions(&self) -> Option<(u64, u64)> {
+        None
+    }
+    fn completed_chunks(&self) -> Option<Vec<H256>> {
+        Some(vec![])
+    }
+    fn chunk(&self, _hash: H256) -> Option<Bytes> {
+        None
+    }
+    fn status(&self) -> RestorationStatus {
+        self.status.lock().clone()
+    }
+    fn begin_restore(&self, _manifest: ManifestData) {}
+    fn abort_restore(&self) {}
+    fn abort_snapshot(&self) {}
+    fn restore_state_chunk(&self, _hash: H256, _chunk: Bytes) {}
+    fn restore_block_chunk(&self, _hash: H256, _chunk: Bytes) {}
+    fn shutdown(&self) {}
 }

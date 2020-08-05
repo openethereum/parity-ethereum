@@ -15,49 +15,49 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use super::{ManifestData, RestorationStatus};
-use ethereum_types::H256;
 use bytes::Bytes;
+use ethereum_types::H256;
 
 /// The interface for a snapshot network service.
 /// This handles:
 ///    - restoration of snapshots to temporary databases.
 ///    - responding to queries for snapshot manifests and chunks
-pub trait SnapshotService : Sync + Send {
-	/// Query the most recent manifest data.
-	fn manifest(&self) -> Option<ManifestData>;
+pub trait SnapshotService: Sync + Send {
+    /// Query the most recent manifest data.
+    fn manifest(&self) -> Option<ManifestData>;
 
-	/// Get the supported range of snapshot version numbers.
-	/// `None` indicates warp sync isn't supported by the consensus engine.
-	fn supported_versions(&self) -> Option<(u64, u64)>;
+    /// Get the supported range of snapshot version numbers.
+    /// `None` indicates warp sync isn't supported by the consensus engine.
+    fn supported_versions(&self) -> Option<(u64, u64)>;
 
-	/// Returns a list of the completed chunks
-	fn completed_chunks(&self) -> Option<Vec<H256>>;
+    /// Returns a list of the completed chunks
+    fn completed_chunks(&self) -> Option<Vec<H256>>;
 
-	/// Get raw chunk for a given hash.
-	fn chunk(&self, hash: H256) -> Option<Bytes>;
+    /// Get raw chunk for a given hash.
+    fn chunk(&self, hash: H256) -> Option<Bytes>;
 
-	/// Ask the snapshot service for the restoration status.
-	fn status(&self) -> RestorationStatus;
+    /// Ask the snapshot service for the restoration status.
+    fn status(&self) -> RestorationStatus;
 
-	/// Begin snapshot restoration.
-	/// If restoration in-progress, this will reset it.
-	/// From this point on, any previous snapshot may become unavailable.
-	fn begin_restore(&self, manifest: ManifestData);
+    /// Begin snapshot restoration.
+    /// If restoration in-progress, this will reset it.
+    /// From this point on, any previous snapshot may become unavailable.
+    fn begin_restore(&self, manifest: ManifestData);
 
-	/// Abort an in-progress restoration if there is one.
-	fn abort_restore(&self);
+    /// Abort an in-progress restoration if there is one.
+    fn abort_restore(&self);
 
-	/// Feed a raw state chunk to the service to be processed asynchronously.
-	/// no-op if not currently restoring.
-	fn restore_state_chunk(&self, hash: H256, chunk: Bytes);
+    /// Feed a raw state chunk to the service to be processed asynchronously.
+    /// no-op if not currently restoring.
+    fn restore_state_chunk(&self, hash: H256, chunk: Bytes);
 
-	/// Feed a raw block chunk to the service to be processed asynchronously.
-	/// no-op if currently restoring.
-	fn restore_block_chunk(&self, hash: H256, chunk: Bytes);
+    /// Feed a raw block chunk to the service to be processed asynchronously.
+    /// no-op if currently restoring.
+    fn restore_block_chunk(&self, hash: H256, chunk: Bytes);
 
-	/// Abort in-progress snapshotting if there is one.
-	fn abort_snapshot(&self);
+    /// Abort in-progress snapshotting if there is one.
+    fn abort_snapshot(&self);
 
-	/// Shutdown the Snapshot Service by aborting any ongoing restore
-	fn shutdown(&self);
+    /// Shutdown the Snapshot Service by aborting any ongoing restore
+    fn shutdown(&self);
 }

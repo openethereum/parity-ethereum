@@ -14,12 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! This crate allows automatic caching of `T.len()` with an api that 
+//! This crate allows automatic caching of `T.len()` with an api that
 //! allows drop in replacement for `parking_lot`
 //! [`Mutex`](../lock_api/struct.Mutex.html)
 //! and [`RwLock`](../lock_api/struct.RwLock.html) for most common use-cases.
 //!
-//! This crate implements `Len` for the following types: 
+//! This crate implements `Len` for the following types:
 //! `std::collections::{VecDeque, LinkedList, HashMap, BTreeMap, HashSet, BTreeSet, BinaryHeap}`
 //!
 //! ## Example
@@ -38,8 +38,10 @@
 //!	```
 
 extern crate parking_lot;
-use std::collections::{VecDeque, LinkedList, HashMap, BTreeMap, HashSet, BTreeSet, BinaryHeap};
-use std::hash::Hash;
+use std::{
+    collections::{BTreeMap, BTreeSet, BinaryHeap, HashMap, HashSet, LinkedList, VecDeque},
+    hash::Hash,
+};
 
 pub mod mutex;
 pub mod rwlock;
@@ -51,37 +53,53 @@ pub use rwlock::LenCachingRwLock;
 /// with [`LenCachingMutex`](mutex/struct.LenCachingMutex.html)
 /// or  [`LenCachingRwLock`](rwlock/struct.LenCachingRwLock.html)
 pub trait Len {
-	fn len(&self) -> usize;
+    fn len(&self) -> usize;
 }
 
 impl<T> Len for Vec<T> {
-	fn len(&self) -> usize { Vec::len(self) }
+    fn len(&self) -> usize {
+        Vec::len(self)
+    }
 }
 
 impl<T> Len for VecDeque<T> {
-	fn len(&self) -> usize { VecDeque::len(self) }
+    fn len(&self) -> usize {
+        VecDeque::len(self)
+    }
 }
 
 impl<T> Len for LinkedList<T> {
-	fn len(&self) -> usize { LinkedList::len(self) }
+    fn len(&self) -> usize {
+        LinkedList::len(self)
+    }
 }
 
 impl<K: Eq + Hash, V> Len for HashMap<K, V> {
-	fn len(&self) -> usize { HashMap::len(self) }
+    fn len(&self) -> usize {
+        HashMap::len(self)
+    }
 }
 
 impl<K, V> Len for BTreeMap<K, V> {
-	fn len(&self) -> usize { BTreeMap::len(self) }
+    fn len(&self) -> usize {
+        BTreeMap::len(self)
+    }
 }
 
 impl<T: Eq + Hash> Len for HashSet<T> {
-	fn len(&self) -> usize { HashSet::len(self) }
+    fn len(&self) -> usize {
+        HashSet::len(self)
+    }
 }
 
 impl<T> Len for BTreeSet<T> {
-	fn len(&self) -> usize { BTreeSet::len(self) }
+    fn len(&self) -> usize {
+        BTreeSet::len(self)
+    }
 }
 
 impl<T: Ord> Len for BinaryHeap<T> {
-	fn len(&self) -> usize { BinaryHeap::len(self) }
+    fn len(&self) -> usize {
+        BinaryHeap::len(self)
+    }
 }

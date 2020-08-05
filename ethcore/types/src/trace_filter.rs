@@ -16,20 +16,20 @@
 
 //! Trace filter related types
 
-use std::ops::Range;
 use ethereum_types::Address;
 use ids::BlockId;
+use std::ops::Range;
 
 /// Easy to use trace filter.
 pub struct Filter {
-	/// Range of filtering.
-	pub range: Range<BlockId>,
-	/// From address.
-	pub from_address: Vec<Address>,
-	/// To address.
-	pub to_address: Vec<Address>,
-	/// Output offset
-	pub after: Option<usize>,
-	/// Output amount
-	pub count: Option<usize>,
+    /// Range of filtering.
+    pub range: Range<BlockId>,
+    /// From address.
+    pub from_address: Vec<Address>,
+    /// To address.
+    pub to_address: Vec<Address>,
+    /// Output offset
+    pub after: Option<usize>,
+    /// Output amount
+    pub count: Option<usize>,
 }

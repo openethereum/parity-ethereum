@@ -22,6 +22,6 @@ use ethereum_types::H256;
 /// Actions on a live block's parent block. Only committed when the live block is committed. Those actions here must
 /// respect the normal blockchain reorganization rules.
 pub enum AncestryAction {
-	/// Mark an ancestry block as finalized.
-	MarkFinalized(H256),
+    /// Mark an ancestry block as finalized.
+    MarkFinalized(H256),
 }

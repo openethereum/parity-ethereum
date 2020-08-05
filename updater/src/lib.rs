@@ -49,10 +49,10 @@ extern crate tempdir;
 #[macro_use]
 extern crate matches;
 
-mod updater;
-mod types;
 mod service;
+mod types;
+mod updater;
 
 pub use service::Service;
-pub use types::{ReleaseInfo, OperationsInfo, CapState, VersionInfo, ReleaseTrack};
-pub use updater::{Updater, UpdateFilter, UpdatePolicy};
+pub use types::{CapState, OperationsInfo, ReleaseInfo, ReleaseTrack, VersionInfo};
+pub use updater::{UpdateFilter, UpdatePolicy, Updater};

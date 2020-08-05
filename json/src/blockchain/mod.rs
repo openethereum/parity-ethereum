@@ -21,14 +21,15 @@ pub mod block;
 pub mod blockchain;
 pub mod header;
 pub mod state;
-pub mod transaction;
 pub mod test;
+pub mod transaction;
 
-pub use self::account::Account;
-pub use self::block::Block;
-pub use self::blockchain::BlockChain;
-pub use self::blockchain::Engine;
-pub use self::header::Header;
-pub use self::state::State;
-pub use self::test::Test;
-pub use self::transaction::Transaction;
+pub use self::{
+    account::Account,
+    block::Block,
+    blockchain::{BlockChain, Engine},
+    header::Header,
+    state::State,
+    test::Test,
+    transaction::Transaction,
+};

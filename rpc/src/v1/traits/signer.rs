@@ -18,46 +18,67 @@
 
 use ethereum_types::U256;
 use jsonrpc_core::{BoxFuture, Result};
-use jsonrpc_pubsub::{typed::Subscriber, SubscriptionId};
 use jsonrpc_derive::rpc;
+use jsonrpc_pubsub::{typed::Subscriber, SubscriptionId};
 
-use v1::types::{Bytes, TransactionModification, ConfirmationRequest, ConfirmationResponse, ConfirmationResponseWithToken};
+use v1::types::{
+    Bytes, ConfirmationRequest, ConfirmationResponse, ConfirmationResponseWithToken,
+    TransactionModification,
+};
 
 /// Signer extension for confirmations rpc interface.
 #[rpc(server)]
 pub trait Signer {
-	/// RPC Metadata
-	type Metadata;
+    /// RPC Metadata
+    type Metadata;
 
-	/// Returns a list of items to confirm.
-	#[rpc(name = "signer_requestsToConfirm")]
-	fn requests_to_confirm(&self) -> Result<Vec<ConfirmationRequest>>;
+    /// Returns a list of items to confirm.
+    #[rpc(name = "signer_requestsToConfirm")]
+    fn requests_to_confirm(&self) -> Result<Vec<ConfirmationRequest>>;
 
-	/// Confirm specific request.
-	#[rpc(name = "signer_confirmRequest")]
-	fn confirm_request(&self, _: U256, _: TransactionModification, _: String) -> BoxFuture<ConfirmationResponse>;
+    /// Confirm specific request.
+    #[rpc(name = "signer_confirmRequest")]
+    fn confirm_request(
+        &self,
+        _: U256,
+        _: TransactionModification,
+        _: String,
+    ) -> BoxFuture<ConfirmationResponse>;
 
-	/// Confirm specific request with token.
-	#[rpc(name = "signer_confirmRequestWithToken")]
-	fn confirm_request_with_token(&self, _: U256, _: TransactionModification, _: String) -> BoxFuture<ConfirmationResponseWithToken>;
+    /// Confirm specific request with token.
+    #[rpc(name = "signer_confirmRequestWithToken")]
+    fn confirm_request_with_token(
+        &self,
+        _: U256,
+        _: TransactionModification,
+        _: String,
+    ) -> BoxFuture<ConfirmationResponseWithToken>;
 
-	/// Confirm specific request with already signed data.
-	#[rpc(name = "signer_confirmRequestRaw")]
-	fn confirm_request_raw(&self, _: U256, _: Bytes) -> Result<ConfirmationResponse>;
+    /// Confirm specific request with already signed data.
+    #[rpc(name = "signer_confirmRequestRaw")]
+    fn confirm_request_raw(&self, _: U256, _: Bytes) -> Result<ConfirmationResponse>;
 
-	/// Reject the confirmation request.
-	#[rpc(name = "signer_rejectRequest")]
-	fn reject_request(&self, _: U256) -> Result<bool>;
+    /// Reject the confirmation request.
+    #[rpc(name = "signer_rejectRequest")]
+    fn reject_request(&self, _: U256) -> Result<bool>;
 
-	/// Generates new authorization token.
-	#[rpc(name = "signer_generateAuthorizationToken")]
-	fn generate_token(&self) -> Result<String>;
+    /// Generates new authorization token.
+    #[rpc(name = "signer_generateAuthorizationToken")]
+    fn generate_token(&self) -> Result<String>;
 
-	/// Subscribe to new pending requests on signer interface.
-	#[pubsub(subscription = "signer_pending", subscribe, name = "signer_subscribePending")]
-	fn subscribe_pending(&self, _: Self::Metadata, _: Subscriber<Vec<ConfirmationRequest>>);
+    /// Subscribe to new pending requests on signer interface.
+    #[pubsub(
+        subscription = "signer_pending",
+        subscribe,
+        name = "signer_subscribePending"
+    )]
+    fn subscribe_pending(&self, _: Self::Metadata, _: Subscriber<Vec<ConfirmationRequest>>);
 
-	/// Unsubscribe from pending requests subscription.
-	#[pubsub(subscription = "signer_pending", unsubscribe, name = "signer_unsubscribePending")]
-	fn unsubscribe_pending(&self, _: Option<Self::Metadata>, _: SubscriptionId) -> Result<bool>;
+    /// Unsubscribe from pending requests subscription.
+    #[pubsub(
+        subscription = "signer_pending",
+        unsubscribe,
+        name = "signer_unsubscribePending"
+    )]
+    fn unsubscribe_pending(&self, _: Option<Self::Metadata>, _: SubscriptionId) -> Result<bool>;
 }

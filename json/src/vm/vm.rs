@@ -16,54 +16,54 @@
 
 //! Vm execution env.
 
-use bytes::Bytes;
-use uint::Uint;
-use hash::H256;
 use blockchain::State;
-use vm::{Transaction, Call, Env};
+use bytes::Bytes;
+use hash::H256;
+use uint::Uint;
+use vm::{Call, Env, Transaction};
 
 /// Represents vm execution environment before and after execution of transaction.
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct Vm {
-	/// Contract calls made internaly by executed transaction.
-	#[serde(rename = "callcreates")]
-	pub calls: Option<Vec<Call>>,
-	/// Env info.
-	pub env: Env,
-	/// Executed transaction
-	#[serde(rename = "exec")]
-	pub transaction: Transaction,
-	/// Gas left after transaction execution.
-	#[serde(rename = "gas")]
-	pub gas_left: Option<Uint>,
-	/// Hash of logs created during execution of transaction.
-	pub logs: Option<H256>,
-	/// Transaction output.
-	#[serde(rename = "out")]
-	pub output: Option<Bytes>,
-	/// Post execution vm state.
-	#[serde(rename = "post")]
-	pub post_state: Option<State>,
-	/// Pre execution vm state.
-	#[serde(rename = "pre")]
-	pub pre_state: State,
+    /// Contract calls made internaly by executed transaction.
+    #[serde(rename = "callcreates")]
+    pub calls: Option<Vec<Call>>,
+    /// Env info.
+    pub env: Env,
+    /// Executed transaction
+    #[serde(rename = "exec")]
+    pub transaction: Transaction,
+    /// Gas left after transaction execution.
+    #[serde(rename = "gas")]
+    pub gas_left: Option<Uint>,
+    /// Hash of logs created during execution of transaction.
+    pub logs: Option<H256>,
+    /// Transaction output.
+    #[serde(rename = "out")]
+    pub output: Option<Bytes>,
+    /// Post execution vm state.
+    #[serde(rename = "post")]
+    pub post_state: Option<State>,
+    /// Pre execution vm state.
+    #[serde(rename = "pre")]
+    pub pre_state: State,
 }
 
 impl Vm {
-	/// Returns true if transaction execution run out of gas.
-	pub fn out_of_gas(&self) -> bool {
-		self.calls.is_none()
-	}
+    /// Returns true if transaction execution run out of gas.
+    pub fn out_of_gas(&self) -> bool {
+        self.calls.is_none()
+    }
 }
 
 #[cfg(test)]
 mod tests {
-	use serde_json;
-	use vm::Vm;
+    use serde_json;
+    use vm::Vm;
 
-	#[test]
-	fn vm_deserialization() {
-		let s = r#"{
+    #[test]
+    fn vm_deserialization() {
+        let s = r#"{
 			"callcreates" : [
 			],
 			"env" : {
@@ -107,7 +107,7 @@ mod tests {
 				}
 			}
 		}"#;
-		let _deserialized: Vm = serde_json::from_str(s).unwrap();
-		// TODO: validate all fields
-	}
+        let _deserialized: Vm = serde_json::from_str(s).unwrap();
+        // TODO: validate all fields
+    }
 }

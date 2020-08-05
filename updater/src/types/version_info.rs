@@ -16,53 +16,63 @@
 
 //! Types used in the public API
 
-use std::fmt;
-use semver::Version;
 use ethereum_types::H160;
-use version::raw_package_info;
+use semver::Version;
+use std::fmt;
 use types::ReleaseTrack;
+use version::raw_package_info;
 
 /// Version information of a particular release.
 #[derive(Debug, Clone, PartialEq)]
 pub struct VersionInfo {
-	/// The track on which it was released.
-	pub track: ReleaseTrack,
-	/// The version.
-	pub version: Version,
-	/// The (SHA1?) 160-bit hash of this build's code base.
-	pub hash: H160,
+    /// The track on which it was released.
+    pub track: ReleaseTrack,
+    /// The version.
+    pub version: Version,
+    /// The (SHA1?) 160-bit hash of this build's code base.
+    pub hash: H160,
 }
 
 impl fmt::Display for VersionInfo {
-	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-		write!(f, "{}.{}.{}-{}-{}", self.version.major, self.version.minor, self.version.patch, self.track, self.hash)
-	}
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        write!(
+            f,
+            "{}.{}.{}-{}-{}",
+            self.version.major, self.version.minor, self.version.patch, self.track, self.hash
+        )
+    }
 }
 
 impl VersionInfo {
-	/// Get information for this (currently running) binary.
-	pub fn this() -> Self {
-		let raw = raw_package_info();
-		VersionInfo {
-			track: raw.0.into(),
-			version: { let mut v = Version::parse(raw.1).expect("Environment variables are known to be valid; qed"); v.build = vec![]; v.pre = vec![]; v },
-			hash: raw.2.parse::<H160>().unwrap_or_else(|_| H160::zero()),
-		}
-	}
+    /// Get information for this (currently running) binary.
+    pub fn this() -> Self {
+        let raw = raw_package_info();
+        VersionInfo {
+            track: raw.0.into(),
+            version: {
+                let mut v = Version::parse(raw.1)
+                    .expect("Environment variables are known to be valid; qed");
+                v.build = vec![];
+                v.pre = vec![];
+                v
+            },
+            hash: raw.2.parse::<H160>().unwrap_or_else(|_| H160::zero()),
+        }
+    }
 
-	/// Compose the information from the provided raw fields.
-	pub fn from_raw(semver: u32, track: u8, hash: H160) -> Self {
-		let t = track.into();
-		VersionInfo {
-			version: Version {
-				major: u64::from(semver >> 16),
-				minor: u64::from((semver >> 8) & 0xff),
-				patch: u64::from(semver & 0xff),
-				build: vec![],
-				pre: vec![],
-			},
-			track: t,
-			hash,
-		}
-	}
+    /// Compose the information from the provided raw fields.
+    pub fn from_raw(semver: u32, track: u8, hash: H160) -> Self {
+        let t = track.into();
+        VersionInfo {
+            version: Version {
+                major: u64::from(semver >> 16),
+                minor: u64::from((semver >> 8) & 0xff),
+                patch: u64::from(semver & 0xff),
+                build: vec![],
+                pre: vec![],
+            },
+            track: t,
+            hash,
+        }
+    }
 }

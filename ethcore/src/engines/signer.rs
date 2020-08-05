@@ -16,68 +16,68 @@
 
 //! A signer used by Engines which need to sign messages.
 
-use ethereum_types::{H256, Address};
+use ethereum_types::{Address, H256};
 use ethkey::{self, Signature};
 
 /// Everything that an Engine needs to sign messages.
 pub trait EngineSigner: Send + Sync {
-	/// Sign a consensus message hash.
-	fn sign(&self, hash: H256) -> Result<Signature, ethkey::Error>;
+    /// Sign a consensus message hash.
+    fn sign(&self, hash: H256) -> Result<Signature, ethkey::Error>;
 
-	/// Signing address
-	fn address(&self) -> Address;
+    /// Signing address
+    fn address(&self) -> Address;
 }
 
 /// Creates a new `EngineSigner` from given key pair.
 pub fn from_keypair(keypair: ethkey::KeyPair) -> Box<EngineSigner> {
-	Box::new(Signer(keypair))
+    Box::new(Signer(keypair))
 }
 
 struct Signer(ethkey::KeyPair);
 
 impl EngineSigner for Signer {
-	fn sign(&self, hash: H256) -> Result<Signature, ethkey::Error> {
-		ethkey::sign(self.0.secret(), &hash)
-	}
+    fn sign(&self, hash: H256) -> Result<Signature, ethkey::Error> {
+        ethkey::sign(self.0.secret(), &hash)
+    }
 
-	fn address(&self) -> Address {
-		self.0.address()
-	}
+    fn address(&self) -> Address {
+        self.0.address()
+    }
 }
 
 #[cfg(test)]
 mod test_signer {
-	use std::sync::Arc;
+    use std::sync::Arc;
 
-	use ethkey::Password;
-	use accounts::{self, AccountProvider, SignError};
+    use accounts::{self, AccountProvider, SignError};
+    use ethkey::Password;
 
-	use super::*;
+    use super::*;
 
-	impl EngineSigner for (Arc<AccountProvider>, Address, Password) {
-		fn sign(&self, hash: H256) -> Result<Signature, ethkey::Error> {
-			match self.0.sign(self.1, Some(self.2.clone()), hash) {
-				Err(SignError::NotUnlocked) => unreachable!(),
-				Err(SignError::NotFound) => Err(ethkey::Error::InvalidAddress),
-				Err(SignError::Hardware(err)) => {
-					warn!("Error using hardware wallet for engine: {:?}", err);
-					Err(ethkey::Error::InvalidSecret)
-				},
-				Err(SignError::SStore(accounts::Error::EthKey(err))) => Err(err),
-				Err(SignError::SStore(accounts::Error::EthKeyCrypto(err))) => {
-					warn!("Low level crypto error: {:?}", err);
-					Err(ethkey::Error::InvalidSecret)
-				},
-				Err(SignError::SStore(err)) => {
-					warn!("Error signing for engine: {:?}", err);
-					Err(ethkey::Error::InvalidSignature)
-				},
-				Ok(ok) => Ok(ok),
-			}
-		}
+    impl EngineSigner for (Arc<AccountProvider>, Address, Password) {
+        fn sign(&self, hash: H256) -> Result<Signature, ethkey::Error> {
+            match self.0.sign(self.1, Some(self.2.clone()), hash) {
+                Err(SignError::NotUnlocked) => unreachable!(),
+                Err(SignError::NotFound) => Err(ethkey::Error::InvalidAddress),
+                Err(SignError::Hardware(err)) => {
+                    warn!("Error using hardware wallet for engine: {:?}", err);
+                    Err(ethkey::Error::InvalidSecret)
+                }
+                Err(SignError::SStore(accounts::Error::EthKey(err))) => Err(err),
+                Err(SignError::SStore(accounts::Error::EthKeyCrypto(err))) => {
+                    warn!("Low level crypto error: {:?}", err);
+                    Err(ethkey::Error::InvalidSecret)
+                }
+                Err(SignError::SStore(err)) => {
+                    warn!("Error signing for engine: {:?}", err);
+                    Err(ethkey::Error::InvalidSignature)
+                }
+                Ok(ok) => Ok(ok),
+            }
+        }
 
-		fn address(&self) -> Address {
-			self.1
-		}
-	}
+        fn address(&self) -> Address {
+            self.1
+        }
+    }
 }

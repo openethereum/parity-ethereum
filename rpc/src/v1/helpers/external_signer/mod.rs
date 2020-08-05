@@ -16,59 +16,62 @@
 
 //! An list of requests to be confirmed or signed by an external approver/signer.
 
-use std::sync::Arc;
-use std::ops::Deref;
+use std::{ops::Deref, sync::Arc};
 
 mod oneshot;
 mod signing_queue;
 
-pub use self::signing_queue::{SigningQueue, ConfirmationsQueue, ConfirmationReceiver, ConfirmationResult};
 #[cfg(test)]
 pub use self::signing_queue::QueueEvent;
+pub use self::signing_queue::{
+    ConfirmationReceiver, ConfirmationResult, ConfirmationsQueue, SigningQueue,
+};
 
 /// Manages communication with Signer crate
 pub struct SignerService {
-	is_enabled: bool,
-	queue: Arc<ConfirmationsQueue>,
-	generate_new_token: Box<Fn() -> Result<String, String> + Send + Sync + 'static>,
+    is_enabled: bool,
+    queue: Arc<ConfirmationsQueue>,
+    generate_new_token: Box<Fn() -> Result<String, String> + Send + Sync + 'static>,
 }
 
 impl SignerService {
-	/// Creates new Signer Service given function to generate new tokens.
-	pub fn new<F>(new_token: F, is_enabled: bool) -> Self
-		where F: Fn() -> Result<String, String> + Send + Sync + 'static {
-		SignerService {
-			queue: Arc::new(ConfirmationsQueue::default()),
-			generate_new_token: Box::new(new_token),
-			is_enabled,
-		}
-	}
+    /// Creates new Signer Service given function to generate new tokens.
+    pub fn new<F>(new_token: F, is_enabled: bool) -> Self
+    where
+        F: Fn() -> Result<String, String> + Send + Sync + 'static,
+    {
+        SignerService {
+            queue: Arc::new(ConfirmationsQueue::default()),
+            generate_new_token: Box::new(new_token),
+            is_enabled,
+        }
+    }
 
-	/// Generates new signer authorization token.
-	pub fn generate_token(&self) -> Result<String, String> {
-		(self.generate_new_token)()
-	}
+    /// Generates new signer authorization token.
+    pub fn generate_token(&self) -> Result<String, String> {
+        (self.generate_new_token)()
+    }
 
-	/// Returns a reference to `ConfirmationsQueue`
-	pub fn queue(&self) -> Arc<ConfirmationsQueue> {
-		self.queue.clone()
-	}
+    /// Returns a reference to `ConfirmationsQueue`
+    pub fn queue(&self) -> Arc<ConfirmationsQueue> {
+        self.queue.clone()
+    }
 
-	/// Returns true if Signer is enabled.
-	pub fn is_enabled(&self) -> bool {
-		self.is_enabled
-	}
+    /// Returns true if Signer is enabled.
+    pub fn is_enabled(&self) -> bool {
+        self.is_enabled
+    }
 
-	#[cfg(test)]
-	/// Creates new Signer Service for tests.
-	pub fn new_test(is_enabled: bool) -> Self {
-		SignerService::new(|| Ok("new_token".into()), is_enabled)
-	}
+    #[cfg(test)]
+    /// Creates new Signer Service for tests.
+    pub fn new_test(is_enabled: bool) -> Self {
+        SignerService::new(|| Ok("new_token".into()), is_enabled)
+    }
 }
 
 impl Deref for SignerService {
-	type Target = ConfirmationsQueue;
-	fn deref(&self) -> &Self::Target {
-		&self.queue
-	}
+    type Target = ConfirmationsQueue;
+    fn deref(&self) -> &Self::Target {
+        &self.queue
+    }
 }

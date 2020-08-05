@@ -19,10 +19,10 @@
 /// Options concerning what analytics we run on the call.
 #[derive(Eq, PartialEq, Default, Clone, Copy, Debug)]
 pub struct CallAnalytics {
-	/// Make a transaction trace.
-	pub transaction_tracing: bool,
-	/// Make a VM trace.
-	pub vm_tracing: bool,
-	/// Make a diff.
-	pub state_diffing: bool,
+    /// Make a transaction trace.
+    pub transaction_tracing: bool,
+    /// Make a VM trace.
+    pub vm_tracing: bool,
+    /// Make a diff.
+    pub state_diffing: bool,
 }

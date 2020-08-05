@@ -22,22 +22,22 @@ use ethereum_types::Address;
 
 /// Local accounts checker
 pub trait LocalAccounts: Send + Sync {
-	/// Returns true if given address should be considered local account.
-	fn is_local(&self, &Address) -> bool;
+    /// Returns true if given address should be considered local account.
+    fn is_local(&self, &Address) -> bool;
 }
 
 impl LocalAccounts for HashSet<Address> {
-	fn is_local(&self, address: &Address) -> bool {
-		self.contains(address)
-	}
+    fn is_local(&self, address: &Address) -> bool {
+        self.contains(address)
+    }
 }
 
-impl<A, B> LocalAccounts for (A, B) where
-	A: LocalAccounts,
-	B: LocalAccounts,
+impl<A, B> LocalAccounts for (A, B)
+where
+    A: LocalAccounts,
+    B: LocalAccounts,
 {
-	fn is_local(&self, address: &Address) -> bool {
-		self.0.is_local(address) || self.1.is_local(address)
-	}
+    fn is_local(&self, address: &Address) -> bool {
+        self.0.is_local(address) || self.1.is_local(address)
+    }
 }
-

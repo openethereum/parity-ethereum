@@ -16,25 +16,25 @@
 
 //! Indication of how secure the chain is.
 
-use {BlockNumber};
+use BlockNumber;
 
 /// Indication of how secure the chain is.
 #[derive(Debug, PartialEq, Copy, Clone, Hash, Eq)]
 pub enum SecurityLevel {
-	/// All blocks from genesis to chain head are known to have valid state transitions and PoW.
-	FullState,
-	/// All blocks from genesis to chain head are known to have a valid PoW.
-	FullProofOfWork,
-	/// Some recent headers (the argument) are known to have a valid PoW.
-	PartialProofOfWork(BlockNumber),
+    /// All blocks from genesis to chain head are known to have valid state transitions and PoW.
+    FullState,
+    /// All blocks from genesis to chain head are known to have a valid PoW.
+    FullProofOfWork,
+    /// Some recent headers (the argument) are known to have a valid PoW.
+    PartialProofOfWork(BlockNumber),
 }
 
 impl SecurityLevel {
-	/// `true` for `FullPoW`/`FullState`.
-	pub fn is_full(&self) -> bool {
-		match *self {
-			SecurityLevel::FullState | SecurityLevel::FullProofOfWork => true,
-			_ => false,
-		}
-	}
+    /// `true` for `FullPoW`/`FullState`.
+    pub fn is_full(&self) -> bool {
+        match *self {
+            SecurityLevel::FullState | SecurityLevel::FullProofOfWork => true,
+            _ => false,
+        }
+    }
 }

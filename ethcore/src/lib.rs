@@ -55,7 +55,7 @@
 
 // Recursion limit required because of
 // error_chain foreign_links.
-#![recursion_limit="128"]
+#![recursion_limit = "128"]
 
 extern crate ansi_term;
 extern crate byteorder;
@@ -90,7 +90,6 @@ extern crate num_cpus;
 extern crate parity_bytes as bytes;
 extern crate parity_snappy as snappy;
 extern crate parking_lot;
-extern crate trie_db as trie;
 extern crate patricia_trie_ethereum as ethtrie;
 extern crate rand;
 extern crate rayon;
@@ -99,26 +98,27 @@ extern crate rustc_hex;
 extern crate serde;
 extern crate stats;
 extern crate time_utils;
+extern crate trie_db as trie;
 extern crate triehash_ethereum as triehash;
 extern crate unexpected;
 extern crate using_queue;
 extern crate vm;
 extern crate wasm;
 
-#[cfg(test)]
-extern crate ethcore_accounts as accounts;
-#[cfg(feature = "stratum")]
-extern crate ethcore_stratum;
-#[cfg(any(test, feature = "tempdir"))]
-extern crate tempdir;
-#[cfg(any(test, feature = "kvdb-rocksdb"))]
-extern crate kvdb_rocksdb;
 #[cfg(any(test, feature = "blooms-db"))]
 extern crate blooms_db;
 #[cfg(any(test, feature = "env_logger"))]
 extern crate env_logger;
 #[cfg(test)]
+extern crate ethcore_accounts as accounts;
+#[cfg(feature = "stratum")]
+extern crate ethcore_stratum;
+#[cfg(any(test, feature = "kvdb-rocksdb"))]
+extern crate kvdb_rocksdb;
+#[cfg(test)]
 extern crate rlp_compress;
+#[cfg(any(test, feature = "tempdir"))]
+extern crate tempdir;
 #[cfg(test)]
 #[macro_use]
 extern crate hex_literal;
@@ -160,8 +160,8 @@ pub mod executed;
 pub mod executive;
 pub mod machine;
 pub mod miner;
-pub mod pod_state;
 pub mod pod_account;
+pub mod pod_state;
 pub mod snapshot;
 pub mod spec;
 pub mod state;
@@ -175,13 +175,13 @@ mod externalities;
 mod factory;
 mod tx_filter;
 
-#[cfg(test)]
-mod tests;
 #[cfg(feature = "json-tests")]
 pub mod json_tests;
 #[cfg(any(test, feature = "test-helpers"))]
 pub mod test_helpers;
+#[cfg(test)]
+mod tests;
 
-pub use executive::contract_address;
 pub use evm::CreateContractAddress;
+pub use executive::contract_address;
 pub use trie::TrieSpec;

@@ -16,31 +16,31 @@
 
 //! Blockchain test account deserializer.
 
+use bytes::Bytes;
 use std::collections::BTreeMap;
 use uint::Uint;
-use bytes::Bytes;
 
 /// Blockchain test account deserializer.
 #[derive(Debug, PartialEq, Deserialize, Clone)]
 pub struct Account {
-	/// Balance.
-	pub balance: Uint,
-	/// Code.
-	pub code: Bytes,
-	/// Nonce.
-	pub nonce: Uint,
-	/// Storage.
-	pub storage: BTreeMap<Uint, Uint>,
+    /// Balance.
+    pub balance: Uint,
+    /// Code.
+    pub code: Bytes,
+    /// Nonce.
+    pub nonce: Uint,
+    /// Storage.
+    pub storage: BTreeMap<Uint, Uint>,
 }
 
 #[cfg(test)]
 mod tests {
-	use serde_json;
-	use blockchain::account::Account;
+    use blockchain::account::Account;
+    use serde_json;
 
-	#[test]
-	fn account_deserialization() {
-		let s = r#"{
+    #[test]
+    fn account_deserialization() {
+        let s = r#"{
 			"balance" : "0x09184e72a078",
 			"code" : "0x600140600155",
 			"nonce" : "0x00",
@@ -48,7 +48,7 @@ mod tests {
 				"0x01" : "0x9a10c2b5bb8f3c602e674006d9b21f09167df57c87a78a5ce96d4159ecb76520"
 			}
 		}"#;
-		let _deserialized: Account = serde_json::from_str(s).unwrap();
-		// TODO: validate all fields
-	}
+        let _deserialized: Account = serde_json::from_str(s).unwrap();
+        // TODO: validate all fields
+    }
 }

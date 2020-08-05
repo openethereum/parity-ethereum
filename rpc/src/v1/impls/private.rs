@@ -24,99 +24,119 @@ use ethcore_private_tx::Provider as PrivateTransactionManager;
 use ethereum_types::{Address, H160, H256, U256};
 use types::transaction::SignedTransaction;
 
-use jsonrpc_core::{Error};
-use v1::types::{Bytes, PrivateTransactionReceipt, TransactionRequest,
-	BlockNumber, PrivateTransactionReceiptAndTransaction, CallRequest, block_number_to_id};
-use v1::traits::Private;
-use v1::metadata::Metadata;
-use v1::helpers::{errors, fake_sign};
+use jsonrpc_core::Error;
+use v1::{
+    helpers::{errors, fake_sign},
+    metadata::Metadata,
+    traits::Private,
+    types::{
+        block_number_to_id, BlockNumber, Bytes, CallRequest, PrivateTransactionReceipt,
+        PrivateTransactionReceiptAndTransaction, TransactionRequest,
+    },
+};
 
 /// Private transaction manager API endpoint implementation.
 pub struct PrivateClient {
-	private: Option<Arc<PrivateTransactionManager>>,
+    private: Option<Arc<PrivateTransactionManager>>,
 }
 
 impl PrivateClient {
-	/// Creates a new instance.
-	pub fn new(private: Option<Arc<PrivateTransactionManager>>) -> Self {
-		PrivateClient {
-			private,
-		}
-	}
+    /// Creates a new instance.
+    pub fn new(private: Option<Arc<PrivateTransactionManager>>) -> Self {
+        PrivateClient { private }
+    }
 
-	fn unwrap_manager(&self) -> Result<&PrivateTransactionManager, Error> {
-		match self.private {
-			Some(ref arc) => Ok(&**arc),
-			None => Err(errors::light_unimplemented(None)),
-		}
-	}
+    fn unwrap_manager(&self) -> Result<&PrivateTransactionManager, Error> {
+        match self.private {
+            Some(ref arc) => Ok(&**arc),
+            None => Err(errors::light_unimplemented(None)),
+        }
+    }
 }
 
 impl Private for PrivateClient {
-	type Metadata = Metadata;
+    type Metadata = Metadata;
 
-	fn send_transaction(&self, request: Bytes) -> Result<PrivateTransactionReceipt, Error> {
-		let signed_transaction = Rlp::new(&request.into_vec()).as_val()
-			.map_err(errors::rlp)
-			.and_then(|tx| SignedTransaction::new(tx).map_err(errors::transaction))?;
-		let client = self.unwrap_manager()?;
-		let receipt = client.create_private_transaction(signed_transaction).map_err(errors::private_message)?;
-		Ok(receipt.into())
-	}
+    fn send_transaction(&self, request: Bytes) -> Result<PrivateTransactionReceipt, Error> {
+        let signed_transaction = Rlp::new(&request.into_vec())
+            .as_val()
+            .map_err(errors::rlp)
+            .and_then(|tx| SignedTransaction::new(tx).map_err(errors::transaction))?;
+        let client = self.unwrap_manager()?;
+        let receipt = client
+            .create_private_transaction(signed_transaction)
+            .map_err(errors::private_message)?;
+        Ok(receipt.into())
+    }
 
-	fn compose_deployment_transaction(&self, block_number: BlockNumber, request: Bytes, validators: Vec<H160>, gas_price: U256) -> Result<PrivateTransactionReceiptAndTransaction, Error> {
-		let signed_transaction = Rlp::new(&request.into_vec()).as_val()
-			.map_err(errors::rlp)
-			.and_then(|tx| SignedTransaction::new(tx).map_err(errors::transaction))?;
-		let client = self.unwrap_manager()?;
+    fn compose_deployment_transaction(
+        &self,
+        block_number: BlockNumber,
+        request: Bytes,
+        validators: Vec<H160>,
+        gas_price: U256,
+    ) -> Result<PrivateTransactionReceiptAndTransaction, Error> {
+        let signed_transaction = Rlp::new(&request.into_vec())
+            .as_val()
+            .map_err(errors::rlp)
+            .and_then(|tx| SignedTransaction::new(tx).map_err(errors::transaction))?;
+        let client = self.unwrap_manager()?;
 
-		let addresses: Vec<Address> = validators.into_iter().map(Into::into).collect();
-		let id = match block_number {
-			BlockNumber::Pending => return Err(errors::private_message_block_id_not_supported()),
-			num => block_number_to_id(num)
-		};
+        let addresses: Vec<Address> = validators.into_iter().map(Into::into).collect();
+        let id = match block_number {
+            BlockNumber::Pending => return Err(errors::private_message_block_id_not_supported()),
+            num => block_number_to_id(num),
+        };
 
-		let (transaction, contract_address) = client
-			.public_creation_transaction(id, &signed_transaction, addresses.as_slice(), gas_price)
-			.map_err(errors::private_message)?;
-		let tx_hash = transaction.hash(None);
-		let request = TransactionRequest {
-			from: Some(signed_transaction.sender()),
-			to: None,
-			nonce: Some(transaction.nonce),
-			gas_price: Some(transaction.gas_price),
-			gas: Some(transaction.gas),
-			value: Some(transaction.value),
-			data: Some(transaction.data.into()),
-			condition: None,
-		};
+        let (transaction, contract_address) = client
+            .public_creation_transaction(id, &signed_transaction, addresses.as_slice(), gas_price)
+            .map_err(errors::private_message)?;
+        let tx_hash = transaction.hash(None);
+        let request = TransactionRequest {
+            from: Some(signed_transaction.sender()),
+            to: None,
+            nonce: Some(transaction.nonce),
+            gas_price: Some(transaction.gas_price),
+            gas: Some(transaction.gas),
+            value: Some(transaction.value),
+            data: Some(transaction.data.into()),
+            condition: None,
+        };
 
-		Ok(PrivateTransactionReceiptAndTransaction {
-			transaction: request,
-			receipt: PrivateTransactionReceipt {
-				transaction_hash: tx_hash,
-				contract_address,
-				status_code: 0,
-			}
-		})
-	}
+        Ok(PrivateTransactionReceiptAndTransaction {
+            transaction: request,
+            receipt: PrivateTransactionReceipt {
+                transaction_hash: tx_hash,
+                contract_address,
+                status_code: 0,
+            },
+        })
+    }
 
-	fn private_call(&self, block_number: BlockNumber, request: CallRequest) -> Result<Bytes, Error> {
-		let id = match block_number {
-			BlockNumber::Pending => return Err(errors::private_message_block_id_not_supported()),
-			num => block_number_to_id(num)
-		};
+    fn private_call(
+        &self,
+        block_number: BlockNumber,
+        request: CallRequest,
+    ) -> Result<Bytes, Error> {
+        let id = match block_number {
+            BlockNumber::Pending => return Err(errors::private_message_block_id_not_supported()),
+            num => block_number_to_id(num),
+        };
 
-		let request = CallRequest::into(request);
-		let signed = fake_sign::sign_call(request)?;
-		let client = self.unwrap_manager()?;
-		let executed_result = client.private_call(id, &signed).map_err(errors::private_message)?;
-		Ok(executed_result.output.into())
-	}
+        let request = CallRequest::into(request);
+        let signed = fake_sign::sign_call(request)?;
+        let client = self.unwrap_manager()?;
+        let executed_result = client
+            .private_call(id, &signed)
+            .map_err(errors::private_message)?;
+        Ok(executed_result.output.into())
+    }
 
-	fn private_contract_key(&self, contract_address: H160) -> Result<H256, Error> {
-		let client = self.unwrap_manager()?;
-		let key = client.contract_key_id(&contract_address).map_err(errors::private_message)?;
-		Ok(key)
-	}
+    fn private_contract_key(&self, contract_address: H160) -> Result<H256, Error> {
+        let client = self.unwrap_manager()?;
+        let key = client
+            .contract_key_id(&contract_address)
+            .map_err(errors::private_message)?;
+        Ok(key)
+    }
 }

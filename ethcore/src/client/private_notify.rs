@@ -17,7 +17,7 @@
 use error::TransactionImportError;
 
 /// Represent private transactions handler inside the client
-pub trait PrivateNotify : Send + Sync {
-	/// fires when private transaction message queued via client io queue
-	fn private_transaction_queued(&self) -> Result<(), TransactionImportError>;
+pub trait PrivateNotify: Send + Sync {
+    /// fires when private transaction message queued via client io queue
+    fn private_transaction_queued(&self) -> Result<(), TransactionImportError>;
 }

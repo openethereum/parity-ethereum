@@ -14,86 +14,92 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::io::{Read, Write};
-use serde_json;
 use super::Crypto;
+use serde_json;
+use std::io::{Read, Write};
 
 /// Vault meta file
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct VaultFile {
-	/// Vault password, encrypted with vault password
-	pub crypto: Crypto,
-	/// Vault metadata string
-	pub meta: Option<String>,
+    /// Vault password, encrypted with vault password
+    pub crypto: Crypto,
+    /// Vault metadata string
+    pub meta: Option<String>,
 }
 
 impl VaultFile {
-	pub fn load<R>(reader: R) -> Result<Self, serde_json::Error> where R: Read {
-		serde_json::from_reader(reader)
-	}
+    pub fn load<R>(reader: R) -> Result<Self, serde_json::Error>
+    where
+        R: Read,
+    {
+        serde_json::from_reader(reader)
+    }
 
-	pub fn write<W>(&self, writer: &mut W) -> Result<(), serde_json::Error> where W: Write {
-		serde_json::to_writer(writer, self)
-	}
+    pub fn write<W>(&self, writer: &mut W) -> Result<(), serde_json::Error>
+    where
+        W: Write,
+    {
+        serde_json::to_writer(writer, self)
+    }
 }
 
 #[cfg(test)]
 mod test {
-	use serde_json;
-	use json::{VaultFile, Crypto, Cipher, Aes128Ctr, Kdf, Pbkdf2, Prf};
-	use std::num::NonZeroU32;
+    use json::{Aes128Ctr, Cipher, Crypto, Kdf, Pbkdf2, Prf, VaultFile};
+    use serde_json;
+    use std::num::NonZeroU32;
 
-	lazy_static! {
-		static ref ITERATIONS: NonZeroU32 = NonZeroU32::new(1024).expect("1024 > 0; qed");
-	}
+    lazy_static! {
+        static ref ITERATIONS: NonZeroU32 = NonZeroU32::new(1024).expect("1024 > 0; qed");
+    }
 
-	#[test]
-	fn to_and_from_json() {
-		let file = VaultFile {
-			crypto: Crypto {
-				cipher: Cipher::Aes128Ctr(Aes128Ctr {
-					iv: "0155e3690be19fbfbecabcd440aa284b".into(),
-				}),
-				ciphertext: "4d6938a1f49b7782".into(),
-				kdf: Kdf::Pbkdf2(Pbkdf2 {
-					c: *ITERATIONS,
-					dklen: 32,
-					prf: Prf::HmacSha256,
-					salt: "b6a9338a7ccd39288a86dba73bfecd9101b4f3db9c9830e7c76afdbd4f6872e5".into(),
-				}),
-				mac: "16381463ea11c6eb2239a9f339c2e780516d29d234ce30ac5f166f9080b5a262".into(),
-			},
-			meta: Some("{}".into()),
-		};
+    #[test]
+    fn to_and_from_json() {
+        let file = VaultFile {
+            crypto: Crypto {
+                cipher: Cipher::Aes128Ctr(Aes128Ctr {
+                    iv: "0155e3690be19fbfbecabcd440aa284b".into(),
+                }),
+                ciphertext: "4d6938a1f49b7782".into(),
+                kdf: Kdf::Pbkdf2(Pbkdf2 {
+                    c: *ITERATIONS,
+                    dklen: 32,
+                    prf: Prf::HmacSha256,
+                    salt: "b6a9338a7ccd39288a86dba73bfecd9101b4f3db9c9830e7c76afdbd4f6872e5".into(),
+                }),
+                mac: "16381463ea11c6eb2239a9f339c2e780516d29d234ce30ac5f166f9080b5a262".into(),
+            },
+            meta: Some("{}".into()),
+        };
 
-		let serialized = serde_json::to_string(&file).unwrap();
-		let deserialized = serde_json::from_str(&serialized).unwrap();
+        let serialized = serde_json::to_string(&file).unwrap();
+        let deserialized = serde_json::from_str(&serialized).unwrap();
 
-		assert_eq!(file, deserialized);
-	}
+        assert_eq!(file, deserialized);
+    }
 
-	#[test]
-	fn to_and_from_json_no_meta() {
-		let file = VaultFile {
-			crypto: Crypto {
-				cipher: Cipher::Aes128Ctr(Aes128Ctr {
-					iv: "0155e3690be19fbfbecabcd440aa284b".into(),
-				}),
-				ciphertext: "4d6938a1f49b7782".into(),
-				kdf: Kdf::Pbkdf2(Pbkdf2 {
-					c: *ITERATIONS,
-					dklen: 32,
-					prf: Prf::HmacSha256,
-					salt: "b6a9338a7ccd39288a86dba73bfecd9101b4f3db9c9830e7c76afdbd4f6872e5".into(),
-				}),
-				mac: "16381463ea11c6eb2239a9f339c2e780516d29d234ce30ac5f166f9080b5a262".into(),
-			},
-			meta: None,
-		};
+    #[test]
+    fn to_and_from_json_no_meta() {
+        let file = VaultFile {
+            crypto: Crypto {
+                cipher: Cipher::Aes128Ctr(Aes128Ctr {
+                    iv: "0155e3690be19fbfbecabcd440aa284b".into(),
+                }),
+                ciphertext: "4d6938a1f49b7782".into(),
+                kdf: Kdf::Pbkdf2(Pbkdf2 {
+                    c: *ITERATIONS,
+                    dklen: 32,
+                    prf: Prf::HmacSha256,
+                    salt: "b6a9338a7ccd39288a86dba73bfecd9101b4f3db9c9830e7c76afdbd4f6872e5".into(),
+                }),
+                mac: "16381463ea11c6eb2239a9f339c2e780516d29d234ce30ac5f166f9080b5a262".into(),
+            },
+            meta: None,
+        };
 
-		let serialized = serde_json::to_string(&file).unwrap();
-		let deserialized = serde_json::from_str(&serialized).unwrap();
+        let serialized = serde_json::to_string(&file).unwrap();
+        let deserialized = serde_json::from_str(&serialized).unwrap();
 
-		assert_eq!(file, deserialized);
-	}
+        assert_eq!(file, deserialized);
+    }
 }

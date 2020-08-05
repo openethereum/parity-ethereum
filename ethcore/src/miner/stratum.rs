@@ -16,20 +16,20 @@
 
 //! Client-side stratum job dispatcher and mining notifier handler
 
-use std::sync::{Arc, Weak};
-use std::net::{SocketAddr, AddrParseError};
-use std::fmt;
+use std::{
+    fmt,
+    net::{AddrParseError, SocketAddr},
+    sync::{Arc, Weak},
+};
 
 use client::{Client, ImportSealedBlock};
-use ethereum_types::{H64, H256, clean_0x, U256};
 use ethash::{self, SeedHashCompute};
 #[cfg(feature = "work-notify")]
 use ethcore_miner::work_notify::NotifyWork;
 #[cfg(feature = "work-notify")]
 use ethcore_stratum::PushWorkHandler;
-use ethcore_stratum::{
-	JobDispatcher, Stratum as StratumService, Error as StratumServiceError,
-};
+use ethcore_stratum::{Error as StratumServiceError, JobDispatcher, Stratum as StratumService};
+use ethereum_types::{clean_0x, H256, H64, U256};
 use miner::{Miner, MinerService};
 use parking_lot::Mutex;
 use rlp::encode;
@@ -37,212 +37,233 @@ use rlp::encode;
 /// Configures stratum server options.
 #[derive(Debug, PartialEq, Clone)]
 pub struct Options {
-	/// Working directory
-	pub io_path: String,
-	/// Network address
-	pub listen_addr: String,
-	/// Port
-	pub port: u16,
-	/// Secret for peers
-	pub secret: Option<H256>,
+    /// Working directory
+    pub io_path: String,
+    /// Network address
+    pub listen_addr: String,
+    /// Port
+    pub port: u16,
+    /// Secret for peers
+    pub secret: Option<H256>,
 }
 
 struct SubmitPayload {
-	nonce: H64,
-	pow_hash: H256,
-	mix_hash: H256,
+    nonce: H64,
+    pow_hash: H256,
+    mix_hash: H256,
 }
 
 impl SubmitPayload {
-	fn from_args(payload: Vec<String>) -> Result<Self, PayloadError> {
-		if payload.len() != 3 {
-			return Err(PayloadError::ArgumentsAmountUnexpected(payload.len()));
-		}
+    fn from_args(payload: Vec<String>) -> Result<Self, PayloadError> {
+        if payload.len() != 3 {
+            return Err(PayloadError::ArgumentsAmountUnexpected(payload.len()));
+        }
 
-		let nonce = match clean_0x(&payload[0]).parse::<H64>() {
-			Ok(nonce) => nonce,
-			Err(e) => {
-				warn!(target: "stratum", "submit_work ({}): invalid nonce ({:?})", &payload[0], e);
-				return Err(PayloadError::InvalidNonce(payload[0].clone()))
-			}
-		};
+        let nonce = match clean_0x(&payload[0]).parse::<H64>() {
+            Ok(nonce) => nonce,
+            Err(e) => {
+                warn!(target: "stratum", "submit_work ({}): invalid nonce ({:?})", &payload[0], e);
+                return Err(PayloadError::InvalidNonce(payload[0].clone()));
+            }
+        };
 
-		let pow_hash = match clean_0x(&payload[1]).parse::<H256>() {
-			Ok(pow_hash) => pow_hash,
-			Err(e) => {
-				warn!(target: "stratum", "submit_work ({}): invalid hash ({:?})", &payload[1], e);
-				return Err(PayloadError::InvalidPowHash(payload[1].clone()));
-			}
-		};
+        let pow_hash = match clean_0x(&payload[1]).parse::<H256>() {
+            Ok(pow_hash) => pow_hash,
+            Err(e) => {
+                warn!(target: "stratum", "submit_work ({}): invalid hash ({:?})", &payload[1], e);
+                return Err(PayloadError::InvalidPowHash(payload[1].clone()));
+            }
+        };
 
-		let mix_hash = match clean_0x(&payload[2]).parse::<H256>() {
-			Ok(mix_hash) => mix_hash,
-			Err(e) => {
-				warn!(target: "stratum", "submit_work ({}): invalid mix-hash ({:?})",  &payload[2], e);
-				return Err(PayloadError::InvalidMixHash(payload[2].clone()));
-			}
-		};
+        let mix_hash = match clean_0x(&payload[2]).parse::<H256>() {
+            Ok(mix_hash) => mix_hash,
+            Err(e) => {
+                warn!(target: "stratum", "submit_work ({}): invalid mix-hash ({:?})",  &payload[2], e);
+                return Err(PayloadError::InvalidMixHash(payload[2].clone()));
+            }
+        };
 
-		Ok(SubmitPayload {
-			nonce: nonce,
-			pow_hash: pow_hash,
-			mix_hash: mix_hash,
-		})
-	}
+        Ok(SubmitPayload {
+            nonce: nonce,
+            pow_hash: pow_hash,
+            mix_hash: mix_hash,
+        })
+    }
 }
 
 #[derive(Debug)]
 enum PayloadError {
-	ArgumentsAmountUnexpected(usize),
-	InvalidNonce(String),
-	InvalidPowHash(String),
-	InvalidMixHash(String),
+    ArgumentsAmountUnexpected(usize),
+    InvalidNonce(String),
+    InvalidPowHash(String),
+    InvalidMixHash(String),
 }
 
 impl fmt::Display for PayloadError {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		fmt::Debug::fmt(&self, f)
-	}
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Debug::fmt(&self, f)
+    }
 }
 
 /// Job dispatcher for stratum service
 pub struct StratumJobDispatcher {
-	seed_compute: Mutex<SeedHashCompute>,
-	client: Weak<Client>,
-	miner: Weak<Miner>,
+    seed_compute: Mutex<SeedHashCompute>,
+    client: Weak<Client>,
+    miner: Weak<Miner>,
 }
 
 impl JobDispatcher for StratumJobDispatcher {
-	fn initial(&self) -> Option<String> {
-		// initial payload may contain additional data, not in this case
-		self.job()
-	}
+    fn initial(&self) -> Option<String> {
+        // initial payload may contain additional data, not in this case
+        self.job()
+    }
 
-	fn job(&self) -> Option<String> {
-		self.with_core(|client, miner| miner.work_package(&*client).map(|(pow_hash, number, _timestamp, difficulty)| {
-			self.payload(pow_hash, difficulty, number)
-		}))
-	}
+    fn job(&self) -> Option<String> {
+        self.with_core(|client, miner| {
+            miner
+                .work_package(&*client)
+                .map(|(pow_hash, number, _timestamp, difficulty)| {
+                    self.payload(pow_hash, difficulty, number)
+                })
+        })
+    }
 
-	fn submit(&self, payload: Vec<String>) -> Result<(), StratumServiceError> {
-		let payload = SubmitPayload::from_args(payload).map_err(|e|
-			StratumServiceError::Dispatch(e.to_string())
-		)?;
+    fn submit(&self, payload: Vec<String>) -> Result<(), StratumServiceError> {
+        let payload = SubmitPayload::from_args(payload)
+            .map_err(|e| StratumServiceError::Dispatch(e.to_string()))?;
 
-		trace!(
-			target: "stratum",
-			"submit_work: Decoded: nonce={}, pow_hash={}, mix_hash={}",
-			payload.nonce,
-			payload.pow_hash,
-			payload.mix_hash,
-		);
+        trace!(
+            target: "stratum",
+            "submit_work: Decoded: nonce={}, pow_hash={}, mix_hash={}",
+            payload.nonce,
+            payload.pow_hash,
+            payload.mix_hash,
+        );
 
-		self.with_core_result(|client, miner| {
-			let seal = vec![encode(&payload.mix_hash), encode(&payload.nonce)];
+        self.with_core_result(|client, miner| {
+            let seal = vec![encode(&payload.mix_hash), encode(&payload.nonce)];
 
-			let import = miner.submit_seal(payload.pow_hash, seal)
-				.and_then(|block| client.import_sealed_block(block));
-			match import {
-				Ok(_) => Ok(()),
-				Err(e) => {
-					warn!(target: "stratum", "submit_seal error: {:?}", e);
-					Err(StratumServiceError::Dispatch(e.to_string()))
-				}
-			}
-		})
-	}
+            let import = miner
+                .submit_seal(payload.pow_hash, seal)
+                .and_then(|block| client.import_sealed_block(block));
+            match import {
+                Ok(_) => Ok(()),
+                Err(e) => {
+                    warn!(target: "stratum", "submit_seal error: {:?}", e);
+                    Err(StratumServiceError::Dispatch(e.to_string()))
+                }
+            }
+        })
+    }
 }
 
 impl StratumJobDispatcher {
-	/// New stratum job dispatcher given the miner and client
-	fn new(miner: Weak<Miner>, client: Weak<Client>) -> StratumJobDispatcher {
-		StratumJobDispatcher {
-			seed_compute: Mutex::new(SeedHashCompute::default()),
-			client: client,
-			miner: miner,
-		}
-	}
+    /// New stratum job dispatcher given the miner and client
+    fn new(miner: Weak<Miner>, client: Weak<Client>) -> StratumJobDispatcher {
+        StratumJobDispatcher {
+            seed_compute: Mutex::new(SeedHashCompute::default()),
+            client: client,
+            miner: miner,
+        }
+    }
 
-	/// Serializes payload for stratum service
-	fn payload(&self, pow_hash: H256, difficulty: U256, number: u64) -> String {
-		// TODO: move this to engine
-		let target = ethash::difficulty_to_boundary(&difficulty);
-		let seed_hash = &self.seed_compute.lock().hash_block_number(number);
-		let seed_hash = H256::from_slice(&seed_hash[..]);
-		format!(
-			r#"["0x", "0x{:x}","0x{:x}","0x{:x}","0x{:x}"]"#,
-			pow_hash, seed_hash, target, number
-		)
-	}
+    /// Serializes payload for stratum service
+    fn payload(&self, pow_hash: H256, difficulty: U256, number: u64) -> String {
+        // TODO: move this to engine
+        let target = ethash::difficulty_to_boundary(&difficulty);
+        let seed_hash = &self.seed_compute.lock().hash_block_number(number);
+        let seed_hash = H256::from_slice(&seed_hash[..]);
+        format!(
+            r#"["0x", "0x{:x}","0x{:x}","0x{:x}","0x{:x}"]"#,
+            pow_hash, seed_hash, target, number
+        )
+    }
 
-	fn with_core<F, R>(&self, f: F) -> Option<R> where F: Fn(Arc<Client>, Arc<Miner>) -> Option<R> {
-		self.client.upgrade().and_then(|client| self.miner.upgrade().and_then(|miner| (f)(client, miner)))
-	}
+    fn with_core<F, R>(&self, f: F) -> Option<R>
+    where
+        F: Fn(Arc<Client>, Arc<Miner>) -> Option<R>,
+    {
+        self.client
+            .upgrade()
+            .and_then(|client| self.miner.upgrade().and_then(|miner| (f)(client, miner)))
+    }
 
-	fn with_core_result<F>(&self, f: F) -> Result<(), StratumServiceError> where F: Fn(Arc<Client>, Arc<Miner>) -> Result<(), StratumServiceError> {
-		match (self.client.upgrade(), self.miner.upgrade()) {
-			(Some(client), Some(miner)) => f(client, miner),
-			_ => Ok(()),
-		}
-	}
+    fn with_core_result<F>(&self, f: F) -> Result<(), StratumServiceError>
+    where
+        F: Fn(Arc<Client>, Arc<Miner>) -> Result<(), StratumServiceError>,
+    {
+        match (self.client.upgrade(), self.miner.upgrade()) {
+            (Some(client), Some(miner)) => f(client, miner),
+            _ => Ok(()),
+        }
+    }
 }
 
 /// Wrapper for dedicated stratum service
 pub struct Stratum {
-	dispatcher: Arc<StratumJobDispatcher>,
-	service: Arc<StratumService>,
+    dispatcher: Arc<StratumJobDispatcher>,
+    service: Arc<StratumService>,
 }
 
 #[derive(Debug)]
 /// Stratum error
 pub enum Error {
-	/// IPC sockets error
-	Service(StratumServiceError),
-	/// Invalid network address
-	Address(AddrParseError),
+    /// IPC sockets error
+    Service(StratumServiceError),
+    /// Invalid network address
+    Address(AddrParseError),
 }
 
 impl From<StratumServiceError> for Error {
-	fn from(service_err: StratumServiceError) -> Error { Error::Service(service_err) }
+    fn from(service_err: StratumServiceError) -> Error {
+        Error::Service(service_err)
+    }
 }
 
 impl From<AddrParseError> for Error {
-	fn from(err: AddrParseError) -> Error { Error::Address(err) }
+    fn from(err: AddrParseError) -> Error {
+        Error::Address(err)
+    }
 }
 
 #[cfg(feature = "work-notify")]
 impl NotifyWork for Stratum {
-	fn notify(&self, pow_hash: H256, difficulty: U256, number: u64) {
-		trace!(target: "stratum", "Notify work");
+    fn notify(&self, pow_hash: H256, difficulty: U256, number: u64) {
+        trace!(target: "stratum", "Notify work");
 
-		self.service.push_work_all(
-			self.dispatcher.payload(pow_hash, difficulty, number)
-		);
-	}
+        self.service
+            .push_work_all(self.dispatcher.payload(pow_hash, difficulty, number));
+    }
 }
 
 impl Stratum {
+    /// New stratum job dispatcher, given the miner, client and dedicated stratum service
+    pub fn start(
+        options: &Options,
+        miner: Weak<Miner>,
+        client: Weak<Client>,
+    ) -> Result<Stratum, Error> {
+        use std::net::IpAddr;
 
-	/// New stratum job dispatcher, given the miner, client and dedicated stratum service
-	pub fn start(options: &Options, miner: Weak<Miner>, client: Weak<Client>) -> Result<Stratum, Error> {
-		use std::net::IpAddr;
+        let dispatcher = Arc::new(StratumJobDispatcher::new(miner, client));
 
-		let dispatcher = Arc::new(StratumJobDispatcher::new(miner, client));
+        let service = StratumService::start(
+            &SocketAddr::new(options.listen_addr.parse::<IpAddr>()?, options.port),
+            dispatcher.clone(),
+            options.secret.clone(),
+        )?;
 
-		let service = StratumService::start(
-			&SocketAddr::new(options.listen_addr.parse::<IpAddr>()?, options.port),
-			dispatcher.clone(),
-			options.secret.clone(),
-		)?;
+        Ok(Stratum {
+            dispatcher,
+            service,
+        })
+    }
 
-		Ok(Stratum { dispatcher, service })
-	}
-
-	/// Start STRATUM job dispatcher and register it in the miner
-	#[cfg(feature = "work-notify")]
-	pub fn register(cfg: &Options, miner: Arc<Miner>, client: Weak<Client>) -> Result<(), Error> {
-		let stratum = Stratum::start(cfg, Arc::downgrade(&miner.clone()), client)?;
-		miner.add_work_listener(Box::new(stratum) as Box<NotifyWork>);
-		Ok(())
-	}
+    /// Start STRATUM job dispatcher and register it in the miner
+    #[cfg(feature = "work-notify")]
+    pub fn register(cfg: &Options, miner: Arc<Miner>, client: Weak<Client>) -> Result<(), Error> {
+        let stratum = Stratum::start(cfg, Arc::downgrade(&miner.clone()), client)?;
+        miner.add_work_listener(Box::new(stratum) as Box<NotifyWork>);
+        Ok(())
+    }
 }

@@ -17,58 +17,74 @@
 //! Personal rpc interface.
 use eip_712::EIP712;
 use ethereum_types::{H160, H256, H520, U128};
-use jsonrpc_core::types::Value;
-use jsonrpc_core::{BoxFuture, Result};
+use jsonrpc_core::{types::Value, BoxFuture, Result};
 use jsonrpc_derive::rpc;
-use v1::types::{Bytes, TransactionRequest, RichRawTransaction as RpcRichRawTransaction, EIP191Version};
+use v1::types::{
+    Bytes, EIP191Version, RichRawTransaction as RpcRichRawTransaction, TransactionRequest,
+};
 
 /// Personal rpc interface. Safe (read-only) functions.
 #[rpc(server)]
 pub trait Personal {
-	/// RPC Metadata
-	type Metadata;
+    /// RPC Metadata
+    type Metadata;
 
-	/// Lists all stored accounts
-	#[rpc(name = "personal_listAccounts")]
-	fn accounts(&self) -> Result<Vec<H160>>;
+    /// Lists all stored accounts
+    #[rpc(name = "personal_listAccounts")]
+    fn accounts(&self) -> Result<Vec<H160>>;
 
-	/// Creates new account (it becomes new current unlocked account)
-	/// Param is the password for the account.
-	#[rpc(name = "personal_newAccount")]
-	fn new_account(&self, _: String) -> Result<H160>;
+    /// Creates new account (it becomes new current unlocked account)
+    /// Param is the password for the account.
+    #[rpc(name = "personal_newAccount")]
+    fn new_account(&self, _: String) -> Result<H160>;
 
-	/// Unlocks specified account for use (can only be one unlocked account at one moment)
-	#[rpc(name = "personal_unlockAccount")]
-	fn unlock_account(&self, _: H160, _: String, _: Option<U128>) -> Result<bool>;
+    /// Unlocks specified account for use (can only be one unlocked account at one moment)
+    #[rpc(name = "personal_unlockAccount")]
+    fn unlock_account(&self, _: H160, _: String, _: Option<U128>) -> Result<bool>;
 
-	/// Signs the hash of data with given account signature using the given password to unlock the account during
-	/// the request.
-	#[rpc(name = "personal_sign")]
-	fn sign(&self, _: Bytes, _: H160, _: String) -> BoxFuture<H520>;
+    /// Signs the hash of data with given account signature using the given password to unlock the account during
+    /// the request.
+    #[rpc(name = "personal_sign")]
+    fn sign(&self, _: Bytes, _: H160, _: String) -> BoxFuture<H520>;
 
-	/// Produces an EIP-712 compliant signature with given account using the given password to unlock the
-	/// account during the request.
-	#[rpc(name = "personal_signTypedData")]
-	fn sign_typed_data(&self, _: EIP712, _: H160, _: String) -> BoxFuture<H520>;
+    /// Produces an EIP-712 compliant signature with given account using the given password to unlock the
+    /// account during the request.
+    #[rpc(name = "personal_signTypedData")]
+    fn sign_typed_data(&self, _: EIP712, _: H160, _: String) -> BoxFuture<H520>;
 
-	/// Signs an arbitrary message based on the version specified
-	#[rpc(name = "personal_sign191")]
-	fn sign_191(&self, _: EIP191Version, _: Value, _: H160, _: String) -> BoxFuture<H520>;
+    /// Signs an arbitrary message based on the version specified
+    #[rpc(name = "personal_sign191")]
+    fn sign_191(&self, _: EIP191Version, _: Value, _: H160, _: String) -> BoxFuture<H520>;
 
-	/// Returns the account associated with the private key that was used to calculate the signature in
-	/// `personal_sign`.
-	#[rpc(name = "personal_ecRecover")]
-	fn ec_recover(&self, _: Bytes, _: H520) -> BoxFuture<H160>;
+    /// Returns the account associated with the private key that was used to calculate the signature in
+    /// `personal_sign`.
+    #[rpc(name = "personal_ecRecover")]
+    fn ec_recover(&self, _: Bytes, _: H520) -> BoxFuture<H160>;
 
-	/// Signs transaction. The account is not unlocked in such case.
-	#[rpc(meta, name = "personal_signTransaction")]
-	fn sign_transaction(&self, _: Self::Metadata, _: TransactionRequest, _: String) -> BoxFuture<RpcRichRawTransaction>;
+    /// Signs transaction. The account is not unlocked in such case.
+    #[rpc(meta, name = "personal_signTransaction")]
+    fn sign_transaction(
+        &self,
+        _: Self::Metadata,
+        _: TransactionRequest,
+        _: String,
+    ) -> BoxFuture<RpcRichRawTransaction>;
 
-	/// Sends transaction and signs it in single call. The account is not unlocked in such case.
-	#[rpc(meta, name = "personal_sendTransaction")]
-	fn send_transaction(&self, _: Self::Metadata, _: TransactionRequest, _: String) -> BoxFuture<H256>;
+    /// Sends transaction and signs it in single call. The account is not unlocked in such case.
+    #[rpc(meta, name = "personal_sendTransaction")]
+    fn send_transaction(
+        &self,
+        _: Self::Metadata,
+        _: TransactionRequest,
+        _: String,
+    ) -> BoxFuture<H256>;
 
-	/// @deprecated alias for `personal_sendTransaction`.
-	#[rpc(meta, name = "personal_signAndSendTransaction")]
-	fn sign_and_send_transaction(&self, _: Self::Metadata, _: TransactionRequest, _: String) -> BoxFuture<H256>;
+    /// @deprecated alias for `personal_sendTransaction`.
+    #[rpc(meta, name = "personal_signAndSendTransaction")]
+    fn sign_and_send_transaction(
+        &self,
+        _: Self::Metadata,
+        _: TransactionRequest,
+        _: String,
+    ) -> BoxFuture<H256>;
 }

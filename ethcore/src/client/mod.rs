@@ -27,29 +27,32 @@ mod io_message;
 pub mod test_client;
 mod trace;
 
-pub use self::client::*;
-pub use self::config::{Mode, ClientConfig, DatabaseCompactionProfile, BlockChainConfig, VMType};
 #[cfg(any(test, feature = "test-helpers"))]
 pub use self::evm_test_client::{EvmTestClient, EvmTestError, TransactErr, TransactSuccess};
-pub use self::io_message::ClientIoMessage;
 #[cfg(any(test, feature = "test-helpers"))]
-pub use self::test_client::{TestBlockChainClient, EachBlockWith};
-pub use self::chain_notify::{ChainNotify, NewBlocks, ChainRoute, ChainRouteType, ChainMessageType};
-pub use self::traits::{
-    Nonce, Balance, ChainInfo, BlockInfo, ReopenBlock, PrepareOpenBlock, TransactionInfo, ScheduleInfo, ImportSealedBlock, BroadcastProposalBlock, ImportBlock,
-    StateOrBlock, StateClient, Call, EngineInfo, AccountData, BlockChain, BlockProducer, SealedBlockImporter, BadBlocks,
-	BlockChainReset, ImportExportBlocks
+pub use self::test_client::{EachBlockWith, TestBlockChainClient};
+pub use self::{
+    chain_notify::{ChainMessageType, ChainNotify, ChainRoute, ChainRouteType, NewBlocks},
+    client::*,
+    config::{BlockChainConfig, ClientConfig, DatabaseCompactionProfile, Mode, VMType},
+    io_message::ClientIoMessage,
+    traits::{
+        AccountData, BadBlocks, Balance, BlockChain, BlockChainClient, BlockChainReset, BlockInfo,
+        BlockProducer, BroadcastProposalBlock, Call, ChainInfo, EngineClient, EngineInfo,
+        ImportBlock, ImportExportBlocks, ImportSealedBlock, IoClient, Nonce, PrepareOpenBlock,
+        ProvingBlockChainClient, ReopenBlock, ScheduleInfo, SealedBlockImporter, StateClient,
+        StateOrBlock, TransactionInfo,
+    },
 };
 pub use state::StateInfo;
-pub use self::traits::{BlockChainClient, EngineClient, ProvingBlockChainClient, IoClient};
 
-pub use types::ids::*;
-pub use types::trace_filter::Filter as TraceFilter;
-pub use types::pruning_info::PruningInfo;
-pub use types::call_analytics::CallAnalytics;
+pub use types::{
+    call_analytics::CallAnalytics, ids::*, pruning_info::PruningInfo,
+    trace_filter::Filter as TraceFilter,
+};
 
 pub use executive::{Executed, Executive, TransactOptions};
-pub use vm::{LastHashes, EnvInfo};
+pub use vm::{EnvInfo, LastHashes};
 
 pub use error::TransactionImportError;
 pub use verification::VerifierType;

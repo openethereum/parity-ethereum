@@ -20,28 +20,36 @@ use ethereum_types::{H160, H256, U256};
 use jsonrpc_core::Error;
 use jsonrpc_derive::rpc;
 
-use v1::types::{Bytes, PrivateTransactionReceipt, BlockNumber,
-	PrivateTransactionReceiptAndTransaction, CallRequest};
+use v1::types::{
+    BlockNumber, Bytes, CallRequest, PrivateTransactionReceipt,
+    PrivateTransactionReceiptAndTransaction,
+};
 
 /// Private transaction management RPC interface.
 #[rpc(server)]
 pub trait Private {
-	/// RPC Metadata
-	type Metadata;
+    /// RPC Metadata
+    type Metadata;
 
-	/// Sends private transaction; Transaction will be added to the validation queue and sent out when ready.
-	#[rpc(name = "private_sendTransaction")]
-	fn send_transaction(&self, _: Bytes) -> Result<PrivateTransactionReceipt, Error>;
+    /// Sends private transaction; Transaction will be added to the validation queue and sent out when ready.
+    #[rpc(name = "private_sendTransaction")]
+    fn send_transaction(&self, _: Bytes) -> Result<PrivateTransactionReceipt, Error>;
 
-	/// Creates a transaction for contract's deployment from origin (signed transaction)
-	#[rpc(name = "private_composeDeploymentTransaction")]
-	fn compose_deployment_transaction(&self, _: BlockNumber, _: Bytes, _: Vec<H160>, _: U256) -> Result<PrivateTransactionReceiptAndTransaction, Error>;
+    /// Creates a transaction for contract's deployment from origin (signed transaction)
+    #[rpc(name = "private_composeDeploymentTransaction")]
+    fn compose_deployment_transaction(
+        &self,
+        _: BlockNumber,
+        _: Bytes,
+        _: Vec<H160>,
+        _: U256,
+    ) -> Result<PrivateTransactionReceiptAndTransaction, Error>;
 
-	/// Make a call to the private contract
-	#[rpc(name = "private_call")]
-	fn private_call(&self, _: BlockNumber, _: CallRequest) -> Result<Bytes, Error>;
+    /// Make a call to the private contract
+    #[rpc(name = "private_call")]
+    fn private_call(&self, _: BlockNumber, _: CallRequest) -> Result<Bytes, Error>;
 
-	/// Retrieve the id of the key associated with the contract
-	#[rpc(name = "private_contractKey")]
-	fn private_contract_key(&self, _: H160) -> Result<H256, Error>;
+    /// Retrieve the id of the key associated with the contract
+    #[rpc(name = "private_contractKey")]
+    fn private_contract_key(&self, _: H160) -> Result<H256, Error>;
 }

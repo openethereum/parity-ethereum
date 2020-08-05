@@ -20,40 +20,40 @@ use std::{fmt, ptr};
 pub struct Password(String);
 
 impl fmt::Debug for Password {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Password(******)")
     }
 }
 
 impl Password {
-	pub fn as_bytes(&self) -> &[u8] {
-		self.0.as_bytes()
-	}
+    pub fn as_bytes(&self) -> &[u8] {
+        self.0.as_bytes()
+    }
 
-	pub fn as_str(&self) -> &str {
-		self.0.as_str()
-	}
+    pub fn as_str(&self) -> &str {
+        self.0.as_str()
+    }
 }
 
 // Custom drop impl to zero out memory.
 impl Drop for Password {
-	fn drop(&mut self) {
-		unsafe {
-			for byte_ref in self.0.as_mut_vec() {
-				ptr::write_volatile(byte_ref, 0)
-			}
-		}
-	}
+    fn drop(&mut self) {
+        unsafe {
+            for byte_ref in self.0.as_mut_vec() {
+                ptr::write_volatile(byte_ref, 0)
+            }
+        }
+    }
 }
 
 impl From<String> for Password {
-	fn from(s: String) -> Password {
-		Password(s)
-	}
+    fn from(s: String) -> Password {
+        Password(s)
+    }
 }
 
 impl<'a> From<&'a str> for Password {
-	fn from(s: &'a str) -> Password {
-		Password::from(String::from(s))
-	}
+    fn from(s: &'a str) -> Password {
+        Password::from(String::from(s))
+    }
 }

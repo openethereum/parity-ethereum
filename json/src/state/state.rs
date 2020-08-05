@@ -18,39 +18,39 @@
 
 use bytes::Bytes;
 use hash::H256;
-use state::{Env, AccountState, Transaction, Log};
+use state::{AccountState, Env, Log, Transaction};
 
 /// State test deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct State {
-	/// Environment.
-	pub env: Env,
-	/// Output.
-	#[serde(rename = "out")]
-	pub output: Bytes,
-	/// Pre state.
-	#[serde(rename = "pre")]
-	pub pre_state: AccountState,
-	/// Post state.
-	#[serde(rename = "post")]
-	pub post_state: AccountState,
-	/// Post state root.
-	pub post_state_root: H256,
-	/// Transaction.
-	pub transaction: Transaction,
-	/// Logs.
-	pub logs: Vec<Log>
+    /// Environment.
+    pub env: Env,
+    /// Output.
+    #[serde(rename = "out")]
+    pub output: Bytes,
+    /// Pre state.
+    #[serde(rename = "pre")]
+    pub pre_state: AccountState,
+    /// Post state.
+    #[serde(rename = "post")]
+    pub post_state: AccountState,
+    /// Post state root.
+    pub post_state_root: H256,
+    /// Transaction.
+    pub transaction: Transaction,
+    /// Logs.
+    pub logs: Vec<Log>,
 }
 
 #[cfg(test)]
 mod tests {
-	use serde_json;
-	use state::State;
+    use serde_json;
+    use state::State;
 
-	#[test]
-	fn state_deserialization() {
-		let s = r#"{
+    #[test]
+    fn state_deserialization() {
+        let s = r#"{
 			"env" : {
 				"currentCoinbase" : "2adc25665018aa1fe0e6bc666dac8fc2697ff9ba",
 				"currentDifficulty" : "0x0100",
@@ -150,7 +150,7 @@ mod tests {
 				"value" : "0x00"
 			}
 		}"#;
-		let _deserialized: State = serde_json::from_str(s).unwrap();
-		// TODO: validate all fields
-	}
+        let _deserialized: State = serde_json::from_str(s).unwrap();
+        // TODO: validate all fields
+    }
 }

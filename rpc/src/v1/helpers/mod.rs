@@ -36,23 +36,26 @@ mod network_settings;
 mod poll_filter;
 mod poll_manager;
 mod requests;
+mod signature;
 mod subscribers;
 mod subscription_manager;
 mod work;
-mod signature;
 
-pub use self::dispatch::{Dispatcher, FullDispatcher, LightDispatcher};
-pub use self::signature::verify_signature;
-pub use self::network_settings::NetworkSettings;
-pub use self::poll_manager::PollManager;
-pub use self::poll_filter::{PollFilter, SyncPollFilter, limit_logs};
-pub use self::requests::{
-	TransactionRequest, FilledTransactionRequest, ConfirmationRequest, ConfirmationPayload, CallRequest,
+pub use self::{
+    dispatch::{Dispatcher, FullDispatcher, LightDispatcher},
+    network_settings::NetworkSettings,
+    poll_filter::{limit_logs, PollFilter, SyncPollFilter},
+    poll_manager::PollManager,
+    requests::{
+        CallRequest, ConfirmationPayload, ConfirmationRequest, FilledTransactionRequest,
+        TransactionRequest,
+    },
+    signature::verify_signature,
+    subscribers::Subscribers,
+    subscription_manager::GenericPollManager,
+    work::submit_work_detail,
 };
-pub use self::subscribers::Subscribers;
-pub use self::subscription_manager::GenericPollManager;
-pub use self::work::submit_work_detail;
 
 pub fn to_url(address: &Option<::Host>) -> Option<String> {
-	address.as_ref().map(|host| (**host).to_owned())
+    address.as_ref().map(|host| (**host).to_owned())
 }

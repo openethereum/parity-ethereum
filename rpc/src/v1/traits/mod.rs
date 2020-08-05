@@ -34,20 +34,22 @@ pub mod signer;
 pub mod traces;
 pub mod web3;
 
-pub use self::debug::Debug;
-pub use self::eth::{Eth, EthFilter};
-pub use self::eth_pubsub::EthPubSub;
-pub use self::eth_signing::EthSigning;
-pub use self::net::Net;
-pub use self::parity::Parity;
-pub use self::parity_accounts::{ParityAccounts, ParityAccountsInfo};
-pub use self::parity_set::{ParitySet, ParitySetAccounts};
-pub use self::parity_signing::ParitySigning;
-pub use self::personal::Personal;
-pub use self::private::Private;
-pub use self::pubsub::PubSub;
-pub use self::rpc::Rpc;
-pub use self::secretstore::SecretStore;
-pub use self::signer::Signer;
-pub use self::traces::Traces;
-pub use self::web3::Web3;
+pub use self::{
+    debug::Debug,
+    eth::{Eth, EthFilter},
+    eth_pubsub::EthPubSub,
+    eth_signing::EthSigning,
+    net::Net,
+    parity::Parity,
+    parity_accounts::{ParityAccounts, ParityAccountsInfo},
+    parity_set::{ParitySet, ParitySetAccounts},
+    parity_signing::ParitySigning,
+    personal::Personal,
+    private::Private,
+    pubsub::PubSub,
+    rpc::Rpc,
+    secretstore::SecretStore,
+    signer::Signer,
+    traces::Traces,
+    web3::Web3,
+};

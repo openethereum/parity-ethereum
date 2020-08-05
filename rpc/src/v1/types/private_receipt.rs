@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use ethcore_private_tx::{Receipt as EthPrivateReceipt};
+use ethcore_private_tx::Receipt as EthPrivateReceipt;
 use ethereum_types::{H160, H256};
 use v1::types::TransactionRequest;
 
@@ -22,30 +22,30 @@ use v1::types::TransactionRequest;
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PrivateTransactionReceipt {
-	/// Transaction Hash
-	pub transaction_hash: H256,
-	/// Private contract address
-	pub contract_address: H160,
-	/// Status code
-	#[serde(rename = "status")]
-	pub status_code: u8,
+    /// Transaction Hash
+    pub transaction_hash: H256,
+    /// Private contract address
+    pub contract_address: H160,
+    /// Status code
+    #[serde(rename = "status")]
+    pub status_code: u8,
 }
 
 impl From<EthPrivateReceipt> for PrivateTransactionReceipt {
-	fn from(r: EthPrivateReceipt) -> Self {
-		PrivateTransactionReceipt {
-			transaction_hash: r.hash,
-			contract_address: r.contract_address,
-			status_code: r.status_code,
-		}
-	}
+    fn from(r: EthPrivateReceipt) -> Self {
+        PrivateTransactionReceipt {
+            transaction_hash: r.hash,
+            contract_address: r.contract_address,
+            status_code: r.status_code,
+        }
+    }
 }
 
 /// Receipt and Transaction
 #[derive(Debug, Serialize)]
 pub struct PrivateTransactionReceiptAndTransaction {
-	/// Receipt
-	pub receipt: PrivateTransactionReceipt,
-	/// Transaction
-	pub transaction: TransactionRequest,
+    /// Receipt
+    pub receipt: PrivateTransactionReceipt,
+    /// Transaction
+    pub transaction: TransactionRequest,
 }

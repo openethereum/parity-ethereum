@@ -24,17 +24,17 @@ extern crate log;
 #[macro_use]
 extern crate futures;
 
+extern crate http;
 extern crate hyper;
 extern crate hyper_rustls;
-extern crate http;
 
+extern crate bytes;
 extern crate tokio;
 extern crate url;
-extern crate bytes;
 
 /// Fetch client implementation.
 pub mod client;
 
-pub use url::Url;
-pub use self::client::{Client, Fetch, Error, Response, Request, Abort, BodyReader};
+pub use self::client::{Abort, BodyReader, Client, Error, Fetch, Request, Response};
 pub use hyper::Method;
+pub use url::Url;

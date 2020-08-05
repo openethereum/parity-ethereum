@@ -27,13 +27,13 @@ extern crate rustc_hex;
 extern crate serde;
 extern crate serde_json;
 extern crate smallvec;
+extern crate tempdir;
 extern crate time;
 extern crate tiny_keccak;
-extern crate tempdir;
 
-extern crate parity_crypto as crypto;
 extern crate ethereum_types;
 extern crate ethkey as _ethkey;
+extern crate parity_crypto as crypto;
 extern crate parity_wordlist;
 
 #[macro_use]
@@ -60,18 +60,20 @@ mod presale;
 mod random;
 mod secret_store;
 
-pub use self::account::{SafeAccount, Crypto};
-pub use self::error::Error;
-pub use self::ethstore::{EthStore, EthMultiStore};
-pub use self::import::{import_account, import_accounts, read_geth_accounts};
-pub use self::json::OpaqueKeyFile as KeyFile;
-pub use self::presale::PresaleWallet;
-pub use self::secret_store::{
-	SecretVaultRef, StoreAccountRef, SimpleSecretStore, SecretStore,
-	Derivation, IndexDerivation,
+pub use self::{
+    account::{Crypto, SafeAccount},
+    error::Error,
+    ethstore::{EthMultiStore, EthStore},
+    import::{import_account, import_accounts, read_geth_accounts},
+    json::OpaqueKeyFile as KeyFile,
+    parity_wordlist::random_phrase,
+    presale::PresaleWallet,
+    random::random_string,
+    secret_store::{
+        Derivation, IndexDerivation, SecretStore, SecretVaultRef, SimpleSecretStore,
+        StoreAccountRef,
+    },
 };
-pub use self::random::random_string;
-pub use self::parity_wordlist::random_phrase;
 
 /// An opaque wrapper for secret.
 pub struct OpaqueSecret(::ethkey::Secret);

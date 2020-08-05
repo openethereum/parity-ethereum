@@ -16,13 +16,13 @@
 
 //! Façade crate for `patricia_trie` for Ethereum specific impls
 
-pub extern crate trie_db as trie; // `pub` because we need to import this crate for the tests in `patricia_trie` and there were issues: https://gist.github.com/dvdplm/869251ee557a1b4bd53adc7c971979aa
 extern crate elastic_array;
-extern crate parity_bytes;
 extern crate ethereum_types;
 extern crate hash_db;
 extern crate keccak_hasher;
+extern crate parity_bytes;
 extern crate rlp;
+pub extern crate trie_db as trie; // `pub` because we need to import this crate for the tests in `patricia_trie` and there were issues: https://gist.github.com/dvdplm/869251ee557a1b4bd53adc7c971979aa
 
 mod rlp_node_codec;
 

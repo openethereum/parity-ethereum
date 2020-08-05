@@ -22,97 +22,101 @@ use std::fmt;
 #[repr(u8)]
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum ReleaseTrack {
-	/// Stable track.
-	Stable = 1,
-	/// Beta track.
-	Beta = 2,
-	/// Nightly track.
-	Nightly = 3,
-	/// Testing track.
-	Testing = 4,
-	/// No known track, also "current executable's track" when it's not yet known.
-	Unknown = 0,
+    /// Stable track.
+    Stable = 1,
+    /// Beta track.
+    Beta = 2,
+    /// Nightly track.
+    Nightly = 3,
+    /// Testing track.
+    Testing = 4,
+    /// No known track, also "current executable's track" when it's not yet known.
+    Unknown = 0,
 }
 
 impl fmt::Display for ReleaseTrack {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, "{}", match *self {
-			ReleaseTrack::Stable => "stable",
-			ReleaseTrack::Beta => "beta",
-			ReleaseTrack::Nightly => "nightly",
-			ReleaseTrack::Testing => "testing",
-			ReleaseTrack::Unknown => "unknown",
-		})
-	}
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match *self {
+                ReleaseTrack::Stable => "stable",
+                ReleaseTrack::Beta => "beta",
+                ReleaseTrack::Nightly => "nightly",
+                ReleaseTrack::Testing => "testing",
+                ReleaseTrack::Unknown => "unknown",
+            }
+        )
+    }
 }
 
 impl<'a> From<&'a str> for ReleaseTrack {
-	fn from(s: &'a str) -> Self {
-		match s {
-			"stable" => ReleaseTrack::Stable,
-			"beta" => ReleaseTrack::Beta,
-			"nightly" => ReleaseTrack::Nightly,
-			"testing" => ReleaseTrack::Testing,
-			_ => ReleaseTrack::Unknown,
-		}
-	}
+    fn from(s: &'a str) -> Self {
+        match s {
+            "stable" => ReleaseTrack::Stable,
+            "beta" => ReleaseTrack::Beta,
+            "nightly" => ReleaseTrack::Nightly,
+            "testing" => ReleaseTrack::Testing,
+            _ => ReleaseTrack::Unknown,
+        }
+    }
 }
 
 impl From<u8> for ReleaseTrack {
-	fn from(i: u8) -> Self {
-		match i {
-			1 => ReleaseTrack::Stable,
-			2 => ReleaseTrack::Beta,
-			3 => ReleaseTrack::Nightly,
-			4 => ReleaseTrack::Testing,
-			_ => ReleaseTrack::Unknown,
-		}
-	}
+    fn from(i: u8) -> Self {
+        match i {
+            1 => ReleaseTrack::Stable,
+            2 => ReleaseTrack::Beta,
+            3 => ReleaseTrack::Nightly,
+            4 => ReleaseTrack::Testing,
+            _ => ReleaseTrack::Unknown,
+        }
+    }
 }
 
 impl From<ReleaseTrack> for u8 {
-	fn from(rt: ReleaseTrack) -> Self {
-		rt as u8
-	}
+    fn from(rt: ReleaseTrack) -> Self {
+        rt as u8
+    }
 }
 
 #[cfg(test)]
 mod tests {
-	use super::ReleaseTrack;
+    use super::ReleaseTrack;
 
-	#[test]
-	fn test_release_track_from() {
-		assert_eq!(ReleaseTrack::Stable, 1u8.into());
-		assert_eq!(ReleaseTrack::Beta, 2u8.into());
-		assert_eq!(ReleaseTrack::Nightly, 3u8.into());
-		assert_eq!(ReleaseTrack::Testing, 4u8.into());
-		assert_eq!(ReleaseTrack::Unknown, 0u8.into());
-	}
+    #[test]
+    fn test_release_track_from() {
+        assert_eq!(ReleaseTrack::Stable, 1u8.into());
+        assert_eq!(ReleaseTrack::Beta, 2u8.into());
+        assert_eq!(ReleaseTrack::Nightly, 3u8.into());
+        assert_eq!(ReleaseTrack::Testing, 4u8.into());
+        assert_eq!(ReleaseTrack::Unknown, 0u8.into());
+    }
 
-	#[test]
-	fn test_release_track_into() {
-		assert_eq!(1u8, u8::from(ReleaseTrack::Stable));
-		assert_eq!(2u8, u8::from(ReleaseTrack::Beta));
-		assert_eq!(3u8, u8::from(ReleaseTrack::Nightly));
-		assert_eq!(4u8, u8::from(ReleaseTrack::Testing));
-		assert_eq!(0u8, u8::from(ReleaseTrack::Unknown));
-	}
+    #[test]
+    fn test_release_track_into() {
+        assert_eq!(1u8, u8::from(ReleaseTrack::Stable));
+        assert_eq!(2u8, u8::from(ReleaseTrack::Beta));
+        assert_eq!(3u8, u8::from(ReleaseTrack::Nightly));
+        assert_eq!(4u8, u8::from(ReleaseTrack::Testing));
+        assert_eq!(0u8, u8::from(ReleaseTrack::Unknown));
+    }
 
-	#[test]
-	fn test_release_track_from_str() {
-		assert_eq!(ReleaseTrack::Stable, "stable".into());
-		assert_eq!(ReleaseTrack::Beta, "beta".into());
-		assert_eq!(ReleaseTrack::Nightly, "nightly".into());
-		assert_eq!(ReleaseTrack::Testing, "testing".into());
-		assert_eq!(ReleaseTrack::Unknown, "unknown".into());
-	}
+    #[test]
+    fn test_release_track_from_str() {
+        assert_eq!(ReleaseTrack::Stable, "stable".into());
+        assert_eq!(ReleaseTrack::Beta, "beta".into());
+        assert_eq!(ReleaseTrack::Nightly, "nightly".into());
+        assert_eq!(ReleaseTrack::Testing, "testing".into());
+        assert_eq!(ReleaseTrack::Unknown, "unknown".into());
+    }
 
-	#[test]
-	fn test_release_track_into_str() {
-		assert_eq!("stable", ReleaseTrack::Stable.to_string());
-		assert_eq!("beta", ReleaseTrack::Beta.to_string());
-		assert_eq!("nightly", ReleaseTrack::Nightly.to_string());
-		assert_eq!("testing", ReleaseTrack::Testing.to_string());
-		assert_eq!("unknown", ReleaseTrack::Unknown.to_string());
-	}
+    #[test]
+    fn test_release_track_into_str() {
+        assert_eq!("stable", ReleaseTrack::Stable.to_string());
+        assert_eq!("beta", ReleaseTrack::Beta.to_string());
+        assert_eq!("nightly", ReleaseTrack::Nightly.to_string());
+        assert_eq!("testing", ReleaseTrack::Testing.to_string());
+        assert_eq!("unknown", ReleaseTrack::Unknown.to_string());
+    }
 }

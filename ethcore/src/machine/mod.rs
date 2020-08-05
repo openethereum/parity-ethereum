@@ -3,5 +3,4 @@
 mod impls;
 mod traits;
 
-pub use self::impls::*;
-pub use self::traits::*;
+pub use self::{impls::*, traits::*};

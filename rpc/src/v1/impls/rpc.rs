@@ -15,50 +15,52 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! RPC generic methods implementation.
-use std::collections::BTreeMap;
 use jsonrpc_core::Result;
+use std::collections::BTreeMap;
 use v1::traits::Rpc;
 
 /// RPC generic methods implementation.
 pub struct RpcClient {
-	modules: BTreeMap<String, String>,
-	valid_apis: Vec<String>,
+    modules: BTreeMap<String, String>,
+    valid_apis: Vec<String>,
 }
 
 impl RpcClient {
-	/// Creates new `RpcClient`.
-	pub fn new(modules: BTreeMap<String, String>) -> Self {
-		// geth 1.3.6 fails upon receiving unknown api
-		let valid_apis = vec!["web3", "eth", "net", "personal", "rpc"];
+    /// Creates new `RpcClient`.
+    pub fn new(modules: BTreeMap<String, String>) -> Self {
+        // geth 1.3.6 fails upon receiving unknown api
+        let valid_apis = vec!["web3", "eth", "net", "personal", "rpc"];
 
-		RpcClient {
-			modules,
-			valid_apis: valid_apis.into_iter().map(ToOwned::to_owned).collect(),
-		}
-	}
+        RpcClient {
+            modules,
+            valid_apis: valid_apis.into_iter().map(ToOwned::to_owned).collect(),
+        }
+    }
 }
 
 impl Rpc for RpcClient {
-	fn rpc_modules(&self) -> Result<BTreeMap<String, String>> {
-		let modules = self.modules.iter()
-			.fold(BTreeMap::new(), |mut map, (k, v)| {
-				map.insert(k.to_owned(), v.to_owned());
-				map
-			});
+    fn rpc_modules(&self) -> Result<BTreeMap<String, String>> {
+        let modules = self
+            .modules
+            .iter()
+            .fold(BTreeMap::new(), |mut map, (k, v)| {
+                map.insert(k.to_owned(), v.to_owned());
+                map
+            });
 
-		Ok(modules)
-	}
+        Ok(modules)
+    }
 
-	fn modules(&self) -> Result<BTreeMap<String, String>> {
-		let modules = self.modules.iter()
-			.filter(|&(k, _v)| {
-				self.valid_apis.contains(k)
-			})
-			.fold(BTreeMap::new(), |mut map, (k, v)| {
-				map.insert(k.to_owned(), v.to_owned());
-				map
-			});
+    fn modules(&self) -> Result<BTreeMap<String, String>> {
+        let modules = self
+            .modules
+            .iter()
+            .filter(|&(k, _v)| self.valid_apis.contains(k))
+            .fold(BTreeMap::new(), |mut map, (k, v)| {
+                map.insert(k.to_owned(), v.to_owned());
+                map
+            });
 
-		Ok(modules)
-	}
+        Ok(modules)
+    }
 }

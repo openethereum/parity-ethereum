@@ -21,7 +21,9 @@ mod snapshot_service;
 mod sync_provider;
 mod update_service;
 
-pub use self::miner_service::TestMinerService;
-pub use self::snapshot_service::TestSnapshotService;
-pub use self::sync_provider::{Config, TestSyncProvider};
-pub use self::update_service::TestUpdater;
+pub use self::{
+    miner_service::TestMinerService,
+    snapshot_service::TestSnapshotService,
+    sync_provider::{Config, TestSyncProvider},
+    update_service::TestUpdater,
+};

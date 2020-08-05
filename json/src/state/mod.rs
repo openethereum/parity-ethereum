@@ -16,14 +16,11 @@
 
 //! State test deserialization.
 
-pub mod state;
-pub mod transaction;
-pub mod test;
 pub mod log;
+pub mod state;
+pub mod test;
+pub mod transaction;
 
-pub use self::state::State;
-pub use self::transaction::Transaction;
-pub use self::test::Test;
-pub use self::log::Log;
-pub use vm::Env as Env;
+pub use self::{log::Log, state::State, test::Test, transaction::Transaction};
 pub use blockchain::State as AccountState;
+pub use vm::Env;

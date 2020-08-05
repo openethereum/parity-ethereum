@@ -14,67 +14,86 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::collections::HashSet;
-use std::path::Path;
-use std::fs;
+use std::{collections::HashSet, fs, path::Path};
 
-use ethkey::Address;
-use accounts_dir::{KeyDirectory, RootDiskDirectory, DiskKeyFileManager, KeyFileManager};
+use accounts_dir::{DiskKeyFileManager, KeyDirectory, KeyFileManager, RootDiskDirectory};
 use dir;
+use ethkey::Address;
 use Error;
 
 /// Import an account from a file.
 pub fn import_account(path: &Path, dst: &KeyDirectory) -> Result<Address, Error> {
-	let key_manager = DiskKeyFileManager::default();
-	let existing_accounts = dst.load()?.into_iter().map(|a| a.address).collect::<HashSet<_>>();
-	let filename = path.file_name().and_then(|n| n.to_str()).map(|f| f.to_owned());
-	let account = fs::File::open(&path)
-		.map_err(Into::into)
-		.and_then(|file| key_manager.read(filename, file))?;
+    let key_manager = DiskKeyFileManager::default();
+    let existing_accounts = dst
+        .load()?
+        .into_iter()
+        .map(|a| a.address)
+        .collect::<HashSet<_>>();
+    let filename = path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .map(|f| f.to_owned());
+    let account = fs::File::open(&path)
+        .map_err(Into::into)
+        .and_then(|file| key_manager.read(filename, file))?;
 
-	let address = account.address.clone();
-	if !existing_accounts.contains(&address) {
-		dst.insert(account)?;
-	}
-	Ok(address)
+    let address = account.address.clone();
+    if !existing_accounts.contains(&address) {
+        dst.insert(account)?;
+    }
+    Ok(address)
 }
 
 /// Import all accounts from one directory to the other.
 pub fn import_accounts(src: &KeyDirectory, dst: &KeyDirectory) -> Result<Vec<Address>, Error> {
-	let accounts = src.load()?;
-	let existing_accounts = dst.load()?.into_iter()
-		.map(|a| a.address)
-		.collect::<HashSet<_>>();
+    let accounts = src.load()?;
+    let existing_accounts = dst
+        .load()?
+        .into_iter()
+        .map(|a| a.address)
+        .collect::<HashSet<_>>();
 
-	accounts.into_iter()
-		.filter(|a| !existing_accounts.contains(&a.address))
-		.map(|a| {
-			let address = a.address.clone();
-			dst.insert(a)?;
-			Ok(address)
-		}).collect()
+    accounts
+        .into_iter()
+        .filter(|a| !existing_accounts.contains(&a.address))
+        .map(|a| {
+            let address = a.address.clone();
+            dst.insert(a)?;
+            Ok(address)
+        })
+        .collect()
 }
 
 /// Provide a `HashSet` of all accounts available for import from the Geth keystore.
 pub fn read_geth_accounts(testnet: bool) -> Vec<Address> {
-	RootDiskDirectory::at(dir::geth(testnet))
-		.load()
-		.map(|d| d.into_iter().map(|a| a.address).collect())
-		.unwrap_or_else(|_| Vec::new())
+    RootDiskDirectory::at(dir::geth(testnet))
+        .load()
+        .map(|d| d.into_iter().map(|a| a.address).collect())
+        .unwrap_or_else(|_| Vec::new())
 }
 
 /// Import specific `desired` accounts from the Geth keystore into `dst`.
-pub fn import_geth_accounts(dst: &KeyDirectory, desired: HashSet<Address>, testnet: bool) -> Result<Vec<Address>, Error> {
-	let src = RootDiskDirectory::at(dir::geth(testnet));
-	let accounts = src.load()?;
-	let existing_accounts = dst.load()?.into_iter().map(|a| a.address).collect::<HashSet<_>>();
+pub fn import_geth_accounts(
+    dst: &KeyDirectory,
+    desired: HashSet<Address>,
+    testnet: bool,
+) -> Result<Vec<Address>, Error> {
+    let src = RootDiskDirectory::at(dir::geth(testnet));
+    let accounts = src.load()?;
+    let existing_accounts = dst
+        .load()?
+        .into_iter()
+        .map(|a| a.address)
+        .collect::<HashSet<_>>();
 
-	accounts.into_iter()
-		.filter(|a| !existing_accounts.contains(&a.address))
-		.filter(|a| desired.contains(&a.address))
-		.map(|a| {
-			let address = a.address.clone();
-			dst.insert(a)?;
-			Ok(address)
-		}).collect()
+    accounts
+        .into_iter()
+        .filter(|a| !existing_accounts.contains(&a.address))
+        .filter(|a| desired.contains(&a.address))
+        .map(|a| {
+            let address = a.address.clone();
+            dst.insert(a)?;
+            Ok(address)
+        })
+        .collect()
 }

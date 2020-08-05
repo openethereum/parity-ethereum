@@ -16,10 +16,8 @@
 
 //! TransactionTest test deserializer.
 
-use std::collections::BTreeMap;
-use std::io::Read;
-use serde_json;
-use serde_json::Error;
+use serde_json::{self, Error};
+use std::{collections::BTreeMap, io::Read};
 use trie::Trie;
 
 /// TransactionTest test deserializer.
@@ -27,17 +25,20 @@ use trie::Trie;
 pub struct Test(BTreeMap<String, Trie>);
 
 impl IntoIterator for Test {
-	type Item = <BTreeMap<String, Trie> as IntoIterator>::Item;
-	type IntoIter = <BTreeMap<String, Trie> as IntoIterator>::IntoIter;
+    type Item = <BTreeMap<String, Trie> as IntoIterator>::Item;
+    type IntoIter = <BTreeMap<String, Trie> as IntoIterator>::IntoIter;
 
-	fn into_iter(self) -> Self::IntoIter {
-		self.0.into_iter()
-	}
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
 }
 
 impl Test {
-	/// Loads test from json.
-	pub fn load<R>(reader: R) -> Result<Self, Error> where R: Read {
-		serde_json::from_reader(reader)
-	}
+    /// Loads test from json.
+    pub fn load<R>(reader: R) -> Result<Self, Error>
+    where
+        R: Read,
+    {
+        serde_json::from_reader(reader)
+    }
 }

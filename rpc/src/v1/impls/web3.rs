@@ -18,20 +18,19 @@
 use ethereum_types::H256;
 use hash::keccak;
 use jsonrpc_core::Result;
+use v1::{traits::Web3, types::Bytes};
 use version::version;
-use v1::traits::Web3;
-use v1::types::Bytes;
 
 /// Web3 rpc implementation.
 #[derive(Default)]
 pub struct Web3Client;
 
 impl Web3 for Web3Client {
-	fn client_version(&self) -> Result<String> {
-		Ok(version().to_owned().replacen("/", "//", 1))
-	}
+    fn client_version(&self) -> Result<String> {
+        Ok(version().to_owned().replacen("/", "//", 1))
+    }
 
-	fn sha3(&self, data: Bytes) -> Result<H256> {
-		Ok(keccak(&data.0))
-	}
+    fn sha3(&self, data: Bytes) -> Result<H256> {
+        Ok(keccak(&data.0))
+    }
 }

@@ -23,36 +23,39 @@ use uint::Uint;
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "camelCase")]
 pub struct NullEngineParams {
-	/// Block reward.
-	pub block_reward: Option<Uint>,
-	/// Immediate finalization.
-	pub immediate_finalization: Option<bool>
+    /// Block reward.
+    pub block_reward: Option<Uint>,
+    /// Immediate finalization.
+    pub immediate_finalization: Option<bool>,
 }
 
 /// Null engine descriptor
 #[derive(Debug, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct NullEngine {
-	/// Ethash params.
-	pub params: NullEngineParams,
+    /// Ethash params.
+    pub params: NullEngineParams,
 }
 
 #[cfg(test)]
 mod tests {
-	use serde_json;
-	use uint::Uint;
-	use ethereum_types::U256;
-	use super::*;
+    use super::*;
+    use ethereum_types::U256;
+    use serde_json;
+    use uint::Uint;
 
-	#[test]
-	fn null_engine_deserialization() {
-		let s = r#"{
+    #[test]
+    fn null_engine_deserialization() {
+        let s = r#"{
 			"params": {
 				"blockReward": "0x0d"
 			}
 		}"#;
 
-		let deserialized: NullEngine = serde_json::from_str(s).unwrap();
-		assert_eq!(deserialized.params.block_reward, Some(Uint(U256::from(0x0d))));
-	}
+        let deserialized: NullEngine = serde_json::from_str(s).unwrap();
+        assert_eq!(
+            deserialized.params.block_reward,
+            Some(Uint(U256::from(0x0d)))
+        );
+    }
 }

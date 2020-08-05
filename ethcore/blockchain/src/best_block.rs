@@ -16,8 +16,7 @@
 
 use ethereum_types::{H256, U256};
 
-use common_types::{encoded, BlockNumber};
-use common_types::header::Header;
+use common_types::{encoded, header::Header, BlockNumber};
 
 /// Contains information on a best block that is specific to the consensus engine.
 ///
@@ -26,19 +25,19 @@ use common_types::header::Header;
 ///
 /// Sometimes refered as 'latest block'.
 pub struct BestBlock {
-	/// Best block decoded header.
-	pub header: Header,
-	/// Best block uncompressed bytes.
-	pub block: encoded::Block,
-	/// Best block total difficulty.
-	pub total_difficulty: U256,
+    /// Best block decoded header.
+    pub header: Header,
+    /// Best block uncompressed bytes.
+    pub block: encoded::Block,
+    /// Best block total difficulty.
+    pub total_difficulty: U256,
 }
 
 /// Best ancient block info. If the blockchain has a gap this keeps track of where it starts.
 #[derive(Default)]
 pub struct BestAncientBlock {
-	/// Best block hash.
-	pub hash: H256,
-	/// Best block number.
-	pub number: BlockNumber,
+    /// Best block hash.
+    pub hash: H256,
+    /// Best block number.
+    pub number: BlockNumber,
 }

@@ -19,27 +19,31 @@ use std::fmt;
 /// Type of EVM to use.
 #[derive(Debug, PartialEq, Clone)]
 pub enum VMType {
-	/// RUST EVM
-	Interpreter
+    /// RUST EVM
+    Interpreter,
 }
 
 impl fmt::Display for VMType {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, "{}", match *self {
-			VMType::Interpreter => "INT"
-		})
-	}
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match *self {
+                VMType::Interpreter => "INT",
+            }
+        )
+    }
 }
 
 impl Default for VMType {
-	fn default() -> Self {
-		VMType::Interpreter
-	}
+    fn default() -> Self {
+        VMType::Interpreter
+    }
 }
 
 impl VMType {
-	/// Return all possible VMs (Interpreter)
-	pub fn all() -> Vec<VMType> {
-		vec![VMType::Interpreter]
-	}
+    /// Return all possible VMs (Interpreter)
+    pub fn all() -> Vec<VMType> {
+        vec![VMType::Interpreter]
+    }
 }

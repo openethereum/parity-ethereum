@@ -14,8 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::ops::{Deref, DerefMut};
-use std::path::PathBuf;
+use std::{
+    ops::{Deref, DerefMut},
+    path::PathBuf,
+};
 use tempdir::TempDir;
 
 use parity_runtime::{Runtime, TaskExecutor};
@@ -24,64 +26,65 @@ use authcodes::AuthCodes;
 
 /// Server with event loop
 pub struct Server<T> {
-	/// Server
-	pub server: T,
-	/// RPC Event Loop
-	pub event_loop: Runtime,
+    /// Server
+    pub server: T,
+    /// RPC Event Loop
+    pub event_loop: Runtime,
 }
 
 impl<T> Server<T> {
-	pub fn new<F>(f: F) -> Server<T> where
-		F: FnOnce(TaskExecutor) -> T,
-	{
-		let event_loop = Runtime::with_thread_count(1);
-		let remote = event_loop.raw_executor();
+    pub fn new<F>(f: F) -> Server<T>
+    where
+        F: FnOnce(TaskExecutor) -> T,
+    {
+        let event_loop = Runtime::with_thread_count(1);
+        let remote = event_loop.raw_executor();
 
-		Server {
-			server: f(remote),
-			event_loop,
-		}
-	}
+        Server {
+            server: f(remote),
+            event_loop,
+        }
+    }
 }
 
 impl<T> Deref for Server<T> {
-	type Target = T;
+    type Target = T;
 
-	fn deref(&self) -> &Self::Target {
-		&self.server
-	}
+    fn deref(&self) -> &Self::Target {
+        &self.server
+    }
 }
 
 /// Struct representing authcodes
 pub struct GuardedAuthCodes {
-	authcodes: AuthCodes,
-	_tempdir: TempDir,
-	/// The path to the mock authcodes
-	pub path: PathBuf,
+    authcodes: AuthCodes,
+    _tempdir: TempDir,
+    /// The path to the mock authcodes
+    pub path: PathBuf,
 }
 
 impl Default for GuardedAuthCodes {
-	fn default() -> Self {
-		let tempdir = TempDir::new("").unwrap();
-		let path = tempdir.path().join("file");
+    fn default() -> Self {
+        let tempdir = TempDir::new("").unwrap();
+        let path = tempdir.path().join("file");
 
-		GuardedAuthCodes {
-			authcodes: AuthCodes::from_file(&path).unwrap(),
-			_tempdir: tempdir,
-			path,
-		}
-	}
+        GuardedAuthCodes {
+            authcodes: AuthCodes::from_file(&path).unwrap(),
+            _tempdir: tempdir,
+            path,
+        }
+    }
 }
 
 impl Deref for GuardedAuthCodes {
-	type Target = AuthCodes;
-	fn deref(&self) -> &Self::Target {
-		&self.authcodes
-	}
+    type Target = AuthCodes;
+    fn deref(&self) -> &Self::Target {
+        &self.authcodes
+    }
 }
 
 impl DerefMut for GuardedAuthCodes {
-	fn deref_mut(&mut self) -> &mut AuthCodes {
-		&mut self.authcodes
-	}
+    fn deref_mut(&mut self) -> &mut AuthCodes {
+        &mut self.authcodes
+    }
 }

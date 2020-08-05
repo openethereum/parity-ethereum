@@ -18,17 +18,18 @@
 
 extern crate backtrace;
 
-use std::panic::{self, PanicInfo};
-use std::thread;
-use std::process;
 use backtrace::Backtrace;
+use std::{
+    panic::{self, PanicInfo},
+    process, thread,
+};
 
 /// Set the panic hook to write to stderr and abort the process when a panic happens.
 pub fn set_abort() {
-	set_with(|msg| {
-		eprintln!("{}", msg);
-		process::abort()
-	});
+    set_with(|msg| {
+        eprintln!("{}", msg);
+        process::abort()
+    });
 }
 
 /// Set the panic hook with a closure to be called. The closure receives the panic message.
@@ -38,12 +39,13 @@ pub fn set_abort() {
 ///
 /// If you panic within the closure, a double panic happens and the process will stop.
 pub fn set_with<F>(f: F)
-where F: Fn(&str) + Send + Sync + 'static
+where
+    F: Fn(&str) + Send + Sync + 'static,
 {
-	panic::set_hook(Box::new(move |info| {
-		let msg = gen_panic_msg(info);
-		f(&msg);
-	}));
+    panic::set_hook(Box::new(move |info| {
+        let msg = gen_panic_msg(info);
+        f(&msg);
+    }));
 }
 
 static ABOUT_PANIC: &str = "
@@ -53,24 +55,25 @@ This is a bug. Please report it at:
 ";
 
 fn gen_panic_msg(info: &PanicInfo) -> String {
-	let location = info.location();
-	let file = location.as_ref().map(|l| l.file()).unwrap_or("<unknown>");
-	let line = location.as_ref().map(|l| l.line()).unwrap_or(0);
+    let location = info.location();
+    let file = location.as_ref().map(|l| l.file()).unwrap_or("<unknown>");
+    let line = location.as_ref().map(|l| l.line()).unwrap_or(0);
 
-	let msg = match info.payload().downcast_ref::<&'static str>() {
-		Some(s) => *s,
-		None => match info.payload().downcast_ref::<String>() {
-			Some(s) => &s[..],
-			None => "Box<Any>",
-		}
-	};
+    let msg = match info.payload().downcast_ref::<&'static str>() {
+        Some(s) => *s,
+        None => match info.payload().downcast_ref::<String>() {
+            Some(s) => &s[..],
+            None => "Box<Any>",
+        },
+    };
 
-	let thread = thread::current();
-	let name = thread.name().unwrap_or("<unnamed>");
+    let thread = thread::current();
+    let name = thread.name().unwrap_or("<unnamed>");
 
-	let backtrace = Backtrace::new();
+    let backtrace = Backtrace::new();
 
-	format!(r#"
+    format!(
+        r#"
 
 ====================
 
@@ -78,5 +81,12 @@ fn gen_panic_msg(info: &PanicInfo) -> String {
 
 Thread '{name}' panicked at '{msg}', {file}:{line}
 {about}
-"#, backtrace = backtrace, name = name, msg = msg, file = file, line = line, about = ABOUT_PANIC)
+"#,
+        backtrace = backtrace,
+        name = name,
+        msg = msg,
+        file = file,
+        line = line,
+        about = ABOUT_PANIC
+    )
 }

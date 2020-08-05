@@ -19,36 +19,49 @@ use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_derive::rpc;
 
 use ethereum_types::{H160, U256};
-use v1::types::{Bytes, ConfirmationResponse, TransactionRequest, Either};
+use v1::types::{Bytes, ConfirmationResponse, Either, TransactionRequest};
 
 /// Signing methods implementation.
 #[rpc(server)]
 pub trait ParitySigning {
-	/// RPC Metadata
-	type Metadata;
+    /// RPC Metadata
+    type Metadata;
 
-	/// Given partial transaction request produces transaction with all fields filled in.
-	/// Such transaction can be then signed externally.
-	#[rpc(meta, name = "parity_composeTransaction")]
-	fn compose_transaction(&self, _: Self::Metadata, _: TransactionRequest) -> BoxFuture<TransactionRequest>;
+    /// Given partial transaction request produces transaction with all fields filled in.
+    /// Such transaction can be then signed externally.
+    #[rpc(meta, name = "parity_composeTransaction")]
+    fn compose_transaction(
+        &self,
+        _: Self::Metadata,
+        _: TransactionRequest,
+    ) -> BoxFuture<TransactionRequest>;
 
-	/// Posts sign request asynchronously.
-	/// Will return a confirmation ID for later use with check_transaction.
-	#[rpc(meta, name = "parity_postSign")]
-	fn post_sign(&self, _: Self::Metadata, _: H160, _: Bytes) -> BoxFuture<Either<U256, ConfirmationResponse>>;
+    /// Posts sign request asynchronously.
+    /// Will return a confirmation ID for later use with check_transaction.
+    #[rpc(meta, name = "parity_postSign")]
+    fn post_sign(
+        &self,
+        _: Self::Metadata,
+        _: H160,
+        _: Bytes,
+    ) -> BoxFuture<Either<U256, ConfirmationResponse>>;
 
-	/// Posts transaction asynchronously.
-	/// Will return a transaction ID for later use with check_transaction.
-	#[rpc(meta, name = "parity_postTransaction")]
-	fn post_transaction(&self, _: Self::Metadata, _: TransactionRequest) -> BoxFuture<Either<U256, ConfirmationResponse>>;
+    /// Posts transaction asynchronously.
+    /// Will return a transaction ID for later use with check_transaction.
+    #[rpc(meta, name = "parity_postTransaction")]
+    fn post_transaction(
+        &self,
+        _: Self::Metadata,
+        _: TransactionRequest,
+    ) -> BoxFuture<Either<U256, ConfirmationResponse>>;
 
-	/// Checks the progress of a previously posted request (transaction/sign).
-	/// Should be given a valid send_transaction ID.
-	#[rpc(name = "parity_checkRequest")]
-	fn check_request(&self, _: U256) -> Result<Option<ConfirmationResponse>>;
+    /// Checks the progress of a previously posted request (transaction/sign).
+    /// Should be given a valid send_transaction ID.
+    #[rpc(name = "parity_checkRequest")]
+    fn check_request(&self, _: U256) -> Result<Option<ConfirmationResponse>>;
 
-	/// Decrypt some ECIES-encrypted message.
-	/// First parameter is the address with which it is encrypted, second is the ciphertext.
-	#[rpc(meta, name = "parity_decryptMessage")]
-	fn decrypt_message(&self, _: Self::Metadata, _: H160, _: Bytes) -> BoxFuture<Bytes>;
+    /// Decrypt some ECIES-encrypted message.
+    /// First parameter is the address with which it is encrypted, second is the ciphertext.
+    #[rpc(meta, name = "parity_decryptMessage")]
+    fn decrypt_message(&self, _: Self::Metadata, _: H160, _: Bytes) -> BoxFuture<Bytes>;
 }

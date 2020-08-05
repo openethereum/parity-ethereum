@@ -21,33 +21,35 @@ pub mod share_change_session;
 
 mod sessions_queue;
 
-use key_server_cluster::{SessionId, NodeId, SessionMeta, Error};
+use key_server_cluster::{Error, NodeId, SessionId, SessionMeta};
 
 /// Share change session metadata.
 #[derive(Debug, Clone)]
 pub struct ShareChangeSessionMeta {
-	/// Key id.
-	pub id: SessionId,
-	/// Id of node, which has started this session.
-	pub master_node_id: NodeId,
-	/// Id of node, on which this session is running.
-	pub self_node_id: NodeId,
-	/// Count of all configured key server nodes.
-	pub configured_nodes_count: usize,
-	/// Count of all connected key server nodes.
-	pub connected_nodes_count: usize,
+    /// Key id.
+    pub id: SessionId,
+    /// Id of node, which has started this session.
+    pub master_node_id: NodeId,
+    /// Id of node, on which this session is running.
+    pub self_node_id: NodeId,
+    /// Count of all configured key server nodes.
+    pub configured_nodes_count: usize,
+    /// Count of all connected key server nodes.
+    pub connected_nodes_count: usize,
 }
 
 impl ShareChangeSessionMeta {
-	/// Convert to consensus session meta. `all_nodes_set` is the union of `old_nodes_set` && `new_nodes_set`.
-	pub fn into_consensus_meta(self, all_nodes_set_len: usize) -> Result<SessionMeta, Error> {
-		Ok(SessionMeta {
-			id: self.id,
-			master_node_id: self.master_node_id,
-			self_node_id: self.self_node_id,
-			threshold: all_nodes_set_len.checked_sub(1).ok_or(Error::ConsensusUnreachable)?,
-			configured_nodes_count: self.configured_nodes_count,
-			connected_nodes_count: self.connected_nodes_count,
-		})
-	}
+    /// Convert to consensus session meta. `all_nodes_set` is the union of `old_nodes_set` && `new_nodes_set`.
+    pub fn into_consensus_meta(self, all_nodes_set_len: usize) -> Result<SessionMeta, Error> {
+        Ok(SessionMeta {
+            id: self.id,
+            master_node_id: self.master_node_id,
+            self_node_id: self.self_node_id,
+            threshold: all_nodes_set_len
+                .checked_sub(1)
+                .ok_or(Error::ConsensusUnreachable)?,
+            configured_nodes_count: self.configured_nodes_count,
+            connected_nodes_count: self.connected_nodes_count,
+        })
+    }
 }

@@ -20,13 +20,13 @@
 #![cfg_attr(feature = "time_checked_add", feature(time_checked_add))]
 
 extern crate byteorder;
-extern crate parity_crypto as crypto;
 extern crate ethcore_network as network;
 extern crate ethereum_types;
 extern crate ethkey;
 extern crate hex;
 extern crate memzero;
 extern crate ordered_float;
+extern crate parity_crypto as crypto;
 extern crate parking_lot;
 extern crate rand;
 extern crate rlp;
@@ -54,8 +54,10 @@ extern crate time_utils;
 #[cfg(test)]
 extern crate serde_json;
 
-pub use self::message::Message;
-pub use self::net::{Network, MessageHandler};
+pub use self::{
+    message::Message,
+    net::{MessageHandler, Network},
+};
 
 pub mod message;
 pub mod net;

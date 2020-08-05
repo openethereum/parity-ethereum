@@ -16,17 +16,19 @@
 
 //! Block verification utilities.
 
-mod verification;
-mod verifier;
-pub mod queue;
 mod canon_verifier;
 mod noop_verifier;
+pub mod queue;
+mod verification;
+mod verifier;
 
-pub use self::verification::*;
-pub use self::verifier::Verifier;
-pub use self::canon_verifier::CanonVerifier;
-pub use self::noop_verifier::NoopVerifier;
-pub use self::queue::{BlockQueue, Config as QueueConfig, VerificationQueue, QueueInfo};
+pub use self::{
+    canon_verifier::CanonVerifier,
+    noop_verifier::NoopVerifier,
+    queue::{BlockQueue, Config as QueueConfig, QueueInfo, VerificationQueue},
+    verification::*,
+    verifier::Verifier,
+};
 
 use call_contract::CallContract;
 use client::BlockInfo;
@@ -34,29 +36,29 @@ use client::BlockInfo;
 /// Verifier type.
 #[derive(Debug, PartialEq, Clone)]
 pub enum VerifierType {
-	/// Verifies block normally.
-	Canon,
-	/// Verifies block normallly, but skips seal verification.
-	CanonNoSeal,
-	/// Does not verify block at all.
-	/// Used in tests.
-	Noop,
+    /// Verifies block normally.
+    Canon,
+    /// Verifies block normallly, but skips seal verification.
+    CanonNoSeal,
+    /// Does not verify block at all.
+    /// Used in tests.
+    Noop,
 }
 
 /// Create a new verifier based on type.
 pub fn new<C: BlockInfo + CallContract>(v: VerifierType) -> Box<Verifier<C>> {
-	match v {
-		VerifierType::Canon | VerifierType::CanonNoSeal => Box::new(CanonVerifier),
-		VerifierType::Noop => Box::new(NoopVerifier),
-	}
+    match v {
+        VerifierType::Canon | VerifierType::CanonNoSeal => Box::new(CanonVerifier),
+        VerifierType::Noop => Box::new(NoopVerifier),
+    }
 }
 
 impl VerifierType {
-	/// Check if seal verification is enabled for this verifier type.
-	pub fn verifying_seal(&self) -> bool {
-		match *self {
-			VerifierType::Canon => true,
-			VerifierType::Noop | VerifierType::CanonNoSeal => false,
-		}
-	}
+    /// Check if seal verification is enabled for this verifier type.
+    pub fn verifying_seal(&self) -> bool {
+        match *self {
+            VerifierType::Canon => true,
+            VerifierType::Noop | VerifierType::CanonNoSeal => false,
+        }
+    }
 }

@@ -24,7 +24,7 @@ use v1::types::RichBlock;
 /// Debug RPC interface.
 #[rpc(server)]
 pub trait Debug {
-	/// Returns recently seen bad blocks.
-	#[rpc(name = "debug_getBadBlocks")]
-	fn bad_blocks(&self) -> Result<Vec<RichBlock>>;
+    /// Returns recently seen bad blocks.
+    #[rpc(name = "debug_getBadBlocks")]
+    fn bad_blocks(&self) -> Result<Vec<RichBlock>>;
 }

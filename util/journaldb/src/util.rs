@@ -15,62 +15,62 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use ethereum_types::H256;
-use rlp::{RlpStream, Encodable, Rlp, DecoderError};
+use rlp::{DecoderError, Encodable, Rlp, RlpStream};
 
-const PADDING : [u8; 10] = [ 0u8; 10 ];
+const PADDING: [u8; 10] = [0u8; 10];
 
 pub struct DatabaseKey {
-	pub era: u64,
-	pub index: usize,
+    pub era: u64,
+    pub index: usize,
 }
 
 impl Encodable for DatabaseKey {
-	fn rlp_append(&self, s: &mut RlpStream) {
-		s.begin_list(3);
-		s.append(&self.era);
-		s.append(&self.index);
-		s.append(&&PADDING[..]);
-	}
+    fn rlp_append(&self, s: &mut RlpStream) {
+        s.begin_list(3);
+        s.append(&self.era);
+        s.append(&self.index);
+        s.append(&&PADDING[..]);
+    }
 }
 
 pub struct DatabaseValueView<'a> {
-	rlp: Rlp<'a>,
+    rlp: Rlp<'a>,
 }
 
 impl<'a> DatabaseValueView<'a> {
-	pub fn from_rlp(data: &'a [u8]) -> Self {
-		DatabaseValueView {
-			rlp: Rlp::new(data),
-		}
-	}
+    pub fn from_rlp(data: &'a [u8]) -> Self {
+        DatabaseValueView {
+            rlp: Rlp::new(data),
+        }
+    }
 
-	#[inline]
-	pub fn id(&self) -> Result<H256, DecoderError> {
-		self.rlp.val_at(0)
-	}
+    #[inline]
+    pub fn id(&self) -> Result<H256, DecoderError> {
+        self.rlp.val_at(0)
+    }
 
-	#[inline]
-	pub fn inserts(&self) -> Result<Vec<H256>, DecoderError> {
-		self.rlp.list_at(1)
-	}
+    #[inline]
+    pub fn inserts(&self) -> Result<Vec<H256>, DecoderError> {
+        self.rlp.list_at(1)
+    }
 
-	#[inline]
-	pub fn deletes(&self) -> Result<Vec<H256>, DecoderError> {
-		self.rlp.list_at(2)
-	}
+    #[inline]
+    pub fn deletes(&self) -> Result<Vec<H256>, DecoderError> {
+        self.rlp.list_at(2)
+    }
 }
 
 pub struct DatabaseValueRef<'a> {
-	pub id: &'a H256,
-	pub inserts: &'a [H256],
-	pub deletes: &'a [H256],
+    pub id: &'a H256,
+    pub inserts: &'a [H256],
+    pub deletes: &'a [H256],
 }
 
 impl<'a> Encodable for DatabaseValueRef<'a> {
-	fn rlp_append(&self, s: &mut RlpStream) {
-		s.begin_list(3);
-		s.append(self.id);
-		s.append_list(self.inserts);
-		s.append_list(self.deletes);
-	}
+    fn rlp_append(&self, s: &mut RlpStream) {
+        s.begin_list(3);
+        s.append(self.id);
+        s.append_list(self.inserts);
+        s.append_list(self.deletes);
+    }
 }

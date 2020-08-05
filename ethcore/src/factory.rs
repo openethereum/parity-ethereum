@@ -14,49 +14,55 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use trie::TrieFactory;
-use ethtrie::RlpCodec;
 use account_db::Factory as AccountFactory;
+use ethtrie::RlpCodec;
 use evm::{Factory as EvmFactory, VMType};
-use vm::{Exec, ActionParams, Schedule};
-use wasm::WasmInterpreter;
 use keccak_hasher::KeccakHasher;
+use trie::TrieFactory;
+use vm::{ActionParams, Exec, Schedule};
+use wasm::WasmInterpreter;
 
 const WASM_MAGIC_NUMBER: &'static [u8; 4] = b"\0asm";
 
 /// Virtual machine factory
 #[derive(Default, Clone)]
 pub struct VmFactory {
-	evm: EvmFactory,
+    evm: EvmFactory,
 }
 
 impl VmFactory {
-	pub fn create(&self, params: ActionParams, schedule: &Schedule, depth: usize) -> Box<Exec> {
-		if schedule.wasm.is_some() && params.code.as_ref().map_or(false, |code| code.len() > 4 && &code[0..4] == WASM_MAGIC_NUMBER) {
-			Box::new(WasmInterpreter::new(params))
-		} else {
-			self.evm.create(params, schedule, depth)
-		}
-	}
+    pub fn create(&self, params: ActionParams, schedule: &Schedule, depth: usize) -> Box<Exec> {
+        if schedule.wasm.is_some()
+            && params.code.as_ref().map_or(false, |code| {
+                code.len() > 4 && &code[0..4] == WASM_MAGIC_NUMBER
+            })
+        {
+            Box::new(WasmInterpreter::new(params))
+        } else {
+            self.evm.create(params, schedule, depth)
+        }
+    }
 
-	pub fn new(evm: VMType, cache_size: usize) -> Self {
-		VmFactory { evm: EvmFactory::new(evm, cache_size) }
-	}
+    pub fn new(evm: VMType, cache_size: usize) -> Self {
+        VmFactory {
+            evm: EvmFactory::new(evm, cache_size),
+        }
+    }
 }
 
 impl From<EvmFactory> for VmFactory {
-	fn from(evm: EvmFactory) -> Self {
-		VmFactory { evm: evm }
-	}
+    fn from(evm: EvmFactory) -> Self {
+        VmFactory { evm: evm }
+    }
 }
 
 /// Collection of factories.
 #[derive(Default, Clone)]
 pub struct Factories {
-	/// factory for evm.
-	pub vm: VmFactory,
-	/// factory for tries.
-	pub trie: TrieFactory<KeccakHasher, RlpCodec>,
-	/// factory for account databases.
-	pub accountdb: AccountFactory,
+    /// factory for evm.
+    pub vm: VmFactory,
+    /// factory for tries.
+    pub trie: TrieFactory<KeccakHasher, RlpCodec>,
+    /// factory for account databases.
+    pub accountdb: AccountFactory,
 }

@@ -39,93 +39,106 @@ extern crate log;
 
 use std::sync::Weak;
 
-use ethcore::client::{BlockChainClient, BlockId};
-use ethereum_types::{H256, Address};
-use ethabi::FunctionOutputDecoder;
-use network::{ConnectionFilter, ConnectionDirection};
 use devp2p::NodeId;
+use ethabi::FunctionOutputDecoder;
+use ethcore::client::{BlockChainClient, BlockId};
+use ethereum_types::{Address, H256};
+use network::{ConnectionDirection, ConnectionFilter};
 
 use_contract!(peer_set, "res/peer_set.json");
 
 /// Connection filter that uses a contract to manage permissions.
 pub struct NodeFilter {
-	client: Weak<BlockChainClient>,
-	contract_address: Address,
+    client: Weak<BlockChainClient>,
+    contract_address: Address,
 }
 
 impl NodeFilter {
-	/// Create a new instance. Accepts a contract address.
-	pub fn new(client: Weak<BlockChainClient>, contract_address: Address) -> NodeFilter {
-		NodeFilter {
-			client,
-			contract_address,
-		}
-	}
+    /// Create a new instance. Accepts a contract address.
+    pub fn new(client: Weak<BlockChainClient>, contract_address: Address) -> NodeFilter {
+        NodeFilter {
+            client,
+            contract_address,
+        }
+    }
 }
 
 impl ConnectionFilter for NodeFilter {
-	fn connection_allowed(&self, own_id: &NodeId, connecting_id: &NodeId, _direction: ConnectionDirection) -> bool {
-		let client = match self.client.upgrade() {
-			Some(client) => client,
-			None => return false,
-		};
+    fn connection_allowed(
+        &self,
+        own_id: &NodeId,
+        connecting_id: &NodeId,
+        _direction: ConnectionDirection,
+    ) -> bool {
+        let client = match self.client.upgrade() {
+            Some(client) => client,
+            None => return false,
+        };
 
-		let address = self.contract_address;
-		let own_low = H256::from_slice(&own_id[0..32]);
-		let own_high = H256::from_slice(&own_id[32..64]);
-		let id_low = H256::from_slice(&connecting_id[0..32]);
-		let id_high = H256::from_slice(&connecting_id[32..64]);
+        let address = self.contract_address;
+        let own_low = H256::from_slice(&own_id[0..32]);
+        let own_high = H256::from_slice(&own_id[32..64]);
+        let id_low = H256::from_slice(&connecting_id[0..32]);
+        let id_high = H256::from_slice(&connecting_id[32..64]);
 
-		let (data, decoder) = peer_set::functions::connection_allowed::call(own_low, own_high, id_low, id_high);
-		let allowed = client.call_contract(BlockId::Latest, address, data)
-			.and_then(|value| decoder.decode(&value).map_err(|e| e.to_string()))
-			.unwrap_or_else(|e| {
-				debug!("Error callling peer set contract: {:?}", e);
-				false
-			});
+        let (data, decoder) =
+            peer_set::functions::connection_allowed::call(own_low, own_high, id_low, id_high);
+        let allowed = client
+            .call_contract(BlockId::Latest, address, data)
+            .and_then(|value| decoder.decode(&value).map_err(|e| e.to_string()))
+            .unwrap_or_else(|e| {
+                debug!("Error callling peer set contract: {:?}", e);
+                false
+            });
 
-		allowed
-	}
+        allowed
+    }
 }
 
 #[cfg(test)]
 mod test {
-	use std::sync::{Arc, Weak};
-	use ethcore::spec::Spec;
-	use ethcore::client::{BlockChainClient, Client, ClientConfig};
-	use ethcore::miner::Miner;
-	use ethcore::test_helpers;
-	use network::{ConnectionDirection, ConnectionFilter, NodeId};
-	use io::IoChannel;
-	use super::NodeFilter;
-	use tempdir::TempDir;
+    use super::NodeFilter;
+    use ethcore::{
+        client::{BlockChainClient, Client, ClientConfig},
+        miner::Miner,
+        spec::Spec,
+        test_helpers,
+    };
+    use io::IoChannel;
+    use network::{ConnectionDirection, ConnectionFilter, NodeId};
+    use std::sync::{Arc, Weak};
+    use tempdir::TempDir;
 
-	/// Contract code: https://gist.github.com/arkpar/467dbcc73cbb85b0997a7a10ffa0695f
-	#[test]
-	fn node_filter() {
-		let contract_addr = "0000000000000000000000000000000000000005".into();
-		let data = include_bytes!("../res/node_filter.json");
-		let tempdir = TempDir::new("").unwrap();
-		let spec = Spec::load(&tempdir.path(), &data[..]).unwrap();
-		let client_db = test_helpers::new_db();
+    /// Contract code: https://gist.github.com/arkpar/467dbcc73cbb85b0997a7a10ffa0695f
+    #[test]
+    fn node_filter() {
+        let contract_addr = "0000000000000000000000000000000000000005".into();
+        let data = include_bytes!("../res/node_filter.json");
+        let tempdir = TempDir::new("").unwrap();
+        let spec = Spec::load(&tempdir.path(), &data[..]).unwrap();
+        let client_db = test_helpers::new_db();
 
-		let client = Client::new(
-			ClientConfig::default(),
-			&spec,
-			client_db,
-			Arc::new(Miner::new_for_tests(&spec, None)),
-			IoChannel::disconnected(),
-		).unwrap();
-		let filter = NodeFilter::new(Arc::downgrade(&client) as Weak<BlockChainClient>, contract_addr);
-		let self1: NodeId = "00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002".into();
-		let self2: NodeId = "00000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000003".into();
-		let node1: NodeId = "00000000000000000000000000000000000000000000000000000000000000110000000000000000000000000000000000000000000000000000000000000012".into();
-		let node2: NodeId = "00000000000000000000000000000000000000000000000000000000000000210000000000000000000000000000000000000000000000000000000000000022".into();
-		let nodex: NodeId = "77000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000".into();
+        let client = Client::new(
+            ClientConfig::default(),
+            &spec,
+            client_db,
+            Arc::new(Miner::new_for_tests(&spec, None)),
+            IoChannel::disconnected(),
+        )
+        .unwrap();
+        let filter = NodeFilter::new(
+            Arc::downgrade(&client) as Weak<BlockChainClient>,
+            contract_addr,
+        );
+        let self1: NodeId = "00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002".into();
+        let self2: NodeId = "00000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000003".into();
+        let node1: NodeId = "00000000000000000000000000000000000000000000000000000000000000110000000000000000000000000000000000000000000000000000000000000012".into();
+        let node2: NodeId = "00000000000000000000000000000000000000000000000000000000000000210000000000000000000000000000000000000000000000000000000000000022".into();
+        let nodex: NodeId = "77000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000".into();
 
-		assert!(filter.connection_allowed(&self1, &node1, ConnectionDirection::Inbound));
-		assert!(filter.connection_allowed(&self1, &nodex, ConnectionDirection::Inbound));
-		assert!(filter.connection_allowed(&self2, &node1, ConnectionDirection::Inbound));
-		assert!(filter.connection_allowed(&self2, &node2, ConnectionDirection::Inbound));
-	}
+        assert!(filter.connection_allowed(&self1, &node1, ConnectionDirection::Inbound));
+        assert!(filter.connection_allowed(&self1, &nodex, ConnectionDirection::Inbound));
+        assert!(filter.connection_allowed(&self2, &node1, ConnectionDirection::Inbound));
+        assert!(filter.connection_allowed(&self2, &node2, ConnectionDirection::Inbound));
+    }
 }

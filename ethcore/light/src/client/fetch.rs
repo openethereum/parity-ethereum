@@ -18,68 +18,70 @@
 
 use std::sync::Arc;
 
-use common_types::encoded;
-use common_types::header::Header;
-use common_types::receipt::Receipt;
-use ethcore::engines::{EthEngine, StateDependentProof};
-use ethcore::machine::EthereumMachine;
+use common_types::{encoded, header::Header, receipt::Receipt};
+use ethcore::{
+    engines::{EthEngine, StateDependentProof},
+    machine::EthereumMachine,
+};
 use ethereum_types::H256;
 use futures::future::IntoFuture;
 
 /// Provides full chain data.
 pub trait ChainDataFetcher: Send + Sync + 'static {
-	/// Error type when data unavailable.
-	type Error: ::std::fmt::Debug;
+    /// Error type when data unavailable.
+    type Error: ::std::fmt::Debug;
 
-	/// Future for fetching block body.
-	type Body: IntoFuture<Item=encoded::Block, Error=Self::Error>;
-	/// Future for fetching block receipts.
-	type Receipts: IntoFuture<Item=Vec<Receipt>, Error=Self::Error>;
-	/// Future for fetching epoch transition
-	type Transition: IntoFuture<Item=Vec<u8>, Error=Self::Error>;
+    /// Future for fetching block body.
+    type Body: IntoFuture<Item = encoded::Block, Error = Self::Error>;
+    /// Future for fetching block receipts.
+    type Receipts: IntoFuture<Item = Vec<Receipt>, Error = Self::Error>;
+    /// Future for fetching epoch transition
+    type Transition: IntoFuture<Item = Vec<u8>, Error = Self::Error>;
 
-	/// Fetch a block body.
-	fn block_body(&self, header: &Header) -> Self::Body;
+    /// Fetch a block body.
+    fn block_body(&self, header: &Header) -> Self::Body;
 
-	/// Fetch block receipts.
-	fn block_receipts(&self, header: &Header) -> Self::Receipts;
+    /// Fetch block receipts.
+    fn block_receipts(&self, header: &Header) -> Self::Receipts;
 
-	/// Fetch epoch transition proof at given header.
-	fn epoch_transition(
-		&self,
-		_hash: H256,
-		_engine: Arc<EthEngine>,
-		_checker: Arc<StateDependentProof<EthereumMachine>>
-	) -> Self::Transition;
+    /// Fetch epoch transition proof at given header.
+    fn epoch_transition(
+        &self,
+        _hash: H256,
+        _engine: Arc<EthEngine>,
+        _checker: Arc<StateDependentProof<EthereumMachine>>,
+    ) -> Self::Transition;
 }
 
 /// Fetcher implementation which cannot fetch anything.
 pub struct Unavailable;
 
 /// Create a fetcher which has all data unavailable.
-pub fn unavailable() -> Unavailable { Unavailable }
+pub fn unavailable() -> Unavailable {
+    Unavailable
+}
 
 impl ChainDataFetcher for Unavailable {
-	type Error = &'static str;
+    type Error = &'static str;
 
-	type Body = Result<encoded::Block, &'static str>;
-	type Receipts = Result<Vec<Receipt>, &'static str>;
-	type Transition = Result<Vec<u8>, &'static str>;
+    type Body = Result<encoded::Block, &'static str>;
+    type Receipts = Result<Vec<Receipt>, &'static str>;
+    type Transition = Result<Vec<u8>, &'static str>;
 
-	fn block_body(&self, _header: &Header) -> Self::Body {
-		Err("fetching block bodies unavailable")
-	}
+    fn block_body(&self, _header: &Header) -> Self::Body {
+        Err("fetching block bodies unavailable")
+    }
 
-	fn block_receipts(&self, _header: &Header) -> Self::Receipts {
-		Err("fetching block receipts unavailable")
-	}
+    fn block_receipts(&self, _header: &Header) -> Self::Receipts {
+        Err("fetching block receipts unavailable")
+    }
 
-	fn epoch_transition(
-		&self,
-		_hash: H256,
-		_engine: Arc<EthEngine>,
-		_checker: Arc<StateDependentProof<EthereumMachine>>
-	) -> Self::Transition {
-		Err("fetching epoch transition proofs unavailable")
-	}
+    fn epoch_transition(
+        &self,
+        _hash: H256,
+        _engine: Arc<EthEngine>,
+        _checker: Arc<StateDependentProof<EthereumMachine>>,
+    ) -> Self::Transition {
+        Err("fetching epoch transition proofs unavailable")
+    }
 }

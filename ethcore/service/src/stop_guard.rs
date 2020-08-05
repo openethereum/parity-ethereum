@@ -16,25 +16,24 @@
 
 //! Stop guard mod
 
-use std::sync::Arc;
-use std::sync::atomic::*;
+use std::sync::{atomic::*, Arc};
 
 /// Stop guard that will set a stop flag on drop
 pub struct StopGuard {
-	flag: Arc<AtomicBool>,
+    flag: Arc<AtomicBool>,
 }
 
 impl StopGuard {
-	/// Create a stop guard
-	pub fn new() -> StopGuard {
-		StopGuard {
-			flag: Arc::new(AtomicBool::new(false))
-		}
-	}
+    /// Create a stop guard
+    pub fn new() -> StopGuard {
+        StopGuard {
+            flag: Arc::new(AtomicBool::new(false)),
+        }
+    }
 }
 
 impl Drop for StopGuard {
-	fn drop(&mut self) {
-		self.flag.store(true, Ordering::Relaxed)
-	}
+    fn drop(&mut self) {
+        self.flag.store(true, Ordering::Relaxed)
+    }
 }

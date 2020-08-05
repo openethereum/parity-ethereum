@@ -15,85 +15,97 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! EIP712 structs
-use serde_json::{Value};
-use std::collections::HashMap;
-use ethereum_types::{U256, H256, Address};
-use regex::Regex;
-use validator::Validate;
-use validator::ValidationErrors;
+use ethereum_types::{Address, H256, U256};
 use lazy_static::lazy_static;
+use regex::Regex;
+use serde_json::Value;
+use std::collections::HashMap;
+use validator::{Validate, ValidationErrors};
 
 pub(crate) type MessageTypes = HashMap<String, Vec<FieldType>>;
 
 lazy_static! {
-	// match solidity identifier with the addition of '[(\d)*]*'
-	static ref TYPE_REGEX: Regex = Regex::new(r"^[a-zA-Z_$][a-zA-Z_$0-9]*(\[([1-9]\d*)*\])*$").unwrap();
-	static ref IDENT_REGEX: Regex = Regex::new(r"^[a-zA-Z_$][a-zA-Z_$0-9]*$").unwrap();
+    // match solidity identifier with the addition of '[(\d)*]*'
+    static ref TYPE_REGEX: Regex = Regex::new(r"^[a-zA-Z_$][a-zA-Z_$0-9]*(\[([1-9]\d*)*\])*$").unwrap();
+    static ref IDENT_REGEX: Regex = Regex::new(r"^[a-zA-Z_$][a-zA-Z_$0-9]*$").unwrap();
 }
 
 #[serde(rename_all = "camelCase")]
 #[serde(deny_unknown_fields)]
 #[derive(Deserialize, Serialize, Validate, Debug, Clone)]
 pub(crate) struct EIP712Domain {
-	pub(crate) name: String,
-	pub(crate) version: String,
-	pub(crate) chain_id: U256,
-	pub(crate) verifying_contract: Address,
-	#[serde(skip_serializing_if="Option::is_none")]
-	pub(crate) salt: Option<H256>,
+    pub(crate) name: String,
+    pub(crate) version: String,
+    pub(crate) chain_id: U256,
+    pub(crate) verifying_contract: Address,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) salt: Option<H256>,
 }
 /// EIP-712 struct
 #[serde(rename_all = "camelCase")]
 #[serde(deny_unknown_fields)]
 #[derive(Deserialize, Debug, Clone)]
 pub struct EIP712 {
-	pub(crate) types: MessageTypes,
-	pub(crate) primary_type: String,
-	pub(crate) message: Value,
-	pub(crate) domain: EIP712Domain,
+    pub(crate) types: MessageTypes,
+    pub(crate) primary_type: String,
+    pub(crate) message: Value,
+    pub(crate) domain: EIP712Domain,
 }
 
 impl Validate for EIP712 {
-	fn validate(&self) -> Result<(), ValidationErrors> {
-		for field_types in self.types.values() {
-			for field_type in field_types {
-				field_type.validate()?;
-			}
-		}
-		Ok(())
-	}
+    fn validate(&self) -> Result<(), ValidationErrors> {
+        for field_types in self.types.values() {
+            for field_type in field_types {
+                field_type.validate()?;
+            }
+        }
+        Ok(())
+    }
 }
 
 #[derive(Serialize, Deserialize, Validate, Debug, Clone)]
 pub(crate) struct FieldType {
-	#[validate(regex = "IDENT_REGEX")]
-	pub name: String,
-	#[serde(rename = "type")]
-	#[validate(regex = "TYPE_REGEX")]
-	pub type_: String,
+    #[validate(regex = "IDENT_REGEX")]
+    pub name: String,
+    #[serde(rename = "type")]
+    #[validate(regex = "TYPE_REGEX")]
+    pub type_: String,
 }
 
 #[cfg(test)]
 mod tests {
-	use super::*;
-	use serde_json::from_str;
+    use super::*;
+    use serde_json::from_str;
 
-	#[test]
-	fn test_regex() {
-		let test_cases = vec!["unint bytes32", "Seun\\[]", "byte[]uint", "byte[7[]uint][]", "Person[0]"];
-		for case in test_cases {
-			assert_eq!(TYPE_REGEX.is_match(case), false)
-		}
+    #[test]
+    fn test_regex() {
+        let test_cases = vec![
+            "unint bytes32",
+            "Seun\\[]",
+            "byte[]uint",
+            "byte[7[]uint][]",
+            "Person[0]",
+        ];
+        for case in test_cases {
+            assert_eq!(TYPE_REGEX.is_match(case), false)
+        }
 
-		let test_cases = vec!["bytes32", "Foo[]", "bytes1", "bytes32[][]", "byte[9]", "contents"];
-		for case in test_cases {
-			assert_eq!(TYPE_REGEX.is_match(case), true)
-		}
-	}
+        let test_cases = vec![
+            "bytes32",
+            "Foo[]",
+            "bytes1",
+            "bytes32[][]",
+            "byte[9]",
+            "contents",
+        ];
+        for case in test_cases {
+            assert_eq!(TYPE_REGEX.is_match(case), true)
+        }
+    }
 
-	#[test]
-	fn test_deserialization() {
-		let string = r#"{
+    #[test]
+    fn test_deserialization() {
+        let string = r#"{
 			"primaryType": "Mail",
 			"domain": {
 				"name": "Ether Mail",
@@ -130,12 +142,12 @@ mod tests {
 				]
 			}
 		}"#;
-		let _ = from_str::<EIP712>(string).unwrap();
-	}
+        let _ = from_str::<EIP712>(string).unwrap();
+    }
 
-	#[test]
-	fn test_failing_deserialization() {
-		let string = r#"{
+    #[test]
+    fn test_failing_deserialization() {
+        let string = r#"{
 			"primaryType": "Mail",
 			"domain": {
 				"name": "Ether Mail",
@@ -172,7 +184,7 @@ mod tests {
 				]
 			}
 		}"#;
-		let data = from_str::<EIP712>(string).unwrap();
-		assert_eq!(data.validate().is_err(), true);
-	}
+        let data = from_str::<EIP712>(string).unwrap();
+        assert_eq!(data.validate().is_err(), true);
+    }
 }

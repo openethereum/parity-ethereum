@@ -21,28 +21,34 @@ use ethkey::{self, Address, Password};
 
 /// An implementation of EngineSigner using internal account management.
 pub struct EngineSigner {
-	accounts: Arc<AccountProvider>,
-	address: Address,
-	password: Password,
+    accounts: Arc<AccountProvider>,
+    address: Address,
+    password: Password,
 }
 
 impl EngineSigner {
-	/// Creates new `EngineSigner` given account manager and account details.
-	pub fn new(accounts: Arc<AccountProvider>, address: Address, password: Password) -> Self {
-		EngineSigner { accounts, address, password }
-	}
+    /// Creates new `EngineSigner` given account manager and account details.
+    pub fn new(accounts: Arc<AccountProvider>, address: Address, password: Password) -> Self {
+        EngineSigner {
+            accounts,
+            address,
+            password,
+        }
+    }
 }
 
 impl ethcore::engines::EngineSigner for EngineSigner {
-	fn sign(&self, message: ethkey::Message) -> Result<ethkey::Signature, ethkey::Error> {
-		match self.accounts.sign(self.address, Some(self.password.clone()), message) {
-			Ok(ok) => Ok(ok),
-			Err(e) => Err(ethkey::Error::InvalidSecret),
-		}
-	}
+    fn sign(&self, message: ethkey::Message) -> Result<ethkey::Signature, ethkey::Error> {
+        match self
+            .accounts
+            .sign(self.address, Some(self.password.clone()), message)
+        {
+            Ok(ok) => Ok(ok),
+            Err(e) => Err(ethkey::Error::InvalidSecret),
+        }
+    }
 
-	fn address(&self) -> Address {
-		self.address
-	}
+    fn address(&self) -> Address {
+        self.address
+    }
 }
-

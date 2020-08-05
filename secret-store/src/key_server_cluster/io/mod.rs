@@ -18,17 +18,21 @@ mod deadline;
 mod handshake;
 mod message;
 mod read_header;
-mod read_payload;
 mod read_message;
+mod read_payload;
 mod shared_tcp_stream;
 mod write_message;
 
-pub use self::deadline::{deadline, Deadline, DeadlineStatus};
-pub use self::handshake::{handshake, accept_handshake, Handshake, HandshakeResult};
-pub use self::message::{MessageHeader, SerializedMessage, serialize_message, deserialize_message,
-	encrypt_message, fix_shared_key};
-pub use self::read_header::{read_header, ReadHeader};
-pub use self::read_payload::{read_payload, read_encrypted_payload, ReadPayload};
-pub use self::read_message::{read_message, read_encrypted_message, ReadMessage};
-pub use self::shared_tcp_stream::SharedTcpStream;
-pub use self::write_message::{write_message, write_encrypted_message, WriteMessage};
+pub use self::{
+    deadline::{deadline, Deadline, DeadlineStatus},
+    handshake::{accept_handshake, handshake, Handshake, HandshakeResult},
+    message::{
+        deserialize_message, encrypt_message, fix_shared_key, serialize_message, MessageHeader,
+        SerializedMessage,
+    },
+    read_header::{read_header, ReadHeader},
+    read_message::{read_encrypted_message, read_message, ReadMessage},
+    read_payload::{read_encrypted_payload, read_payload, ReadPayload},
+    shared_tcp_stream::SharedTcpStream,
+    write_message::{write_encrypted_message, write_message, WriteMessage},
+};

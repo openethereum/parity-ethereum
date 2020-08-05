@@ -17,8 +17,7 @@
 //! Secondary chunk creation and restoration, implementations for different consensus
 //! engines.
 
-use std::sync::atomic::AtomicBool;
-use std::sync::Arc;
+use std::sync::{atomic::AtomicBool, Arc};
 
 use blockchain::{BlockChain, BlockChainDB};
 use engines::EthEngine;
@@ -29,68 +28,67 @@ use ethereum_types::H256;
 mod authority;
 mod work;
 
-pub use self::authority::*;
-pub use self::work::*;
+pub use self::{authority::*, work::*};
 
 /// A sink for produced chunks.
 pub type ChunkSink<'a> = FnMut(&[u8]) -> ::std::io::Result<()> + 'a;
 
 /// Components necessary for snapshot creation and restoration.
 pub trait SnapshotComponents: Send {
-	/// Create secondary snapshot chunks; these corroborate the state data
-	/// in the state chunks.
-	///
-	/// Chunks shouldn't exceed the given preferred size, and should be fed
-	/// uncompressed into the sink.
-	///
-	/// This will vary by consensus engine, so it's exposed as a trait.
-	fn chunk_all(
-		&mut self,
-		chain: &BlockChain,
-		block_at: H256,
-		chunk_sink: &mut ChunkSink,
-		progress: &Progress,
-		preferred_size: usize,
-	) -> Result<(), Error>;
+    /// Create secondary snapshot chunks; these corroborate the state data
+    /// in the state chunks.
+    ///
+    /// Chunks shouldn't exceed the given preferred size, and should be fed
+    /// uncompressed into the sink.
+    ///
+    /// This will vary by consensus engine, so it's exposed as a trait.
+    fn chunk_all(
+        &mut self,
+        chain: &BlockChain,
+        block_at: H256,
+        chunk_sink: &mut ChunkSink,
+        progress: &Progress,
+        preferred_size: usize,
+    ) -> Result<(), Error>;
 
-	/// Create a rebuilder, which will have chunks fed into it in aribtrary
-	/// order and then be finalized.
-	///
-	/// The manifest, a database, and fresh `BlockChain` are supplied.
-	///
-	/// The engine passed to the `Rebuilder` methods will be the same instance
-	/// that created the `SnapshotComponents`.
-	fn rebuilder(
-		&self,
-		chain: BlockChain,
-		db: Arc<BlockChainDB>,
-		manifest: &ManifestData,
-	) -> Result<Box<Rebuilder>, ::error::Error>;
+    /// Create a rebuilder, which will have chunks fed into it in aribtrary
+    /// order and then be finalized.
+    ///
+    /// The manifest, a database, and fresh `BlockChain` are supplied.
+    ///
+    /// The engine passed to the `Rebuilder` methods will be the same instance
+    /// that created the `SnapshotComponents`.
+    fn rebuilder(
+        &self,
+        chain: BlockChain,
+        db: Arc<BlockChainDB>,
+        manifest: &ManifestData,
+    ) -> Result<Box<Rebuilder>, ::error::Error>;
 
-	/// Minimum supported snapshot version number.
-	fn min_supported_version(&self) -> u64;
+    /// Minimum supported snapshot version number.
+    fn min_supported_version(&self) -> u64;
 
-	/// Current version number
-	fn current_version(&self) -> u64;
+    /// Current version number
+    fn current_version(&self) -> u64;
 }
 
 /// Restore from secondary snapshot chunks.
 pub trait Rebuilder: Send {
-	/// Feed a chunk, potentially out of order.
-	///
-	/// Check `abort_flag` periodically while doing heavy work. If set to `false`, should bail with
-	/// `Error::RestorationAborted`.
-	fn feed(
-		&mut self,
-		chunk: &[u8],
-		engine: &EthEngine,
-		abort_flag: &AtomicBool,
-	) -> Result<(), ::error::Error>;
+    /// Feed a chunk, potentially out of order.
+    ///
+    /// Check `abort_flag` periodically while doing heavy work. If set to `false`, should bail with
+    /// `Error::RestorationAborted`.
+    fn feed(
+        &mut self,
+        chunk: &[u8],
+        engine: &EthEngine,
+        abort_flag: &AtomicBool,
+    ) -> Result<(), ::error::Error>;
 
-	/// Finalize the restoration. Will be done after all chunks have been
-	/// fed successfully.
-	///
-	/// This should apply the necessary "glue" between chunks,
-	/// and verify against the restored state.
-	fn finalize(&mut self, engine: &EthEngine) -> Result<(), ::error::Error>;
+    /// Finalize the restoration. Will be done after all chunks have been
+    /// fed successfully.
+    ///
+    /// This should apply the necessary "glue" between chunks,
+    /// and verify against the restored state.
+    fn finalize(&mut self, engine: &EthEngine) -> Result<(), ::error::Error>;
 }

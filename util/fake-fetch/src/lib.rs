@@ -15,53 +15,63 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 extern crate fetch;
-extern crate hyper;
 extern crate futures;
+extern crate hyper;
 
-use hyper::{StatusCode, Body};
+use fetch::{Fetch, Request, Url};
 use futures::{future, future::FutureResult};
-use fetch::{Fetch, Url, Request};
+use hyper::{Body, StatusCode};
 
 #[derive(Clone, Default)]
-pub struct FakeFetch<T> where T: Clone + Send + Sync {
-	val: Option<T>,
+pub struct FakeFetch<T>
+where
+    T: Clone + Send + Sync,
+{
+    val: Option<T>,
 }
 
-impl<T> FakeFetch<T> where T: Clone + Send + Sync {
-	pub fn new(t: Option<T>) -> Self {
-		FakeFetch { val : t }
-	}
+impl<T> FakeFetch<T>
+where
+    T: Clone + Send + Sync,
+{
+    pub fn new(t: Option<T>) -> Self {
+        FakeFetch { val: t }
+    }
 }
 
-impl<T: 'static> Fetch for FakeFetch<T> where T: Clone + Send+ Sync {
-	type Result = FutureResult<fetch::Response, fetch::Error>;
+impl<T: 'static> Fetch for FakeFetch<T>
+where
+    T: Clone + Send + Sync,
+{
+    type Result = FutureResult<fetch::Response, fetch::Error>;
 
-	fn fetch(&self, request: Request, abort: fetch::Abort) -> Self::Result {
-		let u = request.url().clone();
-		future::ok(if self.val.is_some() {
-			let r = hyper::Response::new("Some content".into());
-			fetch::client::Response::new(u, r, abort)
-		} else {
-			let r = hyper::Response::builder()
-				.status(StatusCode::NOT_FOUND)
-				.body(Body::empty()).expect("Nothing to parse, can not fail; qed");
-			fetch::client::Response::new(u, r, abort)
-		})
-	}
+    fn fetch(&self, request: Request, abort: fetch::Abort) -> Self::Result {
+        let u = request.url().clone();
+        future::ok(if self.val.is_some() {
+            let r = hyper::Response::new("Some content".into());
+            fetch::client::Response::new(u, r, abort)
+        } else {
+            let r = hyper::Response::builder()
+                .status(StatusCode::NOT_FOUND)
+                .body(Body::empty())
+                .expect("Nothing to parse, can not fail; qed");
+            fetch::client::Response::new(u, r, abort)
+        })
+    }
 
-	fn get(&self, url: &str, abort: fetch::Abort) -> Self::Result {
-		let url: Url = match url.parse() {
-			Ok(u) => u,
-			Err(e) => return future::err(e.into())
-		};
-		self.fetch(Request::get(url), abort)
-	}
+    fn get(&self, url: &str, abort: fetch::Abort) -> Self::Result {
+        let url: Url = match url.parse() {
+            Ok(u) => u,
+            Err(e) => return future::err(e.into()),
+        };
+        self.fetch(Request::get(url), abort)
+    }
 
-	fn post(&self, url: &str, abort: fetch::Abort) -> Self::Result {
-		let url: Url = match url.parse() {
-			Ok(u) => u,
-			Err(e) => return future::err(e.into())
-		};
-		self.fetch(Request::post(url), abort)
-	}
+    fn post(&self, url: &str, abort: fetch::Abort) -> Self::Result {
+        let url: Url = match url.parse() {
+            Ok(u) => u,
+            Err(e) => return future::err(e.into()),
+        };
+        self.fetch(Request::post(url), abort)
+    }
 }

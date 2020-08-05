@@ -16,14 +16,14 @@
 
 //! Helper type with all filter state data.
 
-use std::{
-	collections::{BTreeSet, HashSet, VecDeque},
-	sync::Arc,
-};
 use ethereum_types::H256;
 use parking_lot::Mutex;
-use v1::types::Log;
+use std::{
+    collections::{BTreeSet, HashSet, VecDeque},
+    sync::Arc,
+};
 use types::filter::Filter;
+use v1::types::Log;
 
 pub type BlockNumber = u64;
 
@@ -32,49 +32,50 @@ pub type BlockNumber = u64;
 pub struct SyncPollFilter(Arc<Mutex<PollFilter>>);
 
 impl SyncPollFilter {
-	/// New `SyncPollFilter`
-	pub fn new(f: PollFilter) -> Self {
-		SyncPollFilter(Arc::new(Mutex::new(f)))
-	}
+    /// New `SyncPollFilter`
+    pub fn new(f: PollFilter) -> Self {
+        SyncPollFilter(Arc::new(Mutex::new(f)))
+    }
 
-	/// Modify underlying filter
-	pub fn modify<F, R>(&self, f: F) -> R where
-		F: FnOnce(&mut PollFilter) -> R,
-	{
-		f(&mut self.0.lock())
-	}
+    /// Modify underlying filter
+    pub fn modify<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce(&mut PollFilter) -> R,
+    {
+        f(&mut self.0.lock())
+    }
 }
 
 /// Filter state.
 #[derive(Clone)]
 pub enum PollFilter {
-	/// Number of last block which client was notified about.
-	Block {
-		last_block_number: BlockNumber,
-		#[doc(hidden)]
-		recent_reported_hashes: VecDeque<(BlockNumber, H256)>,
-	},
-	/// Hashes of all pending transactions the client knows about.
-	PendingTransaction(BTreeSet<H256>),
-	/// Number of From block number, last seen block hash, pending logs and log filter itself.
-	Logs {
-		block_number: BlockNumber,
-		last_block_hash: Option<H256>,
-		previous_logs: HashSet<Log>,
-		filter: Filter,
-		include_pending: bool,
-	}
+    /// Number of last block which client was notified about.
+    Block {
+        last_block_number: BlockNumber,
+        #[doc(hidden)]
+        recent_reported_hashes: VecDeque<(BlockNumber, H256)>,
+    },
+    /// Hashes of all pending transactions the client knows about.
+    PendingTransaction(BTreeSet<H256>),
+    /// Number of From block number, last seen block hash, pending logs and log filter itself.
+    Logs {
+        block_number: BlockNumber,
+        last_block_hash: Option<H256>,
+        previous_logs: HashSet<Log>,
+        filter: Filter,
+        include_pending: bool,
+    },
 }
 
 impl PollFilter {
-	pub (in v1) const MAX_BLOCK_HISTORY_SIZE: usize = 32;
+    pub(in v1) const MAX_BLOCK_HISTORY_SIZE: usize = 32;
 }
 
 /// Returns only last `n` logs
 pub fn limit_logs(mut logs: Vec<Log>, limit: Option<usize>) -> Vec<Log> {
-	let len = logs.len();
-	match limit {
-		Some(limit) if len >= limit => logs.split_off(len - limit),
-		_ => logs,
-	}
+    let len = logs.len();
+    match limit {
+        Some(limit) if len >= limit => logs.split_off(len - limit),
+        _ => logs,
+    }
 }

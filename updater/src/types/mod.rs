@@ -20,6 +20,8 @@ mod all;
 mod release_track;
 mod version_info;
 
-pub use self::all::{ReleaseInfo, OperationsInfo, CapState};
-pub use self::release_track::ReleaseTrack;
-pub use self::version_info::VersionInfo;
+pub use self::{
+    all::{CapState, OperationsInfo, ReleaseInfo},
+    release_track::ReleaseTrack,
+    version_info::VersionInfo,
+};

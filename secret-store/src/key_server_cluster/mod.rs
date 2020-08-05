@@ -16,59 +16,66 @@
 
 use super::types::ServerKeyId;
 
-pub use super::traits::NodeKeyPair;
-pub use super::types::{Error, NodeId, Requester, EncryptedDocumentKeyShadow};
-pub use super::acl_storage::AclStorage;
-pub use super::key_storage::{KeyStorage, DocumentKeyShare, DocumentKeyShareVersion};
-pub use super::key_server_set::{is_migration_required, KeyServerSet, KeyServerSetSnapshot, KeyServerSetMigration};
-pub use super::serialization::{SerializableSignature, SerializableH256, SerializableSecret, SerializablePublic,
-	SerializableRequester, SerializableMessageHash, SerializableAddress};
-pub use self::cluster::{new_network_cluster, ClusterCore, ClusterConfiguration, ClusterClient};
-pub use self::cluster_connections_net::NetConnectionsManagerConfig;
-pub use self::cluster_sessions::{ClusterSession, ClusterSessionsListener};
 #[cfg(test)]
 pub use self::cluster::tests::DummyClusterClient;
+pub use self::{
+    cluster::{new_network_cluster, ClusterClient, ClusterConfiguration, ClusterCore},
+    cluster_connections_net::NetConnectionsManagerConfig,
+    cluster_sessions::{ClusterSession, ClusterSessionsListener},
+};
+pub use super::{
+    acl_storage::AclStorage,
+    key_server_set::{
+        is_migration_required, KeyServerSet, KeyServerSetMigration, KeyServerSetSnapshot,
+    },
+    key_storage::{DocumentKeyShare, DocumentKeyShareVersion, KeyStorage},
+    serialization::{
+        SerializableAddress, SerializableH256, SerializableMessageHash, SerializablePublic,
+        SerializableRequester, SerializableSecret, SerializableSignature,
+    },
+    traits::NodeKeyPair,
+    types::{EncryptedDocumentKeyShadow, Error, NodeId, Requester},
+};
 
-#[cfg(test)]
-pub use super::node_key_pair::PlainNodeKeyPair;
-#[cfg(test)]
-pub use super::key_storage::tests::DummyKeyStorage;
 pub use super::acl_storage::DummyAclStorage;
 #[cfg(test)]
 pub use super::key_server_set::tests::MapKeyServerSet;
+#[cfg(test)]
+pub use super::key_storage::tests::DummyKeyStorage;
+#[cfg(test)]
+pub use super::node_key_pair::PlainNodeKeyPair;
 
 pub type SessionId = ServerKeyId;
 
 /// Session metadata.
 #[derive(Debug, Clone)]
 pub struct SessionMeta {
-	/// Key id.
-	pub id: SessionId,
-	/// Id of node, which has started this session.
-	pub master_node_id: NodeId,
-	/// Id of node, on which this session is running.
-	pub self_node_id: NodeId,
-	/// Session threshold.
-	pub threshold: usize,
-	/// Count of all configured key server nodes (valid at session start time).
-	pub configured_nodes_count: usize,
-	/// Count of all connected key server nodes (valid at session start time).
-	pub connected_nodes_count: usize,
+    /// Key id.
+    pub id: SessionId,
+    /// Id of node, which has started this session.
+    pub master_node_id: NodeId,
+    /// Id of node, on which this session is running.
+    pub self_node_id: NodeId,
+    /// Session threshold.
+    pub threshold: usize,
+    /// Count of all configured key server nodes (valid at session start time).
+    pub configured_nodes_count: usize,
+    /// Count of all connected key server nodes (valid at session start time).
+    pub connected_nodes_count: usize,
 }
 
 mod admin_sessions;
 mod client_sessions;
 
-pub use self::admin_sessions::key_version_negotiation_session;
-pub use self::admin_sessions::servers_set_change_session;
-pub use self::admin_sessions::share_add_session;
-pub use self::admin_sessions::share_change_session;
+pub use self::admin_sessions::{
+    key_version_negotiation_session, servers_set_change_session, share_add_session,
+    share_change_session,
+};
 
-pub use self::client_sessions::decryption_session;
-pub use self::client_sessions::encryption_session;
-pub use self::client_sessions::generation_session;
-pub use self::client_sessions::signing_session_ecdsa;
-pub use self::client_sessions::signing_session_schnorr;
+pub use self::client_sessions::{
+    decryption_session, encryption_session, generation_session, signing_session_ecdsa,
+    signing_session_schnorr,
+};
 
 mod cluster;
 mod cluster_connections;

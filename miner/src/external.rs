@@ -16,97 +16,105 @@
 
 //! External Miner hashrate tracker.
 
-use std::collections::HashMap;
-use std::sync::Arc;
-use std::time::{Instant, Duration};
 use ethereum_types::{H256, U256};
 use parking_lot::Mutex;
+use std::{
+    collections::HashMap,
+    sync::Arc,
+    time::{Duration, Instant},
+};
 
 /// External miner interface.
 pub trait ExternalMinerService: Send + Sync {
-	/// Submit hashrate for given miner.
-	fn submit_hashrate(&self, hashrate: U256, id: H256);
+    /// Submit hashrate for given miner.
+    fn submit_hashrate(&self, hashrate: U256, id: H256);
 
-	/// Total hashrate.
-	fn hashrate(&self) -> U256;
+    /// Total hashrate.
+    fn hashrate(&self) -> U256;
 }
 
 /// External Miner.
 pub struct ExternalMiner {
-	hashrates: Arc<Mutex<HashMap<H256, (Instant, U256)>>>,
+    hashrates: Arc<Mutex<HashMap<H256, (Instant, U256)>>>,
 }
 
 impl Default for ExternalMiner {
-	fn default() -> Self {
-		ExternalMiner {
-			hashrates: Arc::new(Mutex::new(HashMap::new())),
-		}
-	}
+    fn default() -> Self {
+        ExternalMiner {
+            hashrates: Arc::new(Mutex::new(HashMap::new())),
+        }
+    }
 }
 
 impl ExternalMiner {
-	/// Creates new external miner with prefilled hashrates.
-	pub fn new(hashrates: Arc<Mutex<HashMap<H256, (Instant, U256)>>>) -> Self {
-		ExternalMiner {
-			hashrates: hashrates,
-		}
-	}
+    /// Creates new external miner with prefilled hashrates.
+    pub fn new(hashrates: Arc<Mutex<HashMap<H256, (Instant, U256)>>>) -> Self {
+        ExternalMiner {
+            hashrates: hashrates,
+        }
+    }
 }
 
 const ENTRY_TIMEOUT: Duration = Duration::from_secs(2);
 
 impl ExternalMinerService for ExternalMiner {
-	fn submit_hashrate(&self, hashrate: U256, id: H256) {
-		self.hashrates.lock().insert(id, (Instant::now() + ENTRY_TIMEOUT, hashrate));
-	}
+    fn submit_hashrate(&self, hashrate: U256, id: H256) {
+        self.hashrates
+            .lock()
+            .insert(id, (Instant::now() + ENTRY_TIMEOUT, hashrate));
+    }
 
-	fn hashrate(&self) -> U256 {
-		let mut hashrates = self.hashrates.lock();
-		let h = hashrates.drain().filter(|&(_, (t, _))| t > Instant::now()).collect();
-		*hashrates = h;
-		hashrates.iter().fold(U256::from(0), |sum, (_, &(_, v))| sum + v)
-	}
+    fn hashrate(&self) -> U256 {
+        let mut hashrates = self.hashrates.lock();
+        let h = hashrates
+            .drain()
+            .filter(|&(_, (t, _))| t > Instant::now())
+            .collect();
+        *hashrates = h;
+        hashrates
+            .iter()
+            .fold(U256::from(0), |sum, (_, &(_, v))| sum + v)
+    }
 }
 
 #[cfg(test)]
 mod tests {
-	use super::*;
-	use std::thread::sleep;
-	use std::time::Duration;
-	use ethereum_types::{H256, U256};
+    use super::*;
+    use ethereum_types::{H256, U256};
+    use std::{thread::sleep, time::Duration};
 
-	fn miner() -> ExternalMiner {
-		ExternalMiner::default()
-	}
+    fn miner() -> ExternalMiner {
+        ExternalMiner::default()
+    }
 
-	#[test]
-	fn it_should_forget_old_hashrates() {
-		// given
-		let m = miner();
-		assert_eq!(m.hashrate(), U256::from(0));
-		m.submit_hashrate(U256::from(10), H256::from(1));
-		assert_eq!(m.hashrate(), U256::from(10));
+    #[test]
+    fn it_should_forget_old_hashrates() {
+        // given
+        let m = miner();
+        assert_eq!(m.hashrate(), U256::from(0));
+        m.submit_hashrate(U256::from(10), H256::from(1));
+        assert_eq!(m.hashrate(), U256::from(10));
 
-		// when
-		sleep(Duration::from_secs(3));
+        // when
+        sleep(Duration::from_secs(3));
 
-		// then
-		assert_eq!(m.hashrate(), U256::from(0));
-	}
+        // then
+        assert_eq!(m.hashrate(), U256::from(0));
+    }
 
-	#[test]
-	fn should_sum_up_hashrate() {
-		// given
-		let m = miner();
-		assert_eq!(m.hashrate(), U256::from(0));
-		m.submit_hashrate(U256::from(10), H256::from(1));
-		assert_eq!(m.hashrate(), U256::from(10));
+    #[test]
+    fn should_sum_up_hashrate() {
+        // given
+        let m = miner();
+        assert_eq!(m.hashrate(), U256::from(0));
+        m.submit_hashrate(U256::from(10), H256::from(1));
+        assert_eq!(m.hashrate(), U256::from(10));
 
-		// when
-		m.submit_hashrate(U256::from(15), H256::from(1));
-		m.submit_hashrate(U256::from(20), H256::from(2));
+        // when
+        m.submit_hashrate(U256::from(15), H256::from(1));
+        m.submit_hashrate(U256::from(20), H256::from(2));
 
-		// then
-		assert_eq!(m.hashrate(), U256::from(35));
-	}
+        // then
+        assert_eq!(m.hashrate(), U256::from(35));
+    }
 }

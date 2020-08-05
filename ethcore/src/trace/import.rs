@@ -22,16 +22,16 @@ use trace::FlatBlockTraces;
 
 /// Traces import request.
 pub struct ImportRequest {
-	/// Traces to import.
-	pub traces: FlatBlockTraces,
-	/// Hash of traces block.
-	pub block_hash: H256,
-	/// Number of traces block.
-	pub block_number: BlockNumber,
-	/// Blocks enacted by this import.
-	///
-	/// They should be ordered from oldest to newest.
-	pub enacted: Vec<H256>,
-	/// Number of blocks retracted by this import.
-	pub retracted: usize,
+    /// Traces to import.
+    pub traces: FlatBlockTraces,
+    /// Hash of traces block.
+    pub block_hash: H256,
+    /// Number of traces block.
+    pub block_number: BlockNumber,
+    /// Blocks enacted by this import.
+    ///
+    /// They should be ordered from oldest to newest.
+    pub enacted: Vec<H256>,
+    /// Number of blocks retracted by this import.
+    pub retracted: usize,
 }

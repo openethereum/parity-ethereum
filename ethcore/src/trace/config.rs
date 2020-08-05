@@ -19,21 +19,21 @@
 /// Traces config.
 #[derive(Debug, PartialEq, Clone)]
 pub struct Config {
-	/// Indicates if tracing should be enabled or not.
-	/// If it's None, it will be automatically configured.
-	pub enabled: bool,
-	/// Preferef cache-size.
-	pub pref_cache_size: usize,
-	/// Max cache-size.
-	pub max_cache_size: usize,
+    /// Indicates if tracing should be enabled or not.
+    /// If it's None, it will be automatically configured.
+    pub enabled: bool,
+    /// Preferef cache-size.
+    pub pref_cache_size: usize,
+    /// Max cache-size.
+    pub max_cache_size: usize,
 }
 
 impl Default for Config {
-	fn default() -> Self {
-		Config {
-			enabled: false,
-			pref_cache_size: 15 * 1024 * 1024,
-			max_cache_size: 20 * 1024 * 1024,
-		}
-	}
+    fn default() -> Self {
+        Config {
+            enabled: false,
+            pref_cache_size: 15 * 1024 * 1024,
+            max_cache_size: 20 * 1024 * 1024,
+        }
+    }
 }

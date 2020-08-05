@@ -21,8 +21,8 @@ pub mod epoch;
 /// Fork choice.
 #[derive(Debug, PartialEq, Eq)]
 pub enum ForkChoice {
-	/// Choose the new block.
-	New,
-	/// Choose the current best block.
-	Old,
+    /// Choose the new block.
+    New,
+    /// Choose the current best block.
+    Old,
 }

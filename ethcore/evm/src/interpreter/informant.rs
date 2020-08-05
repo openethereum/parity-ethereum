@@ -19,144 +19,156 @@ pub use self::inner::*;
 #[macro_use]
 #[cfg(not(feature = "evm-debug"))]
 mod inner {
-	macro_rules! evm_debug {
-		($x: expr) => {}
-	}
+    macro_rules! evm_debug {
+        ($x: expr) => {};
+    }
 
-	pub struct EvmInformant;
-	impl EvmInformant {
-		pub fn new(_depth: usize) -> Self {
-			EvmInformant {}
-		}
-		pub fn done(&mut self) {}
-	}
+    pub struct EvmInformant;
+    impl EvmInformant {
+        pub fn new(_depth: usize) -> Self {
+            EvmInformant {}
+        }
+        pub fn done(&mut self) {}
+    }
 }
 
 #[macro_use]
 #[cfg(feature = "evm-debug")]
 mod inner {
-	use std::iter;
-	use std::collections::HashMap;
-	use std::time::{Instant, Duration};
+    use std::{
+        collections::HashMap,
+        iter,
+        time::{Duration, Instant},
+    };
 
-	use ethereum_types::U256;
+    use ethereum_types::U256;
 
-	use interpreter::stack::Stack;
-	use instructions::{Instruction, InstructionInfo};
-	use CostType;
+    use instructions::{Instruction, InstructionInfo};
+    use interpreter::stack::Stack;
+    use CostType;
 
-	macro_rules! evm_debug {
-		($x: expr) => {
-			$x
-		}
-	}
+    macro_rules! evm_debug {
+        ($x: expr) => {
+            $x
+        };
+    }
 
-	fn print(data: String) {
-		if cfg!(feature = "evm-debug-tests") {
-			println!("{}", data);
-		} else {
-			debug!(target: "evm", "{}", data);
-		}
-	}
+    fn print(data: String) {
+        if cfg!(feature = "evm-debug-tests") {
+            println!("{}", data);
+        } else {
+            debug!(target: "evm", "{}", data);
+        }
+    }
 
-	pub struct EvmInformant {
-		spacing: String,
-		last_instruction: Instant,
-		stats: HashMap<Instruction, Stats>,
-	}
+    pub struct EvmInformant {
+        spacing: String,
+        last_instruction: Instant,
+        stats: HashMap<Instruction, Stats>,
+    }
 
-	impl EvmInformant {
+    impl EvmInformant {
+        fn color(instruction: Instruction, name: &str) -> String {
+            let c = instruction as usize % 6;
+            let colors = [31, 34, 33, 32, 35, 36];
+            format!("\x1B[1;{}m{}\x1B[0m", colors[c], name)
+        }
 
-		fn color(instruction: Instruction, name: &str) -> String {
-			let c = instruction as usize % 6;
-			let colors = [31, 34, 33, 32, 35, 36];
-			format!("\x1B[1;{}m{}\x1B[0m", colors[c], name)
-		}
+        fn as_micro(duration: &Duration) -> u64 {
+            let mut sec = duration.as_secs();
+            let subsec = duration.subsec_nanos() as u64;
+            sec = sec.saturating_mul(1_000_000u64);
+            sec += subsec / 1_000;
+            sec
+        }
 
-		fn as_micro(duration: &Duration) -> u64 {
-			let mut sec = duration.as_secs();
-			let subsec = duration.subsec_nanos() as u64;
-			sec = sec.saturating_mul(1_000_000u64);
-			sec += subsec / 1_000;
-			sec
-		}
+        pub fn new(depth: usize) -> Self {
+            EvmInformant {
+                spacing: iter::repeat(".").take(depth).collect(),
+                last_instruction: Instant::now(),
+                stats: HashMap::new(),
+            }
+        }
 
-		pub fn new(depth: usize) -> Self {
-			EvmInformant {
-				spacing: iter::repeat(".").take(depth).collect(),
-				last_instruction: Instant::now(),
-				stats: HashMap::new(),
-			}
-		}
+        pub fn before_instruction<Cost: CostType>(
+            &mut self,
+            pc: usize,
+            instruction: Instruction,
+            info: &InstructionInfo,
+            current_gas: &Cost,
+            stack: &Stack<U256>,
+        ) {
+            let time = self.last_instruction.elapsed();
+            self.last_instruction = Instant::now();
 
-		pub fn before_instruction<Cost: CostType>(&mut self, pc: usize, instruction: Instruction, info: &InstructionInfo, current_gas: &Cost, stack: &Stack<U256>) {
-			let time = self.last_instruction.elapsed();
-			self.last_instruction = Instant::now();
+            print(format!(
+                "{}[0x{:<3x}][{:>19}(0x{:<2x}) Gas Left: {:6?} (Previous took: {:10}μs)",
+                &self.spacing,
+                pc,
+                Self::color(instruction, info.name),
+                instruction as u8,
+                current_gas,
+                Self::as_micro(&time),
+            ));
 
-			print(format!("{}[0x{:<3x}][{:>19}(0x{:<2x}) Gas Left: {:6?} (Previous took: {:10}μs)",
-				&self.spacing,
-				pc,
-				Self::color(instruction, info.name),
-				instruction as u8,
-				current_gas,
-				Self::as_micro(&time),
-			));
+            if info.args > 0 {
+                for (idx, item) in stack.peek_top(info.args).iter().enumerate() {
+                    print(format!("{}       |{:2}: {:?}", self.spacing, idx, item));
+                }
+            }
+        }
 
-			if info.args > 0 {
-				for (idx, item) in stack.peek_top(info.args).iter().enumerate() {
-					print(format!("{}       |{:2}: {:?}", self.spacing, idx, item));
-				}
-			}
-		}
+        pub fn after_instruction(&mut self, instruction: Instruction) {
+            let stats = self
+                .stats
+                .entry(instruction)
+                .or_insert_with(|| Stats::default());
+            let took = self.last_instruction.elapsed();
+            stats.note(took);
+        }
 
-		pub fn after_instruction(&mut self, instruction: Instruction) {
-			let stats = self.stats.entry(instruction).or_insert_with(|| Stats::default());
-			let took = self.last_instruction.elapsed();
-			stats.note(took);
-		}
+        pub fn done(&mut self) {
+            // Print out stats
+            let mut stats: Vec<(_, _)> = self.stats.drain().collect();
+            stats.sort_by(|ref a, ref b| b.1.avg().cmp(&a.1.avg()));
 
-		pub fn done(&mut self) {
-			// Print out stats
-			let mut stats: Vec<(_,_)> = self.stats.drain().collect();
-			stats.sort_by(|ref a, ref b| b.1.avg().cmp(&a.1.avg()));
+            print(format!("\n{}-------OPCODE STATS:", self.spacing));
+            for (instruction, stats) in stats.into_iter() {
+                let info = instruction.info();
+                print(format!(
+                    "{}-------{:>19}(0x{:<2x}) count: {:4}, avg: {:10}μs",
+                    self.spacing,
+                    Self::color(instruction, info.name),
+                    instruction as u8,
+                    stats.count,
+                    stats.avg(),
+                ));
+            }
+        }
+    }
 
-			print(format!("\n{}-------OPCODE STATS:", self.spacing));
-			for (instruction, stats) in stats.into_iter() {
-				let info = instruction.info();
-				print(format!("{}-------{:>19}(0x{:<2x}) count: {:4}, avg: {:10}μs",
-					self.spacing,
-					Self::color(instruction, info.name),
-					instruction as u8,
-					stats.count,
-					stats.avg(),
-				));
-			}
-		}
+    struct Stats {
+        count: u64,
+        total_duration: Duration,
+    }
 
-	}
+    impl Default for Stats {
+        fn default() -> Self {
+            Stats {
+                count: 0,
+                total_duration: Duration::from_secs(0),
+            }
+        }
+    }
 
-	struct Stats {
-		count: u64,
-		total_duration: Duration,
-	}
+    impl Stats {
+        fn note(&mut self, took: Duration) {
+            self.count += 1;
+            self.total_duration += took;
+        }
 
-	impl Default for Stats {
-		fn default() -> Self {
-			Stats {
-				count: 0,
-				total_duration: Duration::from_secs(0),
-			}
-		}
-	}
-
-	impl Stats {
-		fn note(&mut self, took: Duration) {
-			self.count += 1;
-			self.total_duration += took;
-		}
-
-		fn avg(&self) -> u64 {
-			EvmInformant::as_micro(&self.total_duration) / self.count
-		}
-	}
+        fn avg(&self) -> u64 {
+            EvmInformant::as_micro(&self.total_duration) / self.count
+        }
+    }
 }

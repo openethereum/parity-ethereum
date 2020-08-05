@@ -14,50 +14,51 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::sync::{Arc, mpsc};
+use std::sync::{mpsc, Arc};
 
-use ethcore::client::BlockChainClient;
-use sync::{self, AttachedProtocol, SyncConfig, NetworkConfiguration, Params, ConnectionFilter};
-use ethcore::snapshot::SnapshotService;
+use ethcore::{client::BlockChainClient, snapshot::SnapshotService};
 use light::Provider;
+use sync::{self, AttachedProtocol, ConnectionFilter, NetworkConfiguration, Params, SyncConfig};
 
-pub use sync::{EthSync, SyncProvider, ManageNetwork, PrivateTxHandler};
 pub use ethcore::client::ChainNotify;
 use ethcore_logger::Config as LogConfig;
+pub use sync::{EthSync, ManageNetwork, PrivateTxHandler, SyncProvider};
 
 pub type SyncModules = (
-	Arc<SyncProvider>,
-	Arc<ManageNetwork>,
-	Arc<ChainNotify>,
-	mpsc::Sender<sync::PriorityTask>,
+    Arc<SyncProvider>,
+    Arc<ManageNetwork>,
+    Arc<ChainNotify>,
+    mpsc::Sender<sync::PriorityTask>,
 );
 
 pub fn sync(
-	config: SyncConfig,
-	network_config: NetworkConfiguration,
-	chain: Arc<BlockChainClient>,
-	snapshot_service: Arc<SnapshotService>,
-	private_tx_handler: Option<Arc<PrivateTxHandler>>,
-	provider: Arc<Provider>,
-	_log_settings: &LogConfig,
-	attached_protos: Vec<AttachedProtocol>,
-	connection_filter: Option<Arc<ConnectionFilter>>,
+    config: SyncConfig,
+    network_config: NetworkConfiguration,
+    chain: Arc<BlockChainClient>,
+    snapshot_service: Arc<SnapshotService>,
+    private_tx_handler: Option<Arc<PrivateTxHandler>>,
+    provider: Arc<Provider>,
+    _log_settings: &LogConfig,
+    attached_protos: Vec<AttachedProtocol>,
+    connection_filter: Option<Arc<ConnectionFilter>>,
 ) -> Result<SyncModules, sync::Error> {
-	let eth_sync = EthSync::new(Params {
-		config,
-		chain,
-		provider,
-		snapshot_service,
-		private_tx_handler,
-		network_config,
-		attached_protos,
-	},
-	connection_filter)?;
+    let eth_sync = EthSync::new(
+        Params {
+            config,
+            chain,
+            provider,
+            snapshot_service,
+            private_tx_handler,
+            network_config,
+            attached_protos,
+        },
+        connection_filter,
+    )?;
 
-	Ok((
-		eth_sync.clone() as Arc<SyncProvider>,
-		eth_sync.clone() as Arc<ManageNetwork>,
-		eth_sync.clone() as Arc<ChainNotify>,
-		eth_sync.priority_tasks()
-	))
+    Ok((
+        eth_sync.clone() as Arc<SyncProvider>,
+        eth_sync.clone() as Arc<ManageNetwork>,
+        eth_sync.clone() as Arc<ChainNotify>,
+        eth_sync.priority_tasks(),
+    ))
 }

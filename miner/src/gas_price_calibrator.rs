@@ -16,48 +16,52 @@
 
 //! Auto-updates minimal gas price requirement from a price-info source.
 
-use std::time::{Instant, Duration};
+use std::time::{Duration, Instant};
 
 use ansi_term::Colour;
 use ethereum_types::U256;
 use parity_runtime::Executor;
-use price_info::{Client as PriceInfoClient, PriceInfo};
-use price_info::fetch::Client as FetchClient;
+use price_info::{fetch::Client as FetchClient, Client as PriceInfoClient, PriceInfo};
 
 /// Options for the dynamic gas price recalibrator.
 #[derive(Debug, PartialEq)]
 pub struct GasPriceCalibratorOptions {
-	/// Base transaction price to match against.
-	pub usd_per_tx: f32,
-	/// How frequently we should recalibrate.
-	pub recalibration_period: Duration,
+    /// Base transaction price to match against.
+    pub usd_per_tx: f32,
+    /// How frequently we should recalibrate.
+    pub recalibration_period: Duration,
 }
 
 /// The gas price validator variant for a `GasPricer`.
 #[derive(Debug, PartialEq)]
 pub struct GasPriceCalibrator {
-	options: GasPriceCalibratorOptions,
-	next_calibration: Instant,
-	price_info: PriceInfoClient,
+    options: GasPriceCalibratorOptions,
+    next_calibration: Instant,
+    price_info: PriceInfoClient,
 }
 
 impl GasPriceCalibrator {
-	/// Create a new gas price calibrator.
-	pub fn new(options: GasPriceCalibratorOptions, fetch: FetchClient, p: Executor, api_endpoint: String) -> GasPriceCalibrator {
-		GasPriceCalibrator {
-			options: options,
-			next_calibration: Instant::now(),
-			price_info: PriceInfoClient::new(fetch, p, api_endpoint),
-		}
-	}
+    /// Create a new gas price calibrator.
+    pub fn new(
+        options: GasPriceCalibratorOptions,
+        fetch: FetchClient,
+        p: Executor,
+        api_endpoint: String,
+    ) -> GasPriceCalibrator {
+        GasPriceCalibrator {
+            options: options,
+            next_calibration: Instant::now(),
+            price_info: PriceInfoClient::new(fetch, p, api_endpoint),
+        }
+    }
 
-	pub(crate) fn recalibrate<F: FnOnce(U256) + Sync + Send + 'static>(&mut self, set_price: F) {
-		trace!(target: "miner", "Recalibrating {:?} versus {:?}", Instant::now(), self.next_calibration);
-		if Instant::now() >= self.next_calibration {
-			let usd_per_tx = self.options.usd_per_tx;
-			trace!(target: "miner", "Getting price info");
+    pub(crate) fn recalibrate<F: FnOnce(U256) + Sync + Send + 'static>(&mut self, set_price: F) {
+        trace!(target: "miner", "Recalibrating {:?} versus {:?}", Instant::now(), self.next_calibration);
+        if Instant::now() >= self.next_calibration {
+            let usd_per_tx = self.options.usd_per_tx;
+            trace!(target: "miner", "Getting price info");
 
-			self.price_info.get(move |price: PriceInfo| {
+            self.price_info.get(move |price: PriceInfo| {
 				trace!(target: "miner", "Price info arrived: {:?}", price);
 				let usd_per_eth = price.ethusd;
 				let wei_per_usd: f32 = 1.0e18 / usd_per_eth;
@@ -67,7 +71,7 @@ impl GasPriceCalibrator {
 				set_price(U256::from(wei_per_gas as u64));
 			});
 
-			self.next_calibration = Instant::now() + self.options.recalibration_period;
-		}
-	}
+            self.next_calibration = Instant::now() + self.options.recalibration_period;
+        }
+    }
 }

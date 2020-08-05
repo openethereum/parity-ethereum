@@ -14,159 +14,164 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::str::FromStr;
-use std::fmt::{Display, Formatter, Error as FmtError};
+use std::{
+    fmt::{Display, Error as FmtError, Formatter},
+    str::FromStr,
+};
 
-use verification::{VerifierType, QueueConfig};
 use journaldb;
 use snapshot::SnapshotConfiguration;
+use verification::{QueueConfig, VerifierType};
 
-pub use std::time::Duration;
 pub use blockchain::Config as BlockChainConfig;
-pub use trace::Config as TraceConfig;
 pub use evm::VMType;
+pub use std::time::Duration;
+pub use trace::Config as TraceConfig;
 
 /// Client state db compaction profile
 #[derive(Debug, PartialEq, Clone)]
 pub enum DatabaseCompactionProfile {
-	/// Try to determine compaction profile automatically
-	Auto,
-	/// SSD compaction profile
-	SSD,
-	/// HDD or other slow storage io compaction profile
-	HDD,
+    /// Try to determine compaction profile automatically
+    Auto,
+    /// SSD compaction profile
+    SSD,
+    /// HDD or other slow storage io compaction profile
+    HDD,
 }
 
 impl Default for DatabaseCompactionProfile {
-	fn default() -> Self {
-		DatabaseCompactionProfile::Auto
-	}
+    fn default() -> Self {
+        DatabaseCompactionProfile::Auto
+    }
 }
 
 impl FromStr for DatabaseCompactionProfile {
-	type Err = String;
+    type Err = String;
 
-	fn from_str(s: &str) -> Result<Self, Self::Err> {
-		match s {
-			"auto" => Ok(DatabaseCompactionProfile::Auto),
-			"ssd" => Ok(DatabaseCompactionProfile::SSD),
-			"hdd" => Ok(DatabaseCompactionProfile::HDD),
-			_ => Err("Invalid compaction profile given. Expected default/hdd/ssd.".into()),
-		}
-	}
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "auto" => Ok(DatabaseCompactionProfile::Auto),
+            "ssd" => Ok(DatabaseCompactionProfile::SSD),
+            "hdd" => Ok(DatabaseCompactionProfile::HDD),
+            _ => Err("Invalid compaction profile given. Expected default/hdd/ssd.".into()),
+        }
+    }
 }
 
 /// Operating mode for the client.
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub enum Mode {
-	/// Always on.
-	Active,
-	/// Goes offline after client is inactive for some (given) time, but
-	/// comes back online after a while of inactivity.
-	Passive(Duration, Duration),
-	/// Goes offline after client is inactive for some (given) time and
-	/// stays inactive.
-	Dark(Duration),
-	/// Always off.
-	Off,
+    /// Always on.
+    Active,
+    /// Goes offline after client is inactive for some (given) time, but
+    /// comes back online after a while of inactivity.
+    Passive(Duration, Duration),
+    /// Goes offline after client is inactive for some (given) time and
+    /// stays inactive.
+    Dark(Duration),
+    /// Always off.
+    Off,
 }
 
 impl Display for Mode {
-	fn fmt(&self, f: &mut Formatter) -> Result<(), FmtError> {
-		match *self {
-			Mode::Active => write!(f, "active"),
-			Mode::Passive(..) => write!(f, "passive"),
-			Mode::Dark(..) => write!(f, "dark"),
-			Mode::Off => write!(f, "offline"),
-		}
-	}
+    fn fmt(&self, f: &mut Formatter) -> Result<(), FmtError> {
+        match *self {
+            Mode::Active => write!(f, "active"),
+            Mode::Passive(..) => write!(f, "passive"),
+            Mode::Dark(..) => write!(f, "dark"),
+            Mode::Off => write!(f, "offline"),
+        }
+    }
 }
 
 /// Client configuration. Includes configs for all sub-systems.
 #[derive(Debug, PartialEq, Clone)]
 pub struct ClientConfig {
-	/// Block queue configuration.
-	pub queue: QueueConfig,
-	/// Blockchain configuration.
-	pub blockchain: BlockChainConfig,
-	/// Trace configuration.
-	pub tracing: TraceConfig,
-	/// VM type.
-	pub vm_type: VMType,
-	/// Fat DB enabled?
-	pub fat_db: bool,
-	/// The JournalDB ("pruning") algorithm to use.
-	pub pruning: journaldb::Algorithm,
-	/// The name of the client instance.
-	pub name: String,
-	/// RocksDB column cache-size if not default
-	pub db_cache_size: Option<usize>,
-	/// State db compaction profile
-	pub db_compaction: DatabaseCompactionProfile,
-	/// Operating mode
-	pub mode: Mode,
-	/// The chain spec name
-	pub spec_name: String,
-	/// Type of block verifier used by client.
-	pub verifier_type: VerifierType,
-	/// State db cache-size.
-	pub state_cache_size: usize,
-	/// EVM jump-tables cache size.
-	pub jump_table_size: usize,
-	/// Minimum state pruning history size.
-	pub history: u64,
-	/// Ideal memory usage for state pruning history.
-	pub history_mem: usize,
-	/// Check seal valididity on block import
-	pub check_seal: bool,
-	/// Maximal number of transactions queued for verification in a separate thread.
-	pub transaction_verification_queue_size: usize,
-	/// Maximal number of blocks to import at each round.
-	pub max_round_blocks_to_import: usize,
-	/// Snapshot configuration
-	pub snapshot: SnapshotConfiguration,
+    /// Block queue configuration.
+    pub queue: QueueConfig,
+    /// Blockchain configuration.
+    pub blockchain: BlockChainConfig,
+    /// Trace configuration.
+    pub tracing: TraceConfig,
+    /// VM type.
+    pub vm_type: VMType,
+    /// Fat DB enabled?
+    pub fat_db: bool,
+    /// The JournalDB ("pruning") algorithm to use.
+    pub pruning: journaldb::Algorithm,
+    /// The name of the client instance.
+    pub name: String,
+    /// RocksDB column cache-size if not default
+    pub db_cache_size: Option<usize>,
+    /// State db compaction profile
+    pub db_compaction: DatabaseCompactionProfile,
+    /// Operating mode
+    pub mode: Mode,
+    /// The chain spec name
+    pub spec_name: String,
+    /// Type of block verifier used by client.
+    pub verifier_type: VerifierType,
+    /// State db cache-size.
+    pub state_cache_size: usize,
+    /// EVM jump-tables cache size.
+    pub jump_table_size: usize,
+    /// Minimum state pruning history size.
+    pub history: u64,
+    /// Ideal memory usage for state pruning history.
+    pub history_mem: usize,
+    /// Check seal valididity on block import
+    pub check_seal: bool,
+    /// Maximal number of transactions queued for verification in a separate thread.
+    pub transaction_verification_queue_size: usize,
+    /// Maximal number of blocks to import at each round.
+    pub max_round_blocks_to_import: usize,
+    /// Snapshot configuration
+    pub snapshot: SnapshotConfiguration,
 }
 
 impl Default for ClientConfig {
-	fn default() -> Self {
-		let mb = 1024 * 1024;
-		ClientConfig {
-			queue: Default::default(),
-			blockchain: Default::default(),
-			tracing: Default::default(),
-			vm_type: Default::default(),
-			fat_db: false,
-			pruning: journaldb::Algorithm::OverlayRecent,
-			name: "default".into(),
-			db_cache_size: None,
-			db_compaction: Default::default(),
-			mode: Mode::Active,
-			spec_name: "".into(),
-			verifier_type: VerifierType::Canon,
-			state_cache_size: 1 * mb,
-			jump_table_size: 1 * mb,
-			history: 64,
-			history_mem: 32 * mb,
-			check_seal: true,
-			transaction_verification_queue_size: 8192,
-			max_round_blocks_to_import: 12,
-			snapshot: Default::default(),
-		}
-	}
+    fn default() -> Self {
+        let mb = 1024 * 1024;
+        ClientConfig {
+            queue: Default::default(),
+            blockchain: Default::default(),
+            tracing: Default::default(),
+            vm_type: Default::default(),
+            fat_db: false,
+            pruning: journaldb::Algorithm::OverlayRecent,
+            name: "default".into(),
+            db_cache_size: None,
+            db_compaction: Default::default(),
+            mode: Mode::Active,
+            spec_name: "".into(),
+            verifier_type: VerifierType::Canon,
+            state_cache_size: 1 * mb,
+            jump_table_size: 1 * mb,
+            history: 64,
+            history_mem: 32 * mb,
+            check_seal: true,
+            transaction_verification_queue_size: 8192,
+            max_round_blocks_to_import: 12,
+            snapshot: Default::default(),
+        }
+    }
 }
 #[cfg(test)]
 mod test {
-	use super::DatabaseCompactionProfile;
+    use super::DatabaseCompactionProfile;
 
-	#[test]
-	fn test_default_compaction_profile() {
-		assert_eq!(DatabaseCompactionProfile::default(), DatabaseCompactionProfile::Auto);
-	}
+    #[test]
+    fn test_default_compaction_profile() {
+        assert_eq!(
+            DatabaseCompactionProfile::default(),
+            DatabaseCompactionProfile::Auto
+        );
+    }
 
-	#[test]
-	fn test_parsing_compaction_profile() {
-		assert_eq!(DatabaseCompactionProfile::Auto, "auto".parse().unwrap());
-		assert_eq!(DatabaseCompactionProfile::SSD, "ssd".parse().unwrap());
-		assert_eq!(DatabaseCompactionProfile::HDD, "hdd".parse().unwrap());
-	}
+    #[test]
+    fn test_parsing_compaction_profile() {
+        assert_eq!(DatabaseCompactionProfile::Auto, "auto".parse().unwrap());
+        assert_eq!(DatabaseCompactionProfile::SSD, "ssd".parse().unwrap());
+        assert_eq!(DatabaseCompactionProfile::HDD, "hdd".parse().unwrap());
+    }
 }

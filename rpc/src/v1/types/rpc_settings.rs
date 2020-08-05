@@ -20,10 +20,10 @@
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RpcSettings {
-	/// Whether RPC is enabled.
-	pub enabled: bool,
-	/// The interface being listened on.
-	pub interface: String,
-	/// The port being listened on.
-	pub port: u64,
+    /// Whether RPC is enabled.
+    pub enabled: bool,
+    /// The interface being listened on.
+    pub interface: String,
+    /// The port being listened on.
+    pub port: u64,
 }

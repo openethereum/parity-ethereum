@@ -24,11 +24,11 @@ use v1::types::Bytes;
 /// Web3 rpc interface.
 #[rpc(server)]
 pub trait Web3 {
-	/// Returns current client version.
-	#[rpc(name = "web3_clientVersion")]
-	fn client_version(&self) -> Result<String>;
+    /// Returns current client version.
+    #[rpc(name = "web3_clientVersion")]
+    fn client_version(&self) -> Result<String>;
 
-	/// Returns sha3 of the given data
-	#[rpc(name = "web3_sha3")]
-	fn sha3(&self, _: Bytes) -> Result<H256>;
+    /// Returns sha3 of the given data
+    #[rpc(name = "web3_sha3")]
+    fn sha3(&self, _: Bytes) -> Result<H256>;
 }

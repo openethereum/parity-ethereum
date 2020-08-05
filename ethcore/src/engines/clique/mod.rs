@@ -57,22 +57,24 @@
 /// 6. We call `Clique::on_seal_block()` which will allow us to modify the block header during seal generation.
 /// 7. Finally, `Clique::verify_local_seal()` is called. After this, the syncing code path will be followed
 ///    in order to import the new block.
-
 use std::cmp;
-use std::collections::HashMap;
-use std::collections::VecDeque;
-use std::sync::{Arc, Weak};
-use std::thread;
-use std::time;
-use std::time::{Instant, Duration, SystemTime, UNIX_EPOCH};
+use std::{
+    collections::{HashMap, VecDeque},
+    sync::{Arc, Weak},
+    thread, time,
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
+};
 
+use super::signer::EngineSigner;
 use block::ExecutedBlock;
 use bytes::Bytes;
-use client::{BlockId, EngineClient, traits::ForceUpdateSealing};
-use engines::clique::util::{extract_signers, recover_creator};
-use engines::{Engine, EngineError, Seal};
+use client::{traits::ForceUpdateSealing, BlockId, EngineClient};
+use engines::{
+    clique::util::{extract_signers, recover_creator},
+    Engine, EngineError, Seal,
+};
 use error::{BlockError, Error};
-use ethereum_types::{Address, H64, H160, H256, U256};
+use ethereum_types::{Address, H160, H256, H64, U256};
 use ethkey::Signature;
 use hash::KECCAK_EMPTY_LIST_RLP;
 use itertools::Itertools;
@@ -80,17 +82,17 @@ use lru_cache::LruCache;
 use machine::{Call, EthereumMachine};
 use parking_lot::RwLock;
 use rand::Rng;
-use super::signer::EngineSigner;
-use unexpected::{Mismatch, OutOfBounds};
 use time_utils::CheckedSystemTime;
-use types::BlockNumber;
-use types::header::{ExtendedHeader, Header};
+use types::{
+    header::{ExtendedHeader, Header},
+    BlockNumber,
+};
+use unexpected::{Mismatch, OutOfBounds};
 
-use self::block_state::CliqueBlockState;
-use self::params::CliqueParams;
+use self::{block_state::CliqueBlockState, params::CliqueParams};
 
-mod params;
 mod block_state;
+mod params;
 mod util;
 
 // TODO(niklasad1): extract tester types into a separate mod to be shared in the code base
@@ -129,649 +131,683 @@ pub const STATE_CACHE_NUM: usize = 128;
 /// Vote to add or remove the beneficiary
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
 pub enum VoteType {
-	Add,
-	Remove,
+    Add,
+    Remove,
 }
 
 impl VoteType {
-	/// Try to construct a `Vote` from a nonce
-	pub fn from_nonce(nonce: H64) -> Result<Self, Error> {
-		if nonce == NONCE_AUTH_VOTE {
-			Ok(VoteType::Add)
-		} else if nonce == NONCE_DROP_VOTE {
-			Ok(VoteType::Remove)
-		} else {
-			Err(EngineError::CliqueInvalidNonce(nonce))?
-		}
-	}
+    /// Try to construct a `Vote` from a nonce
+    pub fn from_nonce(nonce: H64) -> Result<Self, Error> {
+        if nonce == NONCE_AUTH_VOTE {
+            Ok(VoteType::Add)
+        } else if nonce == NONCE_DROP_VOTE {
+            Ok(VoteType::Remove)
+        } else {
+            Err(EngineError::CliqueInvalidNonce(nonce))?
+        }
+    }
 
-	/// Get the rlp encoding of the vote
-	pub fn as_rlp(&self) -> Vec<Vec<u8>> {
-		match self {
-			VoteType::Add => vec![rlp::encode(&NULL_MIXHASH), rlp::encode(&NONCE_AUTH_VOTE)],
-			VoteType::Remove => vec![rlp::encode(&NULL_MIXHASH), rlp::encode(&NONCE_DROP_VOTE)],
-		}
-	}
+    /// Get the rlp encoding of the vote
+    pub fn as_rlp(&self) -> Vec<Vec<u8>> {
+        match self {
+            VoteType::Add => vec![rlp::encode(&NULL_MIXHASH), rlp::encode(&NONCE_AUTH_VOTE)],
+            VoteType::Remove => vec![rlp::encode(&NULL_MIXHASH), rlp::encode(&NONCE_DROP_VOTE)],
+        }
+    }
 }
 
 /// Clique Engine implementation
 // block_state_by_hash -> block state indexed by header hash.
 #[cfg(not(test))]
 pub struct Clique {
-	epoch_length: u64,
-	period: u64,
-	machine: EthereumMachine,
-	client: RwLock<Option<Weak<EngineClient>>>,
-	block_state_by_hash: RwLock<LruCache<H256, CliqueBlockState>>,
-	proposals: RwLock<HashMap<Address, VoteType>>,
-	signer: RwLock<Option<Box<EngineSigner>>>,
+    epoch_length: u64,
+    period: u64,
+    machine: EthereumMachine,
+    client: RwLock<Option<Weak<EngineClient>>>,
+    block_state_by_hash: RwLock<LruCache<H256, CliqueBlockState>>,
+    proposals: RwLock<HashMap<Address, VoteType>>,
+    signer: RwLock<Option<Box<EngineSigner>>>,
 }
 
 #[cfg(test)]
 /// Test version of `CliqueEngine` to make all fields public
 pub struct Clique {
-	pub epoch_length: u64,
-	pub period: u64,
-	pub machine: EthereumMachine,
-	pub client: RwLock<Option<Weak<EngineClient>>>,
-	pub block_state_by_hash: RwLock<LruCache<H256, CliqueBlockState>>,
-	pub proposals: RwLock<HashMap<Address, VoteType>>,
-	pub signer: RwLock<Option<Box<EngineSigner>>>,
+    pub epoch_length: u64,
+    pub period: u64,
+    pub machine: EthereumMachine,
+    pub client: RwLock<Option<Weak<EngineClient>>>,
+    pub block_state_by_hash: RwLock<LruCache<H256, CliqueBlockState>>,
+    pub proposals: RwLock<HashMap<Address, VoteType>>,
+    pub signer: RwLock<Option<Box<EngineSigner>>>,
 }
 
 impl Clique {
-	/// Initialize Clique engine from empty state.
-	pub fn new(params: CliqueParams, machine: EthereumMachine) -> Result<Arc<Self>, Error> {
-		/// Step Clique at most every 2 seconds
-		const SEALING_FREQ: Duration = Duration::from_secs(2);
+    /// Initialize Clique engine from empty state.
+    pub fn new(params: CliqueParams, machine: EthereumMachine) -> Result<Arc<Self>, Error> {
+        /// Step Clique at most every 2 seconds
+        const SEALING_FREQ: Duration = Duration::from_secs(2);
 
-		let engine = Clique {
-			epoch_length: params.epoch,
-			period: params.period,
-			client: Default::default(),
-			block_state_by_hash: RwLock::new(LruCache::new(STATE_CACHE_NUM)),
-			proposals: Default::default(),
-			signer: Default::default(),
-			machine,
-		};
-		let engine = Arc::new(engine);
-		let weak_eng = Arc::downgrade(&engine);
+        let engine = Clique {
+            epoch_length: params.epoch,
+            period: params.period,
+            client: Default::default(),
+            block_state_by_hash: RwLock::new(LruCache::new(STATE_CACHE_NUM)),
+            proposals: Default::default(),
+            signer: Default::default(),
+            machine,
+        };
+        let engine = Arc::new(engine);
+        let weak_eng = Arc::downgrade(&engine);
 
-		thread::Builder::new().name("StepService".into())
-			.spawn(move || {
-				loop {
- 					let next_step_at = Instant::now() + SEALING_FREQ;
-					trace!(target: "miner", "StepService: triggering sealing");
-					if let Some(eng) = weak_eng.upgrade() {
-						eng.step()
-					} else {
-						warn!(target: "shutdown", "StepService: engine is dropped; exiting.");
-						break;
-					}
+        thread::Builder::new()
+            .name("StepService".into())
+            .spawn(move || loop {
+                let next_step_at = Instant::now() + SEALING_FREQ;
+                trace!(target: "miner", "StepService: triggering sealing");
+                if let Some(eng) = weak_eng.upgrade() {
+                    eng.step()
+                } else {
+                    warn!(target: "shutdown", "StepService: engine is dropped; exiting.");
+                    break;
+                }
 
-					let now = Instant::now();
-					if now < next_step_at {
-						thread::sleep(next_step_at - now);
-					}
-				}
-			})?;
-		Ok(engine)
-	}
+                let now = Instant::now();
+                if now < next_step_at {
+                    thread::sleep(next_step_at - now);
+                }
+            })?;
+        Ok(engine)
+    }
 
-	#[cfg(test)]
-	/// Initialize test variant of `CliqueEngine`,
-	/// Note we need to `mock` the miner and it is introduced to test block verification to trigger new blocks
-	/// to mainly test consensus edge cases
-	pub fn with_test(epoch_length: u64, period: u64) -> Self {
-		use spec::Spec;
+    #[cfg(test)]
+    /// Initialize test variant of `CliqueEngine`,
+    /// Note we need to `mock` the miner and it is introduced to test block verification to trigger new blocks
+    /// to mainly test consensus edge cases
+    pub fn with_test(epoch_length: u64, period: u64) -> Self {
+        use spec::Spec;
 
-		Self {
-			epoch_length,
-			period,
-			client: Default::default(),
-			block_state_by_hash: RwLock::new(LruCache::new(STATE_CACHE_NUM)),
-			proposals: Default::default(),
-			signer: Default::default(),
-			machine: Spec::new_test_machine(),
-		}
-	}
+        Self {
+            epoch_length,
+            period,
+            client: Default::default(),
+            block_state_by_hash: RwLock::new(LruCache::new(STATE_CACHE_NUM)),
+            proposals: Default::default(),
+            signer: Default::default(),
+            machine: Spec::new_test_machine(),
+        }
+    }
 
-	fn sign_header(&self, header: &Header) -> Result<(Signature, H256), Error> {
+    fn sign_header(&self, header: &Header) -> Result<(Signature, H256), Error> {
+        match self.signer.read().as_ref() {
+            None => Err(EngineError::RequiresSigner)?,
+            Some(signer) => {
+                let digest = header.hash();
+                match signer.sign(digest) {
+                    Ok(sig) => Ok((sig, digest)),
+                    Err(e) => Err(EngineError::Custom(e.into()))?,
+                }
+            }
+        }
+    }
 
-		match self.signer.read().as_ref() {
-			None => {
-				Err(EngineError::RequiresSigner)?
-			}
-			Some(signer) => {
-				let digest = header.hash();
-				match signer.sign(digest) {
-					Ok(sig) => Ok((sig, digest)),
-					Err(e) => Err(EngineError::Custom(e.into()))?,
-				}
-			}
-		}
-	}
+    /// Construct an new state from given checkpoint header.
+    fn new_checkpoint_state(&self, header: &Header) -> Result<CliqueBlockState, Error> {
+        debug_assert_eq!(header.number() % self.epoch_length, 0);
 
-	/// Construct an new state from given checkpoint header.
-	fn new_checkpoint_state(&self, header: &Header) -> Result<CliqueBlockState, Error> {
-		debug_assert_eq!(header.number() % self.epoch_length, 0);
+        let mut state = CliqueBlockState::new(extract_signers(header)?);
 
-		let mut state = CliqueBlockState::new(
-			extract_signers(header)?);
+        // TODO(niklasad1): refactor to perform this check in the `CliqueBlockState` constructor instead
+        state.calc_next_timestamp(header.timestamp(), self.period)?;
 
-		// TODO(niklasad1): refactor to perform this check in the `CliqueBlockState` constructor instead
-		state.calc_next_timestamp(header.timestamp(), self.period)?;
+        Ok(state)
+    }
 
-		Ok(state)
-	}
+    fn state_no_backfill(&self, hash: &H256) -> Option<CliqueBlockState> {
+        self.block_state_by_hash.write().get_mut(hash).cloned()
+    }
 
-	fn state_no_backfill(&self, hash: &H256) -> Option<CliqueBlockState> {
-		self.block_state_by_hash.write().get_mut(hash).cloned()
-	}
+    /// Get `CliqueBlockState` for given header, backfill from last checkpoint if needed.
+    fn state(&self, header: &Header) -> Result<CliqueBlockState, Error> {
+        let mut block_state_by_hash = self.block_state_by_hash.write();
+        if let Some(state) = block_state_by_hash.get_mut(&header.hash()) {
+            return Ok(state.clone());
+        }
+        // If we are looking for an checkpoint block state, we can directly reconstruct it.
+        if header.number() % self.epoch_length == 0 {
+            let state = self.new_checkpoint_state(header)?;
+            block_state_by_hash.insert(header.hash(), state.clone());
+            return Ok(state);
+        }
+        // BlockState is not found in memory, which means we need to reconstruct state from last checkpoint.
+        match self.client.read().as_ref().and_then(|w| w.upgrade()) {
+            None => {
+                return Err(EngineError::RequiresClient)?;
+            }
+            Some(c) => {
+                let last_checkpoint_number =
+                    header.number() - header.number() % self.epoch_length as u64;
+                debug_assert_ne!(last_checkpoint_number, header.number());
 
-	/// Get `CliqueBlockState` for given header, backfill from last checkpoint if needed.
-	fn state(&self, header: &Header) -> Result<CliqueBlockState, Error> {
-		let mut block_state_by_hash = self.block_state_by_hash.write();
-		if let Some(state) = block_state_by_hash.get_mut(&header.hash()) {
-			return Ok(state.clone());
-		}
-		// If we are looking for an checkpoint block state, we can directly reconstruct it.
-		if header.number() % self.epoch_length == 0 {
-			let state = self.new_checkpoint_state(header)?;
-			block_state_by_hash.insert(header.hash(), state.clone());
-			return Ok(state);
-		}
-		// BlockState is not found in memory, which means we need to reconstruct state from last checkpoint.
-		match self.client.read().as_ref().and_then(|w| w.upgrade()) {
-			None => {
-				return Err(EngineError::RequiresClient)?;
-			}
-			Some(c) => {
-				let last_checkpoint_number = header.number() - header.number() % self.epoch_length as u64;
-				debug_assert_ne!(last_checkpoint_number, header.number());
-
-				// Catching up state, note that we don't really store block state for intermediary blocks,
-				// for speed.
-				let backfill_start = time::Instant::now();
-				trace!(target: "engine",
+                // Catching up state, note that we don't really store block state for intermediary blocks,
+                // for speed.
+                let backfill_start = time::Instant::now();
+                trace!(target: "engine",
 						"Back-filling block state. last_checkpoint_number: {}, target: {}({}).",
 						last_checkpoint_number, header.number(), header.hash());
 
-				let mut chain: &mut VecDeque<Header> = &mut VecDeque::with_capacity(
-					(header.number() - last_checkpoint_number + 1) as usize);
+                let mut chain: &mut VecDeque<Header> = &mut VecDeque::with_capacity(
+                    (header.number() - last_checkpoint_number + 1) as usize,
+                );
 
-				// Put ourselves in.
-				chain.push_front(header.clone());
+                // Put ourselves in.
+                chain.push_front(header.clone());
 
-				// populate chain to last checkpoint
-				loop {
-					let (last_parent_hash, last_num) = {
-						let l = chain.front().expect("chain has at least one element; qed");
-						(*l.parent_hash(), l.number())
-					};
+                // populate chain to last checkpoint
+                loop {
+                    let (last_parent_hash, last_num) = {
+                        let l = chain.front().expect("chain has at least one element; qed");
+                        (*l.parent_hash(), l.number())
+                    };
 
-					if last_num == last_checkpoint_number + 1 {
-						break;
-					}
-					match c.block_header(BlockId::Hash(last_parent_hash)) {
-						None => {
-							return Err(BlockError::UnknownParent(last_parent_hash))?;
-						}
-						Some(next) => {
-							chain.push_front(next.decode()?);
-						}
-					}
-				}
+                    if last_num == last_checkpoint_number + 1 {
+                        break;
+                    }
+                    match c.block_header(BlockId::Hash(last_parent_hash)) {
+                        None => {
+                            return Err(BlockError::UnknownParent(last_parent_hash))?;
+                        }
+                        Some(next) => {
+                            chain.push_front(next.decode()?);
+                        }
+                    }
+                }
 
-				// Get the state for last checkpoint.
-				let last_checkpoint_hash = *chain.front()
-					.expect("chain has at least one element; qed")
-					.parent_hash();
+                // Get the state for last checkpoint.
+                let last_checkpoint_hash = *chain
+                    .front()
+                    .expect("chain has at least one element; qed")
+                    .parent_hash();
 
-				let last_checkpoint_header = match c.block_header(BlockId::Hash(last_checkpoint_hash)) {
-					None => return Err(EngineError::CliqueMissingCheckpoint(last_checkpoint_hash))?,
-					Some(header) => header.decode()?,
-				};
+                let last_checkpoint_header =
+                    match c.block_header(BlockId::Hash(last_checkpoint_hash)) {
+                        None => {
+                            return Err(EngineError::CliqueMissingCheckpoint(last_checkpoint_hash))?
+                        }
+                        Some(header) => header.decode()?,
+                    };
 
-				let last_checkpoint_state = match block_state_by_hash.get_mut(&last_checkpoint_hash) {
-					Some(state) => state.clone(),
-					None => self.new_checkpoint_state(&last_checkpoint_header)?,
-				};
+                let last_checkpoint_state = match block_state_by_hash.get_mut(&last_checkpoint_hash)
+                {
+                    Some(state) => state.clone(),
+                    None => self.new_checkpoint_state(&last_checkpoint_header)?,
+                };
 
-				block_state_by_hash.insert(last_checkpoint_header.hash(), last_checkpoint_state.clone());
+                block_state_by_hash
+                    .insert(last_checkpoint_header.hash(), last_checkpoint_state.clone());
 
-				// Backfill!
-				let mut new_state = last_checkpoint_state.clone();
-				for item in chain {
-					new_state.apply(item, false)?;
-				}
-				new_state.calc_next_timestamp(header.timestamp(), self.period)?;
-				block_state_by_hash.insert(header.hash(), new_state.clone());
+                // Backfill!
+                let mut new_state = last_checkpoint_state.clone();
+                for item in chain {
+                    new_state.apply(item, false)?;
+                }
+                new_state.calc_next_timestamp(header.timestamp(), self.period)?;
+                block_state_by_hash.insert(header.hash(), new_state.clone());
 
-				let elapsed = backfill_start.elapsed();
-				trace!(target: "engine", "Back-filling succeed, took {} ms.", elapsed.as_millis());
-				Ok(new_state)
-			}
-		}
-	}
+                let elapsed = backfill_start.elapsed();
+                trace!(target: "engine", "Back-filling succeed, took {} ms.", elapsed.as_millis());
+                Ok(new_state)
+            }
+        }
+    }
 }
 
 impl Engine<EthereumMachine> for Clique {
-	fn name(&self) -> &str { "Clique" }
+    fn name(&self) -> &str {
+        "Clique"
+    }
 
-	fn machine(&self) -> &EthereumMachine { &self.machine }
+    fn machine(&self) -> &EthereumMachine {
+        &self.machine
+    }
 
-	// Clique use same fields, nonce + mixHash
-	fn seal_fields(&self, _header: &Header) -> usize { 2 }
+    // Clique use same fields, nonce + mixHash
+    fn seal_fields(&self, _header: &Header) -> usize {
+        2
+    }
 
-	fn maximum_uncle_count(&self, _block: BlockNumber) -> usize { 0 }
+    fn maximum_uncle_count(&self, _block: BlockNumber) -> usize {
+        0
+    }
 
-	fn on_new_block(
-		&self,
-		_block: &mut ExecutedBlock,
-		_epoch_begin: bool,
-		_ancestry: &mut Iterator<Item=ExtendedHeader>,
-	) -> Result<(), Error> {
-		Ok(())
-	}
+    fn on_new_block(
+        &self,
+        _block: &mut ExecutedBlock,
+        _epoch_begin: bool,
+        _ancestry: &mut Iterator<Item = ExtendedHeader>,
+    ) -> Result<(), Error> {
+        Ok(())
+    }
 
-	// Clique has no block reward.
-	fn on_close_block(&self, _block: &mut ExecutedBlock) -> Result<(), Error> {
-		Ok(())
-	}
+    // Clique has no block reward.
+    fn on_close_block(&self, _block: &mut ExecutedBlock) -> Result<(), Error> {
+        Ok(())
+    }
 
-	fn on_seal_block(&self, block: &mut ExecutedBlock) -> Result<(), Error> {
-		trace!(target: "engine", "on_seal_block");
+    fn on_seal_block(&self, block: &mut ExecutedBlock) -> Result<(), Error> {
+        trace!(target: "engine", "on_seal_block");
 
-		let header = &mut block.header;
+        let header = &mut block.header;
 
-		let state = self.state_no_backfill(header.parent_hash())
-			.ok_or_else(|| BlockError::UnknownParent(*header.parent_hash()))?;
+        let state = self
+            .state_no_backfill(header.parent_hash())
+            .ok_or_else(|| BlockError::UnknownParent(*header.parent_hash()))?;
 
-		let is_checkpoint = header.number() % self.epoch_length == 0;
+        let is_checkpoint = header.number() % self.epoch_length == 0;
 
-		header.set_author(NULL_AUTHOR);
+        header.set_author(NULL_AUTHOR);
 
-		// Cast a random Vote if not checkpoint
-		if !is_checkpoint {
-			// TODO(niklasad1): this will always be false because `proposals` is never written to
-			let votes = self.proposals.read().iter()
-				.filter(|(address, vote_type)| state.is_valid_vote(*address, **vote_type))
-				.map(|(address, vote_type)| (*address, *vote_type))
-				.collect_vec();
+        // Cast a random Vote if not checkpoint
+        if !is_checkpoint {
+            // TODO(niklasad1): this will always be false because `proposals` is never written to
+            let votes = self
+                .proposals
+                .read()
+                .iter()
+                .filter(|(address, vote_type)| state.is_valid_vote(*address, **vote_type))
+                .map(|(address, vote_type)| (*address, *vote_type))
+                .collect_vec();
 
-			if !votes.is_empty() {
-				// Pick a random vote.
-				let random_vote = rand::thread_rng().gen_range(0 as usize, votes.len());
-				let (beneficiary, vote_type) = votes[random_vote];
+            if !votes.is_empty() {
+                // Pick a random vote.
+                let random_vote = rand::thread_rng().gen_range(0 as usize, votes.len());
+                let (beneficiary, vote_type) = votes[random_vote];
 
-				trace!(target: "engine", "Casting vote: beneficiary {}, type {:?} ", beneficiary, vote_type);
+                trace!(target: "engine", "Casting vote: beneficiary {}, type {:?} ", beneficiary, vote_type);
 
-				header.set_author(beneficiary);
-				header.set_seal(vote_type.as_rlp());
-			}
-		}
+                header.set_author(beneficiary);
+                header.set_seal(vote_type.as_rlp());
+            }
+        }
 
-		// Work on clique seal.
+        // Work on clique seal.
 
-		let mut seal: Vec<u8> = Vec::with_capacity(VANITY_LENGTH + SIGNATURE_LENGTH);
+        let mut seal: Vec<u8> = Vec::with_capacity(VANITY_LENGTH + SIGNATURE_LENGTH);
 
-		// At this point, extra_data should only contain miner vanity.
-		if header.extra_data().len() != VANITY_LENGTH {
-			Err(BlockError::ExtraDataOutOfBounds(OutOfBounds {
-				min: Some(VANITY_LENGTH),
-				max: Some(VANITY_LENGTH),
-				found: header.extra_data().len()
-			}))?;
-		}
-		// vanity
-		{
-			seal.extend_from_slice(&header.extra_data()[0..VANITY_LENGTH]);
-		}
+        // At this point, extra_data should only contain miner vanity.
+        if header.extra_data().len() != VANITY_LENGTH {
+            Err(BlockError::ExtraDataOutOfBounds(OutOfBounds {
+                min: Some(VANITY_LENGTH),
+                max: Some(VANITY_LENGTH),
+                found: header.extra_data().len(),
+            }))?;
+        }
+        // vanity
+        {
+            seal.extend_from_slice(&header.extra_data()[0..VANITY_LENGTH]);
+        }
 
-		// If we are building an checkpoint block, add all signers now.
-		if is_checkpoint {
-			seal.reserve(state.signers().len() * 20);
-			state.signers().iter().foreach(|addr| {
-				seal.extend_from_slice(&addr[..]);
-			});
-		}
+        // If we are building an checkpoint block, add all signers now.
+        if is_checkpoint {
+            seal.reserve(state.signers().len() * 20);
+            state.signers().iter().foreach(|addr| {
+                seal.extend_from_slice(&addr[..]);
+            });
+        }
 
-		header.set_extra_data(seal.clone());
+        header.set_extra_data(seal.clone());
 
-		// append signature onto extra_data
-		let (sig, _msg) = self.sign_header(&header)?;
-		seal.extend_from_slice(&sig[..]);
-		header.set_extra_data(seal.clone());
+        // append signature onto extra_data
+        let (sig, _msg) = self.sign_header(&header)?;
+        seal.extend_from_slice(&sig[..]);
+        header.set_extra_data(seal.clone());
 
-		header.compute_hash();
+        header.compute_hash();
 
-		// locally sealed block don't go through valid_block_family(), so we have to record state here.
-		let mut new_state = state.clone();
-		new_state.apply(&header, is_checkpoint)?;
-		new_state.calc_next_timestamp(header.timestamp(), self.period)?;
-		self.block_state_by_hash.write().insert(header.hash(), new_state);
+        // locally sealed block don't go through valid_block_family(), so we have to record state here.
+        let mut new_state = state.clone();
+        new_state.apply(&header, is_checkpoint)?;
+        new_state.calc_next_timestamp(header.timestamp(), self.period)?;
+        self.block_state_by_hash
+            .write()
+            .insert(header.hash(), new_state);
 
-		trace!(target: "engine", "on_seal_block: finished, final header: {:?}", header);
+        trace!(target: "engine", "on_seal_block: finished, final header: {:?}", header);
 
-		Ok(())
-	}
+        Ok(())
+    }
 
-	/// Clique doesn't require external work to seal, so we always return true here.
-	fn seals_internally(&self) -> Option<bool> {
-		Some(true)
-	}
+    /// Clique doesn't require external work to seal, so we always return true here.
+    fn seals_internally(&self) -> Option<bool> {
+        Some(true)
+    }
 
-	/// Returns if we are ready to seal, the real sealing (signing extra_data) is actually done in `on_seal_block()`.
-	fn generate_seal(&self, block: &ExecutedBlock, parent: &Header) -> Seal {
-		trace!(target: "engine", "tried to generate_seal");
-		let null_seal = util::null_seal();
+    /// Returns if we are ready to seal, the real sealing (signing extra_data) is actually done in `on_seal_block()`.
+    fn generate_seal(&self, block: &ExecutedBlock, parent: &Header) -> Seal {
+        trace!(target: "engine", "tried to generate_seal");
+        let null_seal = util::null_seal();
 
-		if block.header.number() == 0 {
-			trace!(target: "engine", "attempted to seal genesis block");
-			return Seal::None;
-		}
+        if block.header.number() == 0 {
+            trace!(target: "engine", "attempted to seal genesis block");
+            return Seal::None;
+        }
 
-		// if sealing period is 0, and not an checkpoint block, refuse to seal
-		if self.period == 0 {
-			if block.transactions.is_empty() && block.header.number() % self.epoch_length != 0 {
-				return Seal::None;
-			}
-			return Seal::Regular(null_seal);
-		}
+        // if sealing period is 0, and not an checkpoint block, refuse to seal
+        if self.period == 0 {
+            if block.transactions.is_empty() && block.header.number() % self.epoch_length != 0 {
+                return Seal::None;
+            }
+            return Seal::Regular(null_seal);
+        }
 
-		// Check we actually have authority to seal.
-		if let Some(author) = self.signer.read().as_ref().map(|x| x.address()) {
-
-			// ensure the voting state exists
-			match self.state(&parent) {
-				Err(e) => {
-					warn!(target: "engine", "generate_seal: can't get parent state(number: {}, hash: {}): {} ",
+        // Check we actually have authority to seal.
+        if let Some(author) = self.signer.read().as_ref().map(|x| x.address()) {
+            // ensure the voting state exists
+            match self.state(&parent) {
+                Err(e) => {
+                    warn!(target: "engine", "generate_seal: can't get parent state(number: {}, hash: {}): {} ",
 							parent.number(), parent.hash(), e);
-					return Seal::None;
-				}
-				Ok(state) => {
-					// Are we authorized to seal?
-					if !state.is_authorized(&author) {
-						trace!(target: "engine", "generate_seal: Not authorized to sign right now.");
-						// wait for one third of period to try again.
-						thread::sleep(Duration::from_secs(self.period / 3 + 1));
-						return Seal::None;
-					}
+                    return Seal::None;
+                }
+                Ok(state) => {
+                    // Are we authorized to seal?
+                    if !state.is_authorized(&author) {
+                        trace!(target: "engine", "generate_seal: Not authorized to sign right now.");
+                        // wait for one third of period to try again.
+                        thread::sleep(Duration::from_secs(self.period / 3 + 1));
+                        return Seal::None;
+                    }
 
-					let inturn = state.is_inturn(block.header.number(), &author);
+                    let inturn = state.is_inturn(block.header.number(), &author);
 
-					let now = SystemTime::now();
+                    let now = SystemTime::now();
 
-					let limit = match inturn {
-						true => state.next_timestamp_inturn.unwrap_or(now),
-						false => state.next_timestamp_noturn.unwrap_or(now),
-					};
+                    let limit = match inturn {
+                        true => state.next_timestamp_inturn.unwrap_or(now),
+                        false => state.next_timestamp_noturn.unwrap_or(now),
+                    };
 
-					// Wait for the right moment.
-					if now < limit {
-						trace!(target: "engine",
+                    // Wait for the right moment.
+                    if now < limit {
+                        trace!(target: "engine",
 								"generate_seal: sleeping to sign: inturn: {}, now: {:?}, to: {:?}.",
 								inturn, now, limit);
-						match limit.duration_since(SystemTime::now()) {
-							Ok(duration) => {
-								thread::sleep(duration);
-							},
-							Err(e) => {
-								warn!(target:"engine", "generate_seal: unable to sleep, err: {}", e);
-								return Seal::None;
-							}
-						}
-					}
+                        match limit.duration_since(SystemTime::now()) {
+                            Ok(duration) => {
+                                thread::sleep(duration);
+                            }
+                            Err(e) => {
+                                warn!(target:"engine", "generate_seal: unable to sleep, err: {}", e);
+                                return Seal::None;
+                            }
+                        }
+                    }
 
-					trace!(target: "engine", "generate_seal: seal ready for block {}, txs: {}.",
+                    trace!(target: "engine", "generate_seal: seal ready for block {}, txs: {}.",
 							block.header.number(), block.transactions.len());
-					return Seal::Regular(null_seal);
-				}
-			}
-		}
-		Seal::None
-	}
+                    return Seal::Regular(null_seal);
+                }
+            }
+        }
+        Seal::None
+    }
 
-	fn verify_local_seal(&self, _header: &Header) -> Result<(), Error> { Ok(()) }
+    fn verify_local_seal(&self, _header: &Header) -> Result<(), Error> {
+        Ok(())
+    }
 
-	fn verify_block_basic(&self, header: &Header) -> Result<(), Error> {
-		// Largely same as https://github.com/ethereum/go-ethereum/blob/master/consensus/clique/clique.go#L275
+    fn verify_block_basic(&self, header: &Header) -> Result<(), Error> {
+        // Largely same as https://github.com/ethereum/go-ethereum/blob/master/consensus/clique/clique.go#L275
 
-		// Ignore genesis block.
-		if header.number() == 0 {
-			return Ok(());
-		}
+        // Ignore genesis block.
+        if header.number() == 0 {
+            return Ok(());
+        }
 
-		// Don't waste time checking blocks from the future
-		{
-			let limit = CheckedSystemTime::checked_add(SystemTime::now(), Duration::from_secs(self.period))
-				.ok_or(BlockError::TimestampOverflow)?;
+        // Don't waste time checking blocks from the future
+        {
+            let limit =
+                CheckedSystemTime::checked_add(SystemTime::now(), Duration::from_secs(self.period))
+                    .ok_or(BlockError::TimestampOverflow)?;
 
-			// This should succeed under the contraints that the system clock works
-			let limit_as_dur = limit.duration_since(UNIX_EPOCH).map_err(|e| {
-				Box::new(format!("Converting SystemTime to Duration failed: {}", e))
-			})?;
+            // This should succeed under the contraints that the system clock works
+            let limit_as_dur = limit.duration_since(UNIX_EPOCH).map_err(|e| {
+                Box::new(format!("Converting SystemTime to Duration failed: {}", e))
+            })?;
 
-			let hdr = Duration::from_secs(header.timestamp());
-			if hdr > limit_as_dur {
-				let found = CheckedSystemTime::checked_add(UNIX_EPOCH, hdr).ok_or(BlockError::TimestampOverflow)?;
+            let hdr = Duration::from_secs(header.timestamp());
+            if hdr > limit_as_dur {
+                let found = CheckedSystemTime::checked_add(UNIX_EPOCH, hdr)
+                    .ok_or(BlockError::TimestampOverflow)?;
 
-				Err(BlockError::TemporarilyInvalid(OutOfBounds {
-					min: None,
-					max: Some(limit),
-					found,
-				}))?
-			}
-		}
+                Err(BlockError::TemporarilyInvalid(OutOfBounds {
+                    min: None,
+                    max: Some(limit),
+                    found,
+                }))?
+            }
+        }
 
-		let is_checkpoint = header.number() % self.epoch_length == 0;
+        let is_checkpoint = header.number() % self.epoch_length == 0;
 
-		if is_checkpoint && *header.author() != NULL_AUTHOR {
-			return Err(EngineError::CliqueWrongAuthorCheckpoint(Mismatch {
-				expected: 0.into(),
-				found: *header.author(),
-			}))?;
-		}
+        if is_checkpoint && *header.author() != NULL_AUTHOR {
+            return Err(EngineError::CliqueWrongAuthorCheckpoint(Mismatch {
+                expected: 0.into(),
+                found: *header.author(),
+            }))?;
+        }
 
-		let seal_fields = header.decode_seal::<Vec<_>>()?;
-		if seal_fields.len() != 2 {
-			Err(BlockError::InvalidSealArity(Mismatch {
-				expected: 2,
-				found: seal_fields.len(),
-			}))?
-		}
+        let seal_fields = header.decode_seal::<Vec<_>>()?;
+        if seal_fields.len() != 2 {
+            Err(BlockError::InvalidSealArity(Mismatch {
+                expected: 2,
+                found: seal_fields.len(),
+            }))?
+        }
 
-		let mixhash: H256 = seal_fields[0].into();
-		let nonce: H64 = seal_fields[1].into();
+        let mixhash: H256 = seal_fields[0].into();
+        let nonce: H64 = seal_fields[1].into();
 
-		// Nonce must be 0x00..0 or 0xff..f
-		if nonce != NONCE_DROP_VOTE && nonce != NONCE_AUTH_VOTE {
-			Err(EngineError::CliqueInvalidNonce(nonce))?;
-		}
+        // Nonce must be 0x00..0 or 0xff..f
+        if nonce != NONCE_DROP_VOTE && nonce != NONCE_AUTH_VOTE {
+            Err(EngineError::CliqueInvalidNonce(nonce))?;
+        }
 
-		if is_checkpoint && nonce != NULL_NONCE {
-			Err(EngineError::CliqueInvalidNonce(nonce))?;
-		}
+        if is_checkpoint && nonce != NULL_NONCE {
+            Err(EngineError::CliqueInvalidNonce(nonce))?;
+        }
 
-		// Ensure that the mix digest is zero as Clique don't have fork protection currently
-		if mixhash != NULL_MIXHASH {
-			Err(BlockError::MismatchedH256SealElement(Mismatch {
-				expected: NULL_MIXHASH,
-				found: mixhash,
-			}))?
-		}
+        // Ensure that the mix digest is zero as Clique don't have fork protection currently
+        if mixhash != NULL_MIXHASH {
+            Err(BlockError::MismatchedH256SealElement(Mismatch {
+                expected: NULL_MIXHASH,
+                found: mixhash,
+            }))?
+        }
 
-		let extra_data_len = header.extra_data().len();
+        let extra_data_len = header.extra_data().len();
 
-		if extra_data_len < VANITY_LENGTH {
-			Err(EngineError::CliqueMissingVanity)?
-		}
+        if extra_data_len < VANITY_LENGTH {
+            Err(EngineError::CliqueMissingVanity)?
+        }
 
-		if extra_data_len < VANITY_LENGTH + SIGNATURE_LENGTH {
-			Err(EngineError::CliqueMissingSignature)?
-		}
+        if extra_data_len < VANITY_LENGTH + SIGNATURE_LENGTH {
+            Err(EngineError::CliqueMissingSignature)?
+        }
 
-		let signers = extra_data_len - (VANITY_LENGTH + SIGNATURE_LENGTH);
+        let signers = extra_data_len - (VANITY_LENGTH + SIGNATURE_LENGTH);
 
-		// Checkpoint blocks must at least contain one signer
-		if is_checkpoint && signers == 0 {
-			Err(EngineError::CliqueCheckpointNoSigner)?
-		}
+        // Checkpoint blocks must at least contain one signer
+        if is_checkpoint && signers == 0 {
+            Err(EngineError::CliqueCheckpointNoSigner)?
+        }
 
-		// Addresses must be be divisable by 20
-		if is_checkpoint && signers % ADDRESS_LENGTH != 0 {
-			Err(EngineError::CliqueCheckpointInvalidSigners(signers))?
-		}
+        // Addresses must be be divisable by 20
+        if is_checkpoint && signers % ADDRESS_LENGTH != 0 {
+            Err(EngineError::CliqueCheckpointInvalidSigners(signers))?
+        }
 
-		// Ensure that the block doesn't contain any uncles which are meaningless in PoA
-		if *header.uncles_hash() != NULL_UNCLES_HASH {
-			Err(BlockError::InvalidUnclesHash(Mismatch {
-				expected: NULL_UNCLES_HASH,
-				found: *header.uncles_hash(),
-			}))?
-		}
+        // Ensure that the block doesn't contain any uncles which are meaningless in PoA
+        if *header.uncles_hash() != NULL_UNCLES_HASH {
+            Err(BlockError::InvalidUnclesHash(Mismatch {
+                expected: NULL_UNCLES_HASH,
+                found: *header.uncles_hash(),
+            }))?
+        }
 
-		// Ensure that the block's difficulty is meaningful (may not be correct at this point)
-		if *header.difficulty() != DIFF_INTURN && *header.difficulty() != DIFF_NOTURN {
-			Err(BlockError::DifficultyOutOfBounds(OutOfBounds {
-				min: Some(DIFF_NOTURN),
-				max: Some(DIFF_INTURN),
-				found: *header.difficulty(),
-			}))?
-		}
+        // Ensure that the block's difficulty is meaningful (may not be correct at this point)
+        if *header.difficulty() != DIFF_INTURN && *header.difficulty() != DIFF_NOTURN {
+            Err(BlockError::DifficultyOutOfBounds(OutOfBounds {
+                min: Some(DIFF_NOTURN),
+                max: Some(DIFF_INTURN),
+                found: *header.difficulty(),
+            }))?
+        }
 
-		// All basic checks passed, continue to next phase
-		Ok(())
-	}
+        // All basic checks passed, continue to next phase
+        Ok(())
+    }
 
-	fn verify_block_unordered(&self, _header: &Header) -> Result<(), Error> {
-		// Nothing to check here.
-		Ok(())
-	}
+    fn verify_block_unordered(&self, _header: &Header) -> Result<(), Error> {
+        // Nothing to check here.
+        Ok(())
+    }
 
-	/// Verify block family by looking up parent state (backfill if needed), then try to apply current header.
-	/// see https://github.com/ethereum/go-ethereum/blob/master/consensus/clique/clique.go#L338
-	fn verify_block_family(&self, header: &Header, parent: &Header) -> Result<(), Error> {
-		// Ignore genesis block.
-		if header.number() == 0 {
-			return Ok(());
-		}
+    /// Verify block family by looking up parent state (backfill if needed), then try to apply current header.
+    /// see https://github.com/ethereum/go-ethereum/blob/master/consensus/clique/clique.go#L338
+    fn verify_block_family(&self, header: &Header, parent: &Header) -> Result<(), Error> {
+        // Ignore genesis block.
+        if header.number() == 0 {
+            return Ok(());
+        }
 
-		// parent sanity check
-		if parent.hash() != *header.parent_hash() || header.number() != parent.number() + 1 {
-			Err(BlockError::UnknownParent(parent.hash()))?
-		}
+        // parent sanity check
+        if parent.hash() != *header.parent_hash() || header.number() != parent.number() + 1 {
+            Err(BlockError::UnknownParent(parent.hash()))?
+        }
 
-		// Ensure that the block's timestamp isn't too close to it's parent
-		let limit = parent.timestamp().saturating_add(self.period);
-		if limit > header.timestamp() {
-			let max = CheckedSystemTime::checked_add(UNIX_EPOCH, Duration::from_secs(header.timestamp()));
-			let found = CheckedSystemTime::checked_add(UNIX_EPOCH, Duration::from_secs(limit))
-				.ok_or(BlockError::TimestampOverflow)?;
+        // Ensure that the block's timestamp isn't too close to it's parent
+        let limit = parent.timestamp().saturating_add(self.period);
+        if limit > header.timestamp() {
+            let max =
+                CheckedSystemTime::checked_add(UNIX_EPOCH, Duration::from_secs(header.timestamp()));
+            let found = CheckedSystemTime::checked_add(UNIX_EPOCH, Duration::from_secs(limit))
+                .ok_or(BlockError::TimestampOverflow)?;
 
-			Err(BlockError::InvalidTimestamp(OutOfBounds {
-				min: None,
-				max,
-				found,
-			}))?
-		}
+            Err(BlockError::InvalidTimestamp(OutOfBounds {
+                min: None,
+                max,
+                found,
+            }))?
+        }
 
-		// Retrieve the parent state
-		let parent_state = self.state(&parent)?;
-		// Try to apply current state, apply() will further check signer and recent signer.
-		let mut new_state = parent_state.clone();
-		new_state.apply(header, header.number() % self.epoch_length == 0)?;
-		new_state.calc_next_timestamp(header.timestamp(), self.period)?;
-		self.block_state_by_hash.write().insert(header.hash(), new_state);
+        // Retrieve the parent state
+        let parent_state = self.state(&parent)?;
+        // Try to apply current state, apply() will further check signer and recent signer.
+        let mut new_state = parent_state.clone();
+        new_state.apply(header, header.number() % self.epoch_length == 0)?;
+        new_state.calc_next_timestamp(header.timestamp(), self.period)?;
+        self.block_state_by_hash
+            .write()
+            .insert(header.hash(), new_state);
 
-		Ok(())
-	}
+        Ok(())
+    }
 
-	fn genesis_epoch_data(&self, header: &Header, _call: &Call) -> Result<Vec<u8>, String> {
-		let mut state = self.new_checkpoint_state(header).expect("Unable to parse genesis data.");
-		state.calc_next_timestamp(header.timestamp(), self.period).map_err(|e| format!("{}", e))?;
-		self.block_state_by_hash.write().insert(header.hash(), state);
+    fn genesis_epoch_data(&self, header: &Header, _call: &Call) -> Result<Vec<u8>, String> {
+        let mut state = self
+            .new_checkpoint_state(header)
+            .expect("Unable to parse genesis data.");
+        state
+            .calc_next_timestamp(header.timestamp(), self.period)
+            .map_err(|e| format!("{}", e))?;
+        self.block_state_by_hash
+            .write()
+            .insert(header.hash(), state);
 
-		// no proof.
-		Ok(Vec::new())
-	}
+        // no proof.
+        Ok(Vec::new())
+    }
 
-	// Our task here is to set difficulty
-	fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
-		// TODO(https://github.com/paritytech/parity-ethereum/issues/10410): this is a horrible hack,
-		// it is due to the fact that enact and miner both use OpenBlock::new() which will both call
-		// this function. more refactoring is definitely needed.
-		if header.extra_data().len() < VANITY_LENGTH + SIGNATURE_LENGTH {
-			trace!(target: "engine", "populate_from_parent in sealing");
+    // Our task here is to set difficulty
+    fn populate_from_parent(&self, header: &mut Header, parent: &Header) {
+        // TODO(https://github.com/paritytech/parity-ethereum/issues/10410): this is a horrible hack,
+        // it is due to the fact that enact and miner both use OpenBlock::new() which will both call
+        // this function. more refactoring is definitely needed.
+        if header.extra_data().len() < VANITY_LENGTH + SIGNATURE_LENGTH {
+            trace!(target: "engine", "populate_from_parent in sealing");
 
-			// It's unclear how to prevent creating new blocks unless we are authorized, the best way (and geth does this too)
-			// it's just to ignore setting a correct difficulty here, we will check authorization in next step in generate_seal anyway.
-			if let Some(signer) = self.signer.read().as_ref() {
-				let state = match self.state(&parent) {
-					Err(e) =>  {
-						trace!(target: "engine", "populate_from_parent: Unable to find parent state: {}, ignored.", e);
-						return;
-					}
-					Ok(state) => state,
-				};
+            // It's unclear how to prevent creating new blocks unless we are authorized, the best way (and geth does this too)
+            // it's just to ignore setting a correct difficulty here, we will check authorization in next step in generate_seal anyway.
+            if let Some(signer) = self.signer.read().as_ref() {
+                let state = match self.state(&parent) {
+                    Err(e) => {
+                        trace!(target: "engine", "populate_from_parent: Unable to find parent state: {}, ignored.", e);
+                        return;
+                    }
+                    Ok(state) => state,
+                };
 
-				if state.is_authorized(&signer.address()) {
-					if state.is_inturn(header.number(), &signer.address()) {
-						header.set_difficulty(DIFF_INTURN);
-					} else {
-						header.set_difficulty(DIFF_NOTURN);
-					}
-				}
+                if state.is_authorized(&signer.address()) {
+                    if state.is_inturn(header.number(), &signer.address()) {
+                        header.set_difficulty(DIFF_INTURN);
+                    } else {
+                        header.set_difficulty(DIFF_NOTURN);
+                    }
+                }
 
-				let zero_padding_len = VANITY_LENGTH - header.extra_data().len();
-				if zero_padding_len > 0 {
-					let mut resized_extra_data = header.extra_data().clone();
-					resized_extra_data.resize(VANITY_LENGTH, 0);
-					header.set_extra_data(resized_extra_data);
-				}
-			} else {
-				trace!(target: "engine", "populate_from_parent: no signer registered");
-			}
-		}
-	}
+                let zero_padding_len = VANITY_LENGTH - header.extra_data().len();
+                if zero_padding_len > 0 {
+                    let mut resized_extra_data = header.extra_data().clone();
+                    resized_extra_data.resize(VANITY_LENGTH, 0);
+                    header.set_extra_data(resized_extra_data);
+                }
+            } else {
+                trace!(target: "engine", "populate_from_parent: no signer registered");
+            }
+        }
+    }
 
-	fn set_signer(&self, signer: Box<EngineSigner>) {
-		trace!(target: "engine", "set_signer: {}", signer.address());
-		*self.signer.write() = Some(signer);
-	}
+    fn set_signer(&self, signer: Box<EngineSigner>) {
+        trace!(target: "engine", "set_signer: {}", signer.address());
+        *self.signer.write() = Some(signer);
+    }
 
-	fn register_client(&self, client: Weak<EngineClient>) {
-		*self.client.write() = Some(client.clone());
-	}
+    fn register_client(&self, client: Weak<EngineClient>) {
+        *self.client.write() = Some(client.clone());
+    }
 
-	fn step(&self) {
-		if self.signer.read().is_some() {
-			if let Some(ref weak) = *self.client.read() {
-				if let Some(c) = weak.upgrade() {
-					c.update_sealing(ForceUpdateSealing::No);
-				}
-			}
-		}
-	}
+    fn step(&self) {
+        if self.signer.read().is_some() {
+            if let Some(ref weak) = *self.client.read() {
+                if let Some(c) = weak.upgrade() {
+                    c.update_sealing(ForceUpdateSealing::No);
+                }
+            }
+        }
+    }
 
-	/// Clique timestamp is set to parent + period , or current time which ever is higher.
-	fn open_block_header_timestamp(&self, parent_timestamp: u64) -> u64 {
-		let now = time::SystemTime::now().duration_since(time::UNIX_EPOCH).unwrap_or_default();
-		cmp::max(now.as_secs() as u64, parent_timestamp.saturating_add(self.period))
-	}
+    /// Clique timestamp is set to parent + period , or current time which ever is higher.
+    fn open_block_header_timestamp(&self, parent_timestamp: u64) -> u64 {
+        let now = time::SystemTime::now()
+            .duration_since(time::UNIX_EPOCH)
+            .unwrap_or_default();
+        cmp::max(
+            now.as_secs() as u64,
+            parent_timestamp.saturating_add(self.period),
+        )
+    }
 
-	fn is_timestamp_valid(&self, header_timestamp: u64, parent_timestamp: u64) -> bool {
-		header_timestamp >= parent_timestamp.saturating_add(self.period)
-	}
+    fn is_timestamp_valid(&self, header_timestamp: u64, parent_timestamp: u64) -> bool {
+        header_timestamp >= parent_timestamp.saturating_add(self.period)
+    }
 
-	fn fork_choice(&self, new: &ExtendedHeader, current: &ExtendedHeader) -> super::ForkChoice {
-		super::total_difficulty_fork_choice(new, current)
-	}
+    fn fork_choice(&self, new: &ExtendedHeader, current: &ExtendedHeader) -> super::ForkChoice {
+        super::total_difficulty_fork_choice(new, current)
+    }
 
-	// Clique uses the author field for voting, the real author is hidden in the `extra_data` field.
-	// So when executing tx's (like in `enact()`) we want to use the executive author
-	fn executive_author(&self, header: &Header) -> Result<Address, Error> {
-		recover_creator(header)
-	}
+    // Clique uses the author field for voting, the real author is hidden in the `extra_data` field.
+    // So when executing tx's (like in `enact()`) we want to use the executive author
+    fn executive_author(&self, header: &Header) -> Result<Address, Error> {
+        recover_creator(header)
+    }
 }

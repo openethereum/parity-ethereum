@@ -18,13 +18,13 @@
 
 extern crate bit_set;
 extern crate ethereum_types;
-extern crate parking_lot;
 extern crate heapsize;
-extern crate vm;
 extern crate keccak_hash as hash;
 extern crate memory_cache;
-extern crate parity_bytes as bytes;
 extern crate num_bigint;
+extern crate parity_bytes as bytes;
+extern crate parking_lot;
+extern crate vm;
 
 #[macro_use]
 extern crate lazy_static;
@@ -33,27 +33,28 @@ extern crate lazy_static;
 extern crate log;
 
 #[cfg(test)]
-extern crate rustc_hex;
-#[cfg(test)]
 extern crate hex_literal;
+#[cfg(test)]
+extern crate rustc_hex;
 
 pub mod evm;
 pub mod interpreter;
 
 #[macro_use]
 pub mod factory;
-mod vmtype;
 mod instructions;
+mod vmtype;
 
 #[cfg(test)]
 mod tests;
 
-pub use vm::{
-    Schedule, CleanDustMode, EnvInfo, CallType, ActionParams, Ext,
-    ContractCreateResult, MessageCallResult, CreateContractAddress,
-    GasLeft, ReturnData
+pub use self::{
+    evm::{CostType, FinalizationResult, Finalize},
+    factory::Factory,
+    instructions::{Instruction, InstructionInfo},
+    vmtype::VMType,
 };
-pub use self::evm::{Finalize, FinalizationResult, CostType};
-pub use self::instructions::{InstructionInfo, Instruction};
-pub use self::vmtype::VMType;
-pub use self::factory::Factory;
+pub use vm::{
+    ActionParams, CallType, CleanDustMode, ContractCreateResult, CreateContractAddress, EnvInfo,
+    Ext, GasLeft, MessageCallResult, ReturnData, Schedule,
+};

@@ -16,32 +16,38 @@
 
 //! Nonoperative tracer.
 
-use ethereum_types::{U256, Address};
-use vm::{Error as VmError, ActionParams};
-use trace::{Tracer, VMTracer, FlatTrace};
-use trace::trace::{VMTrace, RewardType};
+use ethereum_types::{Address, U256};
+use trace::{
+    trace::{RewardType, VMTrace},
+    FlatTrace, Tracer, VMTracer,
+};
+use vm::{ActionParams, Error as VmError};
 
 /// Nonoperative tracer. Does not trace anything.
 pub struct NoopTracer;
 
 impl Tracer for NoopTracer {
-	type Output = FlatTrace;
+    type Output = FlatTrace;
 
-	fn prepare_trace_call(&mut self, _: &ActionParams, _: usize, _: bool) { }
-	fn prepare_trace_create(&mut self, _: &ActionParams) { }
-	fn done_trace_call(&mut self, _: U256, _: &[u8]) { }
-	fn done_trace_create(&mut self, _: U256, _: &[u8], _: Address) { }
-	fn done_trace_failed(&mut self, _: &VmError) { }
-	fn trace_suicide(&mut self, _: Address, _: U256, _: Address) { }
-	fn trace_reward(&mut self, _: Address, _: U256, _: RewardType) { }
-	fn drain(self) -> Vec<FlatTrace> { vec![] }
+    fn prepare_trace_call(&mut self, _: &ActionParams, _: usize, _: bool) {}
+    fn prepare_trace_create(&mut self, _: &ActionParams) {}
+    fn done_trace_call(&mut self, _: U256, _: &[u8]) {}
+    fn done_trace_create(&mut self, _: U256, _: &[u8], _: Address) {}
+    fn done_trace_failed(&mut self, _: &VmError) {}
+    fn trace_suicide(&mut self, _: Address, _: U256, _: Address) {}
+    fn trace_reward(&mut self, _: Address, _: U256, _: RewardType) {}
+    fn drain(self) -> Vec<FlatTrace> {
+        vec![]
+    }
 }
 
 /// Nonoperative VM tracer. Does not trace anything.
 pub struct NoopVMTracer;
 
 impl VMTracer for NoopVMTracer {
-	type Output = VMTrace;
+    type Output = VMTrace;
 
-	fn drain(self) -> Option<VMTrace> { None }
+    fn drain(self) -> Option<VMTrace> {
+        None
+    }
 }

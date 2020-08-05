@@ -18,164 +18,252 @@
 
 use std::sync::Arc;
 
-use ethcore::client::{BlockChainClient, CallAnalytics, TransactionId, TraceId, StateClient, StateInfo, Call, BlockId};
+use ethcore::client::{
+    BlockChainClient, BlockId, Call, CallAnalytics, StateClient, StateInfo, TraceId, TransactionId,
+};
 use ethereum_types::H256;
 use rlp::Rlp;
 use types::transaction::SignedTransaction;
 
 use jsonrpc_core::Result;
-use v1::Metadata;
-use v1::traits::Traces;
-use v1::helpers::{errors, fake_sign};
-use v1::types::{TraceFilter, LocalizedTrace, BlockNumber, Index, CallRequest, Bytes, TraceResults,
-	TraceResultsWithTransactionHash, TraceOptions, block_number_to_id};
+use v1::{
+    helpers::{errors, fake_sign},
+    traits::Traces,
+    types::{
+        block_number_to_id, BlockNumber, Bytes, CallRequest, Index, LocalizedTrace, TraceFilter,
+        TraceOptions, TraceResults, TraceResultsWithTransactionHash,
+    },
+    Metadata,
+};
 
 fn to_call_analytics(flags: TraceOptions) -> CallAnalytics {
-	CallAnalytics {
-		transaction_tracing: flags.contains(&("trace".to_owned())),
-		vm_tracing: flags.contains(&("vmTrace".to_owned())),
-		state_diffing: flags.contains(&("stateDiff".to_owned())),
-	}
+    CallAnalytics {
+        transaction_tracing: flags.contains(&("trace".to_owned())),
+        vm_tracing: flags.contains(&("vmTrace".to_owned())),
+        state_diffing: flags.contains(&("stateDiff".to_owned())),
+    }
 }
 
 /// Traces api implementation.
 pub struct TracesClient<C> {
-	client: Arc<C>,
+    client: Arc<C>,
 }
 
 impl<C> TracesClient<C> {
-	/// Creates new Traces client.
-	pub fn new(client: &Arc<C>) -> Self {
-		TracesClient {
-			client: client.clone(),
-		}
-	}
+    /// Creates new Traces client.
+    pub fn new(client: &Arc<C>) -> Self {
+        TracesClient {
+            client: client.clone(),
+        }
+    }
 }
 
-impl<C, S> Traces for TracesClient<C> where
-	S: StateInfo + 'static,
-	C: BlockChainClient + StateClient<State=S> + Call<State=S> + 'static
+impl<C, S> Traces for TracesClient<C>
+where
+    S: StateInfo + 'static,
+    C: BlockChainClient + StateClient<State = S> + Call<State = S> + 'static,
 {
-	type Metadata = Metadata;
+    type Metadata = Metadata;
 
-	fn filter(&self, filter: TraceFilter) -> Result<Option<Vec<LocalizedTrace>>> {
-		Ok(self.client.filter_traces(filter.into())
-			.map(|traces| traces.into_iter().map(LocalizedTrace::from).collect()))
-	}
+    fn filter(&self, filter: TraceFilter) -> Result<Option<Vec<LocalizedTrace>>> {
+        Ok(self
+            .client
+            .filter_traces(filter.into())
+            .map(|traces| traces.into_iter().map(LocalizedTrace::from).collect()))
+    }
 
-	fn block_traces(&self, block_number: BlockNumber) -> Result<Option<Vec<LocalizedTrace>>> {
-		let id = match block_number {
-			BlockNumber::Pending => return Ok(None),
-			num => block_number_to_id(num)
-		};
+    fn block_traces(&self, block_number: BlockNumber) -> Result<Option<Vec<LocalizedTrace>>> {
+        let id = match block_number {
+            BlockNumber::Pending => return Ok(None),
+            num => block_number_to_id(num),
+        };
 
-		Ok(self.client.block_traces(id)
-			.map(|traces| traces.into_iter().map(LocalizedTrace::from).collect()))
-	}
+        Ok(self
+            .client
+            .block_traces(id)
+            .map(|traces| traces.into_iter().map(LocalizedTrace::from).collect()))
+    }
 
-	fn transaction_traces(&self, transaction_hash: H256) -> Result<Option<Vec<LocalizedTrace>>> {
-		Ok(self.client.transaction_traces(TransactionId::Hash(transaction_hash))
-			.map(|traces| traces.into_iter().map(LocalizedTrace::from).collect()))
-	}
+    fn transaction_traces(&self, transaction_hash: H256) -> Result<Option<Vec<LocalizedTrace>>> {
+        Ok(self
+            .client
+            .transaction_traces(TransactionId::Hash(transaction_hash))
+            .map(|traces| traces.into_iter().map(LocalizedTrace::from).collect()))
+    }
 
-	fn trace(&self, transaction_hash: H256, address: Vec<Index>) -> Result<Option<LocalizedTrace>> {
-		let id = TraceId {
-			transaction: TransactionId::Hash(transaction_hash),
-			address: address.into_iter().map(|i| i.value()).collect()
-		};
+    fn trace(&self, transaction_hash: H256, address: Vec<Index>) -> Result<Option<LocalizedTrace>> {
+        let id = TraceId {
+            transaction: TransactionId::Hash(transaction_hash),
+            address: address.into_iter().map(|i| i.value()).collect(),
+        };
 
-		Ok(self.client.trace(id)
-			.map(LocalizedTrace::from))
-	}
+        Ok(self.client.trace(id).map(LocalizedTrace::from))
+    }
 
-	fn call(&self, request: CallRequest, flags: TraceOptions, block: Option<BlockNumber>) -> Result<TraceResults> {
-		let block = block.unwrap_or_default();
+    fn call(
+        &self,
+        request: CallRequest,
+        flags: TraceOptions,
+        block: Option<BlockNumber>,
+    ) -> Result<TraceResults> {
+        let block = block.unwrap_or_default();
 
-		let request = CallRequest::into(request);
-		let signed = fake_sign::sign_call(request)?;
+        let request = CallRequest::into(request);
+        let signed = fake_sign::sign_call(request)?;
 
-		let id = match block {
-			BlockNumber::Num(num) => BlockId::Number(num),
-			BlockNumber::Earliest => BlockId::Earliest,
-			BlockNumber::Latest => BlockId::Latest,
+        let id = match block {
+            BlockNumber::Num(num) => BlockId::Number(num),
+            BlockNumber::Earliest => BlockId::Earliest,
+            BlockNumber::Latest => BlockId::Latest,
 
-			BlockNumber::Pending => return Err(errors::invalid_params("`BlockNumber::Pending` is not supported", ())),
-		};
+            BlockNumber::Pending => {
+                return Err(errors::invalid_params(
+                    "`BlockNumber::Pending` is not supported",
+                    (),
+                ))
+            }
+        };
 
-		let mut state = self.client.state_at(id).ok_or_else(errors::state_pruned)?;
-		let header = self.client.block_header(id).ok_or_else(errors::state_pruned)?;
+        let mut state = self.client.state_at(id).ok_or_else(errors::state_pruned)?;
+        let header = self
+            .client
+            .block_header(id)
+            .ok_or_else(errors::state_pruned)?;
 
-		self.client.call(&signed, to_call_analytics(flags), &mut state, &header.decode().map_err(errors::decode)?)
-			.map(TraceResults::from)
-			.map_err(errors::call)
-	}
+        self.client
+            .call(
+                &signed,
+                to_call_analytics(flags),
+                &mut state,
+                &header.decode().map_err(errors::decode)?,
+            )
+            .map(TraceResults::from)
+            .map_err(errors::call)
+    }
 
-	fn call_many(&self, requests: Vec<(CallRequest, TraceOptions)>, block: Option<BlockNumber>) -> Result<Vec<TraceResults>> {
-		let block = block.unwrap_or_default();
+    fn call_many(
+        &self,
+        requests: Vec<(CallRequest, TraceOptions)>,
+        block: Option<BlockNumber>,
+    ) -> Result<Vec<TraceResults>> {
+        let block = block.unwrap_or_default();
 
-		let requests = requests.into_iter()
-			.map(|(request, flags)| {
-				let request = CallRequest::into(request);
-				let signed = fake_sign::sign_call(request)?;
-				Ok((signed, to_call_analytics(flags)))
-			})
-			.collect::<Result<Vec<_>>>()?;
+        let requests = requests
+            .into_iter()
+            .map(|(request, flags)| {
+                let request = CallRequest::into(request);
+                let signed = fake_sign::sign_call(request)?;
+                Ok((signed, to_call_analytics(flags)))
+            })
+            .collect::<Result<Vec<_>>>()?;
 
-		let id = match block {
-			BlockNumber::Num(num) => BlockId::Number(num),
-			BlockNumber::Earliest => BlockId::Earliest,
-			BlockNumber::Latest => BlockId::Latest,
+        let id = match block {
+            BlockNumber::Num(num) => BlockId::Number(num),
+            BlockNumber::Earliest => BlockId::Earliest,
+            BlockNumber::Latest => BlockId::Latest,
 
-			BlockNumber::Pending => return Err(errors::invalid_params("`BlockNumber::Pending` is not supported", ())),
-		};
+            BlockNumber::Pending => {
+                return Err(errors::invalid_params(
+                    "`BlockNumber::Pending` is not supported",
+                    (),
+                ))
+            }
+        };
 
-		let mut state = self.client.state_at(id).ok_or_else(errors::state_pruned)?;
-		let header = self.client.block_header(id).ok_or_else(errors::state_pruned)?;
+        let mut state = self.client.state_at(id).ok_or_else(errors::state_pruned)?;
+        let header = self
+            .client
+            .block_header(id)
+            .ok_or_else(errors::state_pruned)?;
 
-		self.client.call_many(&requests, &mut state, &header.decode().map_err(errors::decode)?)
-			.map(|results| results.into_iter().map(TraceResults::from).collect())
-			.map_err(errors::call)
-	}
+        self.client
+            .call_many(
+                &requests,
+                &mut state,
+                &header.decode().map_err(errors::decode)?,
+            )
+            .map(|results| results.into_iter().map(TraceResults::from).collect())
+            .map_err(errors::call)
+    }
 
-	fn raw_transaction(&self, raw_transaction: Bytes, flags: TraceOptions, block: Option<BlockNumber>) -> Result<TraceResults> {
-		let block = block.unwrap_or_default();
+    fn raw_transaction(
+        &self,
+        raw_transaction: Bytes,
+        flags: TraceOptions,
+        block: Option<BlockNumber>,
+    ) -> Result<TraceResults> {
+        let block = block.unwrap_or_default();
 
-		let tx = Rlp::new(&raw_transaction.into_vec()).as_val().map_err(|e| errors::invalid_params("Transaction is not valid RLP", e))?;
-		let signed = SignedTransaction::new(tx).map_err(errors::transaction)?;
+        let tx = Rlp::new(&raw_transaction.into_vec())
+            .as_val()
+            .map_err(|e| errors::invalid_params("Transaction is not valid RLP", e))?;
+        let signed = SignedTransaction::new(tx).map_err(errors::transaction)?;
 
-		let id = match block {
-			BlockNumber::Num(num) => BlockId::Number(num),
-			BlockNumber::Earliest => BlockId::Earliest,
-			BlockNumber::Latest => BlockId::Latest,
+        let id = match block {
+            BlockNumber::Num(num) => BlockId::Number(num),
+            BlockNumber::Earliest => BlockId::Earliest,
+            BlockNumber::Latest => BlockId::Latest,
 
-			BlockNumber::Pending => return Err(errors::invalid_params("`BlockNumber::Pending` is not supported", ())),
-		};
+            BlockNumber::Pending => {
+                return Err(errors::invalid_params(
+                    "`BlockNumber::Pending` is not supported",
+                    (),
+                ))
+            }
+        };
 
-		let mut state = self.client.state_at(id).ok_or_else(errors::state_pruned)?;
-		let header = self.client.block_header(id).ok_or_else(errors::state_pruned)?;
+        let mut state = self.client.state_at(id).ok_or_else(errors::state_pruned)?;
+        let header = self
+            .client
+            .block_header(id)
+            .ok_or_else(errors::state_pruned)?;
 
-		self.client.call(&signed, to_call_analytics(flags), &mut state, &header.decode().map_err(errors::decode)?)
-			.map(TraceResults::from)
-			.map_err(errors::call)
-	}
+        self.client
+            .call(
+                &signed,
+                to_call_analytics(flags),
+                &mut state,
+                &header.decode().map_err(errors::decode)?,
+            )
+            .map(TraceResults::from)
+            .map_err(errors::call)
+    }
 
-	fn replay_transaction(&self, transaction_hash: H256, flags: TraceOptions) -> Result<TraceResults> {
-		self.client.replay(TransactionId::Hash(transaction_hash), to_call_analytics(flags))
-			.map(TraceResults::from)
-			.map_err(errors::call)
-	}
+    fn replay_transaction(
+        &self,
+        transaction_hash: H256,
+        flags: TraceOptions,
+    ) -> Result<TraceResults> {
+        self.client
+            .replay(
+                TransactionId::Hash(transaction_hash),
+                to_call_analytics(flags),
+            )
+            .map(TraceResults::from)
+            .map_err(errors::call)
+    }
 
-	fn replay_block_transactions(&self, block_number: BlockNumber, flags: TraceOptions) -> Result<Vec<TraceResultsWithTransactionHash>> {
-		let id = match block_number {
-			BlockNumber::Num(num) => BlockId::Number(num),
-			BlockNumber::Earliest => BlockId::Earliest,
-			BlockNumber::Latest => BlockId::Latest,
+    fn replay_block_transactions(
+        &self,
+        block_number: BlockNumber,
+        flags: TraceOptions,
+    ) -> Result<Vec<TraceResultsWithTransactionHash>> {
+        let id = match block_number {
+            BlockNumber::Num(num) => BlockId::Number(num),
+            BlockNumber::Earliest => BlockId::Earliest,
+            BlockNumber::Latest => BlockId::Latest,
 
-			BlockNumber::Pending => return Err(errors::invalid_params("`BlockNumber::Pending` is not supported", ())),
-		};
+            BlockNumber::Pending => {
+                return Err(errors::invalid_params(
+                    "`BlockNumber::Pending` is not supported",
+                    (),
+                ))
+            }
+        };
 
-		self.client.replay_block_transactions(id, to_call_analytics(flags))
-			.map(|results| results.map(TraceResultsWithTransactionHash::from).collect())
-			.map_err(errors::call)
-	}
+        self.client
+            .replay_block_transactions(id, to_call_analytics(flags))
+            .map(|results| results.map(TraceResultsWithTransactionHash::from).collect())
+            .map_err(errors::call)
+    }
 }

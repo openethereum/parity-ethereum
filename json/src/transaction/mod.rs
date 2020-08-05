@@ -16,10 +16,8 @@
 
 //! Transaction test deserialization.
 
+mod test;
 mod transaction;
 mod txtest;
-mod test;
 
-pub use self::transaction::Transaction;
-pub use self::txtest::TransactionTest;
-pub use self::test::Test;
+pub use self::{test::Test, transaction::Transaction, txtest::TransactionTest};

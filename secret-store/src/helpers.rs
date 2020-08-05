@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use ethcore::client::{Client, BlockChainClient, BlockId};
+use ethcore::client::{BlockChainClient, BlockId, Client};
 use ethereum_types::H256;
 
 // TODO: Instead of a constant, make this based on consensus finality.
@@ -23,7 +23,8 @@ pub const REQUEST_CONFIRMATIONS_REQUIRED: u64 = 3;
 
 /// Get hash of the last block with at least n confirmations.
 pub fn get_confirmed_block_hash(client: &Client, confirmations: u64) -> Option<H256> {
-	client.block_number(BlockId::Latest)
-		.map(|b| b.saturating_sub(confirmations))
-		.and_then(|b| client.block_hash(BlockId::Number(b)))
+    client
+        .block_number(BlockId::Latest)
+        .map(|b| b.saturating_sub(confirmations))
+        .and_then(|b| client.block_hash(BlockId::Number(b)))
 }

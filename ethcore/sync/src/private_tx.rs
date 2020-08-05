@@ -14,50 +14,50 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use parking_lot::Mutex;
 use ethereum_types::H256;
+use parking_lot::Mutex;
 
 /// Trait which should be implemented by a private transaction handler.
 pub trait PrivateTxHandler: Send + Sync + 'static {
-	/// Function called on new private transaction received.
-	/// Returns the hash of the imported transaction
-	fn import_private_transaction(&self, rlp: &[u8]) -> Result<H256, String>;
+    /// Function called on new private transaction received.
+    /// Returns the hash of the imported transaction
+    fn import_private_transaction(&self, rlp: &[u8]) -> Result<H256, String>;
 
-	/// Function called on new signed private transaction received.
-	/// Returns the hash of the imported transaction
-	fn import_signed_private_transaction(&self, rlp: &[u8]) -> Result<H256, String>;
+    /// Function called on new signed private transaction received.
+    /// Returns the hash of the imported transaction
+    fn import_signed_private_transaction(&self, rlp: &[u8]) -> Result<H256, String>;
 }
 
 /// Nonoperative private transaction handler.
 pub struct NoopPrivateTxHandler;
 
 impl PrivateTxHandler for NoopPrivateTxHandler {
-	fn import_private_transaction(&self, _rlp: &[u8]) -> Result<H256, String> {
-		Ok(H256::default())
-	}
+    fn import_private_transaction(&self, _rlp: &[u8]) -> Result<H256, String> {
+        Ok(H256::default())
+    }
 
-	fn import_signed_private_transaction(&self, _rlp: &[u8]) -> Result<H256, String> {
-		Ok(H256::default())
-	}
+    fn import_signed_private_transaction(&self, _rlp: &[u8]) -> Result<H256, String> {
+        Ok(H256::default())
+    }
 }
 
 /// Simple private transaction handler. Used for tests.
 #[derive(Default)]
 pub struct SimplePrivateTxHandler {
-	/// imported private transactions
-	pub txs: Mutex<Vec<Vec<u8>>>,
-	/// imported signed private transactions
-	pub signed_txs: Mutex<Vec<Vec<u8>>>,
+    /// imported private transactions
+    pub txs: Mutex<Vec<Vec<u8>>>,
+    /// imported signed private transactions
+    pub signed_txs: Mutex<Vec<Vec<u8>>>,
 }
 
 impl PrivateTxHandler for SimplePrivateTxHandler {
-	fn import_private_transaction(&self, rlp: &[u8]) -> Result<H256, String> {
-		self.txs.lock().push(rlp.to_vec());
-		Ok(H256::default())
-	}
+    fn import_private_transaction(&self, rlp: &[u8]) -> Result<H256, String> {
+        self.txs.lock().push(rlp.to_vec());
+        Ok(H256::default())
+    }
 
-	fn import_signed_private_transaction(&self, rlp: &[u8]) -> Result<H256, String> {
-		self.signed_txs.lock().push(rlp.to_vec());
-		Ok(H256::default())
-	}
+    fn import_signed_private_transaction(&self, rlp: &[u8]) -> Result<H256, String> {
+        self.signed_txs.lock().push(rlp.to_vec());
+        Ok(H256::default())
+    }
 }

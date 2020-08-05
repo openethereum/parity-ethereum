@@ -16,17 +16,17 @@
 
 //! Basic account type -- the decoded RLP from the state trie.
 
-use ethereum_types::{U256, H256};
+use ethereum_types::{H256, U256};
 
 /// Basic account type.
 #[derive(Debug, Clone, PartialEq, Eq, RlpEncodable, RlpDecodable)]
 pub struct BasicAccount {
-	/// Nonce of the account.
-	pub nonce: U256,
-	/// Balance of the account.
-	pub balance: U256,
-	/// Storage root of the account.
-	pub storage_root: H256,
-	/// Code hash of the account.
-	pub code_hash: H256,
+    /// Nonce of the account.
+    pub nonce: U256,
+    /// Balance of the account.
+    pub balance: U256,
+    /// Storage root of the account.
+    pub storage_root: H256,
+    /// Code hash of the account.
+    pub code_hash: H256,
 }

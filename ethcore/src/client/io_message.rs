@@ -14,43 +14,43 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::fmt;
 use bytes::Bytes;
 use client::Client;
 use ethereum_types::H256;
 use snapshot::ManifestData;
+use std::fmt;
 
 /// Message type for external and internal events
 #[derive(Debug)]
 pub enum ClientIoMessage {
-	/// Best Block Hash in chain has been changed
-	NewChainHead,
-	/// A block is ready
-	BlockVerified,
-	/// Begin snapshot restoration
-	BeginRestoration(ManifestData),
-	/// Feed a state chunk to the snapshot service
-	FeedStateChunk(H256, Bytes),
-	/// Feed a block chunk to the snapshot service
-	FeedBlockChunk(H256, Bytes),
-	/// Take a snapshot for the block with given number.
-	TakeSnapshot(u64),
-	/// Execute wrapped closure
-	Execute(Callback),
+    /// Best Block Hash in chain has been changed
+    NewChainHead,
+    /// A block is ready
+    BlockVerified,
+    /// Begin snapshot restoration
+    BeginRestoration(ManifestData),
+    /// Feed a state chunk to the snapshot service
+    FeedStateChunk(H256, Bytes),
+    /// Feed a block chunk to the snapshot service
+    FeedBlockChunk(H256, Bytes),
+    /// Take a snapshot for the block with given number.
+    TakeSnapshot(u64),
+    /// Execute wrapped closure
+    Execute(Callback),
 }
 
 impl ClientIoMessage {
-	/// Create new `ClientIoMessage` that executes given procedure.
-	pub fn execute<F: Fn(&Client) + Send + Sync + 'static>(fun: F) -> Self {
-		ClientIoMessage::Execute(Callback(Box::new(fun)))
-	}
+    /// Create new `ClientIoMessage` that executes given procedure.
+    pub fn execute<F: Fn(&Client) + Send + Sync + 'static>(fun: F) -> Self {
+        ClientIoMessage::Execute(Callback(Box::new(fun)))
+    }
 }
 
 /// A function to invoke in the client thread.
 pub struct Callback(pub Box<Fn(&Client) + Send + Sync>);
 
 impl fmt::Debug for Callback {
-	fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-		write!(fmt, "<callback>")
-	}
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "<callback>")
+    }
 }

@@ -16,36 +16,35 @@
 
 //! Blockchain test block deserializer.
 
+use blockchain::{header::Header, transaction::Transaction};
 use bytes::Bytes;
-use blockchain::header::Header;
-use blockchain::transaction::Transaction;
 
 /// Blockchain test block deserializer.
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct Block {
-	#[serde(rename = "blockHeader")]
-	header: Option<Header>,
-	rlp: Bytes,
-	transactions: Option<Vec<Transaction>>,
-	#[serde(rename = "uncleHeaders")]
-	uncles: Option<Vec<Header>>,
+    #[serde(rename = "blockHeader")]
+    header: Option<Header>,
+    rlp: Bytes,
+    transactions: Option<Vec<Transaction>>,
+    #[serde(rename = "uncleHeaders")]
+    uncles: Option<Vec<Header>>,
 }
 
 impl Block {
-	/// Returns block rlp.
-	pub fn rlp(&self) -> Vec<u8> {
-		self.rlp.clone().into()
-	}
+    /// Returns block rlp.
+    pub fn rlp(&self) -> Vec<u8> {
+        self.rlp.clone().into()
+    }
 }
 
 #[cfg(test)]
 mod tests {
-	use serde_json;
-	use blockchain::block::Block;
+    use blockchain::block::Block;
+    use serde_json;
 
-	#[test]
-	fn block_deserialization() {
-		let s = r#"{
+    #[test]
+    fn block_deserialization() {
+        let s = r#"{
 			"blockHeader" : {
 				"bloom" : "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
 				"coinbase" : "8888f1f195afa192cfee860698584c030f4c9db1",
@@ -69,7 +68,7 @@ mod tests {
 			"transactions" : [],
 			"uncleHeaders" : []
 		}"#;
-		let _deserialized: Block = serde_json::from_str(s).unwrap();
-		// TODO: validate all fields
-	}
+        let _deserialized: Block = serde_json::from_str(s).unwrap();
+        // TODO: validate all fields
+    }
 }

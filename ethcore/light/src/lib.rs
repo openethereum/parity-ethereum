@@ -32,20 +32,22 @@
 
 #![deny(missing_docs)]
 
-pub mod client;
+pub mod cache;
 pub mod cht;
+pub mod client;
 pub mod net;
 pub mod on_demand;
-pub mod transaction_queue;
-pub mod cache;
 pub mod provider;
+pub mod transaction_queue;
 
 mod types;
 
-pub use self::cache::Cache;
-pub use self::provider::{Provider, MAX_HEADERS_PER_REQUEST};
-pub use self::transaction_queue::TransactionQueue;
-pub use types::request as request;
+pub use self::{
+    cache::Cache,
+    provider::{Provider, MAX_HEADERS_PER_REQUEST},
+    transaction_queue::TransactionQueue,
+};
+pub use types::request;
 
 #[macro_use]
 extern crate serde_derive;
@@ -55,41 +57,41 @@ extern crate log;
 
 extern crate bincode;
 extern crate common_types;
+extern crate ethcore;
 extern crate ethcore_blockchain;
 extern crate ethcore_db;
 extern crate ethcore_io as io;
 extern crate ethcore_network as network;
-extern crate parity_bytes as bytes;
 extern crate ethereum_types;
-extern crate ethcore;
+extern crate failsafe;
+extern crate fastmap;
+extern crate futures;
 extern crate hash_db;
 extern crate heapsize;
-extern crate failsafe;
-extern crate futures;
 extern crate itertools;
 extern crate keccak_hasher;
 extern crate memory_db;
-extern crate trie_db as trie;
+extern crate parity_bytes as bytes;
+extern crate parking_lot;
 extern crate patricia_trie_ethereum as ethtrie;
-extern crate fastmap;
 extern crate rand;
 extern crate rlp;
-extern crate parking_lot;
+extern crate trie_db as trie;
 #[macro_use]
 extern crate rlp_derive;
+extern crate keccak_hash as hash;
+extern crate kvdb;
+extern crate memory_cache;
 extern crate serde;
 extern crate smallvec;
 extern crate stats;
-extern crate vm;
-extern crate keccak_hash as hash;
 extern crate triehash_ethereum as triehash;
-extern crate kvdb;
-extern crate memory_cache;
+extern crate vm;
 #[macro_use]
 extern crate error_chain;
 
+extern crate journaldb;
 #[cfg(test)]
 extern crate kvdb_memorydb;
 #[cfg(test)]
 extern crate tempdir;
-extern crate journaldb;

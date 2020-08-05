@@ -16,285 +16,351 @@
 
 //! Test implementation of miner service.
 
-use std::sync::Arc;
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::{
+    collections::{BTreeMap, BTreeSet, HashMap},
+    sync::Arc,
+};
 
 use bytes::Bytes;
-use ethcore::block::SealedBlock;
-use ethcore::client::{Nonce, PrepareOpenBlock, StateClient, EngineInfo, traits::ForceUpdateSealing};
-use ethcore::engines::{EthEngine, signer::EngineSigner};
-use ethcore::error::Error;
-use ethcore::miner::{self, MinerService, AuthoringParams};
-use ethcore::client::test_client::TestState;
-use ethereum_types::{H256, U256, Address};
-use miner::pool::local_transactions::Status as LocalTransactionStatus;
-use miner::pool::{verifier, VerifiedTransaction, QueueStatus};
-use parking_lot::{RwLock, Mutex};
-use types::transaction::{self, UnverifiedTransaction, SignedTransaction, PendingTransaction};
+use ethcore::{
+    block::SealedBlock,
+    client::{
+        test_client::TestState, traits::ForceUpdateSealing, EngineInfo, Nonce, PrepareOpenBlock,
+        StateClient,
+    },
+    engines::{signer::EngineSigner, EthEngine},
+    error::Error,
+    miner::{self, AuthoringParams, MinerService},
+};
+use ethereum_types::{Address, H256, U256};
+use miner::pool::{
+    local_transactions::Status as LocalTransactionStatus, verifier, QueueStatus,
+    VerifiedTransaction,
+};
+use parking_lot::{Mutex, RwLock};
 use txpool;
-use types::BlockNumber;
-use types::block::Block;
-use types::header::Header;
-use types::ids::BlockId;
-use types::receipt::RichReceipt;
+use types::{
+    block::Block,
+    header::Header,
+    ids::BlockId,
+    receipt::RichReceipt,
+    transaction::{self, PendingTransaction, SignedTransaction, UnverifiedTransaction},
+    BlockNumber,
+};
 
 /// Test miner service.
 pub struct TestMinerService {
-	/// Imported transactions.
-	pub imported_transactions: Mutex<Vec<SignedTransaction>>,
-	/// Pre-existed pending transactions
-	pub pending_transactions: Mutex<HashMap<H256, SignedTransaction>>,
-	/// Pre-existed local transactions
-	pub local_transactions: Mutex<BTreeMap<H256, LocalTransactionStatus>>,
-	/// Pre-existed pending receipts
-	pub pending_receipts: Mutex<Vec<RichReceipt>>,
-	/// Next nonces.
-	pub next_nonces: RwLock<HashMap<Address, U256>>,
-	/// Minimum gas price
-	pub min_gas_price: RwLock<Option<U256>>,
-	/// Signer (if any)
-	pub signer: RwLock<Option<Box<EngineSigner>>>,
+    /// Imported transactions.
+    pub imported_transactions: Mutex<Vec<SignedTransaction>>,
+    /// Pre-existed pending transactions
+    pub pending_transactions: Mutex<HashMap<H256, SignedTransaction>>,
+    /// Pre-existed local transactions
+    pub local_transactions: Mutex<BTreeMap<H256, LocalTransactionStatus>>,
+    /// Pre-existed pending receipts
+    pub pending_receipts: Mutex<Vec<RichReceipt>>,
+    /// Next nonces.
+    pub next_nonces: RwLock<HashMap<Address, U256>>,
+    /// Minimum gas price
+    pub min_gas_price: RwLock<Option<U256>>,
+    /// Signer (if any)
+    pub signer: RwLock<Option<Box<EngineSigner>>>,
 
-	authoring_params: RwLock<AuthoringParams>,
+    authoring_params: RwLock<AuthoringParams>,
 }
 
 impl Default for TestMinerService {
-	fn default() -> TestMinerService {
-		TestMinerService {
-			imported_transactions: Default::default(),
-			pending_transactions: Default::default(),
-			local_transactions: Default::default(),
-			pending_receipts: Default::default(),
-			next_nonces: Default::default(),
-			min_gas_price: RwLock::new(Some(0.into())),
-			authoring_params: RwLock::new(AuthoringParams {
-				author: Address::zero(),
-				gas_range_target: (12345.into(), 54321.into()),
-				extra_data: vec![1, 2, 3, 4],
-			}),
-			signer: RwLock::new(None),
-		}
-	}
+    fn default() -> TestMinerService {
+        TestMinerService {
+            imported_transactions: Default::default(),
+            pending_transactions: Default::default(),
+            local_transactions: Default::default(),
+            pending_receipts: Default::default(),
+            next_nonces: Default::default(),
+            min_gas_price: RwLock::new(Some(0.into())),
+            authoring_params: RwLock::new(AuthoringParams {
+                author: Address::zero(),
+                gas_range_target: (12345.into(), 54321.into()),
+                extra_data: vec![1, 2, 3, 4],
+            }),
+            signer: RwLock::new(None),
+        }
+    }
 }
 
 impl TestMinerService {
-	/// Increments nonce for given address.
-	pub fn increment_nonce(&self, address: &Address) {
-		let mut next_nonces = self.next_nonces.write();
-		let nonce = next_nonces.entry(*address).or_insert_with(|| 0.into());
-		*nonce = *nonce + 1;
-	}
+    /// Increments nonce for given address.
+    pub fn increment_nonce(&self, address: &Address) {
+        let mut next_nonces = self.next_nonces.write();
+        let nonce = next_nonces.entry(*address).or_insert_with(|| 0.into());
+        *nonce = *nonce + 1;
+    }
 }
 
 impl StateClient for TestMinerService {
-	// State will not be used by test client anyway, since all methods that accept state are mocked
-	type State = TestState;
+    // State will not be used by test client anyway, since all methods that accept state are mocked
+    type State = TestState;
 
-	fn latest_state_and_header(&self) -> (Self::State, Header) {
-		(TestState, Header::default())
-	}
+    fn latest_state_and_header(&self) -> (Self::State, Header) {
+        (TestState, Header::default())
+    }
 
-	fn state_at(&self, _id: BlockId) -> Option<Self::State> {
-		Some(TestState)
-	}
+    fn state_at(&self, _id: BlockId) -> Option<Self::State> {
+        Some(TestState)
+    }
 }
 
 impl EngineInfo for TestMinerService {
-	fn engine(&self) -> &EthEngine {
-		unimplemented!()
-	}
+    fn engine(&self) -> &EthEngine {
+        unimplemented!()
+    }
 }
 
 impl MinerService for TestMinerService {
-	type State = TestState;
+    type State = TestState;
 
-	fn pending_state(&self, _latest_block_number: BlockNumber) -> Option<Self::State> {
-		None
-	}
+    fn pending_state(&self, _latest_block_number: BlockNumber) -> Option<Self::State> {
+        None
+    }
 
-	fn pending_block_header(&self, _latest_block_number: BlockNumber) -> Option<Header> {
-		None
-	}
+    fn pending_block_header(&self, _latest_block_number: BlockNumber) -> Option<Header> {
+        None
+    }
 
-	fn pending_block(&self, _latest_block_number: BlockNumber) -> Option<Block> {
-		None
-	}
+    fn pending_block(&self, _latest_block_number: BlockNumber) -> Option<Block> {
+        None
+    }
 
-	fn authoring_params(&self) -> AuthoringParams {
-		self.authoring_params.read().clone()
-	}
+    fn authoring_params(&self) -> AuthoringParams {
+        self.authoring_params.read().clone()
+    }
 
-	fn set_author(&self, author: miner::Author) {
-		self.authoring_params.write().author = author.address();
-		if let miner::Author::Sealer(signer) = author {
-			*self.signer.write() = Some(signer);
-		}
-	}
+    fn set_author(&self, author: miner::Author) {
+        self.authoring_params.write().author = author.address();
+        if let miner::Author::Sealer(signer) = author {
+            *self.signer.write() = Some(signer);
+        }
+    }
 
-	fn set_extra_data(&self, extra_data: Bytes) {
-		self.authoring_params.write().extra_data = extra_data;
-	}
+    fn set_extra_data(&self, extra_data: Bytes) {
+        self.authoring_params.write().extra_data = extra_data;
+    }
 
-	fn set_gas_range_target(&self, target: (U256, U256)) {
-		self.authoring_params.write().gas_range_target = target;
-	}
+    fn set_gas_range_target(&self, target: (U256, U256)) {
+        self.authoring_params.write().gas_range_target = target;
+    }
 
-	/// Imports transactions to transaction queue.
-	fn import_external_transactions<C: Nonce + Sync>(&self, chain: &C, transactions: Vec<UnverifiedTransaction>)
-		-> Vec<Result<(), transaction::Error>>
-	{
-		// lets assume that all txs are valid
-		let transactions: Vec<_> = transactions.into_iter().map(|tx| SignedTransaction::new(tx).unwrap()).collect();
-		self.imported_transactions.lock().extend_from_slice(&transactions);
+    /// Imports transactions to transaction queue.
+    fn import_external_transactions<C: Nonce + Sync>(
+        &self,
+        chain: &C,
+        transactions: Vec<UnverifiedTransaction>,
+    ) -> Vec<Result<(), transaction::Error>> {
+        // lets assume that all txs are valid
+        let transactions: Vec<_> = transactions
+            .into_iter()
+            .map(|tx| SignedTransaction::new(tx).unwrap())
+            .collect();
+        self.imported_transactions
+            .lock()
+            .extend_from_slice(&transactions);
 
-		for sender in transactions.iter().map(|tx| tx.sender()) {
-			let nonce = self.next_nonce(chain, &sender);
-			self.next_nonces.write().insert(sender, nonce);
-		}
+        for sender in transactions.iter().map(|tx| tx.sender()) {
+            let nonce = self.next_nonce(chain, &sender);
+            self.next_nonces.write().insert(sender, nonce);
+        }
 
-		transactions
-			.iter()
-			.map(|_| Ok(()))
-			.collect()
-	}
+        transactions.iter().map(|_| Ok(())).collect()
+    }
 
-	/// Imports transactions to transaction queue.
-	fn import_own_transaction<C: Nonce + Sync>(&self, _chain: &C, _pending: PendingTransaction)
-		-> Result<(), transaction::Error> {
-		// this function is no longer called directly from RPC
-		unimplemented!();
-	}
+    /// Imports transactions to transaction queue.
+    fn import_own_transaction<C: Nonce + Sync>(
+        &self,
+        _chain: &C,
+        _pending: PendingTransaction,
+    ) -> Result<(), transaction::Error> {
+        // this function is no longer called directly from RPC
+        unimplemented!();
+    }
 
-	/// Imports transactions to queue - treats as local based on trusted flag, config, and tx source
-	fn import_claimed_local_transaction<C: Nonce + Sync>(&self, chain: &C, pending: PendingTransaction, _trusted: bool)
-		-> Result<(), transaction::Error> {
+    /// Imports transactions to queue - treats as local based on trusted flag, config, and tx source
+    fn import_claimed_local_transaction<C: Nonce + Sync>(
+        &self,
+        chain: &C,
+        pending: PendingTransaction,
+        _trusted: bool,
+    ) -> Result<(), transaction::Error> {
+        // keep the pending nonces up to date
+        let sender = pending.transaction.sender();
+        let nonce = self.next_nonce(chain, &sender);
+        self.next_nonces.write().insert(sender, nonce);
 
-		// keep the pending nonces up to date
-		let sender = pending.transaction.sender();
-		let nonce = self.next_nonce(chain, &sender);
-		self.next_nonces.write().insert(sender, nonce);
+        // lets assume that all txs are valid
+        self.imported_transactions.lock().push(pending.transaction);
 
-		// lets assume that all txs are valid
-		self.imported_transactions.lock().push(pending.transaction);
+        Ok(())
+    }
 
-		Ok(())
-	}
+    /// Called when blocks are imported to chain, updates transactions queue.
+    fn chain_new_blocks<C>(
+        &self,
+        _chain: &C,
+        _imported: &[H256],
+        _invalid: &[H256],
+        _enacted: &[H256],
+        _retracted: &[H256],
+        _is_internal: bool,
+    ) {
+        unimplemented!();
+    }
 
-	/// Called when blocks are imported to chain, updates transactions queue.
-	fn chain_new_blocks<C>(&self, _chain: &C, _imported: &[H256], _invalid: &[H256], _enacted: &[H256], _retracted: &[H256], _is_internal: bool) {
-		unimplemented!();
-	}
+    /// New chain head event. Restart mining operation.
+    fn update_sealing<C>(&self, _chain: &C, _force: ForceUpdateSealing) {
+        unimplemented!();
+    }
 
-	/// New chain head event. Restart mining operation.
-	fn update_sealing<C>(&self, _chain: &C, _force: ForceUpdateSealing) {
-		unimplemented!();
-	}
+    fn work_package<C: PrepareOpenBlock>(
+        &self,
+        chain: &C,
+    ) -> Option<(H256, BlockNumber, u64, U256)> {
+        let params = self.authoring_params();
+        let open_block = chain
+            .prepare_open_block(params.author, params.gas_range_target, params.extra_data)
+            .unwrap();
+        let closed = open_block.close().unwrap();
+        let header = &closed.header;
 
-	fn work_package<C: PrepareOpenBlock>(&self, chain: &C) -> Option<(H256, BlockNumber, u64, U256)> {
-		let params = self.authoring_params();
-		let open_block = chain.prepare_open_block(params.author, params.gas_range_target, params.extra_data).unwrap();
-		let closed = open_block.close().unwrap();
-		let header = &closed.header;
+        Some((
+            header.hash(),
+            header.number(),
+            header.timestamp(),
+            *header.difficulty(),
+        ))
+    }
 
-		Some((header.hash(), header.number(), header.timestamp(), *header.difficulty()))
-	}
+    fn transaction(&self, hash: &H256) -> Option<Arc<VerifiedTransaction>> {
+        self.pending_transactions
+            .lock()
+            .get(hash)
+            .cloned()
+            .map(|tx| Arc::new(VerifiedTransaction::from_pending_block_transaction(tx)))
+    }
 
-	fn transaction(&self, hash: &H256) -> Option<Arc<VerifiedTransaction>> {
-		self.pending_transactions.lock().get(hash).cloned().map(|tx| {
-			Arc::new(VerifiedTransaction::from_pending_block_transaction(tx))
-		})
-	}
+    fn remove_transaction(&self, hash: &H256) -> Option<Arc<VerifiedTransaction>> {
+        self.pending_transactions
+            .lock()
+            .remove(hash)
+            .map(|tx| Arc::new(VerifiedTransaction::from_pending_block_transaction(tx)))
+    }
 
-	fn remove_transaction(&self, hash: &H256) -> Option<Arc<VerifiedTransaction>> {
-		self.pending_transactions.lock().remove(hash).map(|tx| {
-			Arc::new(VerifiedTransaction::from_pending_block_transaction(tx))
-		})
-	}
+    fn pending_transactions(&self, _best_block: BlockNumber) -> Option<Vec<SignedTransaction>> {
+        Some(self.pending_transactions.lock().values().cloned().collect())
+    }
 
-	fn pending_transactions(&self, _best_block: BlockNumber) -> Option<Vec<SignedTransaction>> {
-		Some(self.pending_transactions.lock().values().cloned().collect())
-	}
+    fn local_transactions(&self) -> BTreeMap<H256, LocalTransactionStatus> {
+        self.local_transactions
+            .lock()
+            .iter()
+            .map(|(hash, stats)| (*hash, stats.clone()))
+            .collect()
+    }
 
-	fn local_transactions(&self) -> BTreeMap<H256, LocalTransactionStatus> {
-		self.local_transactions.lock().iter().map(|(hash, stats)| (*hash, stats.clone())).collect()
-	}
+    fn ready_transactions<C>(
+        &self,
+        _chain: &C,
+        _max_len: usize,
+        _ordering: miner::PendingOrdering,
+    ) -> Vec<Arc<VerifiedTransaction>> {
+        self.queued_transactions()
+    }
 
-	fn ready_transactions<C>(&self, _chain: &C, _max_len: usize, _ordering: miner::PendingOrdering) -> Vec<Arc<VerifiedTransaction>> {
-		self.queued_transactions()
-	}
+    fn pending_transaction_hashes<C>(&self, _chain: &C) -> BTreeSet<H256> {
+        self.queued_transactions()
+            .into_iter()
+            .map(|tx| tx.signed().hash())
+            .collect()
+    }
 
-	fn pending_transaction_hashes<C>(&self, _chain: &C) -> BTreeSet<H256> {
-		self.queued_transactions().into_iter().map(|tx| tx.signed().hash()).collect()
-	}
+    fn queued_transactions(&self) -> Vec<Arc<VerifiedTransaction>> {
+        self.pending_transactions
+            .lock()
+            .values()
+            .cloned()
+            .map(|tx| Arc::new(VerifiedTransaction::from_pending_block_transaction(tx)))
+            .collect()
+    }
 
-	fn queued_transactions(&self) -> Vec<Arc<VerifiedTransaction>> {
-		self.pending_transactions.lock().values().cloned().map(|tx| {
-			Arc::new(VerifiedTransaction::from_pending_block_transaction(tx))
-		}).collect()
-	}
+    fn queued_transaction_hashes(&self) -> Vec<H256> {
+        self.pending_transactions
+            .lock()
+            .keys()
+            .cloned()
+            .map(|hash| hash)
+            .collect()
+    }
 
-	fn queued_transaction_hashes(&self) -> Vec<H256> {
-		self.pending_transactions.lock().keys().cloned().map(|hash| hash).collect()
-	}
+    fn pending_receipts(&self, _best_block: BlockNumber) -> Option<Vec<RichReceipt>> {
+        Some(self.pending_receipts.lock().clone())
+    }
 
-	fn pending_receipts(&self, _best_block: BlockNumber) -> Option<Vec<RichReceipt>> {
-		Some(self.pending_receipts.lock().clone())
-	}
+    fn next_nonce<C: Nonce + Sync>(&self, _chain: &C, address: &Address) -> U256 {
+        self.next_nonces
+            .read()
+            .get(address)
+            .cloned()
+            .unwrap_or_default()
+    }
 
-	fn next_nonce<C: Nonce + Sync>(&self, _chain: &C, address: &Address) -> U256 {
-		self.next_nonces.read().get(address).cloned().unwrap_or_default()
-	}
+    fn is_currently_sealing(&self) -> bool {
+        false
+    }
 
-	fn is_currently_sealing(&self) -> bool {
-		false
-	}
+    fn queue_status(&self) -> QueueStatus {
+        QueueStatus {
+            options: verifier::Options {
+                minimal_gas_price: 0x1312d00.into(),
+                block_gas_limit: 5_000_000.into(),
+                tx_gas_limit: 5_000_000.into(),
+                no_early_reject: false,
+            },
+            status: txpool::LightStatus {
+                mem_usage: 1_000,
+                transaction_count: 52,
+                senders: 1,
+            },
+            limits: txpool::Options {
+                max_count: 1_024,
+                max_per_sender: 16,
+                max_mem_usage: 5_000,
+            },
+        }
+    }
 
-	fn queue_status(&self) -> QueueStatus {
-		QueueStatus {
-			options: verifier::Options {
-				minimal_gas_price: 0x1312d00.into(),
-				block_gas_limit: 5_000_000.into(),
-				tx_gas_limit: 5_000_000.into(),
-				no_early_reject: false,
-			},
-			status: txpool::LightStatus {
-				mem_usage: 1_000,
-				transaction_count: 52,
-				senders: 1,
-			},
-			limits: txpool::Options {
-				max_count: 1_024,
-				max_per_sender: 16,
-				max_mem_usage: 5_000,
-			},
-		}
-	}
+    /// Submit `seal` as a valid solution for the header of `pow_hash`.
+    /// Will check the seal, but not actually insert the block into the chain.
+    fn submit_seal(&self, _pow_hash: H256, _seal: Vec<Bytes>) -> Result<SealedBlock, Error> {
+        unimplemented!();
+    }
 
-	/// Submit `seal` as a valid solution for the header of `pow_hash`.
-	/// Will check the seal, but not actually insert the block into the chain.
-	fn submit_seal(&self, _pow_hash: H256, _seal: Vec<Bytes>) -> Result<SealedBlock, Error> {
-		unimplemented!();
-	}
+    fn sensible_gas_price(&self) -> U256 {
+        20_000_000_000u64.into()
+    }
 
-	fn sensible_gas_price(&self) -> U256 {
-		20_000_000_000u64.into()
-	}
+    fn sensible_gas_limit(&self) -> U256 {
+        0x5208.into()
+    }
 
-	fn sensible_gas_limit(&self) -> U256 {
-		0x5208.into()
-	}
-
-	fn set_minimal_gas_price(&self, gas_price: U256) -> Result<bool, &str> {
-		let mut new_price = self.min_gas_price.write();
-		match *new_price {
-			Some(ref mut v) => {
-				*v = gas_price;
-				Ok(true)
-			},
-			None => {
-				let error_msg = "Can't update fixed gas price while automatic gas calibration is enabled.";
-				Err(error_msg)
-			},
-		}
-	}
+    fn set_minimal_gas_price(&self, gas_price: U256) -> Result<bool, &str> {
+        let mut new_price = self.min_gas_price.write();
+        match *new_price {
+            Some(ref mut v) => {
+                *v = gas_price;
+                Ok(true)
+            }
+            None => {
+                let error_msg =
+                    "Can't update fixed gas price while automatic gas calibration is enabled.";
+                Err(error_msg)
+            }
+        }
+    }
 }

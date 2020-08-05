@@ -16,40 +16,38 @@
 
 //! State diff module.
 
-use std::fmt;
-use std::ops::*;
-use std::collections::BTreeMap;
-use ethereum_types::Address;
 use account_diff::*;
+use ethereum_types::Address;
+use std::{collections::BTreeMap, fmt, ops::*};
 
 /// Expression for the delta between two system states. Encoded the
 /// delta of every altered account.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct StateDiff {
-	/// Raw diff key-value
-	pub raw: BTreeMap<Address, AccountDiff>
+    /// Raw diff key-value
+    pub raw: BTreeMap<Address, AccountDiff>,
 }
 
 impl StateDiff {
-	/// Get the actual data.
-	pub fn get(&self) -> &BTreeMap<Address, AccountDiff> {
-		&self.raw
-	}
+    /// Get the actual data.
+    pub fn get(&self) -> &BTreeMap<Address, AccountDiff> {
+        &self.raw
+    }
 }
 
 impl fmt::Display for StateDiff {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		for (add, acc) in &self.raw {
-			write!(f, "{} {}: {}", acc.existance(), add, acc)?;
-		}
-		Ok(())
-	}
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        for (add, acc) in &self.raw {
+            write!(f, "{} {}: {}", acc.existance(), add, acc)?;
+        }
+        Ok(())
+    }
 }
 
 impl Deref for StateDiff {
-	type Target = BTreeMap<Address, AccountDiff>;
+    type Target = BTreeMap<Address, AccountDiff>;
 
-	fn deref(&self) -> &Self::Target {
-		&self.raw
-	}
+    fn deref(&self) -> &Self::Target {
+        &self.raw
+    }
 }

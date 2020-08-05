@@ -20,71 +20,89 @@
 /// applications about how to utilize the RPC.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct NodeKind {
-	/// The capability of the node.
-	pub capability: Capability,
-	/// Who the node is available to.
-	pub availability: Availability,
+    /// The capability of the node.
+    pub capability: Capability,
+    /// Who the node is available to.
+    pub availability: Availability,
 }
 
 /// Who the node is available to.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum Availability {
-	/// A personal node, not intended to be available to everyone.
-	Personal,
-	/// A public, open node.
-	Public,
+    /// A personal node, not intended to be available to everyone.
+    Personal,
+    /// A public, open node.
+    Public,
 }
 
 /// The capability of the node.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum Capability {
-	/// A full node stores the full state and fully enacts incoming blocks.
-	Full,
-	/// A light node does a minimal header sync and fetches data as needed
-	/// from the network.
-	Light,
+    /// A full node stores the full state and fully enacts incoming blocks.
+    Full,
+    /// A light node does a minimal header sync and fetches data as needed
+    /// from the network.
+    Light,
 }
 
 #[cfg(test)]
 mod tests {
-	use super::{NodeKind, Availability, Capability};
-	use serde_json;
+    use super::{Availability, Capability, NodeKind};
+    use serde_json;
 
-	#[test]
-	fn availability() {
-		let personal = r#""personal""#;
-		let public = r#""public""#;
+    #[test]
+    fn availability() {
+        let personal = r#""personal""#;
+        let public = r#""public""#;
 
-		assert_eq!(serde_json::to_string(&Availability::Personal).unwrap(), personal);
-		assert_eq!(serde_json::to_string(&Availability::Public).unwrap(), public);
+        assert_eq!(
+            serde_json::to_string(&Availability::Personal).unwrap(),
+            personal
+        );
+        assert_eq!(
+            serde_json::to_string(&Availability::Public).unwrap(),
+            public
+        );
 
-		assert_eq!(serde_json::from_str::<Availability>(personal).unwrap(), Availability::Personal);
-		assert_eq!(serde_json::from_str::<Availability>(public).unwrap(), Availability::Public);
-	}
+        assert_eq!(
+            serde_json::from_str::<Availability>(personal).unwrap(),
+            Availability::Personal
+        );
+        assert_eq!(
+            serde_json::from_str::<Availability>(public).unwrap(),
+            Availability::Public
+        );
+    }
 
-	#[test]
-	fn capability() {
-		let light = r#""light""#;
-		let full = r#""full""#;
+    #[test]
+    fn capability() {
+        let light = r#""light""#;
+        let full = r#""full""#;
 
-		assert_eq!(serde_json::to_string(&Capability::Light).unwrap(), light);
-		assert_eq!(serde_json::to_string(&Capability::Full).unwrap(), full);
+        assert_eq!(serde_json::to_string(&Capability::Light).unwrap(), light);
+        assert_eq!(serde_json::to_string(&Capability::Full).unwrap(), full);
 
-		assert_eq!(serde_json::from_str::<Capability>(light).unwrap(), Capability::Light);
-		assert_eq!(serde_json::from_str::<Capability>(full).unwrap(), Capability::Full);
-	}
+        assert_eq!(
+            serde_json::from_str::<Capability>(light).unwrap(),
+            Capability::Light
+        );
+        assert_eq!(
+            serde_json::from_str::<Capability>(full).unwrap(),
+            Capability::Full
+        );
+    }
 
-	#[test]
-	fn node_kind() {
-		let kind = NodeKind {
-			capability: Capability::Full,
-			availability: Availability::Public,
-		};
-		let s = r#"{"capability":"full","availability":"public"}"#;
+    #[test]
+    fn node_kind() {
+        let kind = NodeKind {
+            capability: Capability::Full,
+            availability: Availability::Public,
+        };
+        let s = r#"{"capability":"full","availability":"public"}"#;
 
-		assert_eq!(serde_json::to_string(&kind).unwrap(), s);
-		assert_eq!(serde_json::from_str::<NodeKind>(s).unwrap(), kind);
-	}
+        assert_eq!(serde_json::to_string(&kind).unwrap(), s);
+        assert_eq!(serde_json::from_str::<NodeKind>(s).unwrap(), kind);
+    }
 }

@@ -61,11 +61,9 @@ extern crate jsonrpc_ipc_server as ipc;
 extern crate jsonrpc_pubsub;
 
 extern crate common_types as types;
+extern crate eip_712;
 extern crate ethash;
 extern crate ethcore;
-extern crate fastmap;
-extern crate parity_bytes as bytes;
-extern crate parity_crypto as crypto;
 extern crate ethcore_light as light;
 extern crate ethcore_logger;
 extern crate ethcore_miner as miner;
@@ -75,12 +73,14 @@ extern crate ethcore_sync as sync;
 extern crate ethereum_types;
 extern crate ethkey;
 extern crate ethstore;
+extern crate fastmap;
 extern crate fetch;
 extern crate keccak_hash as hash;
+extern crate parity_bytes as bytes;
+extern crate parity_crypto as crypto;
 extern crate parity_runtime;
 extern crate parity_updater as updater;
 extern crate parity_version as version;
-extern crate eip_712;
 extern crate rlp;
 extern crate stats;
 extern crate tempdir;
@@ -124,20 +124,24 @@ pub mod v1;
 
 pub mod tests;
 
-pub use jsonrpc_core::{FutureOutput, FutureResult, FutureResponse, FutureRpcResult};
-pub use jsonrpc_pubsub::Session as PubSubSession;
-pub use ipc::{Server as IpcServer, MetaExtractor as IpcMetaExtractor, RequestContext as IpcRequestContext};
 pub use http::{
-	hyper,
-	RequestMiddleware, RequestMiddlewareAction,
-	AccessControlAllowOrigin, Host, DomainsValidation, cors::AccessControlAllowHeaders
+    cors::AccessControlAllowHeaders, hyper, AccessControlAllowOrigin, DomainsValidation, Host,
+    RequestMiddleware, RequestMiddlewareAction,
 };
+pub use ipc::{
+    MetaExtractor as IpcMetaExtractor, RequestContext as IpcRequestContext, Server as IpcServer,
+};
+pub use jsonrpc_core::{FutureOutput, FutureResponse, FutureResult, FutureRpcResult};
+pub use jsonrpc_pubsub::Session as PubSubSession;
 
-pub use v1::{NetworkSettings, Metadata, Origin, informant, dispatch, signer};
-pub use v1::block_import::{is_major_importing, is_major_importing_or_waiting};
-pub use v1::extractors::{RpcExtractor, WsExtractor, WsStats, WsDispatcher};
 pub use authcodes::{AuthCodes, TimeProvider};
 pub use http_common::HttpMetaExtractor;
+pub use v1::{
+    block_import::{is_major_importing, is_major_importing_or_waiting},
+    dispatch,
+    extractors::{RpcExtractor, WsDispatcher, WsExtractor, WsStats},
+    informant, signer, Metadata, NetworkSettings, Origin,
+};
 
 use std::net::SocketAddr;
 
@@ -146,101 +150,100 @@ pub type HttpServer = http::Server;
 
 /// Start http server asynchronously and returns result with `Server` handle on success or an error.
 pub fn start_http<M, S, H, T>(
-	addr: &SocketAddr,
-	cors_domains: http::DomainsValidation<http::AccessControlAllowOrigin>,
-	allowed_hosts: http::DomainsValidation<http::Host>,
-	handler: H,
-	extractor: T,
-	threads: usize,
-	max_payload: usize,
-	keep_alive: bool,
-) -> ::std::io::Result<HttpServer> where
-	M: jsonrpc_core::Metadata,
-	S: jsonrpc_core::Middleware<M>,
-	H: Into<jsonrpc_core::MetaIoHandler<M, S>>,
-	T: HttpMetaExtractor<Metadata=M>,
+    addr: &SocketAddr,
+    cors_domains: http::DomainsValidation<http::AccessControlAllowOrigin>,
+    allowed_hosts: http::DomainsValidation<http::Host>,
+    handler: H,
+    extractor: T,
+    threads: usize,
+    max_payload: usize,
+    keep_alive: bool,
+) -> ::std::io::Result<HttpServer>
+where
+    M: jsonrpc_core::Metadata,
+    S: jsonrpc_core::Middleware<M>,
+    H: Into<jsonrpc_core::MetaIoHandler<M, S>>,
+    T: HttpMetaExtractor<Metadata = M>,
 {
-	let extractor = http_common::MetaExtractor::new(extractor);
-	Ok(http::ServerBuilder::with_meta_extractor(handler, extractor)
-		.keep_alive(keep_alive)
-		.threads(threads)
-		.cors(cors_domains)
-		.allowed_hosts(allowed_hosts)
-		.health_api(("/api/health", "parity_nodeStatus"))
-		.cors_allow_headers(AccessControlAllowHeaders::Any)
-		.max_request_body_size(max_payload * 1024 * 1024)
-		.start_http(addr)?)
+    let extractor = http_common::MetaExtractor::new(extractor);
+    Ok(http::ServerBuilder::with_meta_extractor(handler, extractor)
+        .keep_alive(keep_alive)
+        .threads(threads)
+        .cors(cors_domains)
+        .allowed_hosts(allowed_hosts)
+        .health_api(("/api/health", "parity_nodeStatus"))
+        .cors_allow_headers(AccessControlAllowHeaders::Any)
+        .max_request_body_size(max_payload * 1024 * 1024)
+        .start_http(addr)?)
 }
 
 /// Same as `start_http`, but takes an additional `middleware` parameter that is introduced as a
 /// hyper middleware.
 pub fn start_http_with_middleware<M, S, H, T, R>(
-	addr: &SocketAddr,
-	cors_domains: http::DomainsValidation<http::AccessControlAllowOrigin>,
-	allowed_hosts: http::DomainsValidation<http::Host>,
-	handler: H,
-	extractor: T,
-	middleware: R,
-	threads: usize,
-	max_payload: usize,
-	keep_alive: bool,
-) -> ::std::io::Result<HttpServer> where
-	M: jsonrpc_core::Metadata,
-	S: jsonrpc_core::Middleware<M>,
-	H: Into<jsonrpc_core::MetaIoHandler<M, S>>,
-	T: HttpMetaExtractor<Metadata=M>,
-	R: RequestMiddleware,
+    addr: &SocketAddr,
+    cors_domains: http::DomainsValidation<http::AccessControlAllowOrigin>,
+    allowed_hosts: http::DomainsValidation<http::Host>,
+    handler: H,
+    extractor: T,
+    middleware: R,
+    threads: usize,
+    max_payload: usize,
+    keep_alive: bool,
+) -> ::std::io::Result<HttpServer>
+where
+    M: jsonrpc_core::Metadata,
+    S: jsonrpc_core::Middleware<M>,
+    H: Into<jsonrpc_core::MetaIoHandler<M, S>>,
+    T: HttpMetaExtractor<Metadata = M>,
+    R: RequestMiddleware,
 {
-	let extractor = http_common::MetaExtractor::new(extractor);
-	Ok(http::ServerBuilder::with_meta_extractor(handler, extractor)
-		.keep_alive(keep_alive)
-		.threads(threads)
-		.cors(cors_domains)
-		.allowed_hosts(allowed_hosts)
-		.cors_allow_headers(AccessControlAllowHeaders::Any)
-		.max_request_body_size(max_payload * 1024 * 1024)
-		.request_middleware(middleware)
-		.start_http(addr)?)
+    let extractor = http_common::MetaExtractor::new(extractor);
+    Ok(http::ServerBuilder::with_meta_extractor(handler, extractor)
+        .keep_alive(keep_alive)
+        .threads(threads)
+        .cors(cors_domains)
+        .allowed_hosts(allowed_hosts)
+        .cors_allow_headers(AccessControlAllowHeaders::Any)
+        .max_request_body_size(max_payload * 1024 * 1024)
+        .request_middleware(middleware)
+        .start_http(addr)?)
 }
 
 /// Start ipc server asynchronously and returns result with `Server` handle on success or an error.
-pub fn start_ipc<M, S, H, T>(
-	addr: &str,
-	handler: H,
-	extractor: T,
-) -> ::std::io::Result<ipc::Server> where
-	M: jsonrpc_core::Metadata,
-	S: jsonrpc_core::Middleware<M>,
-	H: Into<jsonrpc_core::MetaIoHandler<M, S>>,
-	T: IpcMetaExtractor<M>,
+pub fn start_ipc<M, S, H, T>(addr: &str, handler: H, extractor: T) -> ::std::io::Result<ipc::Server>
+where
+    M: jsonrpc_core::Metadata,
+    S: jsonrpc_core::Middleware<M>,
+    H: Into<jsonrpc_core::MetaIoHandler<M, S>>,
+    T: IpcMetaExtractor<M>,
 {
-	ipc::ServerBuilder::with_meta_extractor(handler, extractor)
-		.start(addr)
+    ipc::ServerBuilder::with_meta_extractor(handler, extractor).start(addr)
 }
 
 /// Start WS server and return `Server` handle.
 pub fn start_ws<M, S, H, T, U, V>(
-	addr: &SocketAddr,
-	handler: H,
-	allowed_origins: ws::DomainsValidation<ws::Origin>,
-	allowed_hosts: ws::DomainsValidation<ws::Host>,
-	max_connections: usize,
-	extractor: T,
-	middleware: V,
-	stats: U,
-) -> Result<ws::Server, ws::Error> where
-	M: jsonrpc_core::Metadata,
-	S: jsonrpc_core::Middleware<M>,
-	H: Into<jsonrpc_core::MetaIoHandler<M, S>>,
-	T: ws::MetaExtractor<M>,
-	U: ws::SessionStats,
-	V: ws::RequestMiddleware,
+    addr: &SocketAddr,
+    handler: H,
+    allowed_origins: ws::DomainsValidation<ws::Origin>,
+    allowed_hosts: ws::DomainsValidation<ws::Host>,
+    max_connections: usize,
+    extractor: T,
+    middleware: V,
+    stats: U,
+) -> Result<ws::Server, ws::Error>
+where
+    M: jsonrpc_core::Metadata,
+    S: jsonrpc_core::Middleware<M>,
+    H: Into<jsonrpc_core::MetaIoHandler<M, S>>,
+    T: ws::MetaExtractor<M>,
+    U: ws::SessionStats,
+    V: ws::RequestMiddleware,
 {
-	ws::ServerBuilder::with_meta_extractor(handler, extractor)
-		.request_middleware(middleware)
-		.allowed_origins(allowed_origins)
-		.allowed_hosts(allowed_hosts)
-		.max_connections(max_connections)
-		.session_stats(stats)
-		.start(addr)
+    ws::ServerBuilder::with_meta_extractor(handler, extractor)
+        .request_middleware(middleware)
+        .allowed_origins(allowed_origins)
+        .allowed_hosts(allowed_hosts)
+        .max_connections(max_connections)
+        .session_stats(stats)
+        .start(addr)
 }

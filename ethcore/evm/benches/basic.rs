@@ -20,140 +20,140 @@
 extern crate criterion;
 extern crate bit_set;
 extern crate ethereum_types;
-extern crate parking_lot;
-extern crate heapsize;
-extern crate vm;
 extern crate evm;
+extern crate heapsize;
 extern crate keccak_hash as hash;
 extern crate memory_cache;
 extern crate parity_bytes as bytes;
+extern crate parking_lot;
 extern crate rustc_hex;
+extern crate vm;
 
-use criterion::{Criterion, Bencher, black_box};
-use std::str::FromStr;
-use std::sync::Arc;
-use ethereum_types::{U256, Address};
-use vm::{ActionParams, Result, GasLeft, Ext};
-use vm::tests::FakeExt;
+use criterion::{black_box, Bencher, Criterion};
+use ethereum_types::{Address, U256};
 use evm::Factory;
 use rustc_hex::FromHex;
+use std::{str::FromStr, sync::Arc};
+use vm::{tests::FakeExt, ActionParams, Ext, GasLeft, Result};
 
 criterion_group!(
-	basic,
-	simple_loop_log0_usize,
-	simple_loop_log0_u256,
-	mem_gas_calculation_same_usize,
-	mem_gas_calculation_same_u256,
-	mem_gas_calculation_increasing_usize,
-	mem_gas_calculation_increasing_u256,
-	blockhash_mulmod_small,
-	blockhash_mulmod_large,
+    basic,
+    simple_loop_log0_usize,
+    simple_loop_log0_u256,
+    mem_gas_calculation_same_usize,
+    mem_gas_calculation_same_u256,
+    mem_gas_calculation_increasing_usize,
+    mem_gas_calculation_increasing_u256,
+    blockhash_mulmod_small,
+    blockhash_mulmod_large,
 );
 criterion_main!(basic);
 
 fn simple_loop_log0_usize(b: &mut Criterion) {
-	b.bench_function("simple_loop_log0_usize", |b| {
-		simple_loop_log0(U256::from(::std::usize::MAX), b);
-	});
+    b.bench_function("simple_loop_log0_usize", |b| {
+        simple_loop_log0(U256::from(::std::usize::MAX), b);
+    });
 }
 
 fn simple_loop_log0_u256(b: &mut Criterion) {
-	b.bench_function("simple_loop_log0_u256", |b| {
-		simple_loop_log0(!U256::zero(), b);
-	});
+    b.bench_function("simple_loop_log0_u256", |b| {
+        simple_loop_log0(!U256::zero(), b);
+    });
 }
 
 fn simple_loop_log0(gas: U256, b: &mut Bencher) {
-	let factory = Factory::default();
-	let mut ext = FakeExt::new();
+    let factory = Factory::default();
+    let mut ext = FakeExt::new();
 
-	let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
-	let code = black_box(
-		"62ffffff5b600190036000600fa0600357".from_hex().unwrap()
-	);
+    let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
+    let code = black_box("62ffffff5b600190036000600fa0600357".from_hex().unwrap());
 
-	b.iter(|| {
-		let mut params = ActionParams::default();
-		params.address = address.clone();
-		params.gas = gas;
-		params.code = Some(Arc::new(code.clone()));
+    b.iter(|| {
+        let mut params = ActionParams::default();
+        params.address = address.clone();
+        params.gas = gas;
+        params.code = Some(Arc::new(code.clone()));
 
-		let vm = factory.create(params, ext.schedule(), 0);
+        let vm = factory.create(params, ext.schedule(), 0);
 
-		result(vm.exec(&mut ext).ok().unwrap())
-	});
+        result(vm.exec(&mut ext).ok().unwrap())
+    });
 }
 
 fn mem_gas_calculation_same_usize(b: &mut Criterion) {
-	b.bench_function("mem_gas_calculation_same_usize", |b| {
-		mem_gas_calculation_same(U256::from(::std::usize::MAX), b);
-	});
+    b.bench_function("mem_gas_calculation_same_usize", |b| {
+        mem_gas_calculation_same(U256::from(::std::usize::MAX), b);
+    });
 }
 
 fn mem_gas_calculation_same_u256(b: &mut Criterion) {
-	b.bench_function("mem_gas_calculation_same_u256", |b| {
-		mem_gas_calculation_same(!U256::zero(), b);
-	});
+    b.bench_function("mem_gas_calculation_same_u256", |b| {
+        mem_gas_calculation_same(!U256::zero(), b);
+    });
 }
 
 fn mem_gas_calculation_same(gas: U256, b: &mut Bencher) {
-	let factory = Factory::default();
-	let mut ext = FakeExt::new();
+    let factory = Factory::default();
+    let mut ext = FakeExt::new();
 
-	let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
+    let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
 
-	b.iter(|| {
-		let code = black_box(
-			"6110006001556001546000555b610fff805560016000540380600055600c57".from_hex().unwrap()
-		);
+    b.iter(|| {
+        let code = black_box(
+            "6110006001556001546000555b610fff805560016000540380600055600c57"
+                .from_hex()
+                .unwrap(),
+        );
 
-		let mut params = ActionParams::default();
-		params.address = address.clone();
-		params.gas = gas;
-		params.code = Some(Arc::new(code.clone()));
+        let mut params = ActionParams::default();
+        params.address = address.clone();
+        params.gas = gas;
+        params.code = Some(Arc::new(code.clone()));
 
-		let vm = factory.create(params, ext.schedule(), 0);
+        let vm = factory.create(params, ext.schedule(), 0);
 
-		result(vm.exec(&mut ext).ok().unwrap())
-	});
+        result(vm.exec(&mut ext).ok().unwrap())
+    });
 }
 
 fn mem_gas_calculation_increasing_usize(b: &mut Criterion) {
-	b.bench_function("mem_gas_calculation_increasing_usize", |b| {
-		mem_gas_calculation_increasing(U256::from(::std::usize::MAX), b);
-	});
+    b.bench_function("mem_gas_calculation_increasing_usize", |b| {
+        mem_gas_calculation_increasing(U256::from(::std::usize::MAX), b);
+    });
 }
 
 fn mem_gas_calculation_increasing_u256(b: &mut Criterion) {
-	b.bench_function("mem_gas_calculation_increasing_u256", |b| {
-		mem_gas_calculation_increasing(!U256::zero(), b);
-	});
+    b.bench_function("mem_gas_calculation_increasing_u256", |b| {
+        mem_gas_calculation_increasing(!U256::zero(), b);
+    });
 }
 
 fn mem_gas_calculation_increasing(gas: U256, b: &mut Bencher) {
-	let factory = Factory::default();
-	let mut ext = FakeExt::new();
+    let factory = Factory::default();
+    let mut ext = FakeExt::new();
 
-	let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
+    let address = Address::from_str("0f572e5295c57f15886f9b263e2f6d2d6c7b5ec6").unwrap();
 
-	b.iter(|| {
-		let code = black_box(
-			"6110006001556001546000555b610fff60005401805560016000540380600055600c57".from_hex().unwrap()
-		);
+    b.iter(|| {
+        let code = black_box(
+            "6110006001556001546000555b610fff60005401805560016000540380600055600c57"
+                .from_hex()
+                .unwrap(),
+        );
 
-		let mut params = ActionParams::default();
-		params.address = address.clone();
-		params.gas = gas;
-		params.code = Some(Arc::new(code.clone()));
+        let mut params = ActionParams::default();
+        params.address = address.clone();
+        params.gas = gas;
+        params.code = Some(Arc::new(code.clone()));
 
-		let vm = factory.create(params, ext.schedule(), 0);
+        let vm = factory.create(params, ext.schedule(), 0);
 
-		result(vm.exec(&mut ext).ok().unwrap())
-	});
+        result(vm.exec(&mut ext).ok().unwrap())
+    });
 }
 
 fn blockhash_mulmod_small(b: &mut Criterion) {
-	b.bench_function("blockhash_mulmod_small", |b| {
+    b.bench_function("blockhash_mulmod_small", |b| {
 		let factory = Factory::default();
 		let mut ext = FakeExt::new();
 
@@ -177,7 +177,7 @@ fn blockhash_mulmod_small(b: &mut Criterion) {
 }
 
 fn blockhash_mulmod_large(b: &mut Criterion) {
-	b.bench_function("blockhash_mulmod_large", |b| {
+    b.bench_function("blockhash_mulmod_large", |b| {
 		let factory = Factory::default();
 		let mut ext = FakeExt::new();
 
@@ -201,9 +201,9 @@ fn blockhash_mulmod_large(b: &mut Criterion) {
 }
 
 fn result(r: Result<evm::GasLeft>) -> U256 {
-	match r {
-		Ok(GasLeft::Known(gas_left)) => gas_left,
-		Ok(GasLeft::NeedsReturn { gas_left,  .. }) => gas_left,
-		_ => U256::zero(),
-	}
+    match r {
+        Ok(GasLeft::Known(gas_left)) => gas_left,
+        Ok(GasLeft::NeedsReturn { gas_left, .. }) => gas_left,
+        _ => U256::zero(),
+    }
 }

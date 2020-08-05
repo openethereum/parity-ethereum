@@ -37,7 +37,7 @@ impl FromStr for DataFormat {
         match s {
             "binary" | "bin" => Ok(DataFormat::Binary),
             "hex" => Ok(DataFormat::Hex),
-            x => Err(format!("Invalid format: {}", x))
+            x => Err(format!("Invalid format: {}", x)),
         }
     }
 }

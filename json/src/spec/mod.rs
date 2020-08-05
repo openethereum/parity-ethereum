@@ -17,35 +17,37 @@
 //! Spec deserialization.
 
 pub mod account;
-pub mod builtin;
-pub mod genesis;
-pub mod params;
-pub mod spec;
-pub mod seal;
-pub mod engine;
-pub mod state;
-pub mod ethash;
-pub mod validator_set;
-pub mod basic_authority;
 pub mod authority_round;
-pub mod null_engine;
-pub mod instant_seal;
-pub mod hardcoded_sync;
+pub mod basic_authority;
+pub mod builtin;
 pub mod clique;
+pub mod engine;
+pub mod ethash;
+pub mod genesis;
+pub mod hardcoded_sync;
+pub mod instant_seal;
+pub mod null_engine;
+pub mod params;
+pub mod seal;
+pub mod spec;
+pub mod state;
+pub mod validator_set;
 
-pub use self::account::Account;
-pub use self::builtin::{Builtin, Pricing, Linear};
-pub use self::genesis::Genesis;
-pub use self::params::Params;
-pub use self::spec::{Spec, ForkSpec};
-pub use self::seal::{Seal, Ethereum, AuthorityRoundSeal, TendermintSeal};
-pub use self::engine::Engine;
-pub use self::state::State;
-pub use self::ethash::{Ethash, EthashParams, BlockReward};
-pub use self::validator_set::ValidatorSet;
-pub use self::basic_authority::{BasicAuthority, BasicAuthorityParams};
-pub use self::authority_round::{AuthorityRound, AuthorityRoundParams};
-pub use self::clique::{Clique, CliqueParams};
-pub use self::null_engine::{NullEngine, NullEngineParams};
-pub use self::instant_seal::{InstantSeal, InstantSealParams};
-pub use self::hardcoded_sync::HardcodedSync;
+pub use self::{
+    account::Account,
+    authority_round::{AuthorityRound, AuthorityRoundParams},
+    basic_authority::{BasicAuthority, BasicAuthorityParams},
+    builtin::{Builtin, Linear, Pricing},
+    clique::{Clique, CliqueParams},
+    engine::Engine,
+    ethash::{BlockReward, Ethash, EthashParams},
+    genesis::Genesis,
+    hardcoded_sync::HardcodedSync,
+    instant_seal::{InstantSeal, InstantSealParams},
+    null_engine::{NullEngine, NullEngineParams},
+    params::Params,
+    seal::{AuthorityRoundSeal, Ethereum, Seal, TendermintSeal},
+    spec::{ForkSpec, Spec},
+    state::State,
+    validator_set::ValidatorSet,
+};

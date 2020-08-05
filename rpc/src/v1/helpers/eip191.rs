@@ -15,47 +15,46 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! EIP-191 compliant decoding + hashing
-use v1::types::{EIP191Version, Bytes, PresignedTransaction};
 use eip_712::{hash_structured_data, EIP712};
-use serde_json::{Value, from_value};
-use v1::helpers::errors;
-use jsonrpc_core::Error;
-use v1::helpers::dispatch::eth_data_hash;
-use hash::keccak;
-use std::fmt::Display;
 use ethereum_types::H256;
+use hash::keccak;
+use jsonrpc_core::Error;
+use serde_json::{from_value, Value};
+use std::fmt::Display;
+use v1::{
+    helpers::{dispatch::eth_data_hash, errors},
+    types::{Bytes, EIP191Version, PresignedTransaction},
+};
 
 /// deserializes and hashes the message depending on the version specifier
 pub fn hash_message(version: EIP191Version, message: Value) -> Result<H256, Error> {
-	let data = match version {
-		EIP191Version::StructuredData => {
-			let typed_data = from_value::<EIP712>(message)
-				.map_err(map_serde_err("StructuredData"))?;
+    let data = match version {
+        EIP191Version::StructuredData => {
+            let typed_data =
+                from_value::<EIP712>(message).map_err(map_serde_err("StructuredData"))?;
 
-			hash_structured_data(typed_data)
-				.map_err(|err| errors::invalid_call_data(err.kind()))?
-		}
+            hash_structured_data(typed_data).map_err(|err| errors::invalid_call_data(err.kind()))?
+        }
 
-		EIP191Version::PresignedTransaction => {
-			let data = from_value::<PresignedTransaction>(message)
-				.map_err(map_serde_err("WithValidator"))?;
-			let prefix = b"\x19\x00";
-			let data = [&prefix[..], &data.validator.0[..], &data.data.0[..]].concat();
-			keccak(data)
-		}
+        EIP191Version::PresignedTransaction => {
+            let data = from_value::<PresignedTransaction>(message)
+                .map_err(map_serde_err("WithValidator"))?;
+            let prefix = b"\x19\x00";
+            let data = [&prefix[..], &data.validator.0[..], &data.data.0[..]].concat();
+            keccak(data)
+        }
 
-		EIP191Version::PersonalMessage => {
-			let bytes = from_value::<Bytes>(message)
-				.map_err(map_serde_err("Bytes"))?;
-			eth_data_hash(bytes.0)
-		}
-	};
+        EIP191Version::PersonalMessage => {
+            let bytes = from_value::<Bytes>(message).map_err(map_serde_err("Bytes"))?;
+            eth_data_hash(bytes.0)
+        }
+    };
 
-	Ok(data)
+    Ok(data)
 }
 
 fn map_serde_err<T: Display>(struct_name: &'static str) -> impl Fn(T) -> Error {
-	move |error: T| {
-		errors::invalid_call_data(format!("Error deserializing '{}': {}", struct_name, error))
-	}
+    move |error: T| {
+        errors::invalid_call_data(format!("Error deserializing '{}': {}", struct_name, error))
+    }
 }

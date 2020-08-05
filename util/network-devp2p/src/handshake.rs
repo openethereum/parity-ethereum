@@ -14,61 +14,63 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::time::Duration;
-use rand::random;
-use hash::write_keccak;
-use mio::tcp::*;
-use ethereum_types::{H256, H520};
-use parity_bytes::Bytes;
-use rlp::{Rlp, RlpStream};
 use connection::Connection;
-use node_table::NodeId;
-use io::{IoContext, StreamToken};
-use ethkey::{KeyPair, Public, Secret, recover, sign, Generator, Random};
-use ethkey::crypto::{ecdh, ecies};
-use network::{Error, ErrorKind};
+use ethereum_types::{H256, H520};
+use ethkey::{
+    crypto::{ecdh, ecies},
+    recover, sign, Generator, KeyPair, Public, Random, Secret,
+};
+use hash::write_keccak;
 use host::HostInfo;
+use io::{IoContext, StreamToken};
+use mio::tcp::*;
+use network::{Error, ErrorKind};
+use node_table::NodeId;
+use parity_bytes::Bytes;
+use rand::random;
+use rlp::{Rlp, RlpStream};
+use std::time::Duration;
 
 #[derive(PartialEq, Eq, Debug)]
 enum HandshakeState {
-	/// Just created
-	New,
-	/// Waiting for auth packet
-	ReadingAuth,
-	/// Waiting for extended auth packet
-	ReadingAuthEip8,
-	/// Waiting for ack packet
-	ReadingAck,
-	/// Waiting for extended ack packet
-	ReadingAckEip8,
-	/// Ready to start a session
-	StartSession,
+    /// Just created
+    New,
+    /// Waiting for auth packet
+    ReadingAuth,
+    /// Waiting for extended auth packet
+    ReadingAuthEip8,
+    /// Waiting for ack packet
+    ReadingAck,
+    /// Waiting for extended ack packet
+    ReadingAckEip8,
+    /// Ready to start a session
+    StartSession,
 }
 
 /// `RLPx` protocol handshake. See https://github.com/ethereum/devp2p/blob/master/rlpx.md#encrypted-handshake
 pub struct Handshake {
-	/// Remote node public key
-	pub id: NodeId,
-	/// Underlying connection
-	pub connection: Connection,
-	/// Handshake state
-	state: HandshakeState,
-	/// Outgoing or incoming connection
-	pub originated: bool,
-	/// ECDH ephemeral
-	pub ecdhe: KeyPair,
-	/// Connection nonce
-	pub nonce: H256,
-	/// Handshake public key
-	pub remote_ephemeral: Public,
-	/// Remote connection nonce.
-	pub remote_nonce: H256,
-	/// Remote `RLPx` protocol version.
-	pub remote_version: u64,
-	/// A copy of received encrypted auth packet
-	pub auth_cipher: Bytes,
-	/// A copy of received encrypted ack packet
-	pub ack_cipher: Bytes,
+    /// Remote node public key
+    pub id: NodeId,
+    /// Underlying connection
+    pub connection: Connection,
+    /// Handshake state
+    state: HandshakeState,
+    /// Outgoing or incoming connection
+    pub originated: bool,
+    /// ECDH ephemeral
+    pub ecdhe: KeyPair,
+    /// Connection nonce
+    pub nonce: H256,
+    /// Handshake public key
+    pub remote_ephemeral: Public,
+    /// Remote connection nonce.
+    pub remote_nonce: H256,
+    /// Remote `RLPx` protocol version.
+    pub remote_version: u64,
+    /// A copy of received encrypted auth packet
+    pub auth_cipher: Bytes,
+    /// A copy of received encrypted ack packet
+    pub ack_cipher: Bytes,
 }
 
 const V4_AUTH_PACKET_SIZE: usize = 307;
@@ -79,281 +81,358 @@ const PROTOCOL_VERSION: u64 = 4;
 const ECIES_OVERHEAD: usize = 113;
 
 impl Handshake {
-	/// Create a new handshake object
-	pub fn new(token: StreamToken, id: Option<&NodeId>, socket: TcpStream, nonce: &H256) -> Result<Handshake, Error> {
-		Ok(Handshake {
-			id: if let Some(id) = id { *id } else { NodeId::new() },
-			connection: Connection::new(token, socket),
-			originated: false,
-			state: HandshakeState::New,
-			ecdhe: Random.generate()?,
-			nonce: *nonce,
-			remote_ephemeral: Public::new(),
-			remote_nonce: H256::new(),
-			remote_version: PROTOCOL_VERSION,
-			auth_cipher: Bytes::new(),
-			ack_cipher: Bytes::new(),
-		})
-	}
+    /// Create a new handshake object
+    pub fn new(
+        token: StreamToken,
+        id: Option<&NodeId>,
+        socket: TcpStream,
+        nonce: &H256,
+    ) -> Result<Handshake, Error> {
+        Ok(Handshake {
+            id: if let Some(id) = id {
+                *id
+            } else {
+                NodeId::new()
+            },
+            connection: Connection::new(token, socket),
+            originated: false,
+            state: HandshakeState::New,
+            ecdhe: Random.generate()?,
+            nonce: *nonce,
+            remote_ephemeral: Public::new(),
+            remote_nonce: H256::new(),
+            remote_version: PROTOCOL_VERSION,
+            auth_cipher: Bytes::new(),
+            ack_cipher: Bytes::new(),
+        })
+    }
 
-	/// Start a handshake
-	pub fn start<Message>(&mut self, io: &IoContext<Message>, host: &HostInfo, originated: bool) -> Result<(), Error> where Message: Send + Clone+ Sync + 'static {
-		self.originated = originated;
-		io.register_timer(self.connection.token, HANDSHAKE_TIMEOUT).ok();
-		if originated {
-			self.write_auth(io, host.secret(), host.id())?;
-		}
-		else {
-			self.state = HandshakeState::ReadingAuth;
-			self.connection.expect(V4_AUTH_PACKET_SIZE);
-		};
-		Ok(())
-	}
+    /// Start a handshake
+    pub fn start<Message>(
+        &mut self,
+        io: &IoContext<Message>,
+        host: &HostInfo,
+        originated: bool,
+    ) -> Result<(), Error>
+    where
+        Message: Send + Clone + Sync + 'static,
+    {
+        self.originated = originated;
+        io.register_timer(self.connection.token, HANDSHAKE_TIMEOUT)
+            .ok();
+        if originated {
+            self.write_auth(io, host.secret(), host.id())?;
+        } else {
+            self.state = HandshakeState::ReadingAuth;
+            self.connection.expect(V4_AUTH_PACKET_SIZE);
+        };
+        Ok(())
+    }
 
-	/// Check if handshake is complete
-	pub fn done(&self) -> bool {
-		self.state == HandshakeState::StartSession
-	}
+    /// Check if handshake is complete
+    pub fn done(&self) -> bool {
+        self.state == HandshakeState::StartSession
+    }
 
-	/// Readable IO handler. Drives the state change.
-	pub fn readable<Message>(&mut self, io: &IoContext<Message>, host: &HostInfo) -> Result<(), Error> where Message: Send + Clone + Sync + 'static {
-		while let Some(data) = self.connection.readable()? {
-			match self.state {
-				HandshakeState::New => {},
-				HandshakeState::StartSession => {},
-				HandshakeState::ReadingAuth => {
-					self.read_auth(io, host.secret(), &data)?;
-				},
-				HandshakeState::ReadingAuthEip8 => {
-					self.read_auth_eip8(io, host.secret(), &data)?;
-				},
-				HandshakeState::ReadingAck => {
-					self.read_ack(host.secret(), &data)?;
-				},
-				HandshakeState::ReadingAckEip8 => {
-					self.read_ack_eip8(host.secret(), &data)?;
-				},
-			}
-			if self.state == HandshakeState::StartSession {
-				io.clear_timer(self.connection.token).ok();
-				break;
-			}
-		}
-		Ok(())
-	}
+    /// Readable IO handler. Drives the state change.
+    pub fn readable<Message>(
+        &mut self,
+        io: &IoContext<Message>,
+        host: &HostInfo,
+    ) -> Result<(), Error>
+    where
+        Message: Send + Clone + Sync + 'static,
+    {
+        while let Some(data) = self.connection.readable()? {
+            match self.state {
+                HandshakeState::New => {}
+                HandshakeState::StartSession => {}
+                HandshakeState::ReadingAuth => {
+                    self.read_auth(io, host.secret(), &data)?;
+                }
+                HandshakeState::ReadingAuthEip8 => {
+                    self.read_auth_eip8(io, host.secret(), &data)?;
+                }
+                HandshakeState::ReadingAck => {
+                    self.read_ack(host.secret(), &data)?;
+                }
+                HandshakeState::ReadingAckEip8 => {
+                    self.read_ack_eip8(host.secret(), &data)?;
+                }
+            }
+            if self.state == HandshakeState::StartSession {
+                io.clear_timer(self.connection.token).ok();
+                break;
+            }
+        }
+        Ok(())
+    }
 
-	/// Writable IO handler.
-	pub fn writable<Message>(&mut self, io: &IoContext<Message>) -> Result<(), Error> where Message: Send + Clone + Sync + 'static {
-		self.connection.writable(io)?;
-		Ok(())
-	}
+    /// Writable IO handler.
+    pub fn writable<Message>(&mut self, io: &IoContext<Message>) -> Result<(), Error>
+    where
+        Message: Send + Clone + Sync + 'static,
+    {
+        self.connection.writable(io)?;
+        Ok(())
+    }
 
-	fn set_auth(&mut self, host_secret: &Secret, sig: &[u8], remote_public: &[u8], remote_nonce: &[u8], remote_version: u64) -> Result<(), Error> {
-		self.id.clone_from_slice(remote_public);
-		self.remote_nonce.clone_from_slice(remote_nonce);
-		self.remote_version = remote_version;
-		let shared = *ecdh::agree(host_secret, &self.id)?;
-		let signature = H520::from_slice(sig);
-		self.remote_ephemeral = recover(&signature.into(), &(shared ^ self.remote_nonce))?;
-		Ok(())
-	}
+    fn set_auth(
+        &mut self,
+        host_secret: &Secret,
+        sig: &[u8],
+        remote_public: &[u8],
+        remote_nonce: &[u8],
+        remote_version: u64,
+    ) -> Result<(), Error> {
+        self.id.clone_from_slice(remote_public);
+        self.remote_nonce.clone_from_slice(remote_nonce);
+        self.remote_version = remote_version;
+        let shared = *ecdh::agree(host_secret, &self.id)?;
+        let signature = H520::from_slice(sig);
+        self.remote_ephemeral = recover(&signature.into(), &(shared ^ self.remote_nonce))?;
+        Ok(())
+    }
 
-	/// Parse, validate and confirm auth message
-	fn read_auth<Message>(&mut self, io: &IoContext<Message>, secret: &Secret, data: &[u8]) -> Result<(), Error> where Message: Send + Clone + Sync + 'static {
-		trace!(target: "network", "Received handshake auth from {:?}", self.connection.remote_addr_str());
-		if data.len() != V4_AUTH_PACKET_SIZE {
-			debug!(target: "network", "Wrong auth packet size");
-			return Err(ErrorKind::BadProtocol.into());
-		}
-		self.auth_cipher = data.to_vec();
-		match ecies::decrypt(secret, &[], data) {
-			Ok(auth) => {
-				let (sig, rest) = auth.split_at(65);
-				let (_, rest) = rest.split_at(32);
-				let (pubk, rest) = rest.split_at(64);
-				let (nonce, _) = rest.split_at(32);
-				self.set_auth(secret, sig, pubk, nonce, PROTOCOL_VERSION)?;
-				self.write_ack(io)?;
-			}
-			Err(_) => {
-				// Try to interpret as EIP-8 packet
-				let total = ((u16::from(data[0]) << 8 | (u16::from(data[1]))) as usize) + 2;
-				if total < V4_AUTH_PACKET_SIZE {
-					debug!(target: "network", "Wrong EIP8 auth packet size");
-					return Err(ErrorKind::BadProtocol.into());
-				}
-				let rest = total - data.len();
-				self.state = HandshakeState::ReadingAuthEip8;
-				self.connection.expect(rest);
-			}
-		}
-		Ok(())
-	}
+    /// Parse, validate and confirm auth message
+    fn read_auth<Message>(
+        &mut self,
+        io: &IoContext<Message>,
+        secret: &Secret,
+        data: &[u8],
+    ) -> Result<(), Error>
+    where
+        Message: Send + Clone + Sync + 'static,
+    {
+        trace!(target: "network", "Received handshake auth from {:?}", self.connection.remote_addr_str());
+        if data.len() != V4_AUTH_PACKET_SIZE {
+            debug!(target: "network", "Wrong auth packet size");
+            return Err(ErrorKind::BadProtocol.into());
+        }
+        self.auth_cipher = data.to_vec();
+        match ecies::decrypt(secret, &[], data) {
+            Ok(auth) => {
+                let (sig, rest) = auth.split_at(65);
+                let (_, rest) = rest.split_at(32);
+                let (pubk, rest) = rest.split_at(64);
+                let (nonce, _) = rest.split_at(32);
+                self.set_auth(secret, sig, pubk, nonce, PROTOCOL_VERSION)?;
+                self.write_ack(io)?;
+            }
+            Err(_) => {
+                // Try to interpret as EIP-8 packet
+                let total = ((u16::from(data[0]) << 8 | (u16::from(data[1]))) as usize) + 2;
+                if total < V4_AUTH_PACKET_SIZE {
+                    debug!(target: "network", "Wrong EIP8 auth packet size");
+                    return Err(ErrorKind::BadProtocol.into());
+                }
+                let rest = total - data.len();
+                self.state = HandshakeState::ReadingAuthEip8;
+                self.connection.expect(rest);
+            }
+        }
+        Ok(())
+    }
 
-	fn read_auth_eip8<Message>(&mut self, io: &IoContext<Message>, secret: &Secret, data: &[u8]) -> Result<(), Error> where Message: Send + Clone + Sync + 'static {
-		trace!(target: "network", "Received EIP8 handshake auth from {:?}", self.connection.remote_addr_str());
-		self.auth_cipher.extend_from_slice(data);
-		let auth = ecies::decrypt(secret, &self.auth_cipher[0..2], &self.auth_cipher[2..])?;
-		let rlp = Rlp::new(&auth);
-		let signature: H520 = rlp.val_at(0)?;
-		let remote_public: Public = rlp.val_at(1)?;
-		let remote_nonce: H256 = rlp.val_at(2)?;
-		let remote_version: u64 = rlp.val_at(3)?;
-		self.set_auth(secret, &signature, &remote_public, &remote_nonce, remote_version)?;
-		self.write_ack_eip8(io)?;
-		Ok(())
-	}
+    fn read_auth_eip8<Message>(
+        &mut self,
+        io: &IoContext<Message>,
+        secret: &Secret,
+        data: &[u8],
+    ) -> Result<(), Error>
+    where
+        Message: Send + Clone + Sync + 'static,
+    {
+        trace!(target: "network", "Received EIP8 handshake auth from {:?}", self.connection.remote_addr_str());
+        self.auth_cipher.extend_from_slice(data);
+        let auth = ecies::decrypt(secret, &self.auth_cipher[0..2], &self.auth_cipher[2..])?;
+        let rlp = Rlp::new(&auth);
+        let signature: H520 = rlp.val_at(0)?;
+        let remote_public: Public = rlp.val_at(1)?;
+        let remote_nonce: H256 = rlp.val_at(2)?;
+        let remote_version: u64 = rlp.val_at(3)?;
+        self.set_auth(
+            secret,
+            &signature,
+            &remote_public,
+            &remote_nonce,
+            remote_version,
+        )?;
+        self.write_ack_eip8(io)?;
+        Ok(())
+    }
 
-	/// Parse and validate ack message
-	fn read_ack(&mut self, secret: &Secret, data: &[u8]) -> Result<(), Error> {
-		trace!(target: "network", "Received handshake ack from {:?}", self.connection.remote_addr_str());
-		if data.len() != V4_ACK_PACKET_SIZE {
-			debug!(target: "network", "Wrong ack packet size");
-			return Err(ErrorKind::BadProtocol.into());
-		}
-		self.ack_cipher = data.to_vec();
-		match ecies::decrypt(secret, &[], data) {
-			Ok(ack) => {
-				self.remote_ephemeral.clone_from_slice(&ack[0..64]);
-				self.remote_nonce.clone_from_slice(&ack[64..(64+32)]);
-				self.state = HandshakeState::StartSession;
-			}
-			Err(_) => {
-				// Try to interpret as EIP-8 packet
-				let total = (((u16::from(data[0])) << 8 | (u16::from(data[1]))) as usize) + 2;
-				if total < V4_ACK_PACKET_SIZE {
-					debug!(target: "network", "Wrong EIP8 ack packet size");
-					return Err(ErrorKind::BadProtocol.into());
-				}
-				let rest = total - data.len();
-				self.state = HandshakeState::ReadingAckEip8;
-				self.connection.expect(rest);
-			}
-		}
-		Ok(())
-	}
+    /// Parse and validate ack message
+    fn read_ack(&mut self, secret: &Secret, data: &[u8]) -> Result<(), Error> {
+        trace!(target: "network", "Received handshake ack from {:?}", self.connection.remote_addr_str());
+        if data.len() != V4_ACK_PACKET_SIZE {
+            debug!(target: "network", "Wrong ack packet size");
+            return Err(ErrorKind::BadProtocol.into());
+        }
+        self.ack_cipher = data.to_vec();
+        match ecies::decrypt(secret, &[], data) {
+            Ok(ack) => {
+                self.remote_ephemeral.clone_from_slice(&ack[0..64]);
+                self.remote_nonce.clone_from_slice(&ack[64..(64 + 32)]);
+                self.state = HandshakeState::StartSession;
+            }
+            Err(_) => {
+                // Try to interpret as EIP-8 packet
+                let total = (((u16::from(data[0])) << 8 | (u16::from(data[1]))) as usize) + 2;
+                if total < V4_ACK_PACKET_SIZE {
+                    debug!(target: "network", "Wrong EIP8 ack packet size");
+                    return Err(ErrorKind::BadProtocol.into());
+                }
+                let rest = total - data.len();
+                self.state = HandshakeState::ReadingAckEip8;
+                self.connection.expect(rest);
+            }
+        }
+        Ok(())
+    }
 
-	fn read_ack_eip8(&mut self, secret: &Secret, data: &[u8]) -> Result<(), Error> {
-		trace!(target: "network", "Received EIP8 handshake auth from {:?}", self.connection.remote_addr_str());
-		self.ack_cipher.extend_from_slice(data);
-		let ack = ecies::decrypt(secret, &self.ack_cipher[0..2], &self.ack_cipher[2..])?;
-		let rlp = Rlp::new(&ack);
-		self.remote_ephemeral = rlp.val_at(0)?;
-		self.remote_nonce = rlp.val_at(1)?;
-		self.remote_version = rlp.val_at(2)?;
-		self.state = HandshakeState::StartSession;
-		Ok(())
-	}
+    fn read_ack_eip8(&mut self, secret: &Secret, data: &[u8]) -> Result<(), Error> {
+        trace!(target: "network", "Received EIP8 handshake auth from {:?}", self.connection.remote_addr_str());
+        self.ack_cipher.extend_from_slice(data);
+        let ack = ecies::decrypt(secret, &self.ack_cipher[0..2], &self.ack_cipher[2..])?;
+        let rlp = Rlp::new(&ack);
+        self.remote_ephemeral = rlp.val_at(0)?;
+        self.remote_nonce = rlp.val_at(1)?;
+        self.remote_version = rlp.val_at(2)?;
+        self.state = HandshakeState::StartSession;
+        Ok(())
+    }
 
-	/// Sends auth message
-	fn write_auth<Message>(&mut self, io: &IoContext<Message>, secret: &Secret, public: &Public) -> Result<(), Error> where Message: Send + Clone + Sync + 'static {
-		trace!(target: "network", "Sending handshake auth to {:?}", self.connection.remote_addr_str());
-		let mut data = [0u8; /*Signature::SIZE*/ 65 + /*H256::SIZE*/ 32 + /*Public::SIZE*/ 64 + /*H256::SIZE*/ 32 + 1]; //TODO: use associated constants
-		let len = data.len();
-		{
-			data[len - 1] = 0x0;
-			let (sig, rest) = data.split_at_mut(65);
-			let (hepubk, rest) = rest.split_at_mut(32);
-			let (pubk, rest) = rest.split_at_mut(64);
-			let (nonce, _) = rest.split_at_mut(32);
+    /// Sends auth message
+    fn write_auth<Message>(
+        &mut self,
+        io: &IoContext<Message>,
+        secret: &Secret,
+        public: &Public,
+    ) -> Result<(), Error>
+    where
+        Message: Send + Clone + Sync + 'static,
+    {
+        trace!(target: "network", "Sending handshake auth to {:?}", self.connection.remote_addr_str());
+        let mut data = [0u8; /*Signature::SIZE*/ 65 + /*H256::SIZE*/ 32 + /*Public::SIZE*/ 64 + /*H256::SIZE*/ 32 + 1]; //TODO: use associated constants
+        let len = data.len();
+        {
+            data[len - 1] = 0x0;
+            let (sig, rest) = data.split_at_mut(65);
+            let (hepubk, rest) = rest.split_at_mut(32);
+            let (pubk, rest) = rest.split_at_mut(64);
+            let (nonce, _) = rest.split_at_mut(32);
 
-			// E(remote-pubk, S(ecdhe-random, ecdh-shared-secret^nonce) || H(ecdhe-random-pubk) || pubk || nonce || 0x0)
-			let shared = *ecdh::agree(secret, &self.id)?;
-			sig.copy_from_slice(&*sign(self.ecdhe.secret(), &(shared ^ self.nonce))?);
-			write_keccak(self.ecdhe.public(), hepubk);
-			pubk.copy_from_slice(public);
-			nonce.copy_from_slice(&self.nonce);
-		}
-		let message = ecies::encrypt(&self.id, &[], &data)?;
-		self.auth_cipher = message.clone();
-		self.connection.send(io, message);
-		self.connection.expect(V4_ACK_PACKET_SIZE);
-		self.state = HandshakeState::ReadingAck;
-		Ok(())
-	}
+            // E(remote-pubk, S(ecdhe-random, ecdh-shared-secret^nonce) || H(ecdhe-random-pubk) || pubk || nonce || 0x0)
+            let shared = *ecdh::agree(secret, &self.id)?;
+            sig.copy_from_slice(&*sign(self.ecdhe.secret(), &(shared ^ self.nonce))?);
+            write_keccak(self.ecdhe.public(), hepubk);
+            pubk.copy_from_slice(public);
+            nonce.copy_from_slice(&self.nonce);
+        }
+        let message = ecies::encrypt(&self.id, &[], &data)?;
+        self.auth_cipher = message.clone();
+        self.connection.send(io, message);
+        self.connection.expect(V4_ACK_PACKET_SIZE);
+        self.state = HandshakeState::ReadingAck;
+        Ok(())
+    }
 
-	/// Sends ack message
-	fn write_ack<Message>(&mut self, io: &IoContext<Message>) -> Result<(), Error> where Message: Send + Clone + Sync + 'static {
-		trace!(target: "network", "Sending handshake ack to {:?}", self.connection.remote_addr_str());
-		let mut data = [0u8; 1 + /*Public::SIZE*/ 64 + /*H256::SIZE*/ 32]; //TODO: use associated constants
-		let len = data.len();
-		{
-			data[len - 1] = 0x0;
-			let (epubk, rest) = data.split_at_mut(64);
-			let (nonce, _) = rest.split_at_mut(32);
-			self.ecdhe.public().copy_to(epubk);
-			self.nonce.copy_to(nonce);
-		}
-		let message = ecies::encrypt(&self.id, &[], &data)?;
-		self.ack_cipher = message.clone();
-		self.connection.send(io, message);
-		self.state = HandshakeState::StartSession;
-		Ok(())
-	}
+    /// Sends ack message
+    fn write_ack<Message>(&mut self, io: &IoContext<Message>) -> Result<(), Error>
+    where
+        Message: Send + Clone + Sync + 'static,
+    {
+        trace!(target: "network", "Sending handshake ack to {:?}", self.connection.remote_addr_str());
+        let mut data = [0u8; 1 + /*Public::SIZE*/ 64 + /*H256::SIZE*/ 32]; //TODO: use associated constants
+        let len = data.len();
+        {
+            data[len - 1] = 0x0;
+            let (epubk, rest) = data.split_at_mut(64);
+            let (nonce, _) = rest.split_at_mut(32);
+            self.ecdhe.public().copy_to(epubk);
+            self.nonce.copy_to(nonce);
+        }
+        let message = ecies::encrypt(&self.id, &[], &data)?;
+        self.ack_cipher = message.clone();
+        self.connection.send(io, message);
+        self.state = HandshakeState::StartSession;
+        Ok(())
+    }
 
-	/// Sends EIP8 ack message
-	fn write_ack_eip8<Message>(&mut self, io: &IoContext<Message>) -> Result<(), Error> where Message: Send + Clone + Sync + 'static {
-		trace!(target: "network", "Sending EIP8 handshake ack to {:?}", self.connection.remote_addr_str());
-		let mut rlp = RlpStream::new_list(3);
-		rlp.append(self.ecdhe.public());
-		rlp.append(&self.nonce);
-		rlp.append(&PROTOCOL_VERSION);
+    /// Sends EIP8 ack message
+    fn write_ack_eip8<Message>(&mut self, io: &IoContext<Message>) -> Result<(), Error>
+    where
+        Message: Send + Clone + Sync + 'static,
+    {
+        trace!(target: "network", "Sending EIP8 handshake ack to {:?}", self.connection.remote_addr_str());
+        let mut rlp = RlpStream::new_list(3);
+        rlp.append(self.ecdhe.public());
+        rlp.append(&self.nonce);
+        rlp.append(&PROTOCOL_VERSION);
 
-		let pad_array = [0u8; 200];
-		let pad = &pad_array[0 .. 100 + random::<usize>() % 100];
-		rlp.append_raw(pad, 0);
+        let pad_array = [0u8; 200];
+        let pad = &pad_array[0..100 + random::<usize>() % 100];
+        rlp.append_raw(pad, 0);
 
-		let encoded = rlp.drain();
-		let len = (encoded.len() + ECIES_OVERHEAD) as u16;
-		let prefix = [ (len >> 8) as u8, (len & 0xff) as u8 ];
-		let message = ecies::encrypt(&self.id, &prefix, &encoded)?;
-		self.ack_cipher.extend_from_slice(&prefix);
-		self.ack_cipher.extend_from_slice(&message);
-		self.connection.send(io, self.ack_cipher.clone());
-		self.state = HandshakeState::StartSession;
-		Ok(())
-	}
+        let encoded = rlp.drain();
+        let len = (encoded.len() + ECIES_OVERHEAD) as u16;
+        let prefix = [(len >> 8) as u8, (len & 0xff) as u8];
+        let message = ecies::encrypt(&self.id, &prefix, &encoded)?;
+        self.ack_cipher.extend_from_slice(&prefix);
+        self.ack_cipher.extend_from_slice(&message);
+        self.connection.send(io, self.ack_cipher.clone());
+        self.state = HandshakeState::StartSession;
+        Ok(())
+    }
 }
 
 #[cfg(test)]
 mod test {
-	use rustc_hex::FromHex;
-	use super::*;
-	use ethereum_types::H256;
-	use io::*;
-	use mio::tcp::TcpStream;
-	use ethkey::Public;
+    use super::*;
+    use ethereum_types::H256;
+    use ethkey::Public;
+    use io::*;
+    use mio::tcp::TcpStream;
+    use rustc_hex::FromHex;
 
-	fn check_auth(h: &Handshake, version: u64) {
-		assert_eq!(h.id, "fda1cff674c90c9a197539fe3dfb53086ace64f83ed7c6eabec741f7f381cc803e52ab2cd55d5569bce4347107a310dfd5f88a010cd2ffd1005ca406f1842877".into());
-		assert_eq!(h.remote_nonce, "7e968bba13b6c50e2c4cd7f241cc0d64d1ac25c7f5952df231ac6a2bda8ee5d6".into());
-		assert_eq!(h.remote_ephemeral, "654d1044b69c577a44e5f01a1209523adb4026e70c62d1c13a067acabc09d2667a49821a0ad4b634554d330a15a58fe61f8a8e0544b310c6de7b0c8da7528a8d".into());
-		assert_eq!(h.remote_version, version);
-	}
+    fn check_auth(h: &Handshake, version: u64) {
+        assert_eq!(h.id, "fda1cff674c90c9a197539fe3dfb53086ace64f83ed7c6eabec741f7f381cc803e52ab2cd55d5569bce4347107a310dfd5f88a010cd2ffd1005ca406f1842877".into());
+        assert_eq!(
+            h.remote_nonce,
+            "7e968bba13b6c50e2c4cd7f241cc0d64d1ac25c7f5952df231ac6a2bda8ee5d6".into()
+        );
+        assert_eq!(h.remote_ephemeral, "654d1044b69c577a44e5f01a1209523adb4026e70c62d1c13a067acabc09d2667a49821a0ad4b634554d330a15a58fe61f8a8e0544b310c6de7b0c8da7528a8d".into());
+        assert_eq!(h.remote_version, version);
+    }
 
-	fn check_ack(h: &Handshake, version: u64) {
-		assert_eq!(h.remote_nonce, "559aead08264d5795d3909718cdd05abd49572e84fe55590eef31a88a08fdffd".into());
-		assert_eq!(h.remote_ephemeral, "b6d82fa3409da933dbf9cb0140c5dde89f4e64aec88d476af648880f4a10e1e49fe35ef3e69e93dd300b4797765a747c6384a6ecf5db9c2690398607a86181e4".into());
-		assert_eq!(h.remote_version, version);
-	}
+    fn check_ack(h: &Handshake, version: u64) {
+        assert_eq!(
+            h.remote_nonce,
+            "559aead08264d5795d3909718cdd05abd49572e84fe55590eef31a88a08fdffd".into()
+        );
+        assert_eq!(h.remote_ephemeral, "b6d82fa3409da933dbf9cb0140c5dde89f4e64aec88d476af648880f4a10e1e49fe35ef3e69e93dd300b4797765a747c6384a6ecf5db9c2690398607a86181e4".into());
+        assert_eq!(h.remote_version, version);
+    }
 
-	fn create_handshake(to: Option<&Public>) -> Handshake {
-		let addr = "127.0.0.1:50556".parse().unwrap();
-		let socket = TcpStream::connect(&addr).unwrap();
-		let nonce = H256::new();
-		Handshake::new(0, to, socket, &nonce).unwrap()
-	}
+    fn create_handshake(to: Option<&Public>) -> Handshake {
+        let addr = "127.0.0.1:50556".parse().unwrap();
+        let socket = TcpStream::connect(&addr).unwrap();
+        let nonce = H256::new();
+        Handshake::new(0, to, socket, &nonce).unwrap()
+    }
 
-	fn test_io() -> IoContext<i32> {
-		IoContext::new(IoChannel::disconnected(), 0)
-	}
+    fn test_io() -> IoContext<i32> {
+        IoContext::new(IoChannel::disconnected(), 0)
+    }
 
-	#[test]
-	fn test_handshake_auth_plain() {
-		let mut h = create_handshake(None);
-		let secret = "b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291".parse().unwrap();
-		let auth =
-			"\
+    #[test]
+    fn test_handshake_auth_plain() {
+        let mut h = create_handshake(None);
+        let secret = "b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291"
+            .parse()
+            .unwrap();
+        let auth = "\
 			048ca79ad18e4b0659fab4853fe5bc58eb83992980f4c9cc147d2aa31532efd29a3d3dc6a3d89eaf\
 			913150cfc777ce0ce4af2758bf4810235f6e6ceccfee1acc6b22c005e9e3a49d6448610a58e98744\
 			ba3ac0399e82692d67c1f58849050b3024e21a52c9d3b01d871ff5f210817912773e610443a9ef14\
@@ -362,19 +441,22 @@ mod test {
 			0f0128410fd05250273156d548a414444ae2f7dea4dfca2d43c057adb701a715bf59f6fb66b2d1d2\
 			0f2c703f851cbf5ac47396d9ca65b6260bd141ac4d53e2de585a73d1750780db4c9ee4cd4d225173\
 			a4592ee77e2bd94d0be3691f3b406f9bba9b591fc63facc016bfa8\
-			".from_hex().unwrap();
+			"
+        .from_hex()
+        .unwrap();
 
-		h.read_auth(&test_io(), &secret, &auth).unwrap();
-		assert_eq!(h.state, super::HandshakeState::StartSession);
-		check_auth(&h, 4);
-	}
+        h.read_auth(&test_io(), &secret, &auth).unwrap();
+        assert_eq!(h.state, super::HandshakeState::StartSession);
+        check_auth(&h, 4);
+    }
 
-	#[test]
-	fn test_handshake_auth_eip8() {
-		let mut h = create_handshake(None);
-		let secret = "b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291".parse().unwrap();
-		let auth =
-			"\
+    #[test]
+    fn test_handshake_auth_eip8() {
+        let mut h = create_handshake(None);
+        let secret = "b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291"
+            .parse()
+            .unwrap();
+        let auth = "\
 			01b304ab7578555167be8154d5cc456f567d5ba302662433674222360f08d5f1534499d3678b513b\
 			0fca474f3a514b18e75683032eb63fccb16c156dc6eb2c0b1593f0d84ac74f6e475f1b8d56116b84\
 			9634a8c458705bf83a626ea0384d4d7341aae591fae42ce6bd5c850bfe0b999a694a49bbbaf3ef6c\
@@ -386,21 +468,26 @@ mod test {
 			6f917bc5e1eafd5896d46bd61ff23f1a863a8a8dcd54c7b109b771c8e61ec9c8908c733c0263440e\
 			2aa067241aaa433f0bb053c7b31a838504b148f570c0ad62837129e547678c5190341e4f1693956c\
 			3bf7678318e2d5b5340c9e488eefea198576344afbdf66db5f51204a6961a63ce072c8926c\
-			".from_hex().unwrap();
+			"
+        .from_hex()
+        .unwrap();
 
-		h.read_auth(&test_io(), &secret, &auth[0..super::V4_AUTH_PACKET_SIZE]).unwrap();
-		assert_eq!(h.state, super::HandshakeState::ReadingAuthEip8);
-		h.read_auth_eip8(&test_io(), &secret, &auth[super::V4_AUTH_PACKET_SIZE..]).unwrap();
-		assert_eq!(h.state, super::HandshakeState::StartSession);
-		check_auth(&h, 4);
-	}
+        h.read_auth(&test_io(), &secret, &auth[0..super::V4_AUTH_PACKET_SIZE])
+            .unwrap();
+        assert_eq!(h.state, super::HandshakeState::ReadingAuthEip8);
+        h.read_auth_eip8(&test_io(), &secret, &auth[super::V4_AUTH_PACKET_SIZE..])
+            .unwrap();
+        assert_eq!(h.state, super::HandshakeState::StartSession);
+        check_auth(&h, 4);
+    }
 
-	#[test]
-	fn test_handshake_auth_eip8_2() {
-		let mut h = create_handshake(None);
-		let secret = "b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291".parse().unwrap();
-		let auth =
-			"\
+    #[test]
+    fn test_handshake_auth_eip8_2() {
+        let mut h = create_handshake(None);
+        let secret = "b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291"
+            .parse()
+            .unwrap();
+        let auth = "\
 			01b8044c6c312173685d1edd268aa95e1d495474c6959bcdd10067ba4c9013df9e40ff45f5bfd6f7\
 			2471f93a91b493f8e00abc4b80f682973de715d77ba3a005a242eb859f9a211d93a347fa64b597bf\
 			280a6b88e26299cf263b01b8dfdb712278464fd1c25840b995e84d367d743f66c0e54a586725b7bb\
@@ -413,45 +500,53 @@ mod test {
 			7ac044b55be0908ecb94d4ed172ece66fd31bfdadf2b97a8bc690163ee11f5b575a4b44e36e2bfb2\
 			f0fce91676fd64c7773bac6a003f481fddd0bae0a1f31aa27504e2a533af4cef3b623f4791b2cca6\
 			d490\
-			".from_hex().unwrap();
+			"
+        .from_hex()
+        .unwrap();
 
-		h.read_auth(&test_io(), &secret, &auth[0..super::V4_AUTH_PACKET_SIZE]).unwrap();
-		assert_eq!(h.state, super::HandshakeState::ReadingAuthEip8);
-		h.read_auth_eip8(&test_io(), &secret, &auth[super::V4_AUTH_PACKET_SIZE..]).unwrap();
-		assert_eq!(h.state, super::HandshakeState::StartSession);
-		check_auth(&h, 56);
-		let ack = h.ack_cipher.clone();
-		let total = (((ack[0] as u16) << 8 | (ack[1] as u16)) as usize) + 2;
-		assert_eq!(ack.len(), total);
-	}
+        h.read_auth(&test_io(), &secret, &auth[0..super::V4_AUTH_PACKET_SIZE])
+            .unwrap();
+        assert_eq!(h.state, super::HandshakeState::ReadingAuthEip8);
+        h.read_auth_eip8(&test_io(), &secret, &auth[super::V4_AUTH_PACKET_SIZE..])
+            .unwrap();
+        assert_eq!(h.state, super::HandshakeState::StartSession);
+        check_auth(&h, 56);
+        let ack = h.ack_cipher.clone();
+        let total = (((ack[0] as u16) << 8 | (ack[1] as u16)) as usize) + 2;
+        assert_eq!(ack.len(), total);
+    }
 
-	#[test]
-	fn test_handshake_ack_plain() {
-		let remote = "fda1cff674c90c9a197539fe3dfb53086ace64f83ed7c6eabec741f7f381cc803e52ab2cd55d5569bce4347107a310dfd5f88a010cd2ffd1005ca406f1842877".into();
-		let mut h = create_handshake(Some(&remote));
-		let secret = "49a7b37aa6f6645917e7b807e9d1c00d4fa71f18343b0d4122a4d2df64dd6fee".parse().unwrap();
-		let ack =
-			"\
+    #[test]
+    fn test_handshake_ack_plain() {
+        let remote = "fda1cff674c90c9a197539fe3dfb53086ace64f83ed7c6eabec741f7f381cc803e52ab2cd55d5569bce4347107a310dfd5f88a010cd2ffd1005ca406f1842877".into();
+        let mut h = create_handshake(Some(&remote));
+        let secret = "49a7b37aa6f6645917e7b807e9d1c00d4fa71f18343b0d4122a4d2df64dd6fee"
+            .parse()
+            .unwrap();
+        let ack = "\
 			049f8abcfa9c0dc65b982e98af921bc0ba6e4243169348a236abe9df5f93aa69d99cadddaa387662\
 			b0ff2c08e9006d5a11a278b1b3331e5aaabf0a32f01281b6f4ede0e09a2d5f585b26513cb794d963\
 			5a57563921c04a9090b4f14ee42be1a5461049af4ea7a7f49bf4c97a352d39c8d02ee4acc416388c\
 			1c66cec761d2bc1c72da6ba143477f049c9d2dde846c252c111b904f630ac98e51609b3b1f58168d\
 			dca6505b7196532e5f85b259a20c45e1979491683fee108e9660edbf38f3add489ae73e3dda2c71b\
 			d1497113d5c755e942d1\
-			".from_hex().unwrap();
+			"
+        .from_hex()
+        .unwrap();
 
-		h.read_ack(&secret, &ack).unwrap();
-		assert_eq!(h.state, super::HandshakeState::StartSession);
-		check_ack(&h, 4);
-	}
+        h.read_ack(&secret, &ack).unwrap();
+        assert_eq!(h.state, super::HandshakeState::StartSession);
+        check_ack(&h, 4);
+    }
 
-	#[test]
-	fn test_handshake_ack_eip8() {
-		let remote = "fda1cff674c90c9a197539fe3dfb53086ace64f83ed7c6eabec741f7f381cc803e52ab2cd55d5569bce4347107a310dfd5f88a010cd2ffd1005ca406f1842877".into();
-		let mut h = create_handshake(Some(&remote));
-		let secret = "49a7b37aa6f6645917e7b807e9d1c00d4fa71f18343b0d4122a4d2df64dd6fee".parse().unwrap();
-		let ack =
-			"\
+    #[test]
+    fn test_handshake_ack_eip8() {
+        let remote = "fda1cff674c90c9a197539fe3dfb53086ace64f83ed7c6eabec741f7f381cc803e52ab2cd55d5569bce4347107a310dfd5f88a010cd2ffd1005ca406f1842877".into();
+        let mut h = create_handshake(Some(&remote));
+        let secret = "49a7b37aa6f6645917e7b807e9d1c00d4fa71f18343b0d4122a4d2df64dd6fee"
+            .parse()
+            .unwrap();
+        let ack = "\
 			01ea0451958701280a56482929d3b0757da8f7fbe5286784beead59d95089c217c9b917788989470\
 			b0e330cc6e4fb383c0340ed85fab836ec9fb8a49672712aeabbdfd1e837c1ff4cace34311cd7f4de\
 			05d59279e3524ab26ef753a0095637ac88f2b499b9914b5f64e143eae548a1066e14cd2f4bd7f814\
@@ -465,22 +560,27 @@ mod test {
 			8000cdb6a912778426260c47f38919a91f25f4b5ffb455d6aaaf150f7e5529c100ce62d6d92826a7\
 			1778d809bdf60232ae21ce8a437eca8223f45ac37f6487452ce626f549b3b5fdee26afd2072e4bc7\
 			5833c2464c805246155289f4\
-			".from_hex().unwrap();
+			"
+        .from_hex()
+        .unwrap();
 
-		h.read_ack(&secret, &ack[0..super::V4_ACK_PACKET_SIZE]).unwrap();
-		assert_eq!(h.state, super::HandshakeState::ReadingAckEip8);
-		h.read_ack_eip8(&secret, &ack[super::V4_ACK_PACKET_SIZE..]).unwrap();
-		assert_eq!(h.state, super::HandshakeState::StartSession);
-		check_ack(&h, 4);
-	}
+        h.read_ack(&secret, &ack[0..super::V4_ACK_PACKET_SIZE])
+            .unwrap();
+        assert_eq!(h.state, super::HandshakeState::ReadingAckEip8);
+        h.read_ack_eip8(&secret, &ack[super::V4_ACK_PACKET_SIZE..])
+            .unwrap();
+        assert_eq!(h.state, super::HandshakeState::StartSession);
+        check_ack(&h, 4);
+    }
 
-	#[test]
-	fn test_handshake_ack_eip8_2() {
-		let remote = "fda1cff674c90c9a197539fe3dfb53086ace64f83ed7c6eabec741f7f381cc803e52ab2cd55d5569bce4347107a310dfd5f88a010cd2ffd1005ca406f1842877".into();
-		let mut h = create_handshake(Some(&remote));
-		let secret = "49a7b37aa6f6645917e7b807e9d1c00d4fa71f18343b0d4122a4d2df64dd6fee".parse().unwrap();
-		let ack =
-			"\
+    #[test]
+    fn test_handshake_ack_eip8_2() {
+        let remote = "fda1cff674c90c9a197539fe3dfb53086ace64f83ed7c6eabec741f7f381cc803e52ab2cd55d5569bce4347107a310dfd5f88a010cd2ffd1005ca406f1842877".into();
+        let mut h = create_handshake(Some(&remote));
+        let secret = "49a7b37aa6f6645917e7b807e9d1c00d4fa71f18343b0d4122a4d2df64dd6fee"
+            .parse()
+            .unwrap();
+        let ack = "\
 			01f004076e58aae772bb101ab1a8e64e01ee96e64857ce82b1113817c6cdd52c09d26f7b90981cd7\
 			ae835aeac72e1573b8a0225dd56d157a010846d888dac7464baf53f2ad4e3d584531fa203658fab0\
 			3a06c9fd5e35737e417bc28c1cbf5e5dfc666de7090f69c3b29754725f84f75382891c561040ea1d\
@@ -494,12 +594,16 @@ mod test {
 			3011b7348c16cf58f66b9633906ba54a2ee803187344b394f75dd2e663a57b956cb830dd7a908d4f\
 			39a2336a61ef9fda549180d4ccde21514d117b6c6fd07a9102b5efe710a32af4eeacae2cb3b1dec0\
 			35b9593b48b9d3ca4c13d245d5f04169b0b1\
-			".from_hex().unwrap();
+			"
+        .from_hex()
+        .unwrap();
 
-		h.read_ack(&secret, &ack[0..super::V4_ACK_PACKET_SIZE]).unwrap();
-		assert_eq!(h.state, super::HandshakeState::ReadingAckEip8);
-		h.read_ack_eip8(&secret, &ack[super::V4_ACK_PACKET_SIZE..]).unwrap();
-		assert_eq!(h.state, super::HandshakeState::StartSession);
-		check_ack(&h, 57);
-	}
+        h.read_ack(&secret, &ack[0..super::V4_ACK_PACKET_SIZE])
+            .unwrap();
+        assert_eq!(h.state, super::HandshakeState::ReadingAckEip8);
+        h.read_ack_eip8(&secret, &ack[super::V4_ACK_PACKET_SIZE..])
+            .unwrap();
+        assert_eq!(h.state, super::HandshakeState::StartSession);
+        check_ack(&h, 57);
+    }
 }

@@ -16,8 +16,7 @@
 
 //! Trace filter deserialization.
 
-use ethcore::client::BlockId;
-use ethcore::client;
+use ethcore::{client, client::BlockId};
 use ethereum_types::H160;
 use v1::types::BlockNumber;
 
@@ -26,66 +25,73 @@ use v1::types::BlockNumber;
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "camelCase")]
 pub struct TraceFilter {
-	/// From block
-	pub from_block: Option<BlockNumber>,
-	/// To block
-	pub to_block: Option<BlockNumber>,
-	/// From address
-	pub from_address: Option<Vec<H160>>,
-	/// To address
-	pub to_address: Option<Vec<H160>>,
-	/// Output offset
-	pub after: Option<usize>,
-	/// Output amount
-	pub count: Option<usize>,
+    /// From block
+    pub from_block: Option<BlockNumber>,
+    /// To block
+    pub to_block: Option<BlockNumber>,
+    /// From address
+    pub from_address: Option<Vec<H160>>,
+    /// To address
+    pub to_address: Option<Vec<H160>>,
+    /// Output offset
+    pub after: Option<usize>,
+    /// Output amount
+    pub count: Option<usize>,
 }
 
 impl Into<client::TraceFilter> for TraceFilter {
-	fn into(self) -> client::TraceFilter {
-		let num_to_id = |num| match num {
-			BlockNumber::Num(n) => BlockId::Number(n),
-			BlockNumber::Earliest => BlockId::Earliest,
-			BlockNumber::Latest => BlockId::Latest,
-			BlockNumber::Pending => {
-				warn!("Pending traces are not supported and might be removed in future versions. Falling back to Latest");
-				BlockId::Latest
-			}
-		};
-		let start = self.from_block.map_or(BlockId::Latest, &num_to_id);
-		let end = self.to_block.map_or(BlockId::Latest, &num_to_id);
-		client::TraceFilter {
-			range: start..end,
-			from_address: self.from_address.map_or_else(Vec::new, |x| x.into_iter().map(Into::into).collect()),
-			to_address: self.to_address.map_or_else(Vec::new, |x| x.into_iter().map(Into::into).collect()),
-			after: self.after,
-			count: self.count,
-		}
-	}
+    fn into(self) -> client::TraceFilter {
+        let num_to_id = |num| match num {
+            BlockNumber::Num(n) => BlockId::Number(n),
+            BlockNumber::Earliest => BlockId::Earliest,
+            BlockNumber::Latest => BlockId::Latest,
+            BlockNumber::Pending => {
+                warn!("Pending traces are not supported and might be removed in future versions. Falling back to Latest");
+                BlockId::Latest
+            }
+        };
+        let start = self.from_block.map_or(BlockId::Latest, &num_to_id);
+        let end = self.to_block.map_or(BlockId::Latest, &num_to_id);
+        client::TraceFilter {
+            range: start..end,
+            from_address: self
+                .from_address
+                .map_or_else(Vec::new, |x| x.into_iter().map(Into::into).collect()),
+            to_address: self
+                .to_address
+                .map_or_else(Vec::new, |x| x.into_iter().map(Into::into).collect()),
+            after: self.after,
+            count: self.count,
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
-	use serde_json;
-	use ethereum_types::Address;
-	use v1::types::{BlockNumber, TraceFilter};
+    use ethereum_types::Address;
+    use serde_json;
+    use v1::types::{BlockNumber, TraceFilter};
 
-	#[test]
-	fn test_empty_trace_filter_deserialize() {
-		let s = r#"{}"#;
-		let deserialized: TraceFilter = serde_json::from_str(s).unwrap();
-		assert_eq!(deserialized, TraceFilter {
-			from_block: None,
-			to_block: None,
-			from_address: None,
-			to_address: None,
-			after: None,
-			count: None,
-		});
-	}
+    #[test]
+    fn test_empty_trace_filter_deserialize() {
+        let s = r#"{}"#;
+        let deserialized: TraceFilter = serde_json::from_str(s).unwrap();
+        assert_eq!(
+            deserialized,
+            TraceFilter {
+                from_block: None,
+                to_block: None,
+                from_address: None,
+                to_address: None,
+                after: None,
+                count: None,
+            }
+        );
+    }
 
-	#[test]
-	fn test_trace_filter_deserialize() {
-		let s = r#"{
+    #[test]
+    fn test_trace_filter_deserialize() {
+        let s = r#"{
 			"fromBlock": "latest",
 			"toBlock": "latest",
 			"fromAddress": ["0x0000000000000000000000000000000000000003"],
@@ -93,14 +99,17 @@ mod tests {
 			"after": 50,
 			"count": 100
 		}"#;
-		let deserialized: TraceFilter = serde_json::from_str(s).unwrap();
-		assert_eq!(deserialized, TraceFilter {
-			from_block: Some(BlockNumber::Latest),
-			to_block: Some(BlockNumber::Latest),
-			from_address: Some(vec![Address::from(3).into()]),
-			to_address: Some(vec![Address::from(5).into()]),
-			after: 50.into(),
-			count: 100.into(),
-		});
-	}
+        let deserialized: TraceFilter = serde_json::from_str(s).unwrap();
+        assert_eq!(
+            deserialized,
+            TraceFilter {
+                from_block: Some(BlockNumber::Latest),
+                to_block: Some(BlockNumber::Latest),
+                from_address: Some(vec![Address::from(3).into()]),
+                to_address: Some(vec![Address::from(5).into()]),
+                after: 50.into(),
+                count: 100.into(),
+            }
+        );
+    }
 }

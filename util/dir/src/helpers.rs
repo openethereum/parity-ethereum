@@ -15,23 +15,26 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Directory helper functions
-use ::home_dir;
+use home_dir;
 
 /// Replaces `$HOME` str with home directory path.
 pub fn replace_home(base: &str, arg: &str) -> String {
-	// the $HOME directory on mac os should be `~/Library` or `~/Library/Application Support`
-	// We use an `if` so that we don't need to call `home_dir()` if not necessary.
-	let r = if arg.contains("$HOME") {
-		arg.replace("$HOME", home_dir().expect("$HOME isn't defined").to_str().unwrap())
-	} else {
-		arg.to_owned()
-	};
-	let r = r.replace("$BASE", base);
-	r.replace("/", &::std::path::MAIN_SEPARATOR.to_string())
+    // the $HOME directory on mac os should be `~/Library` or `~/Library/Application Support`
+    // We use an `if` so that we don't need to call `home_dir()` if not necessary.
+    let r = if arg.contains("$HOME") {
+        arg.replace(
+            "$HOME",
+            home_dir().expect("$HOME isn't defined").to_str().unwrap(),
+        )
+    } else {
+        arg.to_owned()
+    };
+    let r = r.replace("$BASE", base);
+    r.replace("/", &::std::path::MAIN_SEPARATOR.to_string())
 }
 
 /// Replaces `$HOME` str with home directory path and `$LOCAL` with local path.
 pub fn replace_home_and_local(base: &str, local: &str, arg: &str) -> String {
-	let r = replace_home(base, arg);
-	r.replace("$LOCAL", local)
+    let r = replace_home(base, arg);
+    r.replace("$LOCAL", local)
 }

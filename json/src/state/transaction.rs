@@ -16,40 +16,40 @@
 
 //! State test transaction deserialization.
 
-use uint::Uint;
 use bytes::Bytes;
 use hash::{Address, H256};
 use maybe::MaybeEmpty;
+use uint::Uint;
 
 /// State test transaction deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Transaction {
-	/// Transaction data.
-	pub data: Bytes,
-	/// Gas limit.
-	pub gas_limit: Uint,
-	/// Gas price.
-	pub gas_price: Uint,
-	/// Nonce.
-	pub nonce: Uint,
-	/// Secret key.
-	#[serde(rename = "secretKey")]
-	pub secret: Option<H256>,
-	/// To.
-	pub to: MaybeEmpty<Address>,
-	/// Value.
-	pub value: Uint,
+    /// Transaction data.
+    pub data: Bytes,
+    /// Gas limit.
+    pub gas_limit: Uint,
+    /// Gas price.
+    pub gas_price: Uint,
+    /// Nonce.
+    pub nonce: Uint,
+    /// Secret key.
+    #[serde(rename = "secretKey")]
+    pub secret: Option<H256>,
+    /// To.
+    pub to: MaybeEmpty<Address>,
+    /// Value.
+    pub value: Uint,
 }
 
 #[cfg(test)]
 mod tests {
-	use serde_json;
-	use state::Transaction;
+    use serde_json;
+    use state::Transaction;
 
-	#[test]
-	fn transaction_deserialization() {
-		let s = r#"{
+    #[test]
+    fn transaction_deserialization() {
+        let s = r#"{
 			"data" : "",
 			"gasLimit" : "0x2dc6c0",
 			"gasPrice" : "0x01",
@@ -58,7 +58,7 @@ mod tests {
 			"to" : "1000000000000000000000000000000000000000",
 			"value" : "0x00"
 		}"#;
-		let _deserialized: Transaction = serde_json::from_str(s).unwrap();
-		// TODO: validate all fields
-	}
+        let _deserialized: Transaction = serde_json::from_str(s).unwrap();
+        // TODO: validate all fields
+    }
 }

@@ -16,21 +16,35 @@
 
 //! Parity-specific PUB-SUB rpc interface.
 
-use jsonrpc_core::{Result, Value, Params};
-use jsonrpc_pubsub::{typed::Subscriber, SubscriptionId};
+use jsonrpc_core::{Params, Result, Value};
 use jsonrpc_derive::rpc;
+use jsonrpc_pubsub::{typed::Subscriber, SubscriptionId};
 
 /// Parity-specific PUB-SUB rpc interface.
 #[rpc(server)]
 pub trait PubSub {
-	/// Pub/Sub Metadata
-	type Metadata;
+    /// Pub/Sub Metadata
+    type Metadata;
 
-	/// Subscribe to changes of any RPC method in Parity.
-	#[pubsub(subscription = "parity_subscription", subscribe, name = "parity_subscribe")]
-	fn parity_subscribe(&self, _: Self::Metadata, _: Subscriber<Value>, _: String, _: Option<Params>);
+    /// Subscribe to changes of any RPC method in Parity.
+    #[pubsub(
+        subscription = "parity_subscription",
+        subscribe,
+        name = "parity_subscribe"
+    )]
+    fn parity_subscribe(
+        &self,
+        _: Self::Metadata,
+        _: Subscriber<Value>,
+        _: String,
+        _: Option<Params>,
+    );
 
-	/// Unsubscribe from existing Parity subscription.
-	#[pubsub(subscription = "parity_subscription", unsubscribe, name = "parity_unsubscribe")]
-	fn parity_unsubscribe(&self, _: Option<Self::Metadata>, _: SubscriptionId) -> Result<bool>;
+    /// Unsubscribe from existing Parity subscription.
+    #[pubsub(
+        subscription = "parity_subscription",
+        unsubscribe,
+        name = "parity_unsubscribe"
+    )]
+    fn parity_unsubscribe(&self, _: Option<Self::Metadata>, _: SubscriptionId) -> Result<bool>;
 }

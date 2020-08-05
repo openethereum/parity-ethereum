@@ -17,21 +17,26 @@
 //! Generalization of a state machine for a consensus engine.
 //! This will define traits for the header, block, and state of a blockchain.
 
-use ethereum_types::{U256, Address};
 use block::ExecutedBlock;
+use ethereum_types::{Address, U256};
 
 /// Generalization of types surrounding blockchain-suitable state machines.
 pub trait Machine: Send + Sync {
-	/// A handle to a blockchain client for this machine.
-	type EngineClient: ?Sized;
+    /// A handle to a blockchain client for this machine.
+    type EngineClient: ?Sized;
 
-	/// Errors which can occur when querying or interacting with the machine.
-	type Error;
+    /// Errors which can occur when querying or interacting with the machine.
+    type Error;
 
-	/// Get the balance, in base units, associated with an account.
-	/// Extracts data from the live block.
-	fn balance(&self, live: &ExecutedBlock, address: &Address) -> Result<U256, Self::Error>;
+    /// Get the balance, in base units, associated with an account.
+    /// Extracts data from the live block.
+    fn balance(&self, live: &ExecutedBlock, address: &Address) -> Result<U256, Self::Error>;
 
-	/// Increment the balance of an account in the state of the live block.
-	fn add_balance(&self, live: &mut ExecutedBlock, address: &Address, amount: &U256) -> Result<(), Self::Error>;
+    /// Increment the balance of an account in the state of the live block.
+    fn add_balance(
+        &self,
+        live: &mut ExecutedBlock,
+        address: &Address,
+        amount: &U256,
+    ) -> Result<(), Self::Error>;
 }

@@ -14,54 +14,51 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use jsonrpc_core::Error;
-use jsonrpc_core::futures::{self, Future};
-use jsonrpc_core::futures::sync::oneshot;
+use jsonrpc_core::{
+    futures::{self, sync::oneshot, Future},
+    Error,
+};
 use v1::helpers::errors;
 
 pub type Res<T> = Result<T, Error>;
 
 pub struct Sender<T> {
-	sender: oneshot::Sender<Res<T>>,
+    sender: oneshot::Sender<Res<T>>,
 }
 
 impl<T> Sender<T> {
-	pub fn send(self, data: Res<T>) {
-		let res = self.sender.send(data);
-		if res.is_err() {
-			debug!(target: "rpc", "Responding to a no longer active request.");
-		}
-	}
+    pub fn send(self, data: Res<T>) {
+        let res = self.sender.send(data);
+        if res.is_err() {
+            debug!(target: "rpc", "Responding to a no longer active request.");
+        }
+    }
 }
 
 pub struct Receiver<T> {
-	receiver: oneshot::Receiver<Res<T>>,
+    receiver: oneshot::Receiver<Res<T>>,
 }
 
 impl<T> Future for Receiver<T> {
-	type Item = T;
-	type Error = Error;
+    type Item = T;
+    type Error = Error;
 
-	fn poll(&mut self) -> futures::Poll<Self::Item, Self::Error> {
-		let res = self.receiver.poll();
-		match res {
-			Ok(futures::Async::NotReady) => Ok(futures::Async::NotReady),
-			Ok(futures::Async::Ready(Ok(res))) => Ok(futures::Async::Ready(res)),
-			Ok(futures::Async::Ready(Err(err))) => Err(err),
-			Err(e) => {
-				debug!(target: "rpc", "Responding to a canceled request: {:?}", e);
-				Err(errors::internal("Request was canceled by client.", e))
-			},
-		}
-	}
+    fn poll(&mut self) -> futures::Poll<Self::Item, Self::Error> {
+        let res = self.receiver.poll();
+        match res {
+            Ok(futures::Async::NotReady) => Ok(futures::Async::NotReady),
+            Ok(futures::Async::Ready(Ok(res))) => Ok(futures::Async::Ready(res)),
+            Ok(futures::Async::Ready(Err(err))) => Err(err),
+            Err(e) => {
+                debug!(target: "rpc", "Responding to a canceled request: {:?}", e);
+                Err(errors::internal("Request was canceled by client.", e))
+            }
+        }
+    }
 }
 
 pub fn oneshot<T>() -> (Sender<T>, Receiver<T>) {
-	let (tx, rx) = futures::oneshot();
+    let (tx, rx) = futures::oneshot();
 
-	(Sender {
-		sender: tx,
-	}, Receiver {
-		receiver: rx,
-	})
+    (Sender { sender: tx }, Receiver { receiver: rx })
 }

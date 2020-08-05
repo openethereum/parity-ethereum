@@ -47,11 +47,11 @@ extern crate log;
 extern crate trace_time;
 
 #[cfg(test)]
-extern crate rustc_hex;
+extern crate env_logger;
 #[cfg(test)]
 extern crate ethkey;
 #[cfg(test)]
-extern crate env_logger;
+extern crate rustc_hex;
 
 pub mod external;
 #[cfg(feature = "price-info")]

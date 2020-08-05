@@ -20,13 +20,12 @@
 //! significantly generic to be reused.
 
 pub mod eth;
+pub mod net;
 pub mod parity;
 pub mod parity_set;
 pub mod trace;
-pub mod net;
 
-pub use self::eth::EthClient;
-pub use self::parity::ParityClient;
-pub use self::parity_set::ParitySetClient;
-pub use self::net::NetClient;
-pub use self::trace::TracesClient;
+pub use self::{
+    eth::EthClient, net::NetClient, parity::ParityClient, parity_set::ParitySetClient,
+    trace::TracesClient,
+};

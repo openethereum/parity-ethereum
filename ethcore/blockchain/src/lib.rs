@@ -28,10 +28,12 @@ mod update;
 
 pub mod generator;
 
-pub use self::blockchain::{BlockProvider, BlockChain, BlockChainDB, BlockChainDBHandler};
-pub use self::cache::CacheSize;
-pub use self::config::Config;
-pub use self::import_route::ImportRoute;
-pub use self::update::ExtrasInsert;
-pub use ethcore_db::keys::{BlockReceipts, BlockDetails, TransactionAddress, BlockNumberKey};
+pub use self::{
+    blockchain::{BlockChain, BlockChainDB, BlockChainDBHandler, BlockProvider},
+    cache::CacheSize,
+    config::Config,
+    import_route::ImportRoute,
+    update::ExtrasInsert,
+};
 pub use common_types::tree_route::TreeRoute;
+pub use ethcore_db::keys::{BlockDetails, BlockNumberKey, BlockReceipts, TransactionAddress};

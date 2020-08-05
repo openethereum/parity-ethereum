@@ -14,147 +14,173 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::fmt;
-use std::num::NonZeroU32;
-use serde::{Serialize, Serializer, Deserialize, Deserializer};
-use serde::de::{Visitor, Error as SerdeError};
-use super::{Error, Bytes};
+use super::{Bytes, Error};
+use serde::{
+    de::{Error as SerdeError, Visitor},
+    Deserialize, Deserializer, Serialize, Serializer,
+};
+use std::{fmt, num::NonZeroU32};
 
 #[derive(Debug, PartialEq)]
 pub enum KdfSer {
-	Pbkdf2,
-	Scrypt,
+    Pbkdf2,
+    Scrypt,
 }
 
 impl Serialize for KdfSer {
-	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-	where S: Serializer {
-		match *self {
-			KdfSer::Pbkdf2 => serializer.serialize_str("pbkdf2"),
-			KdfSer::Scrypt => serializer.serialize_str("scrypt"),
-		}
-	}
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match *self {
+            KdfSer::Pbkdf2 => serializer.serialize_str("pbkdf2"),
+            KdfSer::Scrypt => serializer.serialize_str("scrypt"),
+        }
+    }
 }
 
 impl<'a> Deserialize<'a> for KdfSer {
-	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-	where D: Deserializer<'a> {
-		deserializer.deserialize_any(KdfSerVisitor)
-	}
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'a>,
+    {
+        deserializer.deserialize_any(KdfSerVisitor)
+    }
 }
 
 struct KdfSerVisitor;
 
 impl<'a> Visitor<'a> for KdfSerVisitor {
-	type Value = KdfSer;
+    type Value = KdfSer;
 
-	fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-		write!(formatter, "a kdf algorithm identifier")
-	}
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        write!(formatter, "a kdf algorithm identifier")
+    }
 
-	fn visit_str<E>(self, value: &str) -> Result<Self::Value, E> where E: SerdeError {
-		match value {
-			"pbkdf2" => Ok(KdfSer::Pbkdf2),
-			"scrypt" => Ok(KdfSer::Scrypt),
-			_ => Err(SerdeError::custom(Error::UnsupportedKdf))
-		}
-	}
+    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+    where
+        E: SerdeError,
+    {
+        match value {
+            "pbkdf2" => Ok(KdfSer::Pbkdf2),
+            "scrypt" => Ok(KdfSer::Scrypt),
+            _ => Err(SerdeError::custom(Error::UnsupportedKdf)),
+        }
+    }
 
-	fn visit_string<E>(self, value: String) -> Result<Self::Value, E> where E: SerdeError {
-		self.visit_str(value.as_ref())
-	}
+    fn visit_string<E>(self, value: String) -> Result<Self::Value, E>
+    where
+        E: SerdeError,
+    {
+        self.visit_str(value.as_ref())
+    }
 }
 
 #[derive(Debug, PartialEq)]
 pub enum Prf {
-	HmacSha256,
+    HmacSha256,
 }
 
 impl Serialize for Prf {
-	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-	where S: Serializer {
-		match *self {
-			Prf::HmacSha256 => serializer.serialize_str("hmac-sha256"),
-		}
-	}
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match *self {
+            Prf::HmacSha256 => serializer.serialize_str("hmac-sha256"),
+        }
+    }
 }
 
 impl<'a> Deserialize<'a> for Prf {
-	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-	where D: Deserializer<'a> {
-		deserializer.deserialize_any(PrfVisitor)
-	}
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'a>,
+    {
+        deserializer.deserialize_any(PrfVisitor)
+    }
 }
 
 struct PrfVisitor;
 
 impl<'a> Visitor<'a> for PrfVisitor {
-	type Value = Prf;
+    type Value = Prf;
 
-	fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-		write!(formatter, "a prf algorithm identifier")
-	}
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        write!(formatter, "a prf algorithm identifier")
+    }
 
-	fn visit_str<E>(self, value: &str) -> Result<Self::Value, E> where E: SerdeError {
-		match value {
-			"hmac-sha256" => Ok(Prf::HmacSha256),
-			_ => Err(SerdeError::custom(Error::InvalidPrf)),
-		}
-	}
+    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+    where
+        E: SerdeError,
+    {
+        match value {
+            "hmac-sha256" => Ok(Prf::HmacSha256),
+            _ => Err(SerdeError::custom(Error::InvalidPrf)),
+        }
+    }
 
-	fn visit_string<E>(self, value: String) -> Result<Self::Value, E> where E: SerdeError {
-		self.visit_str(value.as_ref())
-	}
+    fn visit_string<E>(self, value: String) -> Result<Self::Value, E>
+    where
+        E: SerdeError,
+    {
+        self.visit_str(value.as_ref())
+    }
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct Pbkdf2 {
-	pub c: NonZeroU32,
-	pub dklen: u32,
-	pub prf: Prf,
-	pub salt: Bytes,
+    pub c: NonZeroU32,
+    pub dklen: u32,
+    pub prf: Prf,
+    pub salt: Bytes,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct Scrypt {
-	pub dklen: u32,
-	pub p: u32,
-	pub n: u32,
-	pub r: u32,
-	pub salt: Bytes,
+    pub dklen: u32,
+    pub p: u32,
+    pub n: u32,
+    pub r: u32,
+    pub salt: Bytes,
 }
 
 #[derive(Debug, PartialEq)]
 pub enum KdfSerParams {
-	Pbkdf2(Pbkdf2),
-	Scrypt(Scrypt),
+    Pbkdf2(Pbkdf2),
+    Scrypt(Scrypt),
 }
 
 impl Serialize for KdfSerParams {
-	fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-	where S: Serializer {
-		match *self {
-			KdfSerParams::Pbkdf2(ref params) => params.serialize(serializer),
-			KdfSerParams::Scrypt(ref params) => params.serialize(serializer),
-		}
-	}
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match *self {
+            KdfSerParams::Pbkdf2(ref params) => params.serialize(serializer),
+            KdfSerParams::Scrypt(ref params) => params.serialize(serializer),
+        }
+    }
 }
 
 impl<'a> Deserialize<'a> for KdfSerParams {
-	fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-	where D: Deserializer<'a> {
-		use serde_json::{Value, from_value};
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'a>,
+    {
+        use serde_json::{from_value, Value};
 
-		let v: Value = Deserialize::deserialize(deserializer)?;
+        let v: Value = Deserialize::deserialize(deserializer)?;
 
-		from_value(v.clone()).map(KdfSerParams::Pbkdf2)
-			.or_else(|_| from_value(v).map(KdfSerParams::Scrypt))
-			.map_err(|_| D::Error::custom("Invalid KDF algorithm"))
-	}
+        from_value(v.clone())
+            .map(KdfSerParams::Pbkdf2)
+            .or_else(|_| from_value(v).map(KdfSerParams::Scrypt))
+            .map_err(|_| D::Error::custom("Invalid KDF algorithm"))
+    }
 }
 
 #[derive(Debug, PartialEq)]
 pub enum Kdf {
-	Pbkdf2(Pbkdf2),
-	Scrypt(Scrypt),
+    Pbkdf2(Pbkdf2),
+    Scrypt(Scrypt),
 }

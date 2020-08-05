@@ -15,83 +15,105 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 /// Used for Engine testing.
-
 use std::str::FromStr;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
+use std::sync::{
+    atomic::{AtomicUsize, Ordering as AtomicOrdering},
+    Arc,
+};
 
 use bytes::Bytes;
-use ethereum_types::{H256, Address};
+use ethereum_types::{Address, H256};
 use heapsize::HeapSizeOf;
-use types::BlockNumber;
-use types::header::Header;
+use types::{header::Header, BlockNumber};
 
+use super::{SimpleList, ValidatorSet};
 use machine::{AuxiliaryData, Call, EthereumMachine};
-use super::{ValidatorSet, SimpleList};
 
 /// Set used for testing with a single validator.
 pub struct TestSet {
-	validator: SimpleList,
-	last_malicious: Arc<AtomicUsize>,
-	last_benign: Arc<AtomicUsize>,
+    validator: SimpleList,
+    last_malicious: Arc<AtomicUsize>,
+    last_benign: Arc<AtomicUsize>,
 }
 
 impl Default for TestSet {
-	fn default() -> Self {
-		TestSet::new(Default::default(), Default::default())
-	}
+    fn default() -> Self {
+        TestSet::new(Default::default(), Default::default())
+    }
 }
 
 impl TestSet {
-	pub fn new(last_malicious: Arc<AtomicUsize>, last_benign: Arc<AtomicUsize>) -> Self {
-		TestSet {
-			validator: SimpleList::new(vec![Address::from_str("7d577a597b2742b498cb5cf0c26cdcd726d39e6e").unwrap()]),
-			last_malicious,
-			last_benign,
-		}
-	}
+    pub fn new(last_malicious: Arc<AtomicUsize>, last_benign: Arc<AtomicUsize>) -> Self {
+        TestSet {
+            validator: SimpleList::new(vec![Address::from_str(
+                "7d577a597b2742b498cb5cf0c26cdcd726d39e6e",
+            )
+            .unwrap()]),
+            last_malicious,
+            last_benign,
+        }
+    }
 }
 
 impl HeapSizeOf for TestSet {
-	fn heap_size_of_children(&self) -> usize {
-		self.validator.heap_size_of_children()
-	}
+    fn heap_size_of_children(&self) -> usize {
+        self.validator.heap_size_of_children()
+    }
 }
 
 impl ValidatorSet for TestSet {
-	fn default_caller(&self, _block_id: ::types::ids::BlockId) -> Box<Call> {
-		Box::new(|_, _| Err("Test set doesn't require calls.".into()))
-	}
+    fn default_caller(&self, _block_id: ::types::ids::BlockId) -> Box<Call> {
+        Box::new(|_, _| Err("Test set doesn't require calls.".into()))
+    }
 
-	fn is_epoch_end(&self, _first: bool, _chain_head: &Header) -> Option<Vec<u8>> { None }
+    fn is_epoch_end(&self, _first: bool, _chain_head: &Header) -> Option<Vec<u8>> {
+        None
+    }
 
-	fn signals_epoch_end(&self, _: bool, _: &Header, _: AuxiliaryData)
-		-> ::engines::EpochChange<EthereumMachine>
-	{
-		::engines::EpochChange::No
-	}
+    fn signals_epoch_end(
+        &self,
+        _: bool,
+        _: &Header,
+        _: AuxiliaryData,
+    ) -> ::engines::EpochChange<EthereumMachine> {
+        ::engines::EpochChange::No
+    }
 
-	fn epoch_set(&self, _: bool, _: &EthereumMachine, _: BlockNumber, _: &[u8]) -> Result<(SimpleList, Option<H256>), ::error::Error> {
-		Ok((self.validator.clone(), None))
-	}
+    fn epoch_set(
+        &self,
+        _: bool,
+        _: &EthereumMachine,
+        _: BlockNumber,
+        _: &[u8],
+    ) -> Result<(SimpleList, Option<H256>), ::error::Error> {
+        Ok((self.validator.clone(), None))
+    }
 
-	fn contains_with_caller(&self, bh: &H256, address: &Address, _: &Call) -> bool {
-		self.validator.contains(bh, address)
-	}
+    fn contains_with_caller(&self, bh: &H256, address: &Address, _: &Call) -> bool {
+        self.validator.contains(bh, address)
+    }
 
-	fn get_with_caller(&self, bh: &H256, nonce: usize, _: &Call) -> Address {
-		self.validator.get(bh, nonce)
-	}
+    fn get_with_caller(&self, bh: &H256, nonce: usize, _: &Call) -> Address {
+        self.validator.get(bh, nonce)
+    }
 
-	fn count_with_caller(&self, _bh: &H256, _: &Call) -> usize {
-		1
-	}
+    fn count_with_caller(&self, _bh: &H256, _: &Call) -> usize {
+        1
+    }
 
-	fn report_malicious(&self, _validator: &Address, _set_block: BlockNumber, block: BlockNumber, _proof: Bytes) {
-		self.last_malicious.store(block as usize, AtomicOrdering::SeqCst)
-	}
+    fn report_malicious(
+        &self,
+        _validator: &Address,
+        _set_block: BlockNumber,
+        block: BlockNumber,
+        _proof: Bytes,
+    ) {
+        self.last_malicious
+            .store(block as usize, AtomicOrdering::SeqCst)
+    }
 
-	fn report_benign(&self, _validator: &Address, _set_block: BlockNumber, block: BlockNumber) {
-		self.last_benign.store(block as usize, AtomicOrdering::SeqCst)
-	}
+    fn report_benign(&self, _validator: &Address, _set_block: BlockNumber, block: BlockNumber) {
+        self.last_benign
+            .store(block as usize, AtomicOrdering::SeqCst)
+    }
 }

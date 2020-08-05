@@ -20,7 +20,7 @@
 
 mod db;
 
-pub mod keys;
 pub mod cache_manager;
+pub mod keys;
 
 pub use self::db::*;

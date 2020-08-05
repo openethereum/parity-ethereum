@@ -16,19 +16,19 @@
 
 //! Blockchain test state deserializer.
 
-use std::collections::BTreeMap;
-use hash::Address;
 use blockchain::account::Account;
+use hash::Address;
+use std::collections::BTreeMap;
 
 /// Blockchain test state deserializer.
 #[derive(Debug, PartialEq, Deserialize, Clone)]
 pub struct State(BTreeMap<Address, Account>);
 
 impl IntoIterator for State {
-	type Item = <BTreeMap<Address, Account> as IntoIterator>::Item;
-	type IntoIter = <BTreeMap<Address, Account> as IntoIterator>::IntoIter;
+    type Item = <BTreeMap<Address, Account> as IntoIterator>::Item;
+    type IntoIter = <BTreeMap<Address, Account> as IntoIterator>::IntoIter;
 
-	fn into_iter(self) -> Self::IntoIter {
-		self.0.into_iter()
-	}
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
 }

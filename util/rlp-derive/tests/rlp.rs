@@ -18,42 +18,38 @@ extern crate rlp;
 #[macro_use]
 extern crate rlp_derive;
 
-use rlp::{encode, decode};
+use rlp::{decode, encode};
 
 #[derive(Debug, PartialEq, RlpEncodable, RlpDecodable)]
 struct Foo {
-	a: String,
+    a: String,
 }
 
 #[derive(Debug, PartialEq, RlpEncodableWrapper, RlpDecodableWrapper)]
 struct FooWrapper {
-	a: String,
+    a: String,
 }
 
 #[test]
 fn test_encode_foo() {
-	let foo = Foo {
-		a: "cat".into(),
-	};
+    let foo = Foo { a: "cat".into() };
 
-	let expected = vec![0xc4, 0x83, b'c', b'a', b't'];
-	let out = encode(&foo);
-	assert_eq!(out, expected);
+    let expected = vec![0xc4, 0x83, b'c', b'a', b't'];
+    let out = encode(&foo);
+    assert_eq!(out, expected);
 
-	let decoded = decode(&expected).expect("decode failure");
-	assert_eq!(foo, decoded);
+    let decoded = decode(&expected).expect("decode failure");
+    assert_eq!(foo, decoded);
 }
 
 #[test]
 fn test_encode_foo_wrapper() {
-	let foo = FooWrapper {
-		a: "cat".into(),
-	};
+    let foo = FooWrapper { a: "cat".into() };
 
-	let expected = vec![0x83, b'c', b'a', b't'];
-	let out = encode(&foo);
-	assert_eq!(out, expected);
+    let expected = vec![0x83, b'c', b'a', b't'];
+    let out = encode(&foo);
+    assert_eq!(out, expected);
 
-	let decoded = decode(&expected).expect("decode failure");
-	assert_eq!(foo, decoded);
+    let decoded = decode(&expected).expect("decode failure");
+    assert_eq!(foo, decoded);
 }

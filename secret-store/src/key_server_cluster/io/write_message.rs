@@ -14,57 +14,72 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::io;
-use futures::{Future, Poll};
-use tokio_io::AsyncWrite;
-use tokio_io::io::{WriteAll, write_all};
 use ethkey::KeyPair;
-use key_server_cluster::message::Message;
-use key_server_cluster::io::{serialize_message, encrypt_message};
+use futures::{Future, Poll};
+use key_server_cluster::{
+    io::{encrypt_message, serialize_message},
+    message::Message,
+};
+use std::io;
+use tokio_io::{
+    io::{write_all, WriteAll},
+    AsyncWrite,
+};
 
 /// Write plain message to the channel.
-pub fn write_message<A>(a: A, message: Message) -> WriteMessage<A> where A: AsyncWrite {
-	let (error, future) = match serialize_message(message)
-		.map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string())) {
-		Ok(message) => (None, write_all(a, message.into())),
-		Err(error) => (Some(error), write_all(a, Vec::new())),
-	};
-	WriteMessage {
-		error: error,
-		future: future,
-	}
+pub fn write_message<A>(a: A, message: Message) -> WriteMessage<A>
+where
+    A: AsyncWrite,
+{
+    let (error, future) = match serialize_message(message)
+        .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))
+    {
+        Ok(message) => (None, write_all(a, message.into())),
+        Err(error) => (Some(error), write_all(a, Vec::new())),
+    };
+    WriteMessage {
+        error: error,
+        future: future,
+    }
 }
 
 /// Write encrypted message to the channel.
-pub fn write_encrypted_message<A>(a: A, key: &KeyPair, message: Message) -> WriteMessage<A> where A: AsyncWrite {
-	let (error, future) = match serialize_message(message)
-		.and_then(|message| encrypt_message(key, message))
-		.map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string())) {
-		Ok(message) => (None, write_all(a, message.into())),
-		Err(error) => (Some(error), write_all(a, Vec::new())),
-	};
+pub fn write_encrypted_message<A>(a: A, key: &KeyPair, message: Message) -> WriteMessage<A>
+where
+    A: AsyncWrite,
+{
+    let (error, future) = match serialize_message(message)
+        .and_then(|message| encrypt_message(key, message))
+        .map_err(|e| io::Error::new(io::ErrorKind::Other, e.to_string()))
+    {
+        Ok(message) => (None, write_all(a, message.into())),
+        Err(error) => (Some(error), write_all(a, Vec::new())),
+    };
 
-	WriteMessage {
-		error: error,
-		future: future,
-	}
+    WriteMessage {
+        error: error,
+        future: future,
+    }
 }
 
 /// Future message write.
 pub struct WriteMessage<A> {
-	error: Option<io::Error>,
-	future: WriteAll<A, Vec<u8>>,
+    error: Option<io::Error>,
+    future: WriteAll<A, Vec<u8>>,
 }
 
-impl<A> Future for WriteMessage<A> where A: AsyncWrite {
-	type Item = (A, Vec<u8>);
-	type Error = io::Error;
+impl<A> Future for WriteMessage<A>
+where
+    A: AsyncWrite,
+{
+    type Item = (A, Vec<u8>);
+    type Error = io::Error;
 
-	fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
-		if let Some(err) = self.error.take() {
-			return Err(err);
-		}
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+        if let Some(err) = self.error.take() {
+            return Err(err);
+        }
 
-		self.future.poll()
-	}
+        self.future.poll()
+    }
 }

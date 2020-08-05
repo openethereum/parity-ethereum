@@ -16,8 +16,8 @@
 
 //! Simple VM output.
 
-use ethcore::trace;
 use bytes::ToPretty;
+use ethcore::trace;
 
 use display;
 use info as vm;
@@ -27,34 +27,39 @@ use info as vm;
 pub struct Informant;
 
 impl vm::Informant for Informant {
+    type Sink = ();
 
-	type Sink = ();
+    fn before_test(&mut self, name: &str, action: &str) {
+        println!("Test: {} ({})", name, action);
+    }
 
-	fn before_test(&mut self, name: &str, action: &str) {
-		println!("Test: {} ({})", name, action);
-	}
+    fn clone_sink(&self) -> Self::Sink {
+        ()
+    }
 
-	fn clone_sink(&self) -> Self::Sink { () }
-
-	fn finish(result: vm::RunResult<Self::Output>, _sink: &mut Self::Sink) {
-		match result {
-			Ok(success) => {
-				println!("Output: 0x{}", success.output.to_hex());
-				println!("Gas used: {:x}", success.gas_used);
-				println!("Time: {}", display::format_time(&success.time));
-			},
-			Err(failure) => {
-				println!("Error: {}", failure.error);
-				println!("Time: {}", display::format_time(&failure.time));
-			},
-		}
-	}
+    fn finish(result: vm::RunResult<Self::Output>, _sink: &mut Self::Sink) {
+        match result {
+            Ok(success) => {
+                println!("Output: 0x{}", success.output.to_hex());
+                println!("Gas used: {:x}", success.gas_used);
+                println!("Time: {}", display::format_time(&success.time));
+            }
+            Err(failure) => {
+                println!("Error: {}", failure.error);
+                println!("Time: {}", display::format_time(&failure.time));
+            }
+        }
+    }
 }
 
 impl trace::VMTracer for Informant {
-	type Output = ();
+    type Output = ();
 
-	fn prepare_subtrace(&mut self, _code: &[u8]) { Default::default() }
-	fn done_subtrace(&mut self) {}
-	fn drain(self) -> Option<()> { None }
+    fn prepare_subtrace(&mut self, _code: &[u8]) {
+        Default::default()
+    }
+    fn done_subtrace(&mut self) {}
+    fn drain(self) -> Option<()> {
+        None
+    }
 }

@@ -14,24 +14,25 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use types::transaction::{Transaction, SignedTransaction, Action};
 use std::cmp::min;
+use types::transaction::{Action, SignedTransaction, Transaction};
 
 use ethereum_types::U256;
 use jsonrpc_core::Error;
 use v1::helpers::CallRequest;
 
 pub fn sign_call(request: CallRequest) -> Result<SignedTransaction, Error> {
-	let max_gas = U256::from(500_000_000);
-	let gas = min(request.gas.unwrap_or(max_gas), max_gas);
-	let from = request.from.unwrap_or_default();
+    let max_gas = U256::from(500_000_000);
+    let gas = min(request.gas.unwrap_or(max_gas), max_gas);
+    let from = request.from.unwrap_or_default();
 
-	Ok(Transaction {
-		nonce: request.nonce.unwrap_or_default(),
-		action: request.to.map_or(Action::Create, Action::Call),
-		gas,
-		gas_price: request.gas_price.unwrap_or_default(),
-		value: request.value.unwrap_or_default(),
-		data: request.data.unwrap_or_default(),
-	}.fake_sign(from))
+    Ok(Transaction {
+        nonce: request.nonce.unwrap_or_default(),
+        action: request.to.map_or(Action::Create, Action::Call),
+        gas,
+        gas_price: request.gas_price.unwrap_or_default(),
+        value: request.value.unwrap_or_default(),
+        data: request.data.unwrap_or_default(),
+    }
+    .fake_sign(from))
 }

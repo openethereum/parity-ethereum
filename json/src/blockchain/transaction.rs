@@ -16,19 +16,19 @@
 
 //! Blockchain test transaction deserialization.
 
-use uint::Uint;
 use bytes::Bytes;
+use uint::Uint;
 
 /// Blockchain test transaction deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Transaction {
-	data: Bytes,
-	gas_limit: Uint,
-	gas_price: Uint,
-	nonce: Uint,
-	r: Uint,
-	s: Uint,
-	v: Uint,
-	value: Uint
+    data: Bytes,
+    gas_limit: Uint,
+    gas_price: Uint,
+    nonce: Uint,
+    r: Uint,
+    s: Uint,
+    v: Uint,
+    value: Uint,
 }

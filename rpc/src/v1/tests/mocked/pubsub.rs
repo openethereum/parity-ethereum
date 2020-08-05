@@ -16,62 +16,70 @@
 
 use std::sync::{atomic, Arc};
 
-use jsonrpc_core::{self as core, MetaIoHandler};
-use jsonrpc_core::futures::{self, Stream, Future};
+use jsonrpc_core::{
+    self as core,
+    futures::{self, Future, Stream},
+    MetaIoHandler,
+};
 use jsonrpc_pubsub::Session;
 
 use parity_runtime::Runtime;
-use v1::{PubSub, PubSubClient, Metadata};
+use v1::{Metadata, PubSub, PubSubClient};
 
 fn rpc() -> MetaIoHandler<Metadata, core::NoopMiddleware> {
-	let mut io = MetaIoHandler::default();
-	let called = atomic::AtomicBool::new(false);
-	io.add_method("hello", move |_| {
-		if !called.load(atomic::Ordering::SeqCst) {
-			called.store(true, atomic::Ordering::SeqCst);
-			Ok(core::Value::String("hello".into()))
-		} else {
-			Ok(core::Value::String("world".into()))
-		}
-	});
-	io
+    let mut io = MetaIoHandler::default();
+    let called = atomic::AtomicBool::new(false);
+    io.add_method("hello", move |_| {
+        if !called.load(atomic::Ordering::SeqCst) {
+            called.store(true, atomic::Ordering::SeqCst);
+            Ok(core::Value::String("hello".into()))
+        } else {
+            Ok(core::Value::String("world".into()))
+        }
+    });
+    io
 }
 
 #[test]
 fn should_subscribe_to_a_method() {
-	// given
-	let el = Runtime::with_thread_count(1);
-	let rpc = rpc();
-	let pubsub = PubSubClient::new_test(rpc, el.executor()).to_delegate();
+    // given
+    let el = Runtime::with_thread_count(1);
+    let rpc = rpc();
+    let pubsub = PubSubClient::new_test(rpc, el.executor()).to_delegate();
 
-	let mut io = MetaIoHandler::default();
-	io.extend_with(pubsub);
+    let mut io = MetaIoHandler::default();
+    io.extend_with(pubsub);
 
-	let mut metadata = Metadata::default();
-	let (sender, receiver) = futures::sync::mpsc::channel(8);
-	metadata.session = Some(Arc::new(Session::new(sender)));
+    let mut metadata = Metadata::default();
+    let (sender, receiver) = futures::sync::mpsc::channel(8);
+    metadata.session = Some(Arc::new(Session::new(sender)));
 
-	// Subscribe
-	let request = r#"{"jsonrpc": "2.0", "method": "parity_subscribe", "params": ["hello", []], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":"0x416d77337e24399d","id":1}"#;
-	assert_eq!(io.handle_request_sync(request, metadata.clone()), Some(response.to_owned()));
+    // Subscribe
+    let request =
+        r#"{"jsonrpc": "2.0", "method": "parity_subscribe", "params": ["hello", []], "id": 1}"#;
+    let response = r#"{"jsonrpc":"2.0","result":"0x416d77337e24399d","id":1}"#;
+    assert_eq!(
+        io.handle_request_sync(request, metadata.clone()),
+        Some(response.to_owned())
+    );
 
-	// Check notifications
-	let (res, receiver) = receiver.into_future().wait().unwrap();
-	let response =
-		r#"{"jsonrpc":"2.0","method":"parity_subscription","params":{"result":"hello","subscription":"0x416d77337e24399d"}}"#;
-	assert_eq!(res, Some(response.into()));
+    // Check notifications
+    let (res, receiver) = receiver.into_future().wait().unwrap();
+    let response = r#"{"jsonrpc":"2.0","method":"parity_subscription","params":{"result":"hello","subscription":"0x416d77337e24399d"}}"#;
+    assert_eq!(res, Some(response.into()));
 
-	let (res, receiver) = receiver.into_future().wait().unwrap();
-	let response =
-		r#"{"jsonrpc":"2.0","method":"parity_subscription","params":{"result":"world","subscription":"0x416d77337e24399d"}}"#;
-	assert_eq!(res, Some(response.into()));
+    let (res, receiver) = receiver.into_future().wait().unwrap();
+    let response = r#"{"jsonrpc":"2.0","method":"parity_subscription","params":{"result":"world","subscription":"0x416d77337e24399d"}}"#;
+    assert_eq!(res, Some(response.into()));
 
-	// And unsubscribe
-	let request = r#"{"jsonrpc": "2.0", "method": "parity_unsubscribe", "params": ["0x416d77337e24399d"], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
-	assert_eq!(io.handle_request_sync(request, metadata), Some(response.to_owned()));
+    // And unsubscribe
+    let request = r#"{"jsonrpc": "2.0", "method": "parity_unsubscribe", "params": ["0x416d77337e24399d"], "id": 1}"#;
+    let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
+    assert_eq!(
+        io.handle_request_sync(request, metadata),
+        Some(response.to_owned())
+    );
 
-	let (res, _receiver) = receiver.into_future().wait().unwrap();
-	assert_eq!(res, None);
+    let (res, _receiver) = receiver.into_future().wait().unwrap();
+    assert_eq!(res, None);
 }

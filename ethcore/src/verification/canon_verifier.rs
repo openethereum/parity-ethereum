@@ -16,33 +16,32 @@
 
 //! Canonical verifier.
 
+use super::{verification, Verifier};
 use call_contract::CallContract;
 use client::BlockInfo;
 use engines::EthEngine;
 use error::Error;
 use types::header::Header;
-use super::Verifier;
-use super::verification;
 
 /// A canonial verifier -- this does full verification.
 pub struct CanonVerifier;
 
 impl<C: BlockInfo + CallContract> Verifier<C> for CanonVerifier {
-	fn verify_block_family(
-		&self,
-		header: &Header,
-		parent: &Header,
-		engine: &EthEngine,
-		do_full: Option<verification::FullFamilyParams<C>>,
-	) -> Result<(), Error> {
-		verification::verify_block_family(header, parent, engine, do_full)
-	}
+    fn verify_block_family(
+        &self,
+        header: &Header,
+        parent: &Header,
+        engine: &EthEngine,
+        do_full: Option<verification::FullFamilyParams<C>>,
+    ) -> Result<(), Error> {
+        verification::verify_block_family(header, parent, engine, do_full)
+    }
 
-	fn verify_block_final(&self, expected: &Header, got: &Header) -> Result<(), Error> {
-		verification::verify_block_final(expected, got)
-	}
+    fn verify_block_final(&self, expected: &Header, got: &Header) -> Result<(), Error> {
+        verification::verify_block_final(expected, got)
+    }
 
-	fn verify_block_external(&self, header: &Header, engine: &EthEngine) -> Result<(), Error> {
-		engine.verify_block_external(header)
-	}
+    fn verify_block_external(&self, header: &Header, engine: &EthEngine) -> Result<(), Error> {
+        engine.verify_block_external(header)
+    }
 }

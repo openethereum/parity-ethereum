@@ -14,36 +14,38 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-extern crate serde_json;
 extern crate ethjson;
+extern crate serde_json;
 
-use std::{fs, env, process};
 use ethjson::spec::Spec;
+use std::{env, fs, process};
 
 fn quit(s: &str) -> ! {
-	println!("{}", s);
-	process::exit(1);
+    println!("{}", s);
+    process::exit(1);
 }
 
 fn main() {
-	let mut args = env::args();
-	if args.len() != 2 {
-		quit("You need to specify chainspec.json\n\
+    let mut args = env::args();
+    if args.len() != 2 {
+        quit(
+            "You need to specify chainspec.json\n\
 		\n\
-		./chainspec <chainspec.json>");
-	}
+		./chainspec <chainspec.json>",
+        );
+    }
 
-	let path = args.nth(1).expect("args.len() == 2; qed");
-	let file = match fs::File::open(&path) {
-		Ok(file) => file,
-		Err(_) => quit(&format!("{} could not be opened", path)),
-	};
+    let path = args.nth(1).expect("args.len() == 2; qed");
+    let file = match fs::File::open(&path) {
+        Ok(file) => file,
+        Err(_) => quit(&format!("{} could not be opened", path)),
+    };
 
-	let spec: Result<Spec, _> = serde_json::from_reader(file);
+    let spec: Result<Spec, _> = serde_json::from_reader(file);
 
-	if let Err(err) = spec {
-		quit(&format!("{} {}", path, err.to_string()));
-	}
+    if let Err(err) = spec {
+        quit(&format!("{} {}", path, err.to_string()));
+    }
 
-	println!("{} is valid", path);
+    println!("{} is valid", path);
 }

@@ -15,15 +15,15 @@
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use super::super::NetworkConfiguration;
+use ipc::binary::{deserialize, serialize};
 use network::NetworkConfiguration as BasicNetworkConfiguration;
 use std::convert::From;
-use ipc::binary::{serialize, deserialize};
 
 #[test]
 fn network_settings_serialize() {
-	let net_cfg = NetworkConfiguration::from(BasicNetworkConfiguration::new_local());
-	let serialized = serialize(&net_cfg).unwrap();
-	let deserialized = deserialize::<NetworkConfiguration>(&serialized).unwrap();
+    let net_cfg = NetworkConfiguration::from(BasicNetworkConfiguration::new_local());
+    let serialized = serialize(&net_cfg).unwrap();
+    let deserialized = deserialize::<NetworkConfiguration>(&serialized).unwrap();
 
-	assert_eq!(net_cfg.udp_port, deserialized.udp_port);
+    assert_eq!(net_cfg.udp_port, deserialized.udp_port);
 }

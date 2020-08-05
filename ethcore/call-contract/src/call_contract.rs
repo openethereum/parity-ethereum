@@ -22,12 +22,12 @@ use types::ids::BlockId;
 
 /// Provides `call_contract` method
 pub trait CallContract {
-	/// Like `call`, but with various defaults. Designed to be used for calling contracts.
-	fn call_contract(&self, id: BlockId, address: Address, data: Bytes) -> Result<Bytes, String>;
+    /// Like `call`, but with various defaults. Designed to be used for calling contracts.
+    fn call_contract(&self, id: BlockId, address: Address, data: Bytes) -> Result<Bytes, String>;
 }
 
 /// Provides information on a blockchain service and it's registry
 pub trait RegistryInfo {
-	/// Get the address of a particular blockchain service, if available.
-	fn registry_address(&self, name: String, block: BlockId) -> Option<Address>;
+    /// Get the address of a particular blockchain service, if available.
+    fn registry_address(&self, name: String, block: BlockId) -> Option<Address>;
 }

@@ -22,63 +22,69 @@
 
 use std::fmt;
 
-use ethereum_types::{U256, H256, H160 as Address};
+use ethereum_types::{H160 as Address, H256, U256};
 use types::transaction;
 
 /// Account Details
 #[derive(Debug, Clone)]
 pub struct AccountDetails {
-	/// Current account nonce
-	pub nonce: U256,
-	/// Current account balance
-	pub balance: U256,
-	/// Is this account a local account?
-	pub is_local: bool,
+    /// Current account nonce
+    pub nonce: U256,
+    /// Current account balance
+    pub balance: U256,
+    /// Is this account a local account?
+    pub is_local: bool,
 }
 
 /// Transaction type
 #[derive(Debug, PartialEq)]
 pub enum TransactionType {
-	/// Regular transaction
-	Regular,
-	/// Service transaction (allowed by a contract to have gas_price=0)
-	Service,
+    /// Regular transaction
+    Regular,
+    /// Service transaction (allowed by a contract to have gas_price=0)
+    Service,
 }
 
 /// Verification client.
 pub trait Client: fmt::Debug + Sync {
-	/// Is transaction with given hash already in the blockchain?
-	fn transaction_already_included(&self, hash: &H256) -> bool;
+    /// Is transaction with given hash already in the blockchain?
+    fn transaction_already_included(&self, hash: &H256) -> bool;
 
-	/// Perform basic/cheap transaction verification.
-	///
-	/// This should include all cheap checks that can be done before
-	/// actually checking the signature, like chain-replay protection.
-	///
-	/// This method is currently used only for verifying local transactions.
-	fn verify_transaction_basic(&self, t: &transaction::UnverifiedTransaction)
-		-> Result<(), transaction::Error>;
+    /// Perform basic/cheap transaction verification.
+    ///
+    /// This should include all cheap checks that can be done before
+    /// actually checking the signature, like chain-replay protection.
+    ///
+    /// This method is currently used only for verifying local transactions.
+    fn verify_transaction_basic(
+        &self,
+        t: &transaction::UnverifiedTransaction,
+    ) -> Result<(), transaction::Error>;
 
-	/// Structurarily verify given transaction.
-	fn verify_transaction(&self, tx: transaction::UnverifiedTransaction)
-		-> Result<transaction::SignedTransaction, transaction::Error>;
+    /// Structurarily verify given transaction.
+    fn verify_transaction(
+        &self,
+        tx: transaction::UnverifiedTransaction,
+    ) -> Result<transaction::SignedTransaction, transaction::Error>;
 
-	/// Estimate minimal gas requirurement for given transaction.
-	fn required_gas(&self, tx: &transaction::Transaction) -> U256;
+    /// Estimate minimal gas requirurement for given transaction.
+    fn required_gas(&self, tx: &transaction::Transaction) -> U256;
 
-	/// Fetch account details for given sender.
-	fn account_details(&self, address: &Address) -> AccountDetails;
+    /// Fetch account details for given sender.
+    fn account_details(&self, address: &Address) -> AccountDetails;
 
-	/// Classify transaction (check if transaction is filtered by some contracts).
-	fn transaction_type(&self, tx: &transaction::SignedTransaction) -> TransactionType;
+    /// Classify transaction (check if transaction is filtered by some contracts).
+    fn transaction_type(&self, tx: &transaction::SignedTransaction) -> TransactionType;
 
-	/// Performs pre-validation of RLP decoded transaction
-	fn decode_transaction(&self, transaction: &[u8])
-		-> Result<transaction::UnverifiedTransaction, transaction::Error>;
+    /// Performs pre-validation of RLP decoded transaction
+    fn decode_transaction(
+        &self,
+        transaction: &[u8],
+    ) -> Result<transaction::UnverifiedTransaction, transaction::Error>;
 }
 
 /// State nonce client
 pub trait NonceClient: fmt::Debug + Sync {
-	/// Fetch only account nonce for given sender.
-	fn account_nonce(&self, address: &Address) -> U256;
+    /// Fetch only account nonce for given sender.
+    fn account_nonce(&self, address: &Address) -> U256;
 }

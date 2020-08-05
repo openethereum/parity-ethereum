@@ -40,26 +40,28 @@ mod web3;
 
 pub mod light;
 
-pub use self::debug::DebugClient;
-pub use self::eth::{EthClient, EthClientOptions};
-pub use self::eth_filter::EthFilterClient;
-pub use self::eth_pubsub::EthPubSubClient;
-pub use self::net::NetClient;
-pub use self::parity::ParityClient;
 #[cfg(any(test, feature = "accounts"))]
 pub use self::parity_accounts::ParityAccountsClient;
-pub use self::parity_set::ParitySetClient;
 #[cfg(any(test, feature = "accounts"))]
 pub use self::parity_set::accounts::ParitySetAccountsClient;
 #[cfg(any(test, feature = "accounts"))]
 pub use self::personal::PersonalClient;
-pub use self::private::PrivateClient;
-pub use self::pubsub::PubSubClient;
-pub use self::rpc::RpcClient;
 #[cfg(any(test, feature = "accounts"))]
 pub use self::secretstore::SecretStoreClient;
-pub use self::signer::SignerClient;
-pub use self::signing::SigningQueueClient;
-pub use self::signing_unsafe::SigningUnsafeClient;
-pub use self::traces::TracesClient;
-pub use self::web3::Web3Client;
+pub use self::{
+    debug::DebugClient,
+    eth::{EthClient, EthClientOptions},
+    eth_filter::EthFilterClient,
+    eth_pubsub::EthPubSubClient,
+    net::NetClient,
+    parity::ParityClient,
+    parity_set::ParitySetClient,
+    private::PrivateClient,
+    pubsub::PubSubClient,
+    rpc::RpcClient,
+    signer::SignerClient,
+    signing::SigningQueueClient,
+    signing_unsafe::SigningUnsafeClient,
+    traces::TracesClient,
+    web3::Web3Client,
+};

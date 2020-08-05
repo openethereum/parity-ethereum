@@ -14,25 +14,25 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use types::{CapState, ReleaseInfo, OperationsInfo, VersionInfo};
+use types::{CapState, OperationsInfo, ReleaseInfo, VersionInfo};
 
 /// Parity updater service trait
 pub trait Service: Send + Sync {
-	/// Is the currently running client capable of supporting the current chain?
-	/// We default to true if there's no clear information.
-	fn capability(&self) -> CapState;
+    /// Is the currently running client capable of supporting the current chain?
+    /// We default to true if there's no clear information.
+    fn capability(&self) -> CapState;
 
-	/// The release which is ready to be upgraded to, if any. If this returns `Some`, then
-	/// `execute_upgrade` may be called.
-	fn upgrade_ready(&self) -> Option<ReleaseInfo>;
+    /// The release which is ready to be upgraded to, if any. If this returns `Some`, then
+    /// `execute_upgrade` may be called.
+    fn upgrade_ready(&self) -> Option<ReleaseInfo>;
 
-	/// Actually upgrades the client. Assumes that the binary has been downloaded.
-	/// @returns `true` on success.
-	fn execute_upgrade(&self) -> bool;
+    /// Actually upgrades the client. Assumes that the binary has been downloaded.
+    /// @returns `true` on success.
+    fn execute_upgrade(&self) -> bool;
 
-	/// Our version info.
-	fn version_info(&self) -> VersionInfo;
+    /// Our version info.
+    fn version_info(&self) -> VersionInfo;
 
-	/// Information gathered concerning the release.
-	fn info(&self) -> Option<OperationsInfo>;
+    /// Information gathered concerning the release.
+    fn info(&self) -> Option<OperationsInfo>;
 }

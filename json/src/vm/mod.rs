@@ -16,14 +16,10 @@
 
 //! Vm test loader.
 
+pub mod call;
 pub mod env;
+pub mod test;
 pub mod transaction;
 pub mod vm;
-pub mod call;
-pub mod test;
 
-pub use self::env::Env;
-pub use self::transaction::Transaction;
-pub use self::vm::Vm;
-pub use self::call::Call;
-pub use self::test::Test;
+pub use self::{call::Call, env::Env, test::Test, transaction::Transaction, vm::Vm};

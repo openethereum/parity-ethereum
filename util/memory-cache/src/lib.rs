@@ -30,89 +30,89 @@ const INITIAL_CAPACITY: usize = 4;
 
 /// An LRU-cache which operates on memory used.
 pub struct MemoryLruCache<K: Eq + Hash, V: HeapSizeOf> {
-	inner: LruCache<K, V>,
-	cur_size: usize,
-	max_size: usize,
+    inner: LruCache<K, V>,
+    cur_size: usize,
+    max_size: usize,
 }
 
 // amount of memory used when the item will be put on the heap.
 fn heap_size_of<T: HeapSizeOf>(val: &T) -> usize {
-	::std::mem::size_of::<T>() + val.heap_size_of_children()
+    ::std::mem::size_of::<T>() + val.heap_size_of_children()
 }
 
 impl<K: Eq + Hash, V: HeapSizeOf> MemoryLruCache<K, V> {
-	/// Create a new cache with a maximum size in bytes.
-	pub fn new(max_size: usize) -> Self {
-		MemoryLruCache {
-			inner: LruCache::new(INITIAL_CAPACITY),
-			max_size: max_size,
-			cur_size: 0,
-		}
-	}
+    /// Create a new cache with a maximum size in bytes.
+    pub fn new(max_size: usize) -> Self {
+        MemoryLruCache {
+            inner: LruCache::new(INITIAL_CAPACITY),
+            max_size: max_size,
+            cur_size: 0,
+        }
+    }
 
-	/// Insert an item.
-	pub fn insert(&mut self, key: K, val: V) {
-		let cap = self.inner.capacity();
+    /// Insert an item.
+    pub fn insert(&mut self, key: K, val: V) {
+        let cap = self.inner.capacity();
 
-		// grow the cache as necessary; it operates on amount of items
-		// but we're working based on memory usage.
-		if self.inner.len() == cap && self.cur_size < self.max_size {
-			self.inner.set_capacity(cap * 2);
-		}
+        // grow the cache as necessary; it operates on amount of items
+        // but we're working based on memory usage.
+        if self.inner.len() == cap && self.cur_size < self.max_size {
+            self.inner.set_capacity(cap * 2);
+        }
 
-		self.cur_size += heap_size_of(&val);
+        self.cur_size += heap_size_of(&val);
 
-		// account for any element displaced from the cache.
-		if let Some(lru) = self.inner.insert(key, val) {
-			self.cur_size -= heap_size_of(&lru);
-		}
+        // account for any element displaced from the cache.
+        if let Some(lru) = self.inner.insert(key, val) {
+            self.cur_size -= heap_size_of(&lru);
+        }
 
-		// remove elements until we are below the memory target.
-		while self.cur_size > self.max_size {
-			match self.inner.remove_lru() {
-				Some((_, v)) => self.cur_size -= heap_size_of(&v),
-				_ => break,
-			}
-		}
-	}
+        // remove elements until we are below the memory target.
+        while self.cur_size > self.max_size {
+            match self.inner.remove_lru() {
+                Some((_, v)) => self.cur_size -= heap_size_of(&v),
+                _ => break,
+            }
+        }
+    }
 
-	/// Get a reference to an item in the cache. It is a logic error for its
-	/// heap size to be altered while borrowed.
-	pub fn get_mut(&mut self, key: &K) -> Option<&mut V> {
-		self.inner.get_mut(key)
-	}
+    /// Get a reference to an item in the cache. It is a logic error for its
+    /// heap size to be altered while borrowed.
+    pub fn get_mut(&mut self, key: &K) -> Option<&mut V> {
+        self.inner.get_mut(key)
+    }
 
-	/// Currently-used size of values in bytes.
-	pub fn current_size(&self) -> usize {
-		self.cur_size
-	}
+    /// Currently-used size of values in bytes.
+    pub fn current_size(&self) -> usize {
+        self.cur_size
+    }
 
-	/// Get backing LRU cache instance (read only)
-	pub fn backstore(&self) -> &LruCache<K, V> {
-		&self.inner
-	}
+    /// Get backing LRU cache instance (read only)
+    pub fn backstore(&self) -> &LruCache<K, V> {
+        &self.inner
+    }
 }
 
 #[cfg(test)]
 mod tests {
-	use super::*;
+    use super::*;
 
-	#[test]
-	fn it_works() {
-		let mut cache = MemoryLruCache::new(256);
-		let val1 = vec![0u8; 100];
-		let size1 = heap_size_of(&val1);
-		cache.insert("hello", val1);
+    #[test]
+    fn it_works() {
+        let mut cache = MemoryLruCache::new(256);
+        let val1 = vec![0u8; 100];
+        let size1 = heap_size_of(&val1);
+        cache.insert("hello", val1);
 
-		assert_eq!(cache.current_size(), size1);
+        assert_eq!(cache.current_size(), size1);
 
-		let val2 = vec![0u8; 210];
-		let size2 = heap_size_of(&val2);
-		cache.insert("world", val2);
+        let val2 = vec![0u8; 210];
+        let size2 = heap_size_of(&val2);
+        cache.insert("world", val2);
 
-		assert!(cache.get_mut(&"hello").is_none());
-		assert!(cache.get_mut(&"world").is_some());
+        assert!(cache.get_mut(&"hello").is_none());
+        assert!(cache.get_mut(&"world").is_some());
 
-		assert_eq!(cache.current_size(), size2);
-	}
+        assert_eq!(cache.current_size(), size2);
+    }
 }

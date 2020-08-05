@@ -94,11 +94,11 @@ macro_rules! flushln {
 
 #[doc(hidden)]
 pub fn flush(s: String) {
-	let _ = io::Write::write(&mut io::stdout(), s.as_bytes());
-	let _ = io::Write::flush(&mut io::stdout());
+    let _ = io::Write::write(&mut io::stdout(), s.as_bytes());
+    let _ = io::Write::flush(&mut io::stdout());
 }
 
 #[test]
 fn test_flush() {
-	flushln!("hello_world {:?}", 1);
+    flushln!("hello_world {:?}", 1);
 }

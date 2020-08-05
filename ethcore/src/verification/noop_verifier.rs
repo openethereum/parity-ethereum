@@ -16,33 +16,33 @@
 
 //! No-op verifier.
 
+use super::{verification, Verifier};
 use call_contract::CallContract;
 use client::BlockInfo;
 use engines::EthEngine;
 use error::Error;
 use types::header::Header;
-use super::{verification, Verifier};
 
 /// A no-op verifier -- this will verify everything it's given immediately.
 #[allow(dead_code)]
 pub struct NoopVerifier;
 
 impl<C: BlockInfo + CallContract> Verifier<C> for NoopVerifier {
-	fn verify_block_family(
-		&self,
-		_: &Header,
-		_t: &Header,
-		_: &EthEngine,
-		_: Option<verification::FullFamilyParams<C>>
-	) -> Result<(), Error> {
-		Ok(())
-	}
+    fn verify_block_family(
+        &self,
+        _: &Header,
+        _t: &Header,
+        _: &EthEngine,
+        _: Option<verification::FullFamilyParams<C>>,
+    ) -> Result<(), Error> {
+        Ok(())
+    }
 
-	fn verify_block_final(&self, _expected: &Header, _got: &Header) -> Result<(), Error> {
-		Ok(())
-	}
+    fn verify_block_final(&self, _expected: &Header, _got: &Header) -> Result<(), Error> {
+        Ok(())
+    }
 
-	fn verify_block_external(&self, _header: &Header, _engine: &EthEngine) -> Result<(), Error> {
-		Ok(())
-	}
+    fn verify_block_external(&self, _header: &Header, _engine: &EthEngine) -> Result<(), Error> {
+        Ok(())
+    }
 }

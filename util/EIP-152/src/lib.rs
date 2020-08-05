@@ -18,38 +18,42 @@
 /// There are 10 16-byte arrays - one for each round
 /// the entries are calculated from the sigma constants.
 const SIGMA: [[usize; 16]; 10] = [
-	[ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15],
-	[14, 10,  4,  8,  9, 15, 13,  6,  1, 12,  0,  2, 11,  7,  5,  3],
-	[11,  8, 12,  0,  5,  2, 15, 13, 10, 14,  3,  6,  7,  1,  9,  4],
-	[ 7,  9,  3,  1, 13, 12, 11, 14,  2,  6,  5, 10,  4,  0, 15,  8],
-	[ 9,  0,  5,  7,  2,  4, 10, 15, 14,  1, 11, 12,  6,  8,  3, 13],
-	[ 2, 12,  6, 10,  0, 11,  8,  3,  4, 13,  7,  5, 15, 14,  1,  9],
-	[12,  5,  1, 15, 14, 13,  4, 10,  0,  7,  6,  3,  9,  2,  8, 11],
-	[13, 11,  7, 14, 12,  1,  3,  9,  5,  0, 15,  4,  8,  6,  2, 10],
-	[ 6, 15, 14,  9, 11,  3,  0,  8, 12,  2, 13,  7,  1,  4, 10,  5],
-	[10,  2,  8,  4,  7,  6,  1,  5, 15, 11,  9, 14,  3, 12, 13,  0],
+    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+    [14, 10, 4, 8, 9, 15, 13, 6, 1, 12, 0, 2, 11, 7, 5, 3],
+    [11, 8, 12, 0, 5, 2, 15, 13, 10, 14, 3, 6, 7, 1, 9, 4],
+    [7, 9, 3, 1, 13, 12, 11, 14, 2, 6, 5, 10, 4, 0, 15, 8],
+    [9, 0, 5, 7, 2, 4, 10, 15, 14, 1, 11, 12, 6, 8, 3, 13],
+    [2, 12, 6, 10, 0, 11, 8, 3, 4, 13, 7, 5, 15, 14, 1, 9],
+    [12, 5, 1, 15, 14, 13, 4, 10, 0, 7, 6, 3, 9, 2, 8, 11],
+    [13, 11, 7, 14, 12, 1, 3, 9, 5, 0, 15, 4, 8, 6, 2, 10],
+    [6, 15, 14, 9, 11, 3, 0, 8, 12, 2, 13, 7, 1, 4, 10, 5],
+    [10, 2, 8, 4, 7, 6, 1, 5, 15, 11, 9, 14, 3, 12, 13, 0],
 ];
-
 
 /// IV is the initialization vector for BLAKE2b. See https://tools.ietf.org/html/rfc7693#section-2.6
 /// for details.
 const IV: [u64; 8] = [
-	0x6a09e667f3bcc908, 0xbb67ae8584caa73b, 0x3c6ef372fe94f82b, 0xa54ff53a5f1d36f1,
-	0x510e527fade682d1, 0x9b05688c2b3e6c1f, 0x1f83d9abfb41bd6b, 0x5be0cd19137e2179,
+    0x6a09e667f3bcc908,
+    0xbb67ae8584caa73b,
+    0x3c6ef372fe94f82b,
+    0xa54ff53a5f1d36f1,
+    0x510e527fade682d1,
+    0x9b05688c2b3e6c1f,
+    0x1f83d9abfb41bd6b,
+    0x5be0cd19137e2179,
 ];
-
 
 #[inline(always)]
 /// The G mixing function. See https://tools.ietf.org/html/rfc7693#section-3.1
 fn g(v: &mut [u64], a: usize, b: usize, c: usize, d: usize, x: u64, y: u64) {
-	v[a] = v[a].wrapping_add(v[b]).wrapping_add(x);
-	v[d] = (v[d] ^ v[a]).rotate_right(32);
-	v[c] = v[c].wrapping_add(v[d]);
-	v[b] = (v[b] ^ v[c]).rotate_right(24);
-	v[a] = v[a].wrapping_add(v[b]).wrapping_add(y);
-	v[d] = (v[d] ^ v[a]).rotate_right(16);
-	v[c] = v[c].wrapping_add(v[d]);
-	v[b] = (v[b] ^ v[c]).rotate_right(63);
+    v[a] = v[a].wrapping_add(v[b]).wrapping_add(x);
+    v[d] = (v[d] ^ v[a]).rotate_right(32);
+    v[c] = v[c].wrapping_add(v[d]);
+    v[b] = (v[b] ^ v[c]).rotate_right(24);
+    v[a] = v[a].wrapping_add(v[b]).wrapping_add(y);
+    v[d] = (v[d] ^ v[a]).rotate_right(16);
+    v[c] = v[c].wrapping_add(v[d]);
+    v[b] = (v[b] ^ v[c]).rotate_right(63);
 }
 
 /// The Blake2 compression function F. See https://tools.ietf.org/html/rfc7693#section-3.2
@@ -57,82 +61,102 @@ fn g(v: &mut [u64], a: usize, b: usize, c: usize, d: usize, x: u64, y: u64) {
 /// block indicator flag `f`, and number of rounds `rounds`. The state vector provided as the first
 /// parameter is modified by the function.
 pub fn compress(h: &mut [u64; 8], m: [u64; 16], t: [u64; 2], f: bool, rounds: usize) {
-	let mut v = [0u64; 16];
-	v[..h.len()].copy_from_slice(h);    // First half from state.
-	v[h.len()..].copy_from_slice(&IV);  // Second half from IV.
+    let mut v = [0u64; 16];
+    v[..h.len()].copy_from_slice(h); // First half from state.
+    v[h.len()..].copy_from_slice(&IV); // Second half from IV.
 
-	v[12] ^= t[0];
-	v[13] ^= t[1];
+    v[12] ^= t[0];
+    v[13] ^= t[1];
 
-	if f {
-		v[14] = !v[14] // Invert all bits if the last-block-flag is set.
-	}
-	for i in 0..rounds {
-		// Message word selection permutation for this round.
-		let s = &SIGMA[i % 10];
-		g(&mut v, 0, 4, 8, 12, m[s[0]], m[s[1]]);
-		g(&mut v, 1, 5, 9, 13, m[s[2]], m[s[3]]);
-		g(&mut v, 2, 6, 10, 14, m[s[4]], m[s[5]]);
-		g(&mut v, 3, 7, 11, 15, m[s[6]], m[s[7]]);
+    if f {
+        v[14] = !v[14] // Invert all bits if the last-block-flag is set.
+    }
+    for i in 0..rounds {
+        // Message word selection permutation for this round.
+        let s = &SIGMA[i % 10];
+        g(&mut v, 0, 4, 8, 12, m[s[0]], m[s[1]]);
+        g(&mut v, 1, 5, 9, 13, m[s[2]], m[s[3]]);
+        g(&mut v, 2, 6, 10, 14, m[s[4]], m[s[5]]);
+        g(&mut v, 3, 7, 11, 15, m[s[6]], m[s[7]]);
 
-		g(&mut v, 0, 5, 10, 15, m[s[8]], m[s[9]]);
-		g(&mut v, 1, 6, 11, 12, m[s[10]], m[s[11]]);
-		g(&mut v, 2, 7, 8, 13, m[s[12]], m[s[13]]);
-		g(&mut v, 3, 4, 9, 14, m[s[14]], m[s[15]]);
-	}
+        g(&mut v, 0, 5, 10, 15, m[s[8]], m[s[9]]);
+        g(&mut v, 1, 6, 11, 12, m[s[10]], m[s[11]]);
+        g(&mut v, 2, 7, 8, 13, m[s[12]], m[s[13]]);
+        g(&mut v, 3, 4, 9, 14, m[s[14]], m[s[15]]);
+    }
 
-	for i in 0..8 {
-		h[i] ^= v[i] ^ v[i + 8];
-	}
+    for i in 0..8 {
+        h[i] ^= v[i] ^ v[i + 8];
+    }
 }
-
 
 #[cfg(test)]
 mod tests {
-	use crate::compress;
-	use rustc_hex::FromHex;
+    use crate::compress;
+    use rustc_hex::FromHex;
 
-	#[test]
-	fn test_blake2_f() {
-		// test from https://github.com/ethereum/EIPs/blob/master/EIPS/eip-152.md#example-usage-in-solidity
-		let mut h_in = [
-			0x6a09e667f2bdc948_u64, 0xbb67ae8584caa73b_u64,
-			0x3c6ef372fe94f82b_u64, 0xa54ff53a5f1d36f1_u64,
-			0x510e527fade682d1_u64, 0x9b05688c2b3e6c1f_u64,
-			0x1f83d9abfb41bd6b_u64, 0x5be0cd19137e2179_u64,
-		];
+    #[test]
+    fn test_blake2_f() {
+        // test from https://github.com/ethereum/EIPs/blob/master/EIPS/eip-152.md#example-usage-in-solidity
+        let mut h_in = [
+            0x6a09e667f2bdc948_u64,
+            0xbb67ae8584caa73b_u64,
+            0x3c6ef372fe94f82b_u64,
+            0xa54ff53a5f1d36f1_u64,
+            0x510e527fade682d1_u64,
+            0x9b05688c2b3e6c1f_u64,
+            0x1f83d9abfb41bd6b_u64,
+            0x5be0cd19137e2179_u64,
+        ];
 
-		let m = [
-			0x0000000000636261_u64, 0x0000000000000000_u64, 0x0000000000000000_u64,
-			0x0000000000000000_u64, 0x0000000000000000_u64, 0x0000000000000000_u64,
-			0x0000000000000000_u64, 0x0000000000000000_u64, 0x0000000000000000_u64,
-			0x0000000000000000_u64, 0x0000000000000000_u64, 0x0000000000000000_u64,
-			0x0000000000000000_u64, 0x0000000000000000_u64, 0x0000000000000000_u64,
-			0x0000000000000000_u64,
-		];
-		let c = [3, 0];
-		let f = true;
-		let rounds = 12;
-		let h_out: [u64; 8] = [
-			0x0D4D1C983FA580BA_u64, 0xE9F6129FB697276A_u64, 0xB7C45A68142F214C_u64,
-			0xD1A2FFDB6FBB124B_u64, 0x2D79AB2A39C5877D_u64, 0x95CC3345DED552C2_u64,
-			0x5A92F1DBA88AD318_u64, 0x239900D4ED8623B9_u64,
-		];
+        let m = [
+            0x0000000000636261_u64,
+            0x0000000000000000_u64,
+            0x0000000000000000_u64,
+            0x0000000000000000_u64,
+            0x0000000000000000_u64,
+            0x0000000000000000_u64,
+            0x0000000000000000_u64,
+            0x0000000000000000_u64,
+            0x0000000000000000_u64,
+            0x0000000000000000_u64,
+            0x0000000000000000_u64,
+            0x0000000000000000_u64,
+            0x0000000000000000_u64,
+            0x0000000000000000_u64,
+            0x0000000000000000_u64,
+            0x0000000000000000_u64,
+        ];
+        let c = [3, 0];
+        let f = true;
+        let rounds = 12;
+        let h_out: [u64; 8] = [
+            0x0D4D1C983FA580BA_u64,
+            0xE9F6129FB697276A_u64,
+            0xB7C45A68142F214C_u64,
+            0xD1A2FFDB6FBB124B_u64,
+            0x2D79AB2A39C5877D_u64,
+            0x95CC3345DED552C2_u64,
+            0x5A92F1DBA88AD318_u64,
+            0x239900D4ED8623B9_u64,
+        ];
 
-		compress(&mut h_in, m, c, f, rounds);
+        compress(&mut h_in, m, c, f, rounds);
 
-		assert_eq!(h_in, h_out);
-	}
+        assert_eq!(h_in, h_out);
+    }
 
-	fn to_u64_slice(vec: &[u8], slice: &mut [u64]) {
-		vec.chunks(8).enumerate().for_each(|(index, val)| {
-			slice[index] = u64::from_le_bytes([val[0], val[1], val[2], val[3], val[4], val[5], val[6], val[7]])
-		})
-	}
+    fn to_u64_slice(vec: &[u8], slice: &mut [u64]) {
+        vec.chunks(8).enumerate().for_each(|(index, val)| {
+            slice[index] = u64::from_le_bytes([
+                val[0], val[1], val[2], val[3], val[4], val[5], val[6], val[7],
+            ])
+        })
+    }
 
-	#[test]
-	fn test_vectors_from_eip() {
-		let vec = vec![
+    #[test]
+    fn test_vectors_from_eip() {
+        let vec = vec![
 			(
 				// Test vector 4
 				"0000000048c9bdf267e6096a3ba7ca8485ae67bb2bf894fe72f36e3cf1361d5f3af54fa5d182e6ad7f520e511f6c3e2b8c68059b6bbd41fbabd9831f79217e1319cde05b61626300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000001",
@@ -158,35 +182,35 @@ mod tests {
 //				"fc59093aafa9ab43daae0e914c57635c5402d8e3d2130eb9b3cc181de7f0ecf9b22bf99a7815ce16419e200e01846e6b5df8cc7703041bbceb571de6631d2615",
 //			),
 		];
-		for (hex, output) in vec {
-			let hex = hex;
-			let bytes: Vec<u8> = hex.from_hex().unwrap();
+        for (hex, output) in vec {
+            let hex = hex;
+            let bytes: Vec<u8> = hex.from_hex().unwrap();
 
-			assert_eq!(bytes.len(), 213);
+            assert_eq!(bytes.len(), 213);
 
-			let mut h = [0u64; 8];
-			let mut m = [0u64; 16];
-			let mut t = [0u64; 2];
+            let mut h = [0u64; 8];
+            let mut m = [0u64; 16];
+            let mut t = [0u64; 2];
 
-			let rounds = u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]);
-			let f = match bytes[212] {
-				1 => true,
-				0 => false,
-				_ => unreachable!()
-			};
+            let rounds = u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]);
+            let f = match bytes[212] {
+                1 => true,
+                0 => false,
+                _ => unreachable!(),
+            };
 
-			to_u64_slice(&bytes[4..68], &mut h);
-			to_u64_slice(&bytes[68..196], &mut m);
-			to_u64_slice(&bytes[196..212], &mut t);
+            to_u64_slice(&bytes[4..68], &mut h);
+            to_u64_slice(&bytes[68..196], &mut m);
+            to_u64_slice(&bytes[196..212], &mut t);
 
-			compress(&mut h, m, t, f, rounds as usize);
+            compress(&mut h, m, t, f, rounds as usize);
 
-			let output: Vec<u8> = output.from_hex().unwrap();
+            let output: Vec<u8> = output.from_hex().unwrap();
 
-			let mut out = [0u64; 8];
-			to_u64_slice(&output[..], &mut out);
+            let mut out = [0u64; 8];
+            to_u64_slice(&output[..], &mut out);
 
-			assert_eq!(out, h);
-		}
-	}
+            assert_eq!(out, h);
+        }
+    }
 }

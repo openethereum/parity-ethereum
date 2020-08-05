@@ -14,12 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::io::{Read, Write};
+use super::{Crypto, Uuid, Version, H160};
 use serde::de::Error;
-use serde_json;
-use serde_json::value::Value;
-use serde_json::error;
-use super::{Uuid, Version, Crypto, H160};
+use serde_json::{self, error, value::Value};
+use std::io::{Read, Write};
 
 /// Meta key name for vault field
 const VAULT_NAME_META_KEY: &'static str = "vault";
@@ -27,94 +25,112 @@ const VAULT_NAME_META_KEY: &'static str = "vault";
 /// Key file as stored in vaults
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct VaultKeyFile {
-	/// Key id
-	pub id: Uuid,
-	/// Key version
-	pub version: Version,
-	/// Secret, encrypted with account password
-	pub crypto: Crypto,
-	/// Serialized `VaultKeyMeta`, encrypted with vault password
-	pub metacrypto: Crypto,
+    /// Key id
+    pub id: Uuid,
+    /// Key version
+    pub version: Version,
+    /// Secret, encrypted with account password
+    pub crypto: Crypto,
+    /// Serialized `VaultKeyMeta`, encrypted with vault password
+    pub metacrypto: Crypto,
 }
 
 /// Data, stored in `VaultKeyFile::metacrypto`
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub struct VaultKeyMeta {
-	/// Key address
-	pub address: H160,
-	/// Key name
-	pub name: Option<String>,
-	/// Key metadata
-	pub meta: Option<String>,
+    /// Key address
+    pub address: H160,
+    /// Key name
+    pub name: Option<String>,
+    /// Key metadata
+    pub meta: Option<String>,
 }
 
 /// Insert vault name to the JSON meta field
-pub fn insert_vault_name_to_json_meta(meta: &str, vault_name: &str) -> Result<String, error::Error> {
-	let mut meta = if meta.is_empty() {
-		Value::Object(serde_json::Map::new())
-	} else {
-		serde_json::from_str(meta)?
-	};
+pub fn insert_vault_name_to_json_meta(
+    meta: &str,
+    vault_name: &str,
+) -> Result<String, error::Error> {
+    let mut meta = if meta.is_empty() {
+        Value::Object(serde_json::Map::new())
+    } else {
+        serde_json::from_str(meta)?
+    };
 
-	if let Some(meta_obj) = meta.as_object_mut() {
-		meta_obj.insert(VAULT_NAME_META_KEY.to_owned(), Value::String(vault_name.to_owned()));
-		serde_json::to_string(meta_obj)
-	} else {
-		Err(error::Error::custom("Meta is expected to be a serialized JSON object"))
-	}
+    if let Some(meta_obj) = meta.as_object_mut() {
+        meta_obj.insert(
+            VAULT_NAME_META_KEY.to_owned(),
+            Value::String(vault_name.to_owned()),
+        );
+        serde_json::to_string(meta_obj)
+    } else {
+        Err(error::Error::custom(
+            "Meta is expected to be a serialized JSON object",
+        ))
+    }
 }
 
 /// Remove vault name from the JSON meta field
 pub fn remove_vault_name_from_json_meta(meta: &str) -> Result<String, error::Error> {
-	let mut meta = if meta.is_empty() {
-		Value::Object(serde_json::Map::new())
-	} else {
-		serde_json::from_str(meta)?
-	};
+    let mut meta = if meta.is_empty() {
+        Value::Object(serde_json::Map::new())
+    } else {
+        serde_json::from_str(meta)?
+    };
 
-	if let Some(meta_obj) = meta.as_object_mut() {
-		meta_obj.remove(VAULT_NAME_META_KEY);
-		serde_json::to_string(meta_obj)
-	} else {
-		Err(error::Error::custom("Meta is expected to be a serialized JSON object"))
-	}
+    if let Some(meta_obj) = meta.as_object_mut() {
+        meta_obj.remove(VAULT_NAME_META_KEY);
+        serde_json::to_string(meta_obj)
+    } else {
+        Err(error::Error::custom(
+            "Meta is expected to be a serialized JSON object",
+        ))
+    }
 }
 
 impl VaultKeyFile {
-	pub fn load<R>(reader: R) -> Result<Self, serde_json::Error> where R: Read {
-		serde_json::from_reader(reader)
-	}
+    pub fn load<R>(reader: R) -> Result<Self, serde_json::Error>
+    where
+        R: Read,
+    {
+        serde_json::from_reader(reader)
+    }
 
-	pub fn write<W>(&self, writer: &mut W) -> Result<(), serde_json::Error> where W: Write {
-		serde_json::to_writer(writer, self)
-	}
+    pub fn write<W>(&self, writer: &mut W) -> Result<(), serde_json::Error>
+    where
+        W: Write,
+    {
+        serde_json::to_writer(writer, self)
+    }
 }
 
 impl VaultKeyMeta {
-	pub fn load(bytes: &[u8]) -> Result<Self, serde_json::Error> {
-		serde_json::from_slice(&bytes)
-	}
+    pub fn load(bytes: &[u8]) -> Result<Self, serde_json::Error> {
+        serde_json::from_slice(&bytes)
+    }
 
-	pub fn write(&self) -> Result<Vec<u8>, serde_json::Error> {
-		let s = serde_json::to_string(self)?;
-		Ok(s.as_bytes().into())
-	}
+    pub fn write(&self) -> Result<Vec<u8>, serde_json::Error> {
+        let s = serde_json::to_string(self)?;
+        Ok(s.as_bytes().into())
+    }
 }
 
 #[cfg(test)]
 mod test {
-	use serde_json;
-	use json::{VaultKeyFile, Version, Crypto, Cipher, Aes128Ctr, Kdf, Pbkdf2, Prf,
-		insert_vault_name_to_json_meta, remove_vault_name_from_json_meta};
-	use std::num::NonZeroU32;
+    use json::{
+        insert_vault_name_to_json_meta, remove_vault_name_from_json_meta, Aes128Ctr, Cipher,
+        Crypto, Kdf, Pbkdf2, Prf, VaultKeyFile, Version,
+    };
+    use serde_json;
+    use std::num::NonZeroU32;
 
-	lazy_static! {
-		static ref ITERATIONS: NonZeroU32 = NonZeroU32::new(10240).expect("10240 > 0; qed");
-	}
+    lazy_static! {
+        static ref ITERATIONS: NonZeroU32 = NonZeroU32::new(10240).expect("10240 > 0; qed");
+    }
 
-	#[test]
-	fn to_and_from_json() {
-		let file = VaultKeyFile {
+    #[test]
+    fn to_and_from_json() {
+        let file = VaultKeyFile {
 			id: "08d82c39-88e3-7a71-6abb-89c8f36c3ceb".into(),
 			version: Version::V3,
 			crypto: Crypto {
@@ -145,33 +161,45 @@ mod test {
 			}
 		};
 
-		let serialized = serde_json::to_string(&file).unwrap();
-		let deserialized = serde_json::from_str(&serialized).unwrap();
+        let serialized = serde_json::to_string(&file).unwrap();
+        let deserialized = serde_json::from_str(&serialized).unwrap();
 
-		assert_eq!(file, deserialized);
-	}
+        assert_eq!(file, deserialized);
+    }
 
-	#[test]
-	fn vault_name_inserted_to_json_meta() {
-		assert_eq!(insert_vault_name_to_json_meta(r#""#, "MyVault").unwrap(), r#"{"vault":"MyVault"}"#);
-		assert_eq!(insert_vault_name_to_json_meta(r#"{"tags":["kalabala"]}"#, "MyVault").unwrap(), r#"{"tags":["kalabala"],"vault":"MyVault"}"#);
-	}
+    #[test]
+    fn vault_name_inserted_to_json_meta() {
+        assert_eq!(
+            insert_vault_name_to_json_meta(r#""#, "MyVault").unwrap(),
+            r#"{"vault":"MyVault"}"#
+        );
+        assert_eq!(
+            insert_vault_name_to_json_meta(r#"{"tags":["kalabala"]}"#, "MyVault").unwrap(),
+            r#"{"tags":["kalabala"],"vault":"MyVault"}"#
+        );
+    }
 
-	#[test]
-	fn vault_name_not_inserted_to_json_meta() {
-		assert!(insert_vault_name_to_json_meta(r#"///3533"#, "MyVault").is_err());
-		assert!(insert_vault_name_to_json_meta(r#""string""#, "MyVault").is_err());
-	}
+    #[test]
+    fn vault_name_not_inserted_to_json_meta() {
+        assert!(insert_vault_name_to_json_meta(r#"///3533"#, "MyVault").is_err());
+        assert!(insert_vault_name_to_json_meta(r#""string""#, "MyVault").is_err());
+    }
 
-	#[test]
-	fn vault_name_removed_from_json_meta() {
-		assert_eq!(remove_vault_name_from_json_meta(r#"{"vault":"MyVault"}"#).unwrap(), r#"{}"#);
-		assert_eq!(remove_vault_name_from_json_meta(r#"{"tags":["kalabala"],"vault":"MyVault"}"#).unwrap(), r#"{"tags":["kalabala"]}"#);
-	}
+    #[test]
+    fn vault_name_removed_from_json_meta() {
+        assert_eq!(
+            remove_vault_name_from_json_meta(r#"{"vault":"MyVault"}"#).unwrap(),
+            r#"{}"#
+        );
+        assert_eq!(
+            remove_vault_name_from_json_meta(r#"{"tags":["kalabala"],"vault":"MyVault"}"#).unwrap(),
+            r#"{"tags":["kalabala"]}"#
+        );
+    }
 
-	#[test]
-	fn vault_name_not_removed_from_json_meta() {
-		assert!(remove_vault_name_from_json_meta(r#"///3533"#).is_err());
-		assert!(remove_vault_name_from_json_meta(r#""string""#).is_err());
-	}
+    #[test]
+    fn vault_name_not_removed_from_json_meta() {
+        assert!(remove_vault_name_from_json_meta(r#"///3533"#).is_err());
+        assert!(remove_vault_name_from_json_meta(r#""string""#).is_err());
+    }
 }

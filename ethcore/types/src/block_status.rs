@@ -19,12 +19,12 @@
 /// General block status
 #[derive(Debug, Eq, PartialEq)]
 pub enum BlockStatus {
-	/// Part of the blockchain.
-	InChain,
-	/// Queued for import.
-	Queued,
-	/// Known as bad.
-	Bad,
-	/// Unknown.
-	Unknown,
+    /// Part of the blockchain.
+    InChain,
+    /// Queued for import.
+    Queued,
+    /// Known as bad.
+    Bad,
+    /// Unknown.
+    Unknown,
 }

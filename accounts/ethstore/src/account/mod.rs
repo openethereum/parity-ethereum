@@ -20,8 +20,10 @@ mod kdf;
 mod safe_account;
 mod version;
 
-pub use self::cipher::{Cipher, Aes128Ctr};
-pub use self::crypto::Crypto;
-pub use self::kdf::{Kdf, Pbkdf2, Scrypt, Prf};
-pub use self::safe_account::SafeAccount;
-pub use self::version::Version;
+pub use self::{
+    cipher::{Aes128Ctr, Cipher},
+    crypto::Crypto,
+    kdf::{Kdf, Pbkdf2, Prf, Scrypt},
+    safe_account::SafeAccount,
+    version::Version,
+};

@@ -22,16 +22,16 @@
 extern crate log;
 
 extern crate ethabi;
-extern crate parity_bytes as bytes;
 extern crate ethereum_types;
 extern crate futures;
 extern crate keccak_hash as hash;
 extern crate mime;
 extern crate mime_guess;
+extern crate parity_bytes as bytes;
 extern crate parity_runtime;
 extern crate rand;
-extern crate rustc_hex;
 extern crate registrar;
+extern crate rustc_hex;
 
 pub extern crate fetch;
 
@@ -40,13 +40,13 @@ extern crate ethabi_derive;
 #[macro_use]
 extern crate ethabi_contract;
 #[cfg(test)]
-extern crate parking_lot;
-#[cfg(test)]
 extern crate fake_fetch;
+#[cfg(test)]
+extern crate parking_lot;
 
 mod client;
 
 pub mod urlhint;
 
-pub use client::{HashFetch, Client, Error};
+pub use client::{Client, Error, HashFetch};
 pub use fetch::Abort;

@@ -18,52 +18,82 @@
 
 use ethereum_types::H256;
 use jsonrpc_core::Result;
-use v1::Metadata;
-use v1::traits::Traces;
-use v1::helpers::errors;
-use v1::types::{TraceFilter, LocalizedTrace, BlockNumber, Index, CallRequest, Bytes, TraceResults,
-	TraceResultsWithTransactionHash, TraceOptions};
+use v1::{
+    helpers::errors,
+    traits::Traces,
+    types::{
+        BlockNumber, Bytes, CallRequest, Index, LocalizedTrace, TraceFilter, TraceOptions,
+        TraceResults, TraceResultsWithTransactionHash,
+    },
+    Metadata,
+};
 
 /// Traces api implementation.
 // TODO: all calling APIs should be possible w. proved remote TX execution.
 pub struct TracesClient;
 
 impl Traces for TracesClient {
-	type Metadata = Metadata;
+    type Metadata = Metadata;
 
-	fn filter(&self, _filter: TraceFilter) -> Result<Option<Vec<LocalizedTrace>>> {
-		Err(errors::light_unimplemented(None))
-	}
+    fn filter(&self, _filter: TraceFilter) -> Result<Option<Vec<LocalizedTrace>>> {
+        Err(errors::light_unimplemented(None))
+    }
 
-	fn block_traces(&self, _block_number: BlockNumber) -> Result<Option<Vec<LocalizedTrace>>> {
-		Err(errors::light_unimplemented(None))
-	}
+    fn block_traces(&self, _block_number: BlockNumber) -> Result<Option<Vec<LocalizedTrace>>> {
+        Err(errors::light_unimplemented(None))
+    }
 
-	fn transaction_traces(&self, _transaction_hash: H256) -> Result<Option<Vec<LocalizedTrace>>> {
-		Err(errors::light_unimplemented(None))
-	}
+    fn transaction_traces(&self, _transaction_hash: H256) -> Result<Option<Vec<LocalizedTrace>>> {
+        Err(errors::light_unimplemented(None))
+    }
 
-	fn trace(&self, _transaction_hash: H256, _address: Vec<Index>) -> Result<Option<LocalizedTrace>> {
-		Err(errors::light_unimplemented(None))
-	}
+    fn trace(
+        &self,
+        _transaction_hash: H256,
+        _address: Vec<Index>,
+    ) -> Result<Option<LocalizedTrace>> {
+        Err(errors::light_unimplemented(None))
+    }
 
-	fn call(&self, _request: CallRequest, _flags: TraceOptions, _block: Option<BlockNumber>) -> Result<TraceResults> {
-		Err(errors::light_unimplemented(None))
-	}
+    fn call(
+        &self,
+        _request: CallRequest,
+        _flags: TraceOptions,
+        _block: Option<BlockNumber>,
+    ) -> Result<TraceResults> {
+        Err(errors::light_unimplemented(None))
+    }
 
-	fn call_many(&self, _request: Vec<(CallRequest, TraceOptions)>, _block: Option<BlockNumber>) -> Result<Vec<TraceResults>> {
-		Err(errors::light_unimplemented(None))
-	}
+    fn call_many(
+        &self,
+        _request: Vec<(CallRequest, TraceOptions)>,
+        _block: Option<BlockNumber>,
+    ) -> Result<Vec<TraceResults>> {
+        Err(errors::light_unimplemented(None))
+    }
 
-	fn raw_transaction(&self, _raw_transaction: Bytes, _flags: TraceOptions, _block: Option<BlockNumber>) -> Result<TraceResults> {
-		Err(errors::light_unimplemented(None))
-	}
+    fn raw_transaction(
+        &self,
+        _raw_transaction: Bytes,
+        _flags: TraceOptions,
+        _block: Option<BlockNumber>,
+    ) -> Result<TraceResults> {
+        Err(errors::light_unimplemented(None))
+    }
 
-	fn replay_transaction(&self, _transaction_hash: H256, _flags: TraceOptions) -> Result<TraceResults> {
-		Err(errors::light_unimplemented(None))
-	}
+    fn replay_transaction(
+        &self,
+        _transaction_hash: H256,
+        _flags: TraceOptions,
+    ) -> Result<TraceResults> {
+        Err(errors::light_unimplemented(None))
+    }
 
-	fn replay_block_transactions(&self,  _block_number: BlockNumber, _flags: TraceOptions) ->  Result<Vec<TraceResultsWithTransactionHash>> {
-		Err(errors::light_unimplemented(None))
-	}
+    fn replay_block_transactions(
+        &self,
+        _block_number: BlockNumber,
+        _flags: TraceOptions,
+    ) -> Result<Vec<TraceResultsWithTransactionHash>> {
+        Err(errors::light_unimplemented(None))
+    }
 }

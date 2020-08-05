@@ -16,104 +16,115 @@
 
 //! VM errors module
 
-use ::{ResumeCall, ResumeCreate};
-use ethereum_types::Address;
 use action_params::ActionParams;
-use std::fmt;
+use ethereum_types::Address;
 use ethtrie;
+use std::fmt;
+use ResumeCall;
+use ResumeCreate;
 
 #[derive(Debug)]
 pub enum TrapKind {
-	Call(ActionParams),
-	Create(ActionParams, Address),
+    Call(ActionParams),
+    Create(ActionParams, Address),
 }
 
 pub enum TrapError<Call, Create> {
-	Call(ActionParams, Call),
-	Create(ActionParams, Address, Create),
+    Call(ActionParams, Call),
+    Create(ActionParams, Address, Create),
 }
 
 /// VM errors.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Error {
-	/// `OutOfGas` is returned when transaction execution runs out of gas.
-	/// The state should be reverted to the state from before the
-	/// transaction execution. But it does not mean that transaction
-	/// was invalid. Balance still should be transfered and nonce
-	/// should be increased.
-	OutOfGas,
-	/// `BadJumpDestination` is returned when execution tried to move
-	/// to position that wasn't marked with JUMPDEST instruction
-	BadJumpDestination {
-		/// Position the code tried to jump to.
-		destination: usize
-	},
-	/// `BadInstructions` is returned when given instruction is not supported
-	BadInstruction {
-		/// Unrecognized opcode
-		instruction: u8,
-	},
-	/// `StackUnderflow` when there is not enough stack elements to execute instruction
-	StackUnderflow {
-		/// Invoked instruction
-		instruction: &'static str,
-		/// How many stack elements was requested by instruction
-		wanted: usize,
-		/// How many elements were on stack
-		on_stack: usize
-	},
-	/// When execution would exceed defined Stack Limit
-	OutOfStack {
-		/// Invoked instruction
-		instruction: &'static str,
-		/// How many stack elements instruction wanted to push
-		wanted: usize,
-		/// What was the stack limit
-		limit: usize
-	},
-	/// Built-in contract failed on given input
-	BuiltIn(&'static str),
-	/// When execution tries to modify the state in static context
-	MutableCallInStaticContext,
-	/// Likely to cause consensus issues.
-	Internal(String),
-	/// Wasm runtime error
-	Wasm(String),
-	/// Out of bounds access in RETURNDATACOPY.
-	OutOfBounds,
-	/// Execution has been reverted with REVERT.
-	Reverted,
+    /// `OutOfGas` is returned when transaction execution runs out of gas.
+    /// The state should be reverted to the state from before the
+    /// transaction execution. But it does not mean that transaction
+    /// was invalid. Balance still should be transfered and nonce
+    /// should be increased.
+    OutOfGas,
+    /// `BadJumpDestination` is returned when execution tried to move
+    /// to position that wasn't marked with JUMPDEST instruction
+    BadJumpDestination {
+        /// Position the code tried to jump to.
+        destination: usize,
+    },
+    /// `BadInstructions` is returned when given instruction is not supported
+    BadInstruction {
+        /// Unrecognized opcode
+        instruction: u8,
+    },
+    /// `StackUnderflow` when there is not enough stack elements to execute instruction
+    StackUnderflow {
+        /// Invoked instruction
+        instruction: &'static str,
+        /// How many stack elements was requested by instruction
+        wanted: usize,
+        /// How many elements were on stack
+        on_stack: usize,
+    },
+    /// When execution would exceed defined Stack Limit
+    OutOfStack {
+        /// Invoked instruction
+        instruction: &'static str,
+        /// How many stack elements instruction wanted to push
+        wanted: usize,
+        /// What was the stack limit
+        limit: usize,
+    },
+    /// Built-in contract failed on given input
+    BuiltIn(&'static str),
+    /// When execution tries to modify the state in static context
+    MutableCallInStaticContext,
+    /// Likely to cause consensus issues.
+    Internal(String),
+    /// Wasm runtime error
+    Wasm(String),
+    /// Out of bounds access in RETURNDATACOPY.
+    OutOfBounds,
+    /// Execution has been reverted with REVERT.
+    Reverted,
 }
 
 impl From<Box<ethtrie::TrieError>> for Error {
-	fn from(err: Box<ethtrie::TrieError>) -> Self {
-		Error::Internal(format!("Internal error: {}", err))
-	}
+    fn from(err: Box<ethtrie::TrieError>) -> Self {
+        Error::Internal(format!("Internal error: {}", err))
+    }
 }
 
 impl From<ethtrie::TrieError> for Error {
-	fn from(err: ethtrie::TrieError) -> Self {
-		Error::Internal(format!("Internal error: {}", err))
-	}
+    fn from(err: ethtrie::TrieError) -> Self {
+        Error::Internal(format!("Internal error: {}", err))
+    }
 }
 
 impl fmt::Display for Error {
-	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		use self::Error::*;
-		match *self {
-			OutOfGas => write!(f, "Out of gas"),
-			BadJumpDestination { destination } => write!(f, "Bad jump destination {:x}", destination),
-			BadInstruction { instruction } => write!(f, "Bad instruction {:x}",  instruction),
-			StackUnderflow { instruction, wanted, on_stack } => write!(f, "Stack underflow {} {}/{}", instruction, wanted, on_stack),
-			OutOfStack { instruction, wanted, limit } => write!(f, "Out of stack {} {}/{}", instruction, wanted, limit),
-			BuiltIn(name) => write!(f, "Built-in failed: {}", name),
-			Internal(ref msg) => write!(f, "Internal error: {}", msg),
-			MutableCallInStaticContext => write!(f, "Mutable call in static context"),
-			Wasm(ref msg) => write!(f, "Internal error: {}", msg),
-			OutOfBounds => write!(f, "Out of bounds"),
-			Reverted => write!(f, "Reverted"),
-		}
-	}
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use self::Error::*;
+        match *self {
+            OutOfGas => write!(f, "Out of gas"),
+            BadJumpDestination { destination } => {
+                write!(f, "Bad jump destination {:x}", destination)
+            }
+            BadInstruction { instruction } => write!(f, "Bad instruction {:x}", instruction),
+            StackUnderflow {
+                instruction,
+                wanted,
+                on_stack,
+            } => write!(f, "Stack underflow {} {}/{}", instruction, wanted, on_stack),
+            OutOfStack {
+                instruction,
+                wanted,
+                limit,
+            } => write!(f, "Out of stack {} {}/{}", instruction, wanted, limit),
+            BuiltIn(name) => write!(f, "Built-in failed: {}", name),
+            Internal(ref msg) => write!(f, "Internal error: {}", msg),
+            MutableCallInStaticContext => write!(f, "Mutable call in static context"),
+            Wasm(ref msg) => write!(f, "Internal error: {}", msg),
+            OutOfBounds => write!(f, "Out of bounds"),
+            Reverted => write!(f, "Reverted"),
+        }
+    }
 }
 
 pub type Result<T> = ::std::result::Result<T, Error>;

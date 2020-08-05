@@ -14,31 +14,32 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use rand::os::OsRng;
 use super::{Generator, KeyPair, SECP256K1};
+use rand::os::OsRng;
 
 /// Randomly generates new keypair, instantiating the RNG each time.
 pub struct Random;
 
 impl Generator for Random {
-	type Error = ::std::io::Error;
+    type Error = ::std::io::Error;
 
-	fn generate(&mut self) -> Result<KeyPair, Self::Error> {
-		let mut rng = OsRng::new()?;
-		match rng.generate() {
-			Ok(pair) => Ok(pair),
-			Err(void) => match void {}, // LLVM unreachable
-		}
-	}
+    fn generate(&mut self) -> Result<KeyPair, Self::Error> {
+        let mut rng = OsRng::new()?;
+        match rng.generate() {
+            Ok(pair) => Ok(pair),
+            Err(void) => match void {}, // LLVM unreachable
+        }
+    }
 }
 
 impl Generator for OsRng {
-	type Error = ::Void;
+    type Error = ::Void;
 
-	fn generate(&mut self) -> Result<KeyPair, Self::Error> {
-		let (sec, publ) = SECP256K1.generate_keypair(self)
-			.expect("context always created with full capabilities; qed");
+    fn generate(&mut self) -> Result<KeyPair, Self::Error> {
+        let (sec, publ) = SECP256K1
+            .generate_keypair(self)
+            .expect("context always created with full capabilities; qed");
 
-		Ok(KeyPair::from_keypair(sec, publ))
-	}
+        Ok(KeyPair::from_keypair(sec, publ))
+    }
 }

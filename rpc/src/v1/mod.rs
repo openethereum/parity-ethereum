@@ -21,37 +21,45 @@
 // short for "try_boxfuture"
 // unwrap a result, returning a BoxFuture<_, Err> on failure.
 macro_rules! try_bf {
-	($res: expr) => {
-		match $res {
-			Ok(val) => val,
-			Err(e) => return Box::new(::jsonrpc_core::futures::future::err(e.into())),
-		}
-	}
+    ($res: expr) => {
+        match $res {
+            Ok(val) => val,
+            Err(e) => return Box::new(::jsonrpc_core::futures::future::err(e.into())),
+        }
+    };
 }
 
 #[macro_use]
 mod helpers;
 mod impls;
-mod types;
 #[cfg(test)]
 mod tests;
+mod types;
 
 pub mod extractors;
 pub mod informant;
 pub mod metadata;
 pub mod traits;
 
-pub use self::traits::{Debug, Eth, EthFilter, EthPubSub, EthSigning, Net, Parity, ParityAccountsInfo, ParityAccounts, ParitySet, ParitySetAccounts, ParitySigning, Personal, PubSub, Private, Rpc, SecretStore, Signer, Traces, Web3};
-pub use self::impls::*;
-pub use self::helpers::{NetworkSettings, block_import, dispatch};
-pub use self::metadata::Metadata;
-pub use self::types::Origin;
-pub use self::extractors::{RpcExtractor, WsExtractor, WsStats, WsDispatcher};
+pub use self::{
+    extractors::{RpcExtractor, WsDispatcher, WsExtractor, WsStats},
+    helpers::{block_import, dispatch, NetworkSettings},
+    impls::*,
+    metadata::Metadata,
+    traits::{
+        Debug, Eth, EthFilter, EthPubSub, EthSigning, Net, Parity, ParityAccounts,
+        ParityAccountsInfo, ParitySet, ParitySetAccounts, ParitySigning, Personal, Private, PubSub,
+        Rpc, SecretStore, Signer, Traces, Web3,
+    },
+    types::Origin,
+};
 
 /// Signer utilities
 pub mod signer {
-	#[cfg(any(test, feature = "accounts"))]
-	pub use super::helpers::engine_signer::EngineSigner;
-	pub use super::helpers::external_signer::{SignerService, ConfirmationsQueue};
-	pub use super::types::{ConfirmationRequest, TransactionModification, TransactionCondition};
+    #[cfg(any(test, feature = "accounts"))]
+    pub use super::helpers::engine_signer::EngineSigner;
+    pub use super::{
+        helpers::external_signer::{ConfirmationsQueue, SignerService},
+        types::{ConfirmationRequest, TransactionCondition, TransactionModification},
+    };
 }

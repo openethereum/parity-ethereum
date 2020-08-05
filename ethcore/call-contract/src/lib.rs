@@ -17,7 +17,7 @@
 #![warn(missing_docs)]
 
 //! Call Contract module
-//! 
+//!
 //! This crate exposes traits required to call contracts at particular block.
 //! All utilities that depend on on-chain data should use those traits to access it.
 

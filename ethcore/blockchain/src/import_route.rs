@@ -16,120 +16,132 @@
 
 //! Import route.
 
-use ethereum_types::H256;
 use crate::block_info::{BlockInfo, BlockLocation};
+use ethereum_types::H256;
 
 /// Import route for newly inserted block.
 #[derive(Debug, PartialEq, Clone)]
 pub struct ImportRoute {
-	/// Blocks that were invalidated by new block.
-	pub retracted: Vec<H256>,
-	/// Blocks that were validated by new block.
-	pub enacted: Vec<H256>,
-	/// Blocks which are neither retracted nor enacted.
-	pub omitted: Vec<H256>,
+    /// Blocks that were invalidated by new block.
+    pub retracted: Vec<H256>,
+    /// Blocks that were validated by new block.
+    pub enacted: Vec<H256>,
+    /// Blocks which are neither retracted nor enacted.
+    pub omitted: Vec<H256>,
 }
 
 impl ImportRoute {
-	/// Empty import route.
-	pub fn none() -> Self {
-		ImportRoute {
-			retracted: vec![],
-			enacted: vec![],
-			omitted: vec![],
-		}
-	}
+    /// Empty import route.
+    pub fn none() -> Self {
+        ImportRoute {
+            retracted: vec![],
+            enacted: vec![],
+            omitted: vec![],
+        }
+    }
 }
 
 impl From<BlockInfo> for ImportRoute {
-	fn from(info: BlockInfo) -> ImportRoute {
-		match info.location {
-			BlockLocation::CanonChain => ImportRoute {
-				retracted: vec![],
-				enacted: vec![info.hash],
-				omitted: vec![],
-			},
-			BlockLocation::Branch => ImportRoute {
-				retracted: vec![],
-				enacted: vec![],
-				omitted: vec![info.hash],
-			},
-			BlockLocation::BranchBecomingCanonChain(mut data) => {
-				data.enacted.push(info.hash);
-				ImportRoute {
-					retracted: data.retracted,
-					enacted: data.enacted,
-					omitted: vec![],
-				}
-			}
-		}
-	}
+    fn from(info: BlockInfo) -> ImportRoute {
+        match info.location {
+            BlockLocation::CanonChain => ImportRoute {
+                retracted: vec![],
+                enacted: vec![info.hash],
+                omitted: vec![],
+            },
+            BlockLocation::Branch => ImportRoute {
+                retracted: vec![],
+                enacted: vec![],
+                omitted: vec![info.hash],
+            },
+            BlockLocation::BranchBecomingCanonChain(mut data) => {
+                data.enacted.push(info.hash);
+                ImportRoute {
+                    retracted: data.retracted,
+                    enacted: data.enacted,
+                    omitted: vec![],
+                }
+            }
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
-	use ethereum_types::{H256, U256};
-	use crate::block_info::{BlockInfo, BlockLocation, BranchBecomingCanonChainData};
-	use super::ImportRoute;
+    use super::ImportRoute;
+    use crate::block_info::{BlockInfo, BlockLocation, BranchBecomingCanonChainData};
+    use ethereum_types::{H256, U256};
 
-	#[test]
-	fn import_route_none() {
-		assert_eq!(ImportRoute::none(), ImportRoute {
-			enacted: vec![],
-			retracted: vec![],
-			omitted: vec![],
-		});
-	}
+    #[test]
+    fn import_route_none() {
+        assert_eq!(
+            ImportRoute::none(),
+            ImportRoute {
+                enacted: vec![],
+                retracted: vec![],
+                omitted: vec![],
+            }
+        );
+    }
 
-	#[test]
-	fn import_route_branch() {
-		let info = BlockInfo {
-			hash: H256::from(U256::from(1)),
-			number: 0,
-			total_difficulty: U256::from(0),
-			location: BlockLocation::Branch,
-		};
+    #[test]
+    fn import_route_branch() {
+        let info = BlockInfo {
+            hash: H256::from(U256::from(1)),
+            number: 0,
+            total_difficulty: U256::from(0),
+            location: BlockLocation::Branch,
+        };
 
-		assert_eq!(ImportRoute::from(info), ImportRoute {
-			retracted: vec![],
-			enacted: vec![],
-			omitted: vec![H256::from(U256::from(1))],
-		});
-	}
+        assert_eq!(
+            ImportRoute::from(info),
+            ImportRoute {
+                retracted: vec![],
+                enacted: vec![],
+                omitted: vec![H256::from(U256::from(1))],
+            }
+        );
+    }
 
-	#[test]
-	fn import_route_canon_chain() {
-		let info = BlockInfo {
-			hash: H256::from(U256::from(1)),
-			number: 0,
-			total_difficulty: U256::from(0),
-			location: BlockLocation::CanonChain,
-		};
+    #[test]
+    fn import_route_canon_chain() {
+        let info = BlockInfo {
+            hash: H256::from(U256::from(1)),
+            number: 0,
+            total_difficulty: U256::from(0),
+            location: BlockLocation::CanonChain,
+        };
 
-		assert_eq!(ImportRoute::from(info), ImportRoute {
-			retracted: vec![],
-			enacted: vec![H256::from(U256::from(1))],
-			omitted: vec![],
-		});
-	}
+        assert_eq!(
+            ImportRoute::from(info),
+            ImportRoute {
+                retracted: vec![],
+                enacted: vec![H256::from(U256::from(1))],
+                omitted: vec![],
+            }
+        );
+    }
 
-	#[test]
-	fn import_route_branch_becoming_canon_chain() {
-		let info = BlockInfo {
-			hash: H256::from(U256::from(2)),
-			number: 0,
-			total_difficulty: U256::from(0),
-			location: BlockLocation::BranchBecomingCanonChain(BranchBecomingCanonChainData {
-				ancestor: H256::from(U256::from(0)),
-				enacted: vec![H256::from(U256::from(1))],
-				retracted: vec![H256::from(U256::from(3)), H256::from(U256::from(4))],
-			})
-		};
+    #[test]
+    fn import_route_branch_becoming_canon_chain() {
+        let info = BlockInfo {
+            hash: H256::from(U256::from(2)),
+            number: 0,
+            total_difficulty: U256::from(0),
+            location: BlockLocation::BranchBecomingCanonChain(BranchBecomingCanonChainData {
+                ancestor: H256::from(U256::from(0)),
+                enacted: vec![H256::from(U256::from(1))],
+                retracted: vec![H256::from(U256::from(3)), H256::from(U256::from(4))],
+            }),
+        };
 
-		assert_eq!(ImportRoute::from(info), ImportRoute {
-			retracted: vec![H256::from(U256::from(3)), H256::from(U256::from(4))],
-			enacted: vec![H256::from(U256::from(1)), H256::from(U256::from(2))],
-			omitted: vec![],
-		});
-	}
+        assert_eq!(
+            ImportRoute::from(info),
+            ImportRoute {
+                retracted: vec![H256::from(U256::from(3)), H256::from(U256::from(4))],
+                enacted: vec![H256::from(U256::from(1)), H256::from(U256::from(2))],
+                omitted: vec![],
+            }
+        );
+    }
 }

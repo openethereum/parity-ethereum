@@ -19,15 +19,15 @@
 use std::time::Duration;
 
 pub mod json;
-pub mod std_json;
 pub mod simple;
+pub mod std_json;
 
 /// Formats duration into human readable format.
 pub fn format_time(time: &Duration) -> String {
-	format!("{}.{:.9}s", time.as_secs(), time.subsec_nanos())
+    format!("{}.{:.9}s", time.as_secs(), time.subsec_nanos())
 }
 
 /// Formats the time as microseconds.
 pub fn as_micros(time: &Duration) -> u64 {
-	time.as_secs() * 1_000_000 + time.subsec_nanos() as u64 / 1_000
+    time.as_secs() * 1_000_000 + time.subsec_nanos() as u64 / 1_000
 }

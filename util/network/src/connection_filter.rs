@@ -20,12 +20,17 @@ use super::NodeId;
 
 /// Filtered connection direction.
 pub enum ConnectionDirection {
-	Inbound,
-	Outbound,
+    Inbound,
+    Outbound,
 }
 
 /// Connection filter. Each connection is checked against `connection_allowed`.
-pub trait ConnectionFilter : Send + Sync {
-	/// Filter a connection. Returns `true` if connection should be allowed. `false` if rejected.
-	fn connection_allowed(&self, own_id: &NodeId, connecting_id: &NodeId, direction: ConnectionDirection) -> bool;
+pub trait ConnectionFilter: Send + Sync {
+    /// Filter a connection. Returns `true` if connection should be allowed. `false` if rejected.
+    fn connection_allowed(
+        &self,
+        own_id: &NodeId,
+        connecting_id: &NodeId,
+        direction: ConnectionDirection,
+    ) -> bool;
 }

@@ -16,108 +16,106 @@
 
 //! Common log helper functions
 
-use std::env;
-use rlog::LevelFilter;
-use env_logger::Builder as LogBuilder;
 use arrayvec::ArrayVec;
+use env_logger::Builder as LogBuilder;
+use rlog::LevelFilter;
+use std::env;
 
 use parking_lot::{RwLock, RwLockReadGuard};
 
 lazy_static! {
-	static ref LOG_DUMMY: () = {
-		let mut builder = LogBuilder::new();
-		builder.filter(None, LevelFilter::Info);
+    static ref LOG_DUMMY: () = {
+        let mut builder = LogBuilder::new();
+        builder.filter(None, LevelFilter::Info);
 
-		if let Ok(log) = env::var("RUST_LOG") {
-			builder.parse(&log);
-		}
+        if let Ok(log) = env::var("RUST_LOG") {
+            builder.parse(&log);
+        }
 
-		if !builder.try_init().is_ok() {
-			println!("logger initialization failed!");
-		}
-	};
+        if !builder.try_init().is_ok() {
+            println!("logger initialization failed!");
+        }
+    };
 }
 
 /// Intialize log with default settings
 pub fn init_log() {
-	*LOG_DUMMY
+    *LOG_DUMMY
 }
 
-const LOG_SIZE : usize = 128;
+const LOG_SIZE: usize = 128;
 
 /// Logger implementation that keeps up to `LOG_SIZE` log elements.
 pub struct RotatingLogger {
-	/// Defined logger levels
-	levels: String,
-	/// Logs array. Latest log is always at index 0
-	logs: RwLock<ArrayVec<[String; LOG_SIZE]>>,
+    /// Defined logger levels
+    levels: String,
+    /// Logs array. Latest log is always at index 0
+    logs: RwLock<ArrayVec<[String; LOG_SIZE]>>,
 }
 
 impl RotatingLogger {
+    /// Creates new `RotatingLogger` with given levels.
+    /// It does not enforce levels - it's just read only.
+    pub fn new(levels: String) -> Self {
+        RotatingLogger {
+            levels: levels,
+            logs: RwLock::new(ArrayVec::<[_; LOG_SIZE]>::new()),
+        }
+    }
 
-	/// Creates new `RotatingLogger` with given levels.
-	/// It does not enforce levels - it's just read only.
-	pub fn new(levels: String) -> Self {
-		RotatingLogger {
-			levels: levels,
-			logs: RwLock::new(ArrayVec::<[_; LOG_SIZE]>::new()),
-		}
-	}
+    /// Append new log entry
+    pub fn append(&self, log: String) {
+        let mut logs = self.logs.write();
+        if logs.is_full() {
+            logs.pop();
+        }
+        logs.insert(0, log);
+    }
 
-	/// Append new log entry
-	pub fn append(&self, log: String) {
-		let mut logs = self.logs.write();
-		if logs.is_full() {
-			logs.pop();
-		}
-		logs.insert(0, log);
-	}
+    /// Return levels
+    pub fn levels(&self) -> &str {
+        &self.levels
+    }
 
-	/// Return levels
-	pub fn levels(&self) -> &str {
-		&self.levels
-	}
-
-	/// Return logs
-	pub fn logs(&self) -> RwLockReadGuard<ArrayVec<[String; LOG_SIZE]>> {
-		self.logs.read()
-	}
-
+    /// Return logs
+    pub fn logs(&self) -> RwLockReadGuard<ArrayVec<[String; LOG_SIZE]>> {
+        self.logs.read()
+    }
 }
 
 #[cfg(test)]
 mod test {
-	use super::RotatingLogger;
+    use super::RotatingLogger;
 
-	fn logger() -> RotatingLogger {
-		RotatingLogger::new("test".to_owned())
-	}
+    fn logger() -> RotatingLogger {
+        RotatingLogger::new("test".to_owned())
+    }
 
-	#[test]
-	fn should_return_log_levels() {
-		// given
-		let logger = logger();
+    #[test]
+    fn should_return_log_levels() {
+        // given
+        let logger = logger();
 
-		// when
-		let levels = logger.levels();
+        // when
+        let levels = logger.levels();
 
-		// then
-		assert_eq!(levels, "test");
-	}
+        // then
+        assert_eq!(levels, "test");
+    }
 
-	#[test]
-	fn should_return_latest_logs() {
-		// given
-		let logger = logger();
+    #[test]
+    fn should_return_latest_logs() {
+        // given
+        let logger = logger();
 
-		// when
-		logger.append("a".to_owned());
-		logger.append("b".to_owned());
+        // when
+        logger.append("a".to_owned());
+        logger.append("b".to_owned());
 
-		// then
-		let logs = logger.logs();
-		assert_eq!(logs[0], "b".to_owned());
-		assert_eq!(logs[1], "a".to_owned());
-		assert_eq!(logs.len(), 2);
-	}
+        // then
+        let logs = logger.logs();
+        assert_eq!(logs[0], "b".to_owned());
+        assert_eq!(logs[1], "a".to_owned());
+        assert_eq!(logs.len(), 2);
+    }
 }

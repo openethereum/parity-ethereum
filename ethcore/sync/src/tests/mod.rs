@@ -14,11 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-pub mod helpers;
-pub mod snapshot;
 mod chain;
 mod consensus;
+pub mod helpers;
 mod private;
+pub mod snapshot;
 
 #[cfg(feature = "ipc")]
 mod rpc;

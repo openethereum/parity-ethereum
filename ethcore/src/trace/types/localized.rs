@@ -16,29 +16,29 @@
 
 //! Localized traces type definitions
 
-use ethereum_types::H256;
 use super::trace::{Action, Res};
+use ethereum_types::H256;
 use types::BlockNumber;
 
 /// Localized trace.
 #[derive(Debug, PartialEq, Clone)]
 pub struct LocalizedTrace {
-	/// Type of action performed by a transaction.
-	pub action: Action,
-	/// Result of this action.
-	pub result: Res,
-	/// Number of subtraces.
-	pub subtraces: usize,
-	/// Exact location of trace.
-	///
-	/// [index in root, index in first CALL, index in second CALL, ...]
-	pub trace_address: Vec<usize>,
-	/// Transaction number within the block.
-	pub transaction_number: Option<usize>,
-	/// Signed transaction hash.
-	pub transaction_hash: Option<H256>,
-	/// Block number.
-	pub block_number: BlockNumber,
-	/// Block hash.
-	pub block_hash: H256,
+    /// Type of action performed by a transaction.
+    pub action: Action,
+    /// Result of this action.
+    pub result: Res,
+    /// Number of subtraces.
+    pub subtraces: usize,
+    /// Exact location of trace.
+    ///
+    /// [index in root, index in first CALL, index in second CALL, ...]
+    pub trace_address: Vec<usize>,
+    /// Transaction number within the block.
+    pub transaction_number: Option<usize>,
+    /// Signed transaction hash.
+    pub transaction_hash: Option<H256>,
+    /// Block number.
+    pub block_number: BlockNumber,
+    /// Block hash.
+    pub block_hash: H256,
 }

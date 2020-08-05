@@ -19,17 +19,17 @@
 /// Blockchain configuration.
 #[derive(Debug, PartialEq, Clone)]
 pub struct Config {
-	/// Preferred cache size in bytes.
-	pub pref_cache_size: usize,
-	/// Maximum cache size in bytes.
-	pub max_cache_size: usize,
+    /// Preferred cache size in bytes.
+    pub pref_cache_size: usize,
+    /// Maximum cache size in bytes.
+    pub max_cache_size: usize,
 }
 
 impl Default for Config {
-	fn default() -> Self {
-		Config {
-			pref_cache_size: 1 << 14,
-			max_cache_size: 1 << 20,
-		}
-	}
+    fn default() -> Self {
+        Config {
+            pref_cache_size: 1 << 14,
+            max_cache_size: 1 << 20,
+        }
+    }
 }

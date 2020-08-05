@@ -23,31 +23,31 @@ use gas_price_calibrator::GasPriceCalibrator;
 /// Struct to look after updating the acceptable gas price of a miner.
 #[derive(Debug, PartialEq)]
 pub enum GasPricer {
-	/// A fixed gas price in terms of Wei - always the argument given.
-	Fixed(U256),
-	/// Gas price is calibrated according to a fixed amount of USD.
-	#[cfg(feature = "price-info")]
-	Calibrated(GasPriceCalibrator),
+    /// A fixed gas price in terms of Wei - always the argument given.
+    Fixed(U256),
+    /// Gas price is calibrated according to a fixed amount of USD.
+    #[cfg(feature = "price-info")]
+    Calibrated(GasPriceCalibrator),
 }
 
 impl GasPricer {
-	/// Create a new Calibrated `GasPricer`.
-	#[cfg(feature = "price-info")]
-	pub fn new_calibrated(calibrator: GasPriceCalibrator) -> GasPricer {
-		GasPricer::Calibrated(calibrator)
-	}
+    /// Create a new Calibrated `GasPricer`.
+    #[cfg(feature = "price-info")]
+    pub fn new_calibrated(calibrator: GasPriceCalibrator) -> GasPricer {
+        GasPricer::Calibrated(calibrator)
+    }
 
-	/// Create a new Fixed `GasPricer`.
-	pub fn new_fixed(gas_price: U256) -> GasPricer {
-		GasPricer::Fixed(gas_price)
-	}
+    /// Create a new Fixed `GasPricer`.
+    pub fn new_fixed(gas_price: U256) -> GasPricer {
+        GasPricer::Fixed(gas_price)
+    }
 
-	/// Recalibrate current gas price.
-	pub fn recalibrate<F: FnOnce(U256) + Sync + Send + 'static>(&mut self, set_price: F) {
-		match *self {
-			GasPricer::Fixed(ref curr) => set_price(curr.clone()),
-			#[cfg(feature = "price-info")]
-			GasPricer::Calibrated(ref mut cal) => cal.recalibrate(set_price),
-		}
-	}
+    /// Recalibrate current gas price.
+    pub fn recalibrate<F: FnOnce(U256) + Sync + Send + 'static>(&mut self, set_price: F) {
+        match *self {
+            GasPricer::Fixed(ref curr) => set_price(curr.clone()),
+            #[cfg(feature = "price-info")]
+            GasPricer::Calibrated(ref mut cal) => cal.recalibrate(set_price),
+        }
+    }
 }

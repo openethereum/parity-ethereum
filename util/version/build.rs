@@ -18,23 +18,25 @@ extern crate rustc_version;
 extern crate toml;
 extern crate vergen;
 
-use std::env;
-use std::fs::File;
-use std::io::Write;
-use std::path::Path;
+use std::{env, fs::File, io::Write, path::Path};
 use vergen::{vergen, OutputFns};
 
 const ERROR_MSG: &'static str = "Failed to generate metadata files";
 
 fn main() {
-	vergen(OutputFns::all()).expect(ERROR_MSG);
+    vergen(OutputFns::all()).expect(ERROR_MSG);
 
-	let version = rustc_version::version().expect(ERROR_MSG);
+    let version = rustc_version::version().expect(ERROR_MSG);
 
-	let cargo: toml::Value = toml::from_str(include_str!("./Cargo.toml")).expect(ERROR_MSG);
-	let track = cargo["package"]["metadata"]["track"].as_str().expect("'track' has to be a string!");
+    let cargo: toml::Value = toml::from_str(include_str!("./Cargo.toml")).expect(ERROR_MSG);
+    let track = cargo["package"]["metadata"]["track"]
+        .as_str()
+        .expect("'track' has to be a string!");
 
-	create_file("meta.rs", format!("
+    create_file(
+        "meta.rs",
+        format!(
+            "
 			/// This versions track.
 			#[allow(unused)]
 			pub const TRACK: &str = {track:?};
@@ -44,14 +46,15 @@ fn main() {
 				\"{version}\"
 			}}
 		",
-		track = track,
-		version = version,
-	));
+            track = track,
+            version = version,
+        ),
+    );
 }
 
 fn create_file(filename: &str, data: String) {
-	let out_dir = env::var("OUT_DIR").expect(ERROR_MSG);
-	let dest_path = Path::new(&out_dir).join(filename);
-	let mut f = File::create(&dest_path).expect(ERROR_MSG);
-	f.write_all(data.as_bytes()).expect(ERROR_MSG);
+    let out_dir = env::var("OUT_DIR").expect(ERROR_MSG);
+    let dest_path = Path::new(&out_dir).join(filename);
+    let mut f = File::create(&dest_path).expect(ERROR_MSG);
+    f.write_all(data.as_bytes()).expect(ERROR_MSG);
 }

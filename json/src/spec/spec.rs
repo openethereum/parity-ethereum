@@ -16,26 +16,25 @@
 
 //! Spec deserialization.
 
+use serde_json::{self, Error};
+use spec::{Engine, Genesis, HardcodedSync, Params, State};
 use std::io::Read;
-use serde_json;
-use serde_json::Error;
-use spec::{Params, Genesis, Engine, State, HardcodedSync};
 
 /// Fork spec definition
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
 pub enum ForkSpec {
-	EIP150,
-	EIP158,
-	Frontier,
-	Homestead,
-	Byzantium,
-	Constantinople,
-	ConstantinopleFix,
-	Istanbul,
-	EIP158ToByzantiumAt5,
-	FrontierToHomesteadAt5,
-	HomesteadToDaoAt5,
-	HomesteadToEIP150At5,
+    EIP150,
+    EIP158,
+    Frontier,
+    Homestead,
+    Byzantium,
+    Constantinople,
+    ConstantinopleFix,
+    Istanbul,
+    EIP158ToByzantiumAt5,
+    FrontierToHomesteadAt5,
+    HomesteadToDaoAt5,
+    HomesteadToEIP150At5,
 }
 
 /// Spec deserialization.
@@ -43,39 +42,42 @@ pub enum ForkSpec {
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "camelCase")]
 pub struct Spec {
-	/// Spec name.
-	pub name: String,
-	/// Special fork name.
-	pub data_dir: Option<String>,
-	/// Engine.
-	pub engine: Engine,
-	/// Spec params.
-	pub params: Params,
-	/// Genesis header.
-	pub genesis: Genesis,
-	/// Genesis state.
-	pub accounts: State,
-	/// Boot nodes.
-	pub nodes: Option<Vec<String>>,
-	/// Hardcoded synchronization for the light client.
-	pub hardcoded_sync: Option<HardcodedSync>,
+    /// Spec name.
+    pub name: String,
+    /// Special fork name.
+    pub data_dir: Option<String>,
+    /// Engine.
+    pub engine: Engine,
+    /// Spec params.
+    pub params: Params,
+    /// Genesis header.
+    pub genesis: Genesis,
+    /// Genesis state.
+    pub accounts: State,
+    /// Boot nodes.
+    pub nodes: Option<Vec<String>>,
+    /// Hardcoded synchronization for the light client.
+    pub hardcoded_sync: Option<HardcodedSync>,
 }
 
 impl Spec {
-	/// Loads test from json.
-	pub fn load<R>(reader: R) -> Result<Self, Error> where R: Read {
-		serde_json::from_reader(reader)
-	}
+    /// Loads test from json.
+    pub fn load<R>(reader: R) -> Result<Self, Error>
+    where
+        R: Read,
+    {
+        serde_json::from_reader(reader)
+    }
 }
 
 #[cfg(test)]
 mod tests {
-	use serde_json;
-	use spec::spec::Spec;
+    use serde_json;
+    use spec::spec::Spec;
 
-	#[test]
-	fn should_error_on_unknown_fields() {
-		let s = r#"{
+    #[test]
+    fn should_error_on_unknown_fields() {
+        let s = r#"{
 		"name": "Morden",
 		"dataDir": "morden",
 		"engine": {
@@ -134,13 +136,13 @@ mod tests {
 			]
 		}
 		}"#;
-		let result: Result<Spec, _> = serde_json::from_str(s);
-		assert!(result.is_err());
-	}
+        let result: Result<Spec, _> = serde_json::from_str(s);
+        assert!(result.is_err());
+    }
 
-	#[test]
-	fn spec_deserialization() {
-		let s = r#"{
+    #[test]
+    fn spec_deserialization() {
+        let s = r#"{
 		"name": "Morden",
 		"dataDir": "morden",
 		"engine": {
@@ -246,7 +248,7 @@ mod tests {
 			]
 		}
 		}"#;
-		let _deserialized: Spec = serde_json::from_str(s).unwrap();
-		// TODO: validate all fields
-	}
+        let _deserialized: Spec = serde_json::from_str(s).unwrap();
+        // TODO: validate all fields
+    }
 }

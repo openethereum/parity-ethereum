@@ -27,11 +27,13 @@ mod call_request;
 mod confirmations;
 mod consensus_status;
 mod derivation;
+mod eip191;
 mod filter;
 mod histogram;
 mod index;
 mod log;
 mod node_kind;
+mod private_receipt;
 mod provenance;
 mod receipt;
 mod rpc_settings;
@@ -40,46 +42,49 @@ mod sync;
 mod trace;
 mod trace_filter;
 mod transaction;
-mod transaction_request;
 mod transaction_condition;
+mod transaction_request;
 mod work;
-mod private_receipt;
-mod eip191;
 
 pub mod pubsub;
 
-pub use self::eip191::{EIP191Version, PresignedTransaction};
-pub use self::account_info::{AccountInfo, ExtAccountInfo, HwAccountInfo, EthAccount, StorageProof, RecoveredAccount};
-pub use self::bytes::Bytes;
-pub use self::block::{RichBlock, Block, BlockTransactions, Header, RichHeader, Rich};
-pub use self::block_number::{BlockNumber, LightBlockNumber, block_number_to_id};
-pub use self::call_request::CallRequest;
-pub use self::confirmations::{
-	ConfirmationPayload, ConfirmationRequest, ConfirmationResponse, ConfirmationResponseWithToken,
-	TransactionModification, EIP191SignRequest, EthSignRequest, DecryptRequest, Either
+pub use self::{
+    account_info::{
+        AccountInfo, EthAccount, ExtAccountInfo, HwAccountInfo, RecoveredAccount, StorageProof,
+    },
+    block::{Block, BlockTransactions, Header, Rich, RichBlock, RichHeader},
+    block_number::{block_number_to_id, BlockNumber, LightBlockNumber},
+    bytes::Bytes,
+    call_request::CallRequest,
+    confirmations::{
+        ConfirmationPayload, ConfirmationRequest, ConfirmationResponse,
+        ConfirmationResponseWithToken, DecryptRequest, EIP191SignRequest, Either, EthSignRequest,
+        TransactionModification,
+    },
+    consensus_status::*,
+    derivation::{Derive, DeriveHash, DeriveHierarchical},
+    eip191::{EIP191Version, PresignedTransaction},
+    filter::{Filter, FilterChanges},
+    histogram::Histogram,
+    index::Index,
+    log::Log,
+    node_kind::{Availability, Capability, NodeKind},
+    private_receipt::{PrivateTransactionReceipt, PrivateTransactionReceiptAndTransaction},
+    provenance::Origin,
+    receipt::Receipt,
+    rpc_settings::RpcSettings,
+    secretstore::EncryptedDocumentKey,
+    sync::{
+        ChainStatus, EthProtocolInfo, PeerInfo, PeerNetworkInfo, PeerProtocolsInfo, Peers,
+        PipProtocolInfo, SyncInfo, SyncStatus, TransactionStats,
+    },
+    trace::{LocalizedTrace, TraceResults, TraceResultsWithTransactionHash},
+    trace_filter::TraceFilter,
+    transaction::{LocalTransactionStatus, RichRawTransaction, Transaction},
+    transaction_condition::TransactionCondition,
+    transaction_request::TransactionRequest,
+    work::Work,
 };
-pub use self::consensus_status::*;
-pub use self::derivation::{DeriveHash, DeriveHierarchical, Derive};
-pub use self::filter::{Filter, FilterChanges};
-pub use self::histogram::Histogram;
-pub use self::index::Index;
-pub use self::log::Log;
-pub use self::node_kind::{NodeKind, Availability, Capability};
-pub use self::provenance::Origin;
-pub use self::receipt::Receipt;
-pub use self::rpc_settings::RpcSettings;
-pub use self::secretstore::EncryptedDocumentKey;
-pub use self::sync::{
-	SyncStatus, SyncInfo, Peers, PeerInfo, PeerNetworkInfo, PeerProtocolsInfo,
-	TransactionStats, ChainStatus, EthProtocolInfo, PipProtocolInfo,
-};
-pub use self::trace::{LocalizedTrace, TraceResults, TraceResultsWithTransactionHash};
-pub use self::trace_filter::TraceFilter;
-pub use self::transaction::{Transaction, RichRawTransaction, LocalTransactionStatus};
-pub use self::transaction_request::TransactionRequest;
-pub use self::transaction_condition::TransactionCondition;
-pub use self::work::Work;
-pub use self::private_receipt::{PrivateTransactionReceipt, PrivateTransactionReceiptAndTransaction};
 
 // TODO [ToDr] Refactor to a proper type Vec of enums?
 /// Expected tracing type.

@@ -20,11 +20,9 @@
 //! Furthermore, stores a "gas price corpus" of relative recency, which is a sorted
 //! vector of all gas prices from a recent range of blocks.
 
-use std::time::{Instant, Duration};
+use std::time::{Duration, Instant};
 
-use common_types::encoded;
-use common_types::BlockNumber;
-use common_types::receipt::Receipt;
+use common_types::{encoded, receipt::Receipt, BlockNumber};
 use ethereum_types::{H256, U256};
 use heapsize::HeapSizeOf;
 use memory_cache::MemoryLruCache;
@@ -33,29 +31,29 @@ use stats::Corpus;
 /// Configuration for how much data to cache.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct CacheSizes {
-	/// Maximum size, in bytes, of cached headers.
-	pub headers: usize,
-	/// Maximum size, in bytes, of cached canonical hashes.
-	pub canon_hashes: usize,
-	/// Maximum size, in bytes, of cached block bodies.
-	pub bodies: usize,
-	/// Maximum size, in bytes, of cached block receipts.
-	pub receipts: usize,
-	/// Maximum size, in bytes, of cached chain score for the block.
-	pub chain_score: usize,
+    /// Maximum size, in bytes, of cached headers.
+    pub headers: usize,
+    /// Maximum size, in bytes, of cached canonical hashes.
+    pub canon_hashes: usize,
+    /// Maximum size, in bytes, of cached block bodies.
+    pub bodies: usize,
+    /// Maximum size, in bytes, of cached block receipts.
+    pub receipts: usize,
+    /// Maximum size, in bytes, of cached chain score for the block.
+    pub chain_score: usize,
 }
 
 impl Default for CacheSizes {
-	fn default() -> Self {
-		const MB: usize = 1024 * 1024;
-		CacheSizes {
-			headers: 10 * MB,
-			canon_hashes: 3 * MB,
-			bodies: 20 * MB,
-			receipts: 10 * MB,
-			chain_score: 7 * MB,
-		}
-	}
+    fn default() -> Self {
+        const MB: usize = 1024 * 1024;
+        CacheSizes {
+            headers: 10 * MB,
+            canon_hashes: 3 * MB,
+            bodies: 20 * MB,
+            receipts: 10 * MB,
+            chain_score: 7 * MB,
+        }
+    }
 }
 
 /// The light client data cache.
@@ -64,131 +62,131 @@ impl Default for CacheSizes {
 /// the underlying LRU-caches on read.
 /// [LRU-cache](https://en.wikipedia.org/wiki/Cache_replacement_policies#Least_Recently_Used_.28LRU.29)
 pub struct Cache {
-	headers: MemoryLruCache<H256, encoded::Header>,
-	canon_hashes: MemoryLruCache<BlockNumber, H256>,
-	bodies: MemoryLruCache<H256, encoded::Body>,
-	receipts: MemoryLruCache<H256, Vec<Receipt>>,
-	chain_score: MemoryLruCache<H256, U256>,
-	corpus: Option<(Corpus<U256>, Instant)>,
-	corpus_expiration: Duration,
+    headers: MemoryLruCache<H256, encoded::Header>,
+    canon_hashes: MemoryLruCache<BlockNumber, H256>,
+    bodies: MemoryLruCache<H256, encoded::Body>,
+    receipts: MemoryLruCache<H256, Vec<Receipt>>,
+    chain_score: MemoryLruCache<H256, U256>,
+    corpus: Option<(Corpus<U256>, Instant)>,
+    corpus_expiration: Duration,
 }
 
 impl Cache {
-	/// Create a new data cache with the given sizes and gas price corpus expiration time.
-	pub fn new(sizes: CacheSizes, corpus_expiration: Duration) -> Self {
-		Cache {
-			headers: MemoryLruCache::new(sizes.headers),
-			canon_hashes: MemoryLruCache::new(sizes.canon_hashes),
-			bodies: MemoryLruCache::new(sizes.bodies),
-			receipts: MemoryLruCache::new(sizes.receipts),
-			chain_score: MemoryLruCache::new(sizes.chain_score),
-			corpus: None,
-			corpus_expiration,
-		}
-	}
+    /// Create a new data cache with the given sizes and gas price corpus expiration time.
+    pub fn new(sizes: CacheSizes, corpus_expiration: Duration) -> Self {
+        Cache {
+            headers: MemoryLruCache::new(sizes.headers),
+            canon_hashes: MemoryLruCache::new(sizes.canon_hashes),
+            bodies: MemoryLruCache::new(sizes.bodies),
+            receipts: MemoryLruCache::new(sizes.receipts),
+            chain_score: MemoryLruCache::new(sizes.chain_score),
+            corpus: None,
+            corpus_expiration,
+        }
+    }
 
-	/// Query header by hash.
-	pub fn block_header(&mut self, hash: &H256) -> Option<encoded::Header> {
-		self.headers.get_mut(hash).cloned()
-	}
+    /// Query header by hash.
+    pub fn block_header(&mut self, hash: &H256) -> Option<encoded::Header> {
+        self.headers.get_mut(hash).cloned()
+    }
 
-	/// Query hash by number.
-	pub fn block_hash(&mut self, num: BlockNumber) -> Option<H256> {
-		self.canon_hashes.get_mut(&num).map(|h| *h)
-	}
+    /// Query hash by number.
+    pub fn block_hash(&mut self, num: BlockNumber) -> Option<H256> {
+        self.canon_hashes.get_mut(&num).map(|h| *h)
+    }
 
-	/// Query block body by block hash.
-	pub fn block_body(&mut self, hash: &H256) -> Option<encoded::Body> {
-		self.bodies.get_mut(hash).cloned()
-	}
+    /// Query block body by block hash.
+    pub fn block_body(&mut self, hash: &H256) -> Option<encoded::Body> {
+        self.bodies.get_mut(hash).cloned()
+    }
 
-	/// Query block receipts by block hash.
-	pub fn block_receipts(&mut self, hash: &H256) -> Option<Vec<Receipt>> {
-		self.receipts.get_mut(hash).cloned()
-	}
+    /// Query block receipts by block hash.
+    pub fn block_receipts(&mut self, hash: &H256) -> Option<Vec<Receipt>> {
+        self.receipts.get_mut(hash).cloned()
+    }
 
-	/// Query chain score by block hash.
-	pub fn chain_score(&mut self, hash: &H256) -> Option<U256> {
-		self.chain_score.get_mut(hash).map(|h| *h)
-	}
+    /// Query chain score by block hash.
+    pub fn chain_score(&mut self, hash: &H256) -> Option<U256> {
+        self.chain_score.get_mut(hash).map(|h| *h)
+    }
 
-	/// Cache the given header.
-	pub fn insert_block_header(&mut self, hash: H256, hdr: encoded::Header) {
-		self.headers.insert(hash, hdr);
-	}
+    /// Cache the given header.
+    pub fn insert_block_header(&mut self, hash: H256, hdr: encoded::Header) {
+        self.headers.insert(hash, hdr);
+    }
 
-	/// Cache the given canonical block hash.
-	pub fn insert_block_hash(&mut self, num: BlockNumber, hash: H256) {
-		self.canon_hashes.insert(num, hash);
-	}
+    /// Cache the given canonical block hash.
+    pub fn insert_block_hash(&mut self, num: BlockNumber, hash: H256) {
+        self.canon_hashes.insert(num, hash);
+    }
 
-	/// Cache the given block body.
-	pub fn insert_block_body(&mut self, hash: H256, body: encoded::Body) {
-		self.bodies.insert(hash, body);
-	}
+    /// Cache the given block body.
+    pub fn insert_block_body(&mut self, hash: H256, body: encoded::Body) {
+        self.bodies.insert(hash, body);
+    }
 
-	/// Cache the given block receipts.
-	pub fn insert_block_receipts(&mut self, hash: H256, receipts: Vec<Receipt>) {
-		self.receipts.insert(hash, receipts);
-	}
+    /// Cache the given block receipts.
+    pub fn insert_block_receipts(&mut self, hash: H256, receipts: Vec<Receipt>) {
+        self.receipts.insert(hash, receipts);
+    }
 
-	/// Cache the given chain scoring.
-	pub fn insert_chain_score(&mut self, hash: H256, score: U256) {
-		self.chain_score.insert(hash, score);
-	}
+    /// Cache the given chain scoring.
+    pub fn insert_chain_score(&mut self, hash: H256, score: U256) {
+        self.chain_score.insert(hash, score);
+    }
 
-	/// Get gas price corpus, if recent enough.
-	pub fn gas_price_corpus(&self) -> Option<Corpus<U256>> {
-		let now = Instant::now();
+    /// Get gas price corpus, if recent enough.
+    pub fn gas_price_corpus(&self) -> Option<Corpus<U256>> {
+        let now = Instant::now();
 
-		self.corpus.as_ref().and_then(|&(ref corpus, ref tm)| {
-			if *tm + self.corpus_expiration >= now {
-				Some(corpus.clone())
-			} else {
-				None
-			}
-		})
-	}
+        self.corpus.as_ref().and_then(|&(ref corpus, ref tm)| {
+            if *tm + self.corpus_expiration >= now {
+                Some(corpus.clone())
+            } else {
+                None
+            }
+        })
+    }
 
-	/// Set the cached gas price corpus.
-	pub fn set_gas_price_corpus(&mut self, corpus: Corpus<U256>) {
-		self.corpus = Some((corpus, Instant::now()))
-	}
+    /// Set the cached gas price corpus.
+    pub fn set_gas_price_corpus(&mut self, corpus: Corpus<U256>) {
+        self.corpus = Some((corpus, Instant::now()))
+    }
 
-	/// Get the memory used.
-	pub fn mem_used(&self) -> usize {
-		self.heap_size_of_children()
-	}
+    /// Get the memory used.
+    pub fn mem_used(&self) -> usize {
+        self.heap_size_of_children()
+    }
 }
 
 impl HeapSizeOf for Cache {
-	fn heap_size_of_children(&self) -> usize {
-		self.headers.current_size()
-			+ self.canon_hashes.current_size()
-			+ self.bodies.current_size()
-			+ self.receipts.current_size()
-			+ self.chain_score.current_size()
-			// TODO: + corpus
-	}
+    fn heap_size_of_children(&self) -> usize {
+        self.headers.current_size()
+            + self.canon_hashes.current_size()
+            + self.bodies.current_size()
+            + self.receipts.current_size()
+            + self.chain_score.current_size()
+        // TODO: + corpus
+    }
 }
 
 #[cfg(test)]
 mod tests {
-	use super::Cache;
-	use std::time::Duration;
+    use super::Cache;
+    use std::time::Duration;
 
-	#[test]
-	fn corpus_inaccessible() {
-		let duration = Duration::from_secs(20);
-		let mut cache = Cache::new(Default::default(), duration.clone());
+    #[test]
+    fn corpus_inaccessible() {
+        let duration = Duration::from_secs(20);
+        let mut cache = Cache::new(Default::default(), duration.clone());
 
-		cache.set_gas_price_corpus(vec![].into());
-		assert_eq!(cache.gas_price_corpus(), Some(vec![].into()));
+        cache.set_gas_price_corpus(vec![].into());
+        assert_eq!(cache.gas_price_corpus(), Some(vec![].into()));
 
-		{
-			let corpus_time = &mut cache.corpus.as_mut().unwrap().1;
-			*corpus_time = *corpus_time - duration;
-		}
-		assert!(cache.gas_price_corpus().is_none());
-	}
+        {
+            let corpus_time = &mut cache.corpus.as_mut().unwrap().1;
+            *corpus_time = *corpus_time - duration;
+        }
+        assert!(cache.gas_price_corpus().is_none());
+    }
 }

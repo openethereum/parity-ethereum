@@ -14,19 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::net;
 use ethkey::KeyPair;
-use key_server_cluster::NodeId;
-use key_server_cluster::io::SharedTcpStream;
+use key_server_cluster::{io::SharedTcpStream, NodeId};
+use std::net;
 
 /// Established connection data
 pub struct Connection {
-	/// Peer address.
-	pub address: net::SocketAddr,
-	/// Connection stream.
-	pub stream: SharedTcpStream,
-	/// Peer node id.
-	pub node_id: NodeId,
-	/// Encryption key.
-	pub key: KeyPair,
+    /// Peer address.
+    pub address: net::SocketAddr,
+    /// Connection stream.
+    pub stream: SharedTcpStream,
+    /// Peer node id.
+    pub node_id: NodeId,
+    /// Encryption key.
+    pub key: KeyPair,
 }

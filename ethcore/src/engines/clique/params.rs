@@ -20,22 +20,19 @@ use ethjson;
 
 /// `Clique` params.
 pub struct CliqueParams {
-	/// Period as defined in EIP
-	pub period: u64,
-	/// Epoch length as defined in EIP
-	pub epoch: u64,
+    /// Period as defined in EIP
+    pub period: u64,
+    /// Epoch length as defined in EIP
+    pub epoch: u64,
 }
 
 impl From<ethjson::spec::CliqueParams> for CliqueParams {
-	fn from(p: ethjson::spec::CliqueParams) -> Self {
-		let period = p.period.map_or_else(|| 30000 as u64, Into::into);
-		let epoch =  p.epoch.map_or_else(|| 15 as u64, Into::into);
+    fn from(p: ethjson::spec::CliqueParams) -> Self {
+        let period = p.period.map_or_else(|| 30000 as u64, Into::into);
+        let epoch = p.epoch.map_or_else(|| 15 as u64, Into::into);
 
-		assert!(epoch > 0);
+        assert!(epoch > 0);
 
-		CliqueParams {
-			period,
-			epoch,
-		}
-	}
+        CliqueParams { period, epoch }
+    }
 }

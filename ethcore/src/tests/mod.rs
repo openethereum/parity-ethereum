@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-mod client;
 mod blockchain;
+mod client;
 mod evm;
 mod trace;

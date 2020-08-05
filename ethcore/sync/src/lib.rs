@@ -39,10 +39,14 @@ extern crate triehash_ethereum;
 
 extern crate ethcore_light as light;
 
-#[cfg(test)] extern crate env_logger;
-#[cfg(test)] extern crate ethcore_private_tx;
-#[cfg(test)] extern crate kvdb_memorydb;
-#[cfg(test)] extern crate rustc_hex;
+#[cfg(test)]
+extern crate env_logger;
+#[cfg(test)]
+extern crate ethcore_private_tx;
+#[cfg(test)]
+extern crate kvdb_memorydb;
+#[cfg(test)]
+extern crate rustc_hex;
 
 #[macro_use]
 extern crate enum_primitive;
@@ -55,12 +59,12 @@ extern crate heapsize;
 #[macro_use]
 extern crate trace_time;
 
-mod chain;
-mod blocks;
 mod block_sync;
-mod sync_io;
+mod blocks;
+mod chain;
 mod private_tx;
 mod snapshot;
+mod sync_io;
 mod transactions_stats;
 
 pub mod light_sync;
@@ -71,7 +75,7 @@ mod tests;
 mod api;
 
 pub use api::*;
-pub use chain::{SyncStatus, SyncState};
+pub use chain::{SyncState, SyncStatus};
 pub use devp2p::validate_node_url;
-pub use network::{NonReservedPeerMode, Error, ErrorKind, ConnectionFilter, ConnectionDirection};
-pub use private_tx::{PrivateTxHandler, NoopPrivateTxHandler, SimplePrivateTxHandler};
+pub use network::{ConnectionDirection, ConnectionFilter, Error, ErrorKind, NonReservedPeerMode};
+pub use private_tx::{NoopPrivateTxHandler, PrivateTxHandler, SimplePrivateTxHandler};
