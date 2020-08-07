@@ -8,10 +8,6 @@ max_peers = 100
 # You won't be able to use IPC to interact with Parity.
 disable = true
 
-[dapps]
-# You won't be able to access any web Dapps.
-disable = true
-
 [mining]
 # Prepare a block to seal even when there are no miners connected.
 force_sealing = true

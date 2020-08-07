@@ -221,15 +221,6 @@ pub trait SecretStore: SimpleSecretStore {
 
     /// Returns local path of the store.
     fn local_path(&self) -> PathBuf;
-    /// Lists all found geth accounts.
-    fn list_geth_accounts(&self, testnet: bool) -> Vec<Address>;
-    /// Imports geth accounts to the store/vault.
-    fn import_geth_accounts(
-        &self,
-        vault: SecretVaultRef,
-        desired: Vec<Address>,
-        testnet: bool,
-    ) -> Result<Vec<StoreAccountRef>, Error>;
 }
 
 impl StoreAccountRef {

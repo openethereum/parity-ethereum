@@ -572,27 +572,6 @@ impl AccountProvider {
         Ok(self.sstore.agree(&account, &password, other_public)?)
     }
 
-    /// Returns the underlying `SecretStore` reference if one exists.
-    pub fn list_geth_accounts(&self, testnet: bool) -> Vec<Address> {
-        self.sstore
-            .list_geth_accounts(testnet)
-            .into_iter()
-            .map(|a| Address::from(a).into())
-            .collect()
-    }
-
-    /// Returns the underlying `SecretStore` reference if one exists.
-    pub fn import_geth_accounts(
-        &self,
-        desired: Vec<Address>,
-        testnet: bool,
-    ) -> Result<Vec<Address>, Error> {
-        self.sstore
-            .import_geth_accounts(SecretVaultRef::Root, desired, testnet)
-            .map(|a| a.into_iter().map(|a| a.address).collect())
-            .map_err(Into::into)
-    }
-
     /// Create new vault.
     pub fn create_vault(&self, name: &str, password: &Password) -> Result<(), Error> {
         self.sstore.create_vault(name, password).map_err(Into::into)

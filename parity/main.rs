@@ -219,7 +219,6 @@ fn main_direct(force_can_restart: bool) -> i32 {
     });
 
     if let Some(spec_override) = take_spec_name_override() {
-        conf.args.flag_testnet = false;
         conf.args.arg_chain = spec_override;
     }
 

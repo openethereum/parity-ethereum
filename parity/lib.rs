@@ -99,7 +99,6 @@ mod cache;
 mod cli;
 mod configuration;
 mod db;
-mod deprecated;
 mod export_hardcoded_sync;
 mod helpers;
 mod informant;
@@ -122,7 +121,6 @@ use std::{fs::File, io::BufReader, sync::Arc};
 
 use cli::Args;
 use configuration::{Cmd, Execute};
-use deprecated::find_deprecated;
 use hash::keccak_buffer;
 
 #[cfg(feature = "memory_profiling")]
@@ -267,10 +265,5 @@ where
     Cr: Fn(String) + 'static + Send,
     Rr: Fn() + 'static + Send,
 {
-    let deprecated = find_deprecated(&conf.args);
-    for d in deprecated {
-        println!("{}", d);
-    }
-
     execute(conf.into_command()?, logger, on_client_rq, on_updater_rq)
 }

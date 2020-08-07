@@ -289,16 +289,6 @@ fn home() -> PathBuf {
     home_dir().expect("Failed to get home dir")
 }
 
-/// Geth path
-pub fn geth(testnet: bool) -> PathBuf {
-    let mut base = geth_base();
-    if testnet {
-        base.push("testnet");
-    }
-    base.push("keystore");
-    base
-}
-
 /// Parity path for specific chain
 pub fn parity(chain: &str) -> PathBuf {
     let mut base = parity_base();
@@ -321,13 +311,6 @@ mod platform {
         home.push("keys");
         home
     }
-
-    pub fn geth_base() -> PathBuf {
-        let mut home = super::home();
-        home.push("Library");
-        home.push("Ethereum");
-        home
-    }
 }
 
 #[cfg(windows)]
@@ -346,14 +329,6 @@ mod platform {
         home.push("keys");
         home
     }
-
-    pub fn geth_base() -> PathBuf {
-        let mut home = super::home();
-        home.push("AppData");
-        home.push("Roaming");
-        home.push("Ethereum");
-        home
-    }
 }
 
 #[cfg(not(any(target_os = "macos", windows)))]
@@ -369,12 +344,6 @@ mod platform {
         home.push("share");
         home.push("io.parity.ethereum");
         home.push("keys");
-        home
-    }
-
-    pub fn geth_base() -> PathBuf {
-        let mut home = super::home();
-        home.push(".ethereum");
         home
     }
 }

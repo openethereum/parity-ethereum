@@ -64,7 +64,7 @@ pub use self::{
     account::{Crypto, SafeAccount},
     error::Error,
     ethstore::{EthMultiStore, EthStore},
-    import::{import_account, import_accounts, read_geth_accounts},
+    import::{import_account, import_accounts},
     json::OpaqueKeyFile as KeyFile,
     parity_wordlist::random_phrase,
     presale::PresaleWallet,

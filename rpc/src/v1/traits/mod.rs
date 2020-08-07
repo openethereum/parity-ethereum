@@ -28,7 +28,6 @@ pub mod parity_signing;
 pub mod personal;
 pub mod private;
 pub mod pubsub;
-pub mod rpc;
 pub mod secretstore;
 pub mod signer;
 pub mod traces;
@@ -47,7 +46,6 @@ pub use self::{
     personal::Personal,
     private::Private,
     pubsub::PubSub,
-    rpc::Rpc,
     secretstore::SecretStore,
     signer::Signer,
     traces::Traces,

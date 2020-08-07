@@ -77,7 +77,7 @@ fn setup_with(c: Config) -> PersonalTester {
     let reservations = Arc::new(Mutex::new(nonce::Reservations::new(runtime.executor())));
 
     let dispatcher = FullDispatcher::new(client, miner.clone(), reservations, 50);
-    let personal = PersonalClient::new(&accounts, dispatcher, false, c.allow_experimental_rpcs);
+    let personal = PersonalClient::new(&accounts, dispatcher, c.allow_experimental_rpcs);
 
     let mut io = IoHandler::default();
     io.extend_with(personal.to_delegate());
@@ -380,39 +380,6 @@ fn ec_recover_invalid_signature() {
     assert_eq!(
         tester.io.handle_request_sync(request.as_ref()),
         Some(response.into())
-    );
-}
-
-#[test]
-fn should_not_unlock_account_temporarily_if_allow_perm_is_disabled() {
-    let tester = setup();
-    let address = tester.accounts.new_account(&"password123".into()).unwrap();
-
-    let request = r#"{
-		"jsonrpc": "2.0",
-		"method": "personal_unlockAccount",
-		"params": [
-			""#
-    .to_owned()
-        + &format!("0x{:x}", address)
-        + r#"",
-			"password123",
-			"0x100"
-		],
-		"id": 1
-	}"#;
-    let response = r#"{"jsonrpc":"2.0","error":{"code":-32000,"message":"Time-unlocking is not supported when permanent unlock is disabled.","data":"Use personal_sendTransaction or enable permanent unlocking, instead."},"id":1}"#;
-    assert_eq!(
-        tester.io.handle_request_sync(&request),
-        Some(response.into())
-    );
-
-    assert!(
-        tester
-            .accounts
-            .sign(address, None, Default::default())
-            .is_err(),
-        "Should not unlock account."
     );
 }
 

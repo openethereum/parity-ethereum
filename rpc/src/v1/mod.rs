@@ -49,7 +49,7 @@ pub use self::{
     traits::{
         Debug, Eth, EthFilter, EthPubSub, EthSigning, Net, Parity, ParityAccounts,
         ParityAccountsInfo, ParitySet, ParitySetAccounts, ParitySigning, Personal, Private, PubSub,
-        Rpc, SecretStore, Signer, Traces, Web3,
+        SecretStore, Signer, Traces, Web3,
     },
     types::Origin,
 };

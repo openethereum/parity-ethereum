@@ -16,7 +16,7 @@
 
 use std::{
     cmp::PartialEq,
-    collections::{BTreeMap, HashSet},
+    collections::HashSet,
     str::FromStr,
     sync::{Arc, Weak},
 };
@@ -62,8 +62,6 @@ pub enum Api {
     Parity,
     /// Traces (Safe)
     Traces,
-    /// Rpc (Safe)
-    Rpc,
     /// Private transaction manager (Safe)
     Private,
     /// Whisper (Safe)
@@ -102,7 +100,6 @@ impl FromStr for Api {
             "personal" => Ok(Personal),
             "private" => Ok(Private),
             "pubsub" => Ok(EthPubSub),
-            "rpc" => Ok(Rpc),
             "secretstore" => Ok(SecretStore),
             "shh" => Ok(Whisper),
             "shh_pubsub" => Ok(WhisperPubSub),
@@ -171,33 +168,6 @@ impl FromStr for ApiSet {
     }
 }
 
-fn to_modules(apis: &HashSet<Api>) -> BTreeMap<String, String> {
-    let mut modules = BTreeMap::new();
-    for api in apis {
-        let (name, version) = match *api {
-            Api::Debug => ("debug", "1.0"),
-            Api::Eth => ("eth", "1.0"),
-            Api::EthPubSub => ("pubsub", "1.0"),
-            Api::Net => ("net", "1.0"),
-            Api::Parity => ("parity", "1.0"),
-            Api::ParityAccounts => ("parity_accounts", "1.0"),
-            Api::ParityPubSub => ("parity_pubsub", "1.0"),
-            Api::ParitySet => ("parity_set", "1.0"),
-            Api::Personal => ("personal", "1.0"),
-            Api::Private => ("private", "1.0"),
-            Api::Rpc => ("rpc", "1.0"),
-            Api::SecretStore => ("secretstore", "1.0"),
-            Api::Signer => ("signer", "1.0"),
-            Api::Traces => ("traces", "1.0"),
-            Api::Web3 => ("web3", "1.0"),
-            Api::Whisper => ("shh", "1.0"),
-            Api::WhisperPubSub => ("shh_pubsub", "1.0"),
-        };
-        modules.insert(name.into(), version.into());
-    }
-    modules
-}
-
 macro_rules! add_signing_methods {
     ($namespace:ident, $handler:expr, $deps:expr, $dispatch:expr) => {{
         let deps = &$deps;
@@ -246,7 +216,6 @@ pub struct FullDependencies {
     pub settings: Arc<NetworkSettings>,
     pub net_service: Arc<dyn ManageNetwork>,
     pub updater: Arc<Updater>,
-    pub geth_compatibility: bool,
     pub experimental_rpcs: bool,
     pub ws_address: Option<Host>,
     pub fetch: FetchClient,
@@ -301,9 +270,6 @@ impl FullDependencies {
                         &self.miner,
                         &self.external_miner,
                         EthClientOptions {
-                            pending_nonce_from_queue: self.geth_compatibility,
-                            allow_pending_receipt_query: !self.geth_compatibility,
-                            send_block_number_in_get_work: !self.geth_compatibility,
                             gas_price_percentile: self.gas_price_percentile,
                             allow_missing_blocks: self.allow_missing_blocks,
                             allow_experimental_rpcs: self.experimental_rpcs,
@@ -352,7 +318,6 @@ impl FullDependencies {
                         PersonalClient::new(
                             &self.accounts,
                             dispatcher.clone(),
-                            self.geth_compatibility,
                             self.experimental_rpcs,
                         )
                         .to_delegate(),
@@ -438,10 +403,6 @@ impl FullDependencies {
                     );
                 }
                 Api::Traces => handler.extend_with(TracesClient::new(&self.client).to_delegate()),
-                Api::Rpc => {
-                    let modules = to_modules(&apis);
-                    handler.extend_with(RpcClient::new(modules).to_delegate());
-                }
                 Api::SecretStore => {
                     #[cfg(feature = "accounts")]
                     handler.extend_with(SecretStoreClient::new(&self.accounts).to_delegate());
@@ -511,7 +472,6 @@ pub struct LightDependencies<T> {
     pub transaction_queue: Arc<RwLock<LightTransactionQueue>>,
     pub ws_address: Option<Host>,
     pub fetch: FetchClient,
-    pub geth_compatibility: bool,
     pub experimental_rpcs: bool,
     pub executor: Executor,
     pub whisper_rpc: Option<::whisper::RpcFactory>,
@@ -603,7 +563,6 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
                         PersonalClient::new(
                             &self.accounts,
                             dispatcher.clone(),
-                            self.geth_compatibility,
                             self.experimental_rpcs,
                         )
                         .to_delegate(),
@@ -677,10 +636,6 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
                     .to_delegate(),
                 ),
                 Api::Traces => handler.extend_with(light::TracesClient.to_delegate()),
-                Api::Rpc => {
-                    let modules = to_modules(&apis);
-                    handler.extend_with(RpcClient::new(modules).to_delegate());
-                }
                 Api::SecretStore => {
                     #[cfg(feature = "accounts")]
                     handler.extend_with(SecretStoreClient::new(&self.accounts).to_delegate());
@@ -738,7 +693,6 @@ impl ApiSet {
             Api::Eth,
             Api::EthPubSub,
             Api::Parity,
-            Api::Rpc,
             Api::Whisper,
             Api::WhisperPubSub,
             Api::Private,
@@ -802,7 +756,6 @@ mod test {
         assert_eq!(Api::ParityAccounts, "parity_accounts".parse().unwrap());
         assert_eq!(Api::ParitySet, "parity_set".parse().unwrap());
         assert_eq!(Api::Traces, "traces".parse().unwrap());
-        assert_eq!(Api::Rpc, "rpc".parse().unwrap());
         assert_eq!(Api::SecretStore, "secretstore".parse().unwrap());
         assert_eq!(Api::Private, "private".parse().unwrap());
         assert_eq!(Api::Whisper, "shh".parse().unwrap());
@@ -834,7 +787,6 @@ mod test {
             Api::Parity,
             Api::ParityPubSub,
             Api::Traces,
-            Api::Rpc,
             Api::Whisper,
             Api::WhisperPubSub,
             Api::Private,
@@ -855,7 +807,6 @@ mod test {
             Api::Parity,
             Api::ParityPubSub,
             Api::Traces,
-            Api::Rpc,
             Api::Whisper,
             Api::WhisperPubSub,
             Api::Private,
@@ -880,7 +831,6 @@ mod test {
                     Api::Parity,
                     Api::ParityPubSub,
                     Api::Traces,
-                    Api::Rpc,
                     Api::SecretStore,
                     Api::Whisper,
                     Api::WhisperPubSub,
@@ -910,7 +860,6 @@ mod test {
                     Api::Parity,
                     Api::ParityPubSub,
                     Api::Traces,
-                    Api::Rpc,
                     Api::SecretStore,
                     Api::Whisper,
                     Api::WhisperPubSub,
@@ -939,7 +888,6 @@ mod test {
                     Api::Parity,
                     Api::ParityPubSub,
                     Api::Traces,
-                    Api::Rpc,
                     Api::Whisper,
                     Api::WhisperPubSub,
                     Api::Private,
