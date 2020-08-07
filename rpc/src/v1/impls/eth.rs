@@ -70,12 +70,6 @@ const EXTRA_INFO_PROOF: &str = "Object exists in blockchain (fetched earlier), e
 /// Eth RPC options
 #[derive(Copy, Clone)]
 pub struct EthClientOptions {
-    /// Return nonce from transaction queue when pending block not available.
-    pub pending_nonce_from_queue: bool,
-    /// Returns receipt from pending blocks
-    pub allow_pending_receipt_query: bool,
-    /// Send additional block number when asking for work
-    pub send_block_number_in_get_work: bool,
     /// Gas Price Percentile used as default gas price.
     pub gas_price_percentile: usize,
     /// Return 'null' instead of an error if ancient block sync is still in
@@ -100,9 +94,6 @@ impl EthClientOptions {
 impl Default for EthClientOptions {
     fn default() -> Self {
         EthClientOptions {
-            pending_nonce_from_queue: false,
-            allow_pending_receipt_query: true,
-            send_block_number_in_get_work: true,
             gas_price_percentile: 50,
             allow_missing_blocks: false,
             allow_experimental_rpcs: false,
@@ -788,9 +779,6 @@ where
 
     fn transaction_count(&self, address: H160, num: Option<BlockNumber>) -> BoxFuture<U256> {
         let res = match num.unwrap_or_default() {
-            BlockNumber::Pending if self.options.pending_nonce_from_queue => {
-                Ok(self.miner.next_nonce(&*self.client, &address))
-            }
             BlockNumber::Pending => {
                 let info = self.client.chain_info();
                 let nonce = self
@@ -953,11 +941,9 @@ where
     }
 
     fn transaction_receipt(&self, hash: H256) -> BoxFuture<Option<Receipt>> {
-        if self.options.allow_pending_receipt_query {
-            let best_block = self.client.chain_info().best_block_number;
-            if let Some(receipt) = self.miner.pending_receipt(best_block, &hash) {
-                return Box::new(future::ok(Some(receipt.into())));
-            }
+        let best_block = self.client.chain_info().best_block_number;
+        if let Some(receipt) = self.miner.pending_receipt(best_block, &hash) {
+            return Box::new(future::ok(Some(receipt.into())));
         }
 
         let receipt = self.client.transaction_receipt(TransactionId::Hash(hash));
@@ -1067,19 +1053,12 @@ where
             .as_secs();
         if no_new_work_timeout > 0 && timestamp + no_new_work_timeout < now {
             Err(errors::no_new_work())
-        } else if self.options.send_block_number_in_get_work {
-            Ok(Work {
-                pow_hash,
-                seed_hash: seed_hash.into(),
-                target,
-                number: Some(number),
-            })
         } else {
             Ok(Work {
                 pow_hash,
                 seed_hash: seed_hash.into(),
                 target,
-                number: None,
+                number: Some(number),
             })
         }
     }

@@ -25,7 +25,6 @@ use ethereum_types::{clean_0x, Address, U256};
 use ethkey::Password;
 use journaldb::Algorithm;
 use miner::pool::PrioritizationStrategy;
-use path;
 use std::{
     collections::HashSet,
     fs::File,
@@ -186,27 +185,6 @@ pub fn join_set(set: Option<&HashSet<String>>) -> Option<String> {
 /// Flush output buffer.
 pub fn flush_stdout() {
     io::stdout().flush().expect("stdout is flushable; qed");
-}
-
-/// Returns default geth ipc path.
-pub fn geth_ipc_path(testnet: bool) -> String {
-    // Windows path should not be hardcoded here.
-    // Instead it should be a part of path::ethereum
-    if cfg!(windows) {
-        return r"\\.\pipe\geth.ipc".to_owned();
-    }
-
-    if testnet {
-        path::ethereum::with_testnet("geth.ipc")
-            .to_str()
-            .unwrap()
-            .to_owned()
-    } else {
-        path::ethereum::with_default("geth.ipc")
-            .to_str()
-            .unwrap()
-            .to_owned()
-    }
 }
 
 /// Formats and returns parity ipc path.
@@ -391,8 +369,8 @@ pub fn passwords_from_files(files: &[String]) -> Result<Vec<Password>, String> {
 #[cfg(test)]
 mod tests {
     use super::{
-        geth_ipc_path, join_set, password_from_file, to_address, to_addresses, to_block_id,
-        to_bootnodes, to_duration, to_mode, to_pending_set, to_price, to_u256,
+        join_set, password_from_file, to_address, to_addresses, to_block_id, to_bootnodes,
+        to_duration, to_mode, to_pending_set, to_price, to_u256,
     };
     use ethcore::{
         client::{BlockId, Mode},
@@ -579,33 +557,6 @@ but the first password is trimmed
         assert_eq!(to_price("1").unwrap(), 1.0);
         assert_eq!(to_price("2.3").unwrap(), 2.3);
         assert_eq!(to_price("2.33").unwrap(), 2.33);
-    }
-
-    #[test]
-    #[cfg(windows)]
-    fn test_geth_ipc_path() {
-        assert_eq!(geth_ipc_path(true), r"\\.\pipe\geth.ipc".to_owned());
-        assert_eq!(geth_ipc_path(false), r"\\.\pipe\geth.ipc".to_owned());
-    }
-
-    #[test]
-    #[cfg(not(windows))]
-    fn test_geth_ipc_path() {
-        use path;
-        assert_eq!(
-            geth_ipc_path(true),
-            path::ethereum::with_testnet("geth.ipc")
-                .to_str()
-                .unwrap()
-                .to_owned()
-        );
-        assert_eq!(
-            geth_ipc_path(false),
-            path::ethereum::with_default("geth.ipc")
-                .to_str()
-                .unwrap()
-                .to_owned()
-        );
     }
 
     #[test]

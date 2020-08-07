@@ -6,7 +6,6 @@ auto_update = "none"
 auto_update_delay = 200
 auto_update_check_frequency = 50
 release_track = "current"
-public_node = false
 no_download = false
 no_consensus = false
 no_persistent_txqueue = false
@@ -34,10 +33,6 @@ sstore_url = "http://localhost:8082"
 sstore_threshold = 0
 
 [ui]
-force = false
-disable = false
-port = 8180
-interface = "127.0.0.1"
 path = "$HOME/.parity/signer"
 
 [network]
@@ -62,7 +57,7 @@ disable = false
 port = 8545
 interface = "local"
 cors = ["null"]
-apis = ["web3", "eth", "net", "parity", "traces", "rpc", "secretstore"]
+apis = ["web3", "eth", "net", "parity", "traces", "secretstore"]
 hosts = ["none"]
 allow_missing_blocks = false
 
@@ -71,23 +66,13 @@ disable = false
 port = 8546
 interface = "local"
 origins = ["none"]
-apis = ["web3", "eth", "net", "parity", "traces", "rpc", "secretstore"]
+apis = ["web3", "eth", "net", "parity", "traces", "secretstore"]
 hosts = ["none"]
 
 [ipc]
 disable = false
 path = "$HOME/.parity/jsonrpc.ipc"
-apis = ["web3", "eth", "net", "parity", "parity_accounts", "personal", "traces", "rpc", "secretstore"]
-
-[dapps]
-disable = false
-port = 8080
-interface = "local"
-hosts = ["none"]
-path = "$HOME/.parity/dapps"
-# authorization:
-user = "test_user"
-pass = "test_pass"
+apis = ["web3", "eth", "net", "parity", "parity_accounts", "personal", "traces", "secretstore"]
 
 [secretstore]
 disable = false

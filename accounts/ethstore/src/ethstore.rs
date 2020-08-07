@@ -27,7 +27,6 @@ use accounts_dir::{KeyDirectory, SetKeyError, VaultKey, VaultKeyDirectory};
 use ethkey::{
     self, Address, ExtendedKeyPair, KeyPair, Message, Password, Public, Secret, Signature,
 };
-use import;
 use json::{self, OpaqueKeyFile, Uuid};
 use presale::PresaleWallet;
 use random::Random;
@@ -329,38 +328,6 @@ impl SecretStore for EthStore {
 
     fn local_path(&self) -> PathBuf {
         self.store.dir.path().cloned().unwrap_or_else(PathBuf::new)
-    }
-
-    fn list_geth_accounts(&self, testnet: bool) -> Vec<Address> {
-        import::read_geth_accounts(testnet)
-    }
-
-    fn import_geth_accounts(
-        &self,
-        vault: SecretVaultRef,
-        desired: Vec<Address>,
-        testnet: bool,
-    ) -> Result<Vec<StoreAccountRef>, Error> {
-        let imported_addresses = match vault {
-            SecretVaultRef::Root => import::import_geth_accounts(
-                &*self.store.dir,
-                desired.into_iter().collect(),
-                testnet,
-            ),
-            SecretVaultRef::Vault(vault_name) => {
-                if let Some(vault) = self.store.vaults.lock().get(&vault_name) {
-                    import::import_geth_accounts(
-                        vault.as_key_directory(),
-                        desired.into_iter().collect(),
-                        testnet,
-                    )
-                } else {
-                    Err(Error::VaultNotFound)
-                }
-            }
-        };
-
-        imported_addresses.map(|a| a.into_iter().map(|a| StoreAccountRef::root(a)).collect())
     }
 }
 

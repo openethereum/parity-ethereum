@@ -235,17 +235,6 @@ usage! {
         {
             "Print the hashed light clients headers of the given --chain (default: mainnet) in a JSON format. To be used as hardcoded headers in a genesis file.",
         }
-
-        // CMD removed in 2.0
-
-        CMD cmd_dapp
-        {
-            "Manage dapps",
-
-            ARG arg_dapp_path: (Option<String>) = None,
-            "<PATH>",
-            "Path to the dapps",
-        }
     }
     {
         // Global flags and arguments
@@ -321,7 +310,7 @@ usage! {
         ["Convenience Options"]
             FLAG flag_unsafe_expose: (bool) = false, or |c: &Config| c.misc.as_ref()?.unsafe_expose,
             "--unsafe-expose",
-            "All servers will listen on external interfaces and will be remotely accessible. It's equivalent with setting the following: --[ws,jsonrpc,ipfs-api,secretstore,stratum,dapps,secretstore-http]-interface=all --*-hosts=all    This option is UNSAFE and should be used with great care!",
+            "All servers will listen on external interfaces and will be remotely accessible. It's equivalent with setting the following: --[ws,jsonrpc,ipfs-api,secretstore,stratum,secretstore-http]-interface=all --*-hosts=all    This option is UNSAFE and should be used with great care!",
 
             ARG arg_config: (String) = "$BASE/config.toml", or |_| None,
             "-c, --config=[CONFIG]",
@@ -494,9 +483,9 @@ usage! {
             "--jsonrpc-interface=[IP]",
             "Specify the hostname portion of the HTTP JSON-RPC API server, IP should be an interface's IP address, or all (all interfaces) or local.",
 
-            ARG arg_jsonrpc_apis: (String) = "web3,eth,pubsub,net,parity,private,parity_pubsub,traces,rpc,shh,shh_pubsub", or |c: &Config| c.rpc.as_ref()?.apis.as_ref().map(|vec| vec.join(",")),
+            ARG arg_jsonrpc_apis: (String) = "web3,eth,pubsub,net,parity,private,parity_pubsub,traces,shh,shh_pubsub", or |c: &Config| c.rpc.as_ref()?.apis.as_ref().map(|vec| vec.join(",")),
             "--jsonrpc-apis=[APIS]",
-            "Specify the APIs available through the HTTP JSON-RPC interface using a comma-delimited list of API names. Possible names are: all, safe, debug, web3, net, eth, pubsub, personal, signer, parity, parity_pubsub, parity_accounts, parity_set, traces, rpc, secretstore, shh, shh_pubsub. You can also disable a specific API by putting '-' in the front, example: all,-personal. 'safe' enables the following APIs: web3, net, eth, pubsub, parity, parity_pubsub, traces, rpc, shh, shh_pubsub",
+            "Specify the APIs available through the HTTP JSON-RPC interface using a comma-delimited list of API names. Possible names are: all, safe, debug, web3, net, eth, pubsub, personal, signer, parity, parity_pubsub, parity_accounts, parity_set, traces, secretstore, shh, shh_pubsub. You can also disable a specific API by putting '-' in the front, example: all,-personal. 'safe' enables the following APIs: web3, net, eth, pubsub, parity, parity_pubsub, traces, shh, shh_pubsub",
 
             ARG arg_jsonrpc_hosts: (String) = "none", or |c: &Config| c.rpc.as_ref()?.hosts.as_ref().map(|vec| vec.join(",")),
             "--jsonrpc-hosts=[HOSTS]",
@@ -535,9 +524,9 @@ usage! {
             "--ws-interface=[IP]",
             "Specify the hostname portion of the WebSockets JSON-RPC server, IP should be an interface's IP address, or all (all interfaces) or local.",
 
-            ARG arg_ws_apis: (String) = "web3,eth,pubsub,net,parity,parity_pubsub,private,traces,rpc,shh,shh_pubsub", or |c: &Config| c.websockets.as_ref()?.apis.as_ref().map(|vec| vec.join(",")),
+            ARG arg_ws_apis: (String) = "web3,eth,pubsub,net,parity,parity_pubsub,private,traces,shh,shh_pubsub", or |c: &Config| c.websockets.as_ref()?.apis.as_ref().map(|vec| vec.join(",")),
             "--ws-apis=[APIS]",
-            "Specify the JSON-RPC APIs available through the WebSockets interface using a comma-delimited list of API names. Possible names are: all, safe, web3, net, eth, pubsub, personal, signer, parity, parity_pubsub, parity_accounts, parity_set, traces, rpc, secretstore, shh, shh_pubsub. You can also disable a specific API by putting '-' in the front, example: all,-personal. 'safe' enables the following APIs: web3, net, eth, pubsub, parity, parity_pubsub, traces, rpc, shh, shh_pubsub",
+            "Specify the JSON-RPC APIs available through the WebSockets interface using a comma-delimited list of API names. Possible names are: all, safe, web3, net, eth, pubsub, personal, signer, parity, parity_pubsub, parity_accounts, parity_set, traces, secretstore, shh, shh_pubsub. You can also disable a specific API by putting '-' in the front, example: all,-personal. 'safe' enables the following APIs: web3, net, eth, pubsub, parity, parity_pubsub, traces, shh, shh_pubsub",
 
             ARG arg_ws_origins: (String) = "parity://*,chrome-extension://*,moz-extension://*", or |c: &Config| c.websockets.as_ref()?.origins.as_ref().map(|vec| vec.join(",")),
             "--ws-origins=[URL]",
@@ -560,9 +549,9 @@ usage! {
             "--ipc-path=[PATH]",
             "Specify custom path for JSON-RPC over IPC service.",
 
-            ARG arg_ipc_apis: (String) = "web3,eth,pubsub,net,parity,parity_pubsub,parity_accounts,private,traces,rpc,shh,shh_pubsub", or |c: &Config| c.ipc.as_ref()?.apis.as_ref().map(|vec| vec.join(",")),
+            ARG arg_ipc_apis: (String) = "web3,eth,pubsub,net,parity,parity_pubsub,parity_accounts,private,traces,shh,shh_pubsub", or |c: &Config| c.ipc.as_ref()?.apis.as_ref().map(|vec| vec.join(",")),
             "--ipc-apis=[APIS]",
-            "Specify custom API set available via JSON-RPC over IPC using a comma-delimited list of API names. Possible names are: all, safe, web3, net, eth, pubsub, personal, signer, parity, parity_pubsub, parity_accounts, parity_set, traces, rpc, secretstore, shh, shh_pubsub. You can also disable a specific API by putting '-' in the front, example: all,-personal. 'safe' enables the following APIs: web3, net, eth, pubsub, parity, parity_pubsub, traces, rpc, shh, shh_pubsub",
+            "Specify custom API set available via JSON-RPC over IPC using a comma-delimited list of API names. Possible names are: all, safe, web3, net, eth, pubsub, personal, signer, parity, parity_pubsub, parity_accounts, parity_set, traces, secretstore, shh, shh_pubsub. You can also disable a specific API by putting '-' in the front, example: all,-personal. 'safe' enables the following APIs: web3, net, eth, pubsub, parity, parity_pubsub, traces, shh, shh_pubsub",
 
         ["API and Console Options – IPFS"]
             FLAG flag_ipfs_api: (bool) = false, or |c: &Config| c.ipfs.as_ref()?.enable.clone(),
@@ -925,210 +914,6 @@ usage! {
             ARG arg_whisper_pool_size: (usize) = 10usize, or |c: &Config| c.whisper.as_ref()?.pool_size.clone(),
             "--whisper-pool-size=[MB]",
             "Target size of the whisper message pool in megabytes.",
-
-        ["Legacy Options"]
-            // Options that are hidden from config, but are still unique for its functionality.
-
-            FLAG flag_geth: (bool) = false, or |_| None,
-            "--geth",
-            "Run in Geth-compatibility mode. Sets the IPC path to be the same as Geth's. Overrides the --ipc-path and --ipcpath options. Alters RPCs to reflect Geth bugs. Includes the personal_ RPC by default.",
-
-            FLAG flag_import_geth_keys: (bool) = false, or |_| None,
-            "--import-geth-keys",
-            "Attempt to import keys from Geth client.",
-
-            // Options that either do nothing, or are replaced by other options.
-            // FLAG Removed in 1.6 or before.
-
-            FLAG flag_warp: (bool) = false, or |_| None,
-            "--warp",
-            "Does nothing; warp sync is enabled by default. Use --no-warp to disable.",
-
-            FLAG flag_jsonrpc: (bool) = false, or |_| None,
-            "-j, --jsonrpc",
-            "Does nothing; HTTP JSON-RPC is on by default now.",
-
-            FLAG flag_rpc: (bool) = false, or |_| None,
-            "--rpc",
-            "Does nothing; HTTP JSON-RPC is on by default now.",
-
-            FLAG flag_jsonrpc_off: (bool) = false, or |_| None,
-            "--jsonrpc-off",
-            "Equivalent to --no-jsonrpc.",
-
-            FLAG flag_webapp: (bool) = false, or |_| None,
-            "-w, --webapp",
-            "Does nothing; dapps server has been removed.",
-
-            FLAG flag_dapps_off: (bool) = false, or |_| None,
-            "--dapps-off",
-            "Equivalent to --no-dapps.",
-
-            FLAG flag_ipcdisable: (bool) = false, or |_| None,
-            "--ipcdisable",
-            "Equivalent to --no-ipc.",
-
-            FLAG flag_ipc_off: (bool) = false, or |_| None,
-            "--ipc-off",
-            "Equivalent to --no-ipc.",
-
-            FLAG flag_testnet: (bool) = false, or |_| None,
-            "--testnet",
-            "Testnet mode. Equivalent to --chain testnet. Overrides the --keys-path option.",
-
-            FLAG flag_nodiscover: (bool) = false, or |_| None,
-            "--nodiscover",
-            "Equivalent to --no-discovery.",
-
-            // FLAG Removed in 1.7.
-
-            FLAG flag_dapps_apis_all: (bool) = false, or |_| None,
-            "--dapps-apis-all",
-            "Dapps server is merged with HTTP JSON-RPC server. Use --jsonrpc-apis.",
-
-            // FLAG Removed in 1.11.
-
-            FLAG flag_public_node: (bool) = false, or |_| None,
-            "--public-node",
-            "Does nothing; Public node is removed from Parity.",
-
-            FLAG flag_force_ui: (bool) = false, or |_| None,
-            "--force-ui",
-            "Does nothing; UI is now a separate project.",
-
-            FLAG flag_no_ui: (bool) = false, or |_| None,
-            "--no-ui",
-            "Does nothing; UI is now a separate project.",
-
-            FLAG flag_ui_no_validation: (bool) = false, or |_| None,
-            "--ui-no-validation",
-            "Does nothing; UI is now a separate project.",
-
-            // FLAG Removed in 2.0.
-
-            FLAG flag_fast_and_loose: (bool) = false, or |_| None,
-            "--fast-and-loose",
-            "Does nothing; DB WAL is always activated.",
-
-            FLAG flag_no_dapps: (bool) = false, or |c: &Config| c.dapps.as_ref()?._legacy_disable.clone(),
-            "--no-dapps",
-            "Disable the Dapps server (e.g. status page).",
-
-            // ARG Removed in 1.6 or before.
-
-            ARG arg_etherbase: (Option<String>) = None, or |_| None,
-            "--etherbase=[ADDRESS]",
-            "Equivalent to --author ADDRESS.",
-
-            ARG arg_extradata: (Option<String>) = None, or |_| None,
-            "--extradata=[STRING]",
-            "Equivalent to --extra-data STRING.",
-
-            ARG arg_datadir: (Option<String>) = None, or |_| None,
-            "--datadir=[PATH]",
-            "Equivalent to --base-path PATH.",
-
-            ARG arg_networkid: (Option<u64>) = None, or |_| None,
-            "--networkid=[INDEX]",
-            "Equivalent to --network-id INDEX.",
-
-            ARG arg_peers: (Option<u16>) = None, or |_| None,
-            "--peers=[NUM]",
-            "Equivalent to --min-peers NUM.",
-
-            ARG arg_nodekey: (Option<String>) = None, or |_| None,
-            "--nodekey=[KEY]",
-            "Equivalent to --node-key KEY.",
-
-            ARG arg_rpcaddr: (Option<String>) = None, or |_| None,
-            "--rpcaddr=[IP]",
-            "Equivalent to --jsonrpc-interface IP.",
-
-            ARG arg_rpcport: (Option<u16>) = None, or |_| None,
-            "--rpcport=[PORT]",
-            "Equivalent to --jsonrpc-port PORT.",
-
-            ARG arg_rpcapi: (Option<String>) = None, or |_| None,
-            "--rpcapi=[APIS]",
-            "Equivalent to --jsonrpc-apis APIS.",
-
-            ARG arg_rpccorsdomain: (Option<String>) = None, or |_| None,
-            "--rpccorsdomain=[URL]",
-            "Equivalent to --jsonrpc-cors URL.",
-
-            ARG arg_ipcapi: (Option<String>) = None, or |_| None,
-            "--ipcapi=[APIS]",
-            "Equivalent to --ipc-apis APIS.",
-
-            ARG arg_ipcpath: (Option<String>) = None, or |_| None,
-            "--ipcpath=[PATH]",
-            "Equivalent to --ipc-path PATH.",
-
-            ARG arg_gasprice: (Option<String>) = None, or |_| None,
-            "--gasprice=[WEI]",
-            "Equivalent to --min-gas-price WEI.",
-
-            ARG arg_cache: (Option<u32>) = None, or |_| None,
-            "--cache=[MB]",
-            "Equivalent to --cache-size MB.",
-
-            // ARG Removed in 1.7.
-
-            ARG arg_dapps_port: (Option<u16>) = None, or |c: &Config| c.dapps.as_ref()?._legacy_port.clone(),
-            "--dapps-port=[PORT]",
-            "Does nothing; dapps server has been removed.",
-
-            ARG arg_dapps_interface: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?._legacy_interface.clone(),
-            "--dapps-interface=[IP]",
-            "Does nothing; dapps server has been removed.",
-
-            ARG arg_dapps_hosts: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?._legacy_hosts.as_ref().map(|vec| vec.join(",")),
-            "--dapps-hosts=[HOSTS]",
-            "Does nothing; dapps server has been removed.",
-
-            ARG arg_dapps_cors: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?._legacy_cors.clone(),
-            "--dapps-cors=[URL]",
-            "Does nothing; dapps server has been removed.",
-
-            ARG arg_dapps_user: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?._legacy_user.clone(),
-            "--dapps-user=[USERNAME]",
-            "Dapps server authentication has been removed.",
-
-            ARG arg_dapps_pass: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?._legacy_pass.clone(),
-            "--dapps-pass=[PASSWORD]",
-            "Dapps server authentication has been removed.",
-
-            // ARG removed in 1.11.
-
-            ARG arg_ui_interface: (Option<String>) = None, or |_| None,
-            "--ui-interface=[IP]",
-            "Does nothing; UI is now a separate project.",
-
-            ARG arg_ui_hosts: (Option<String>) = None, or |_| None,
-            "--ui-hosts=[HOSTS]",
-            "Does nothing; UI is now a separate project.",
-
-            ARG arg_ui_port: (Option<u16>) = None, or |_| None,
-            "--ui-port=[PORT]",
-            "Does nothing; UI is now a separate project.",
-
-            ARG arg_tx_queue_ban_count: (Option<u16>) = None, or |c: &Config| c.mining.as_ref()?.tx_queue_ban_count.clone(),
-            "--tx-queue-ban-count=[C]",
-            "Not supported.",
-
-            ARG arg_tx_queue_ban_time: (Option<u16>) = None, or |c: &Config| c.mining.as_ref()?.tx_queue_ban_time.clone(),
-            "--tx-queue-ban-time=[SEC]",
-            "Not supported.",
-
-            // ARG removed in 2.0.
-
-            ARG arg_dapps_path: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?._legacy_path.clone(),
-            "--dapps-path=[PATH]",
-            "Specify directory where dapps should be installed.",
-
-            ARG arg_ntp_servers: (Option<String>) = None, or |_| None,
-            "--ntp-servers=[HOSTS]",
-            "Does nothing; checking if clock is sync with NTP servers is now done on the UI.",
     }
 }
 
@@ -1142,7 +927,6 @@ struct Config {
     rpc: Option<Rpc>,
     websockets: Option<Ws>,
     ipc: Option<Ipc>,
-    dapps: Option<Dapps>,
     secretstore: Option<SecretStore>,
     private_tx: Option<PrivateTransactions>,
     ipfs: Option<Ipfs>,
@@ -1175,9 +959,6 @@ struct Operating {
     light: Option<bool>,
     no_persistent_txqueue: Option<bool>,
     no_hardcoded_sync: Option<bool>,
-
-    #[serde(rename = "public_node")]
-    _legacy_public_node: Option<bool>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
@@ -1206,17 +987,6 @@ struct PrivateTransactions {
 #[serde(deny_unknown_fields)]
 struct Ui {
     path: Option<String>,
-
-    #[serde(rename = "force")]
-    _legacy_force: Option<bool>,
-    #[serde(rename = "disable")]
-    _legacy_disable: Option<bool>,
-    #[serde(rename = "port")]
-    _legacy_port: Option<u16>,
-    #[serde(rename = "interface")]
-    _legacy_interface: Option<String>,
-    #[serde(rename = "hosts")]
-    _legacy_hosts: Option<Vec<String>>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
@@ -1277,27 +1047,6 @@ struct Ipc {
     disable: Option<bool>,
     path: Option<String>,
     apis: Option<Vec<String>>,
-}
-
-#[derive(Default, Debug, PartialEq, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct Dapps {
-    #[serde(rename = "disable")]
-    _legacy_disable: Option<bool>,
-    #[serde(rename = "port")]
-    _legacy_port: Option<u16>,
-    #[serde(rename = "interface")]
-    _legacy_interface: Option<String>,
-    #[serde(rename = "hosts")]
-    _legacy_hosts: Option<Vec<String>>,
-    #[serde(rename = "cors")]
-    _legacy_cors: Option<String>,
-    #[serde(rename = "path")]
-    _legacy_path: Option<String>,
-    #[serde(rename = "user")]
-    _legacy_user: Option<String>,
-    #[serde(rename = "pass")]
-    _legacy_pass: Option<String>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
@@ -1435,8 +1184,8 @@ struct Light {
 #[cfg(test)]
 mod tests {
     use super::{
-        Account, Args, ArgsError, Config, Dapps, Footprint, Ipc, Ipfs, Light, Mining, Misc,
-        Network, Operating, Rpc, SecretStore, Snapshots, Ui, Whisper, Ws,
+        Account, Args, ArgsError, Config, Footprint, Ipc, Ipfs, Light, Mining, Misc, Network,
+        Operating, Rpc, SecretStore, Snapshots, Whisper, Ws,
     };
     use clap::ErrorKind as ClapErrorKind;
     use toml;
@@ -1457,20 +1206,11 @@ mod tests {
     }
 
     #[test]
-    fn should_not_crash_on_warp() {
-        let args = Args::parse(&["parity", "--warp"]);
-        assert!(args.is_ok());
-
-        let args = Args::parse(&["parity", "account", "list", "--warp"]);
-        assert!(args.is_ok());
-    }
-
-    #[test]
     fn should_reject_invalid_values() {
-        let args = Args::parse(&["parity", "--cache=20"]);
+        let args = Args::parse(&["parity", "--jsonrpc-port=8545"]);
         assert!(args.is_ok());
 
-        let args = Args::parse(&["parity", "--cache=asd"]);
+        let args = Args::parse(&["parity", "--jsonrpc-port=asd"]);
         assert!(args.is_err());
     }
 
@@ -1550,29 +1290,18 @@ mod tests {
             "~/.safe/1",
             "--password",
             "~/.safe/2",
-            "--ui-port",
-            "8123",
         ])
         .unwrap();
         assert_eq!(
             args.arg_password,
             vec!["~/.safe/1".to_owned(), "~/.safe/2".to_owned()]
         );
-        assert_eq!(args.arg_ui_port, Some(8123));
 
-        let args = Args::parse(&[
-            "parity",
-            "--password",
-            "~/.safe/1,~/.safe/2",
-            "--ui-port",
-            "8123",
-        ])
-        .unwrap();
+        let args = Args::parse(&["parity", "--password", "~/.safe/1,~/.safe/2"]).unwrap();
         assert_eq!(
             args.arg_password,
             vec!["~/.safe/1".to_owned(), "~/.safe/2".to_owned()]
         );
-        assert_eq!(args.arg_ui_port, Some(8123));
     }
 
     #[test]
@@ -1638,7 +1367,6 @@ mod tests {
             args,
             Args {
                 // Commands
-                cmd_dapp: false,
                 cmd_daemon: false,
                 cmd_account: false,
                 cmd_account_new: false,
@@ -1678,7 +1406,6 @@ mod tests {
 
                 arg_signer_sign_id: None,
                 arg_signer_reject_id: None,
-                arg_dapp_path: None,
                 arg_account_import_path: None,
                 arg_wallet_import_path: None,
                 arg_db_reset_num: 10,
@@ -1691,7 +1418,6 @@ mod tests {
                 arg_auto_update_delay: 200u16,
                 arg_auto_update_check_frequency: 50u16,
                 arg_release_track: "current".into(),
-                flag_public_node: false,
                 flag_no_download: false,
                 flag_no_consensus: false,
                 arg_chain: "xyz".into(),
@@ -1725,13 +1451,7 @@ mod tests {
                 arg_private_sstore_url: Some("http://localhost:8082".into()),
                 arg_private_sstore_threshold: Some(0),
 
-                flag_force_ui: false,
-                flag_no_ui: false,
-                arg_ui_port: None,
-                arg_ui_interface: None,
-                arg_ui_hosts: None,
                 arg_ui_path: "$HOME/.parity/signer".into(),
-                flag_ui_no_validation: false,
 
                 // -- Networking Options
                 flag_no_warp: false,
@@ -1751,6 +1471,7 @@ mod tests {
                 flag_reserved_only: false,
                 flag_no_ancient_blocks: false,
                 flag_no_serve_light: false,
+                arg_warp_barrier: None,
 
                 // -- API and Console Options
                 // RPC
@@ -1760,7 +1481,7 @@ mod tests {
                 arg_jsonrpc_port: 8545u16,
                 arg_jsonrpc_interface: "local".into(),
                 arg_jsonrpc_cors: "null".into(),
-                arg_jsonrpc_apis: "web3,eth,net,parity,traces,rpc,secretstore".into(),
+                arg_jsonrpc_apis: "web3,eth,net,parity,traces,secretstore".into(),
                 arg_jsonrpc_hosts: "none".into(),
                 arg_jsonrpc_server_threads: None,
                 arg_jsonrpc_threads: 4,
@@ -1772,7 +1493,7 @@ mod tests {
                 flag_no_ws: false,
                 arg_ws_port: 8546u16,
                 arg_ws_interface: "local".into(),
-                arg_ws_apis: "web3,eth,net,parity,traces,rpc,secretstore".into(),
+                arg_ws_apis: "web3,eth,net,parity,traces,secretstore".into(),
                 arg_ws_origins: "none".into(),
                 arg_ws_hosts: "none".into(),
                 arg_ws_max_connections: 100,
@@ -1780,12 +1501,8 @@ mod tests {
                 // IPC
                 flag_no_ipc: false,
                 arg_ipc_path: "$HOME/.parity/jsonrpc.ipc".into(),
-                arg_ipc_apis: "web3,eth,net,parity,parity_accounts,personal,traces,rpc,secretstore"
+                arg_ipc_apis: "web3,eth,net,parity,parity_accounts,personal,traces,secretstore"
                     .into(),
-
-                // DAPPS
-                arg_dapps_path: Some("$HOME/.parity/dapps".into()),
-                flag_no_dapps: false,
 
                 // SECRETSTORE
                 flag_no_secretstore: false,
@@ -1841,8 +1558,6 @@ mod tests {
                 arg_tx_queue_mem_limit: 4u32,
                 arg_tx_queue_locals: Some("0xdeadbeefcafe0000000000000000000000000000".into()),
                 arg_tx_queue_strategy: "gas_factor".into(),
-                arg_tx_queue_ban_count: Some(1u16),
-                arg_tx_queue_ban_time: Some(180u16),
                 flag_remove_solved: false,
                 arg_notify_work: Some("http://localhost:3001".into()),
                 flag_refuse_service_transactions: false,
@@ -1864,7 +1579,6 @@ mod tests {
                 arg_cache_size_queue: 50u32,
                 arg_cache_size_state: 25u32,
                 arg_cache_size: Some(128),
-                flag_fast_and_loose: false,
                 arg_db_compaction: "ssd".into(),
                 arg_fat_db: "auto".into(),
                 flag_scale_verifiers: true,
@@ -1896,48 +1610,10 @@ mod tests {
                 flag_whisper: false,
                 arg_whisper_pool_size: 20,
 
-                // -- Legacy Options
-                flag_warp: false,
-                flag_geth: false,
-                flag_testnet: false,
-                flag_import_geth_keys: false,
-                arg_warp_barrier: None,
-                arg_datadir: None,
-                arg_networkid: None,
-                arg_peers: None,
-                arg_nodekey: None,
-                flag_nodiscover: false,
-                flag_jsonrpc: false,
-                flag_jsonrpc_off: false,
-                flag_webapp: false,
-                flag_dapps_off: false,
-                flag_rpc: false,
-                arg_rpcaddr: None,
-                arg_rpcport: None,
-                arg_rpcapi: None,
-                arg_rpccorsdomain: None,
-                flag_ipcdisable: false,
-                flag_ipc_off: false,
-                arg_ipcapi: None,
-                arg_ipcpath: None,
-                arg_gasprice: None,
-                arg_etherbase: None,
-                arg_extradata: None,
-                arg_cache: None,
-                // Legacy-Dapps
-                arg_dapps_port: Some(8080),
-                arg_dapps_interface: Some("local".into()),
-                arg_dapps_hosts: Some("none".into()),
-                arg_dapps_cors: None,
-                arg_dapps_user: Some("test_user".into()),
-                arg_dapps_pass: Some("test_pass".into()),
-                flag_dapps_apis_all: false,
-
                 // -- Internal Options
                 flag_can_restart: false,
 
                 // -- Miscellaneous Options
-                arg_ntp_servers: None,
                 flag_version: false,
                 arg_logging: Some("own_tx=trace".into()),
                 arg_log_file: Some("/var/log/parity.log".into()),
@@ -1996,7 +1672,6 @@ mod tests {
                     light: None,
                     no_hardcoded_sync: None,
                     no_persistent_txqueue: None,
-                    _legacy_public_node: None,
                 }),
                 account: Some(Account {
                     unlock: Some(vec!["0x1".into(), "0x2".into(), "0x3".into()]),
@@ -2005,14 +1680,7 @@ mod tests {
                     refresh_time: None,
                     fast_unlock: None,
                 }),
-                ui: Some(Ui {
-                    path: None,
-                    _legacy_force: None,
-                    _legacy_disable: Some(true),
-                    _legacy_port: None,
-                    _legacy_interface: None,
-                    _legacy_hosts: None,
-                }),
+                ui: None,
                 network: Some(Network {
                     warp: Some(false),
                     warp_barrier: None,
@@ -2060,16 +1728,6 @@ mod tests {
                     disable: None,
                     path: None,
                     apis: Some(vec!["rpc".into(), "eth".into()]),
-                }),
-                dapps: Some(Dapps {
-                    _legacy_disable: None,
-                    _legacy_port: Some(8080),
-                    _legacy_path: None,
-                    _legacy_interface: None,
-                    _legacy_hosts: None,
-                    _legacy_cors: None,
-                    _legacy_user: Some("username".into()),
-                    _legacy_pass: Some("password".into())
                 }),
                 secretstore: Some(SecretStore {
                     disable: None,

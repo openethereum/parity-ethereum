@@ -86,14 +86,6 @@ pub trait ParityAccounts {
     #[rpc(name = "parity_setAccountMeta")]
     fn set_account_meta(&self, _: H160, _: String) -> Result<bool>;
 
-    /// Imports a number of Geth accounts, with the list provided as the argument.
-    #[rpc(name = "parity_importGethAccounts")]
-    fn import_geth_accounts(&self, _: Vec<H160>) -> Result<Vec<H160>>;
-
-    /// Returns the accounts available for importing from Geth.
-    #[rpc(name = "parity_listGethAccounts")]
-    fn geth_accounts(&self) -> Result<Vec<H160>>;
-
     /// Create new vault.
     #[rpc(name = "parity_newVault")]
     fn create_vault(&self, _: String, _: Password) -> Result<bool>;

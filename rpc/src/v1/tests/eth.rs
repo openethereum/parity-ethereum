@@ -142,9 +142,6 @@ impl EthTester {
             &miner_service,
             &external_miner,
             EthClientOptions {
-                pending_nonce_from_queue: false,
-                allow_pending_receipt_query: true,
-                send_block_number_in_get_work: true,
                 gas_price_percentile: 50,
                 allow_experimental_rpcs: true,
                 allow_missing_blocks: false,

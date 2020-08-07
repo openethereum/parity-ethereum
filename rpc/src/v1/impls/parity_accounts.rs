@@ -225,19 +225,6 @@ impl ParityAccounts for ParityAccountsClient {
         Ok(true)
     }
 
-    fn import_geth_accounts(&self, addresses: Vec<H160>) -> Result<Vec<H160>> {
-        self.deprecation_notice("parity_importGethAccounts");
-        self.accounts
-            .import_geth_accounts(into_vec(addresses), false)
-            .map(into_vec)
-            .map_err(|e| errors::account("Couldn't import Geth accounts", e))
-    }
-
-    fn geth_accounts(&self) -> Result<Vec<H160>> {
-        self.deprecation_notice("parity_listGethAccounts");
-        Ok(into_vec(self.accounts.list_geth_accounts(false)))
-    }
-
     fn create_vault(&self, name: String, password: Password) -> Result<bool> {
         self.deprecation_notice("parity_newVault");
 
@@ -375,11 +362,4 @@ impl ParityAccounts for ParityAccountsClient {
             .map(Into::into)
             .map_err(|e| errors::account("Could not sign message.", e))
     }
-}
-
-fn into_vec<A, B>(a: Vec<A>) -> Vec<B>
-where
-    A: Into<B>,
-{
-    a.into_iter().map(Into::into).collect()
 }
