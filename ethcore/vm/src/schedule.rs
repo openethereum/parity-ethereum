@@ -120,6 +120,8 @@ pub struct Schedule {
     pub have_chain_id: bool,
     /// SELFBALANCE opcode enabled.
     pub have_selfbalance: bool,
+    /// BEGINSUB, JUMPSUB and RETURNSUB opcodes enabled.
+    pub have_subs: bool,
     /// Kill basic accounts below this balance if touched.
     pub kill_dust: CleanDustMode,
     /// Enable EIP-1283 rules
@@ -224,6 +226,7 @@ impl Schedule {
             have_bitwise_shifting: false,
             have_chain_id: false,
             have_selfbalance: false,
+            have_subs: false,
             have_extcodehash: false,
             stack_limit: 1024,
             max_depth: 1024,
@@ -303,6 +306,13 @@ impl Schedule {
         schedule
     }
 
+    /// Schedule for the Berlin fork of the Ethereum main net.
+    pub fn new_berlin() -> Schedule {
+        let mut schedule = Self::new_istanbul();
+        schedule.have_subs = true; // EIP 2315
+        schedule
+    }
+
     fn new(efcd: bool, hdc: bool, tcg: usize) -> Schedule {
         Schedule {
             exceptional_failed_code_deposit: efcd,
@@ -313,6 +323,7 @@ impl Schedule {
             have_bitwise_shifting: false,
             have_chain_id: false,
             have_selfbalance: false,
+            have_subs: false,
             have_extcodehash: false,
             stack_limit: 1024,
             max_depth: 1024,
