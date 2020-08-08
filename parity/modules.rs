@@ -22,7 +22,7 @@ use sync::{self, AttachedProtocol, ConnectionFilter, NetworkConfiguration, Param
 
 pub use ethcore::client::ChainNotify;
 use ethcore_logger::Config as LogConfig;
-pub use sync::{EthSync, ManageNetwork, PrivateTxHandler, SyncProvider};
+pub use sync::{EthSync, ManageNetwork, SyncProvider};
 
 pub type SyncModules = (
     Arc<dyn SyncProvider>,
@@ -36,7 +36,6 @@ pub fn sync(
     network_config: NetworkConfiguration,
     chain: Arc<dyn BlockChainClient>,
     snapshot_service: Arc<dyn SnapshotService>,
-    private_tx_handler: Option<Arc<dyn PrivateTxHandler>>,
     provider: Arc<dyn Provider>,
     _log_settings: &LogConfig,
     attached_protos: Vec<AttachedProtocol>,
@@ -48,7 +47,6 @@ pub fn sync(
             chain,
             provider,
             snapshot_service,
-            private_tx_handler,
             network_config,
             attached_protos,
         },

@@ -191,7 +191,6 @@ mod tests {
             vec![],
             ChainRoute::default(),
             vec![],
-            vec![],
             DURATION_ZERO,
             false,
         ));

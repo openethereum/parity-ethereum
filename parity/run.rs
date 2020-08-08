@@ -38,7 +38,6 @@ use ethcore::{
     verification::queue::VerifierSettings,
 };
 use ethcore_logger::{Config as LogConfig, RotatingLogger};
-use ethcore_private_tx::{EncryptorConfig, ProviderConfig, SecretStoreEncryptor};
 use ethcore_service::ClientService;
 use ethereum_types::Address;
 use futures::IntoFuture;
@@ -67,7 +66,7 @@ use rpc;
 use rpc_apis;
 use secretstore;
 use signer;
-use sync::{self, PrivateTxHandler, SyncConfig};
+use sync::{self, SyncConfig};
 use updater::{UpdatePolicy, Updater};
 use user_defaults::UserDefaults;
 
@@ -121,9 +120,6 @@ pub struct RunCmd {
     pub net_settings: NetworkSettings,
     pub ipfs_conf: ipfs::Configuration,
     pub secretstore_conf: secretstore::Configuration,
-    pub private_provider_conf: ProviderConfig,
-    pub private_encryptor_conf: EncryptorConfig,
-    pub private_tx_enabled: bool,
     pub name: String,
     pub custom_bootnodes: bool,
     pub stratum: Option<stratum::Options>,
@@ -377,7 +373,6 @@ where
         experimental_rpcs: cmd.experimental_rpcs,
         executor: runtime.executor(),
         whisper_rpc: whisper_factory,
-        private_tx_service: None, //TODO: add this to client.
         gas_price_percentile: cmd.gas_price_percentile,
         poll_lifetime: cmd.poll_lifetime,
     });
@@ -650,8 +645,6 @@ where
         .open(&client_path)
         .map_err(|e| format!("Failed to open database {:?}", e))?;
 
-    let private_tx_signer = account_utils::private_tx_signer(account_provider.clone(), &passwords)?;
-
     // create client service.
     let service = ClientService::start(
         client_config,
@@ -661,17 +654,6 @@ where
         restoration_db_handler,
         &cmd.dirs.ipc_path(),
         miner.clone(),
-        private_tx_signer.clone(),
-        Box::new(
-            SecretStoreEncryptor::new(
-                cmd.private_encryptor_conf.clone(),
-                fetch.clone(),
-                private_tx_signer,
-            )
-            .map_err(|e| e.to_string())?,
-        ),
-        cmd.private_provider_conf,
-        cmd.private_encryptor_conf,
     )
     .map_err(|e| format!("Client service error: {:?}", e))?;
 
@@ -685,8 +667,6 @@ where
     miner.update_transaction_queue_limits(*client.best_block_header().gas_limit());
 
     // take handle to private transactions service
-    let private_tx_service = service.private_tx_service();
-    let private_tx_provider = private_tx_service.provider();
     let connection_filter = connection_filter_address.map(|a| {
         Arc::new(NodeFilter::new(
             Arc::downgrade(&client) as Weak<dyn BlockChainClient>,
@@ -760,18 +740,12 @@ where
         None
     };
 
-    let private_tx_sync: Option<Arc<dyn PrivateTxHandler>> = match cmd.private_tx_enabled {
-        true => Some(private_tx_service.clone() as Arc<dyn PrivateTxHandler>),
-        false => None,
-    };
-
     // create sync object
     let (sync_provider, manage_network, chain_notify, priority_tasks) = modules::sync(
         sync_config,
         net_conf.clone().into(),
         client.clone(),
         snapshot_service.clone(),
-        private_tx_sync,
         client.clone(),
         &cmd.logger_config,
         attached_protos,
@@ -795,15 +769,6 @@ where
             let _ = tx.lock().send(task);
         }
     }));
-
-    // provider not added to a notification center is effectively disabled
-    // TODO [debris] refactor it later on
-    if cmd.private_tx_enabled {
-        service.add_notify(private_tx_provider.clone());
-        // TODO [ToDr] PrivateTX should use separate notifications
-        // re-using ChainNotify for this is a bit abusive.
-        private_tx_provider.add_notify(chain_notify.clone());
-    }
 
     // start network
     if network_enabled {
@@ -868,7 +833,6 @@ where
         fetch: fetch.clone(),
         executor: runtime.executor(),
         whisper_rpc: whisper_factory,
-        private_tx_service: Some(private_tx_service.clone()),
         gas_price_percentile: cmd.gas_price_percentile,
         poll_lifetime: cmd.poll_lifetime,
         allow_missing_blocks: cmd.allow_missing_blocks,

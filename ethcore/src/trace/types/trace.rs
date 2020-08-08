@@ -141,8 +141,6 @@ pub enum RewardType {
     Block,
     /// Uncle
     Uncle,
-    /// Empty step (AuthorityRound)
-    EmptyStep,
     /// A reward directly attributed by an external protocol (e.g. block reward contract)
     External,
 }
@@ -152,7 +150,6 @@ impl Encodable for RewardType {
         let v = match *self {
             RewardType::Block => 0u32,
             RewardType::Uncle => 1,
-            RewardType::EmptyStep => 2,
             RewardType::External => 3,
         };
         Encodable::rlp_append(&v, s);
@@ -165,7 +162,6 @@ impl Decodable for RewardType {
             Ok(match v {
                 0u32 => RewardType::Block,
                 1 => RewardType::Uncle,
-                2 => RewardType::EmptyStep,
                 3 => RewardType::External,
                 _ => return Err(DecoderError::Custom("Invalid value of RewardType item")),
             })

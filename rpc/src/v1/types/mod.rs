@@ -33,7 +33,6 @@ mod histogram;
 mod index;
 mod log;
 mod node_kind;
-mod private_receipt;
 mod provenance;
 mod receipt;
 mod rpc_settings;
@@ -67,7 +66,6 @@ pub use self::{
     index::Index,
     log::Log,
     node_kind::{Availability, Capability, NodeKind},
-    private_receipt::{PrivateTransactionReceipt, PrivateTransactionReceiptAndTransaction},
     provenance::Origin,
     receipt::Receipt,
     rpc_settings::RpcSettings,

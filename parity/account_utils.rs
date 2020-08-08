@@ -60,13 +60,6 @@ mod accounts {
         Ok(None)
     }
 
-    pub fn private_tx_signer(
-        _account_provider: Arc<AccountProvider>,
-        _passwords: &[Password],
-    ) -> Result<Arc<dyn ethcore_private_tx::Signer>, String> {
-        Ok(Arc::new(::ethcore_private_tx::DummySigner))
-    }
-
     pub fn accounts_list(
         _account_provider: Arc<AccountProvider>,
     ) -> Arc<dyn Fn() -> Vec<Address> + Send + Sync> {
@@ -218,62 +211,6 @@ mod accounts {
         Ok(author)
     }
 
-    mod private_tx {
-        use super::*;
-        use ethcore_private_tx::Error;
-        use ethkey::{Message, Signature};
-
-        pub struct AccountSigner {
-            pub accounts: Arc<AccountProvider>,
-            pub passwords: Vec<Password>,
-        }
-
-        impl ::ethcore_private_tx::Signer for AccountSigner {
-            fn decrypt(
-                &self,
-                account: Address,
-                shared_mac: &[u8],
-                payload: &[u8],
-            ) -> Result<Vec<u8>, Error> {
-                let password = self.find_account_password(&account);
-                Ok(self
-                    .accounts
-                    .decrypt(account, password, shared_mac, payload)
-                    .map_err(|e| e.to_string())?)
-            }
-
-            fn sign(&self, account: Address, hash: Message) -> Result<Signature, Error> {
-                let password = self.find_account_password(&account);
-                Ok(self
-                    .accounts
-                    .sign(account, password, hash)
-                    .map_err(|e| e.to_string())?)
-            }
-        }
-
-        impl AccountSigner {
-            /// Try to unlock account using stored password, return found password if any
-            fn find_account_password(&self, account: &Address) -> Option<Password> {
-                for password in &self.passwords {
-                    if let Ok(true) = self.accounts.test_password(account, password) {
-                        return Some(password.clone());
-                    }
-                }
-                None
-            }
-        }
-    }
-
-    pub fn private_tx_signer(
-        accounts: Arc<AccountProvider>,
-        passwords: &[Password],
-    ) -> Result<Arc<dyn crate::ethcore_private_tx::Signer>, String> {
-        Ok(Arc::new(self::private_tx::AccountSigner {
-            accounts,
-            passwords: passwords.to_vec(),
-        }))
-    }
-
     pub fn accounts_list(
         account_provider: Arc<AccountProvider>,
     ) -> Arc<dyn Fn() -> Vec<Address> + Send + Sync> {
@@ -318,6 +255,5 @@ mod accounts {
 }
 
 pub use self::accounts::{
-    accounts_list, miner_author, miner_local_accounts, prepare_account_provider, private_tx_signer,
-    AccountProvider,
+    accounts_list, miner_author, miner_local_accounts, prepare_account_provider, AccountProvider,
 };

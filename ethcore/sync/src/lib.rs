@@ -42,8 +42,6 @@ extern crate ethcore_light as light;
 #[cfg(test)]
 extern crate env_logger;
 #[cfg(test)]
-extern crate ethcore_private_tx;
-#[cfg(test)]
 extern crate kvdb_memorydb;
 #[cfg(test)]
 extern crate rustc_hex;
@@ -62,7 +60,6 @@ extern crate trace_time;
 mod block_sync;
 mod blocks;
 mod chain;
-mod private_tx;
 mod snapshot;
 mod sync_io;
 mod transactions_stats;
@@ -78,4 +75,3 @@ pub use api::*;
 pub use chain::{SyncState, SyncStatus};
 pub use devp2p::validate_node_url;
 pub use network::{ConnectionDirection, ConnectionFilter, Error, ErrorKind, NonReservedPeerMode};
-pub use private_tx::{NoopPrivateTxHandler, PrivateTxHandler, SimplePrivateTxHandler};

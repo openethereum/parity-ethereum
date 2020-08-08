@@ -10,7 +10,6 @@ error-chain = { version = "0.12", default-features = false }
 ethcore = { path = ".." }
 ethcore-blockchain = { path = "../blockchain" }
 ethcore-io = { path = "../../util/io" }
-ethcore-private-tx = { path = "../private-tx" }
 ethcore-sync = { path = "../sync" }
 ethereum-types = "0.4"
 kvdb = "0.1"

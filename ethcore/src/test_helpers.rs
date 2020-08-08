@@ -42,9 +42,7 @@ use types::{
 };
 
 use block::{Drain, OpenBlock};
-use client::{
-    ChainInfo, ChainMessageType, ChainNotify, Client, ClientConfig, ImportBlock, PrepareOpenBlock,
-};
+use client::{ChainInfo, ChainNotify, Client, ClientConfig, ImportBlock, PrepareOpenBlock};
 use factory::Factories;
 use miner::Miner;
 use spec::Spec;
@@ -610,13 +608,4 @@ pub struct TestNotify {
     pub messages: RwLock<Vec<Bytes>>,
 }
 
-impl ChainNotify for TestNotify {
-    fn broadcast(&self, message: ChainMessageType) {
-        let data = match message {
-            ChainMessageType::Consensus(data) => data,
-            ChainMessageType::SignedPrivateTransaction(_, data) => data,
-            ChainMessageType::PrivateTransaction(_, data) => data,
-        };
-        self.messages.write().push(data);
-    }
-}
+impl ChainNotify for TestNotify {}

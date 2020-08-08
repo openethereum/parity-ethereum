@@ -50,7 +50,6 @@ extern crate ethcore_light as light;
 extern crate ethcore_logger;
 extern crate ethcore_miner as miner;
 extern crate ethcore_network as network;
-extern crate ethcore_private_tx;
 extern crate ethcore_service;
 extern crate ethcore_sync as sync;
 extern crate ethereum_types;

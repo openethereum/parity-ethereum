@@ -32,16 +32,15 @@ pub use self::evm_test_client::{EvmTestClient, EvmTestError, TransactErr, Transa
 #[cfg(any(test, feature = "test-helpers"))]
 pub use self::test_client::{EachBlockWith, TestBlockChainClient};
 pub use self::{
-    chain_notify::{ChainMessageType, ChainNotify, ChainRoute, ChainRouteType, NewBlocks},
+    chain_notify::{ChainNotify, ChainRoute, ChainRouteType, NewBlocks},
     client::*,
     config::{BlockChainConfig, ClientConfig, DatabaseCompactionProfile, Mode, VMType},
     io_message::ClientIoMessage,
     traits::{
         AccountData, BadBlocks, Balance, BlockChain, BlockChainClient, BlockChainReset, BlockInfo,
-        BlockProducer, BroadcastProposalBlock, Call, ChainInfo, EngineClient, EngineInfo,
-        ImportBlock, ImportExportBlocks, ImportSealedBlock, IoClient, Nonce, PrepareOpenBlock,
-        ProvingBlockChainClient, ReopenBlock, ScheduleInfo, SealedBlockImporter, StateClient,
-        StateOrBlock, TransactionInfo,
+        BlockProducer, Call, ChainInfo, EngineClient, EngineInfo, ImportBlock, ImportExportBlocks,
+        ImportSealedBlock, IoClient, Nonce, PrepareOpenBlock, ProvingBlockChainClient, ReopenBlock,
+        ScheduleInfo, SealedBlockImporter, StateClient, StateOrBlock, TransactionInfo,
     },
 };
 pub use state::StateInfo;

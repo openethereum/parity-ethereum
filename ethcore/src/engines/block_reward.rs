@@ -38,8 +38,6 @@ use_contract!(block_reward_contract, "res/contracts/block_reward.json");
 pub enum RewardKind {
     /// Reward attributed to the block author.
     Author,
-    /// Reward attributed to the author(s) of empty step(s) included in the block (AuthorityRound engine).
-    EmptyStep,
     /// Reward attributed by an external protocol (e.g. block reward contract).
     External,
     /// Reward attributed to the block uncle(s) with given difference.
@@ -63,7 +61,6 @@ impl From<RewardKind> for u16 {
     fn from(reward_kind: RewardKind) -> Self {
         match reward_kind {
             RewardKind::Author => 0,
-            RewardKind::EmptyStep => 2,
             RewardKind::External => 3,
 
             RewardKind::Uncle(depth) => 100 + depth as u16,
@@ -76,7 +73,6 @@ impl Into<trace::RewardType> for RewardKind {
         match self {
             RewardKind::Author => trace::RewardType::Block,
             RewardKind::Uncle(_) => trace::RewardType::Uncle,
-            RewardKind::EmptyStep => trace::RewardType::EmptyStep,
             RewardKind::External => trace::RewardType::External,
         }
     }
@@ -251,10 +247,6 @@ mod test {
                 "0000000000000000000000000000000000000034".into(),
                 RewardKind::Uncle(1),
             ),
-            (
-                "0000000000000000000000000000000000000035".into(),
-                RewardKind::EmptyStep,
-            ),
         ];
 
         let rewards = block_reward_contract
@@ -268,10 +260,6 @@ mod test {
             (
                 "0000000000000000000000000000000000000034".into(),
                 U256::from(1000 + 101),
-            ),
-            (
-                "0000000000000000000000000000000000000035".into(),
-                U256::from(1000 + 2),
             ),
         ];
 

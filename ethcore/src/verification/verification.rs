@@ -324,7 +324,7 @@ pub fn verify_header_params(
     check_seal: bool,
 ) -> Result<(), Error> {
     if check_seal {
-        let expected_seal_fields = engine.seal_fields(header);
+        let expected_seal_fields = engine.seal_fields();
         if header.seal().len() != expected_seal_fields {
             return Err(From::from(BlockError::InvalidSealArity(Mismatch {
                 expected: expected_seal_fields,

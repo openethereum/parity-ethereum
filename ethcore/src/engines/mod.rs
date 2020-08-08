@@ -172,8 +172,6 @@ impl error::Error for EngineError {
 /// Seal type.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Seal {
-    /// Proposal seal; should be broadcasted, but not inserted into blockchain.
-    Proposal(Vec<Bytes>),
     /// Regular block seal; should be part of the blockchain.
     Regular(Vec<Bytes>),
     /// Engine does not generate seal for this block right now.
@@ -289,7 +287,7 @@ pub trait Engine<M: Machine>: Sync + Send {
     fn machine(&self) -> &M;
 
     /// The number of additional header fields required for this engine.
-    fn seal_fields(&self, _header: &Header) -> usize {
+    fn seal_fields(&self) -> usize {
         0
     }
 
@@ -459,12 +457,6 @@ pub trait Engine<M: Machine>: Sync + Send {
     /// Populate a header's fields based on its parent's header.
     /// Usually implements the chain scoring rule based on weight.
     fn populate_from_parent(&self, _header: &mut Header, _parent: &Header) {}
-
-    /// Handle any potential consensus messages;
-    /// updating consensus state and potentially issuing a new one.
-    fn handle_message(&self, _message: &[u8]) -> Result<(), EngineError> {
-        Err(EngineError::UnexpectedMessage)
-    }
 
     /// Register a component which signs consensus messages.
     fn set_signer(&self, _signer: Box<dyn EngineSigner>) {}

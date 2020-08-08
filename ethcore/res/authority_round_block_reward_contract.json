@@ -12,8 +12,6 @@
 					]
 				},
 				"immediateTransitions": true,
-				"emptyStepsTransition": "1",
-				"maximumEmptySteps": "2",
 				"blockRewardContractAddress": "0x0000000000000000000000000000000000000042"
 			}
 		}

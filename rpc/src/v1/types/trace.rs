@@ -325,8 +325,6 @@ pub enum RewardType {
     Block,
     /// Uncle
     Uncle,
-    /// EmptyStep (AuthorityRound)
-    EmptyStep,
     /// External (attributed as part of an external protocol)
     External,
 }
@@ -336,7 +334,6 @@ impl From<trace::RewardType> for RewardType {
         match c {
             trace::RewardType::Block => RewardType::Block,
             trace::RewardType::Uncle => RewardType::Uncle,
-            trace::RewardType::EmptyStep => RewardType::EmptyStep,
             trace::RewardType::External => RewardType::External,
         }
     }

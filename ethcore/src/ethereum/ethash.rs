@@ -237,7 +237,7 @@ impl Engine<EthereumMachine> for Arc<Ethash> {
     }
 
     // Two fields - nonce and mix.
-    fn seal_fields(&self, _header: &Header) -> usize {
+    fn seal_fields(&self) -> usize {
         2
     }
 

@@ -27,7 +27,6 @@ mod parity_accounts;
 mod parity_set;
 #[cfg(any(test, feature = "accounts"))]
 mod personal;
-mod private;
 mod pubsub;
 #[cfg(any(test, feature = "accounts"))]
 mod secretstore;
@@ -55,7 +54,6 @@ pub use self::{
     net::NetClient,
     parity::ParityClient,
     parity_set::ParitySetClient,
-    private::PrivateClient,
     pubsub::PubSubClient,
     signer::SignerClient,
     signing::SigningQueueClient,

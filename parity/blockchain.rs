@@ -37,7 +37,6 @@ use ethcore::{
     miner::Miner,
     verification::queue::VerifierSettings,
 };
-use ethcore_private_tx;
 use ethcore_service::ClientService;
 use ethereum_types::{Address, H256, U256};
 use hash::{keccak, KECCAK_NULL_RLP};
@@ -410,10 +409,6 @@ fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {
         // TODO [ToDr] don't use test miner here
         // (actually don't require miner at all)
         Arc::new(Miner::new_for_tests(&spec, None)),
-        Arc::new(ethcore_private_tx::DummySigner),
-        Box::new(ethcore_private_tx::NoopEncryptor),
-        Default::default(),
-        Default::default(),
     )
     .map_err(|e| format!("Client service error: {:?}", e))?;
 
@@ -549,10 +544,6 @@ fn start_client(
         // It's fine to use test version here,
         // since we don't care about miner parameters at all
         Arc::new(Miner::new_for_tests(&spec, None)),
-        Arc::new(ethcore_private_tx::DummySigner),
-        Box::new(ethcore_private_tx::NoopEncryptor),
-        Default::default(),
-        Default::default(),
     )
     .map_err(|e| format!("Client service error: {:?}", e))?;
 

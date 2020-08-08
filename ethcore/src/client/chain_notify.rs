@@ -20,16 +20,6 @@ use ethereum_types::{H256, U256};
 use std::{collections::HashMap, time::Duration};
 use types::transaction::UnverifiedTransaction;
 
-/// Messages to broadcast via chain
-pub enum ChainMessageType {
-    /// Consensus message
-    Consensus(Vec<u8>),
-    /// Message with private transaction
-    PrivateTransaction(H256, Vec<u8>),
-    /// Message with signed private transaction
-    SignedPrivateTransaction(H256, Vec<u8>),
-}
-
 /// Route type to indicate whether it is enacted or retracted.
 #[derive(Clone)]
 pub enum ChainRouteType {
@@ -135,8 +125,6 @@ pub struct NewBlocks {
     pub route: ChainRoute,
     /// Sealed
     pub sealed: Vec<H256>,
-    /// Block bytes.
-    pub proposed: Vec<Bytes>,
     /// Duration
     pub duration: Duration,
     /// Has more blocks to import
@@ -150,7 +138,6 @@ impl NewBlocks {
         invalid: Vec<H256>,
         route: ChainRoute,
         sealed: Vec<H256>,
-        proposed: Vec<Bytes>,
         duration: Duration,
         has_more_blocks_to_import: bool,
     ) -> NewBlocks {
@@ -159,7 +146,6 @@ impl NewBlocks {
             invalid,
             route,
             sealed,
-            proposed,
             duration,
             has_more_blocks_to_import,
         }
@@ -180,11 +166,6 @@ pub trait ChainNotify: Send + Sync {
 
     /// fires when chain achieves passive mode
     fn stop(&self) {
-        // does nothing by default
-    }
-
-    /// fires when chain broadcasts a message
-    fn broadcast(&self, _message_type: ChainMessageType) {
         // does nothing by default
     }
 

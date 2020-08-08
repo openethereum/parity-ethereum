@@ -99,7 +99,7 @@ impl Engine<EthereumMachine> for BasicAuthority {
     }
 
     // One field - the signature
-    fn seal_fields(&self, _header: &Header) -> usize {
+    fn seal_fields(&self) -> usize {
         1
     }
 

@@ -720,31 +720,6 @@ impl Miner {
         };
 
         match self.engine.generate_seal(&block, &parent_header) {
-            // Save proposal for later seal submission and broadcast it.
-            Seal::Proposal(seal) => {
-                trace!(target: "miner", "Received a Proposal seal.");
-                {
-                    let mut sealing = self.sealing.lock();
-                    sealing.next_mandatory_reseal = Instant::now() + self.options.reseal_max_period;
-                    sealing.queue.set_pending(block.clone());
-                    sealing.queue.use_last_ref();
-                }
-
-                block
-                    .lock()
-                    .seal(&*self.engine, seal)
-                    .map(|sealed| {
-                        chain.broadcast_proposal_block(sealed);
-                        true
-                    })
-                    .unwrap_or_else(|e| {
-                        warn!(
-                            "ERROR: seal failed when given internally generated seal: {}",
-                            e
-                        );
-                        false
-                    })
-            }
             // Directly import a regular sealed block.
             Seal::Regular(seal) => {
                 trace!(target: "miner", "Received a Regular seal.");

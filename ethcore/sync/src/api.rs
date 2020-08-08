@@ -30,12 +30,11 @@ use std::{
 };
 
 use chain::{
-    sync_packet::SyncPacket::{PrivateTransactionPacket, SignedPrivateTransactionPacket},
     ChainSyncApi, SyncStatus as EthSyncStatus, ETH_PROTOCOL_VERSION_62, ETH_PROTOCOL_VERSION_63,
-    PAR_PROTOCOL_VERSION_1, PAR_PROTOCOL_VERSION_2, PAR_PROTOCOL_VERSION_3,
+    WARP_PROTOCOL_VERSION_1,
 };
 use ethcore::{
-    client::{BlockChainClient, ChainMessageType, ChainNotify, NewBlocks},
+    client::{BlockChainClient, ChainNotify, NewBlocks},
     snapshot::SnapshotService,
 };
 use ethereum_types::{H256, H512, U256};
@@ -51,7 +50,6 @@ use light::{
 };
 use network::IpFilter;
 use parking_lot::{Mutex, RwLock};
-use private_tx::PrivateTxHandler;
 use std::{
     net::{AddrParseError, SocketAddr},
     str::FromStr,
@@ -61,10 +59,10 @@ use types::{pruning_info::PruningInfo, transaction::UnverifiedTransaction, Block
 
 use super::light_sync::SyncInfo;
 
-/// Parity sync protocol
-pub const WARP_SYNC_PROTOCOL_ID: ProtocolId = *b"par";
 /// Ethereum sync protocol
 pub const ETH_PROTOCOL: ProtocolId = *b"eth";
+/// Warp sync protocol
+pub const WARP_PROTOCOL: ProtocolId = *b"par";
 /// Ethereum light protocol
 pub const LIGHT_PROTOCOL: ProtocolId = *b"pip";
 
@@ -276,8 +274,6 @@ pub struct Params {
     pub chain: Arc<dyn BlockChainClient>,
     /// Snapshot service.
     pub snapshot_service: Arc<dyn SnapshotService>,
-    /// Private tx service.
-    pub private_tx_handler: Option<Arc<dyn PrivateTxHandler>>,
     /// Light data provider.
     pub provider: Arc<dyn crate::light::Provider>,
     /// Network layer configuration.
@@ -365,12 +361,7 @@ impl EthSync {
         };
 
         let (priority_tasks_tx, priority_tasks_rx) = mpsc::channel();
-        let sync = ChainSyncApi::new(
-            params.config,
-            &*params.chain,
-            params.private_tx_handler.as_ref().cloned(),
-            priority_tasks_rx,
-        );
+        let sync = ChainSyncApi::new(params.config, &*params.chain, priority_tasks_rx);
         let service = NetworkService::new(
             params.network_config.clone().into_basic()?,
             connection_filter,
@@ -475,7 +466,7 @@ struct SyncProtocolHandler {
 
 impl NetworkProtocolHandler for SyncProtocolHandler {
     fn initialize(&self, io: &dyn NetworkContext) {
-        if io.subprotocol_name() != WARP_SYNC_PROTOCOL_ID {
+        if io.subprotocol_name() != WARP_PROTOCOL {
             io.register_timer(PEERS_TIMER, Duration::from_millis(700))
                 .expect("Error registering peers timer");
             io.register_timer(MAINTAIN_SYNC_TIMER, Duration::from_millis(1100))
@@ -502,11 +493,8 @@ impl NetworkProtocolHandler for SyncProtocolHandler {
     fn connected(&self, io: &dyn NetworkContext, peer: &PeerId) {
         trace_time!("sync::connected");
         // If warp protocol is supported only allow warp handshake
-        let warp_protocol = io
-            .protocol_version(WARP_SYNC_PROTOCOL_ID, *peer)
-            .unwrap_or(0)
-            != 0;
-        let warp_context = io.subprotocol_name() == WARP_SYNC_PROTOCOL_ID;
+        let warp_protocol = io.protocol_version(WARP_PROTOCOL, *peer).unwrap_or(0) != 0;
+        let warp_context = io.subprotocol_name() == WARP_PROTOCOL;
         if warp_protocol == warp_context {
             self.sync.write().on_peer_connected(
                 &mut NetSyncIo::new(io, &*self.chain, &*self.snapshot_service, &self.overlay),
@@ -517,7 +505,7 @@ impl NetworkProtocolHandler for SyncProtocolHandler {
 
     fn disconnected(&self, io: &dyn NetworkContext, peer: &PeerId) {
         trace_time!("sync::disconnected");
-        if io.subprotocol_name() != WARP_SYNC_PROTOCOL_ID {
+        if io.subprotocol_name() != WARP_PROTOCOL {
             self.sync.write().on_peer_aborting(
                 &mut NetSyncIo::new(io, &*self.chain, &*self.snapshot_service, &self.overlay),
                 *peer,
@@ -572,7 +560,6 @@ impl ChainNotify for EthSync {
                 new_blocks.route.enacted(),
                 new_blocks.route.retracted(),
                 &new_blocks.sealed,
-                &new_blocks.proposed,
             );
         });
 
@@ -624,12 +611,8 @@ impl ChainNotify for EthSync {
         self.network
             .register_protocol(
                 self.eth_handler.clone(),
-                WARP_SYNC_PROTOCOL_ID,
-                &[
-                    PAR_PROTOCOL_VERSION_1,
-                    PAR_PROTOCOL_VERSION_2,
-                    PAR_PROTOCOL_VERSION_3,
-                ],
+                WARP_PROTOCOL,
+                &[WARP_PROTOCOL_VERSION_1],
             )
             .unwrap_or_else(|e| warn!("Error registering snapshot sync protocol: {:?}", e));
 
@@ -653,40 +636,6 @@ impl ChainNotify for EthSync {
     fn stop(&self) {
         self.eth_handler.snapshot_service.abort_restore();
         self.network.stop();
-    }
-
-    fn broadcast(&self, message_type: ChainMessageType) {
-        self.network.with_context(WARP_SYNC_PROTOCOL_ID, |context| {
-            let mut sync_io = NetSyncIo::new(
-                context,
-                &*self.eth_handler.chain,
-                &*self.eth_handler.snapshot_service,
-                &self.eth_handler.overlay,
-            );
-            match message_type {
-                ChainMessageType::Consensus(message) => self
-                    .eth_handler
-                    .sync
-                    .write()
-                    .propagate_consensus_packet(&mut sync_io, message),
-                ChainMessageType::PrivateTransaction(transaction_hash, message) => {
-                    self.eth_handler.sync.write().propagate_private_transaction(
-                        &mut sync_io,
-                        transaction_hash,
-                        PrivateTransactionPacket,
-                        message,
-                    )
-                }
-                ChainMessageType::SignedPrivateTransaction(transaction_hash, message) => {
-                    self.eth_handler.sync.write().propagate_private_transaction(
-                        &mut sync_io,
-                        transaction_hash,
-                        SignedPrivateTransactionPacket,
-                        message,
-                    )
-                }
-            }
-        });
     }
 
     fn transactions_received(&self, txs: &[UnverifiedTransaction], peer_id: PeerId) {
@@ -858,7 +807,7 @@ impl NetworkConfiguration {
             max_peers: self.max_peers,
             min_peers: self.min_peers,
             max_handshakes: self.max_pending_peers,
-            reserved_protocols: hash_map![WARP_SYNC_PROTOCOL_ID => self.snapshot_peers],
+            reserved_protocols: hash_map![WARP_PROTOCOL => self.snapshot_peers],
             reserved_nodes: self.reserved_nodes,
             ip_filter: self.ip_filter,
             non_reserved_mode: if self.allow_non_reserved {
@@ -890,10 +839,7 @@ impl From<BasicNetworkConfiguration> for NetworkConfiguration {
             max_peers: other.max_peers,
             min_peers: other.min_peers,
             max_pending_peers: other.max_handshakes,
-            snapshot_peers: *other
-                .reserved_protocols
-                .get(&WARP_SYNC_PROTOCOL_ID)
-                .unwrap_or(&0),
+            snapshot_peers: *other.reserved_protocols.get(&WARP_PROTOCOL).unwrap_or(&0),
             reserved_nodes: other.reserved_nodes,
             ip_filter: other.ip_filter,
             allow_non_reserved: match other.non_reserved_mode {

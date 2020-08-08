@@ -28,10 +28,10 @@ use sync_io::SyncIo;
 use super::sync_packet::{
     PacketInfo, SyncPacket,
     SyncPacket::{
-        BlockBodiesPacket, BlockHeadersPacket, ConsensusDataPacket, GetBlockBodiesPacket,
-        GetBlockHeadersPacket, GetNodeDataPacket, GetReceiptsPacket, GetSnapshotDataPacket,
-        GetSnapshotManifestPacket, NodeDataPacket, ReceiptsPacket, SnapshotDataPacket,
-        SnapshotManifestPacket, StatusPacket, TransactionsPacket,
+        BlockBodiesPacket, BlockHeadersPacket, GetBlockBodiesPacket, GetBlockHeadersPacket,
+        GetNodeDataPacket, GetReceiptsPacket, GetSnapshotDataPacket, GetSnapshotManifestPacket,
+        NodeDataPacket, ReceiptsPacket, SnapshotDataPacket, SnapshotManifestPacket, StatusPacket,
+        TransactionsPacket,
     },
 };
 
@@ -115,7 +115,6 @@ impl SyncSupplier {
                     debug!(target: "sync", "{} -> Dispatching packet: {}", peer, packet_id);
 
                     match id {
-                        ConsensusDataPacket => SyncHandler::on_consensus_packet(io, peer, &rlp),
                         TransactionsPacket => {
                             let res = {
                                 let sync_ro = sync.read();

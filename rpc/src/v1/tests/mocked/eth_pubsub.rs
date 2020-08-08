@@ -70,7 +70,6 @@ fn should_subscribe_to_new_heads() {
         vec![],
         ChainRoute::new(vec![(h1, ChainRouteType::Enacted)]),
         vec![],
-        vec![],
         DURATION_ZERO,
         true,
     ));
@@ -86,7 +85,6 @@ fn should_subscribe_to_new_heads() {
             (h2, ChainRouteType::Enacted),
             (h3, ChainRouteType::Enacted),
         ]),
-        vec![],
         vec![],
         DURATION_ZERO,
         true,
@@ -168,7 +166,6 @@ fn should_subscribe_to_logs() {
         vec![],
         ChainRoute::new(vec![(h1, ChainRouteType::Enacted)]),
         vec![],
-        vec![],
         DURATION_ZERO,
         false,
     ));
@@ -183,7 +180,6 @@ fn should_subscribe_to_logs() {
         vec![],
         vec![],
         ChainRoute::new(vec![(h1, ChainRouteType::Retracted)]),
-        vec![],
         vec![],
         DURATION_ZERO,
         false,

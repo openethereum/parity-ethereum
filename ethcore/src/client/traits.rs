@@ -217,9 +217,6 @@ pub trait IoClient: Sync + Send {
         block_bytes: Unverified,
         receipts_bytes: Bytes,
     ) -> EthcoreResult<H256>;
-
-    /// Queue conensus engine message.
-    fn queue_consensus_message(&self, message: Bytes);
 }
 
 /// Provides recently seen bad blocks.
@@ -464,14 +461,8 @@ pub trait ImportSealedBlock {
     fn import_sealed_block(&self, block: SealedBlock) -> EthcoreResult<H256>;
 }
 
-/// Provides `broadcast_proposal_block` method
-pub trait BroadcastProposalBlock {
-    /// Broadcast a block proposal.
-    fn broadcast_proposal_block(&self, block: SealedBlock);
-}
-
-/// Provides methods to import sealed block and broadcast a block proposal
-pub trait SealedBlockImporter: ImportSealedBlock + BroadcastProposalBlock {}
+/// Provides methods to import sealed block
+pub trait SealedBlockImporter: ImportSealedBlock {}
 
 /// Do we want to force update sealing?
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -489,9 +480,6 @@ pub trait EngineClient: Sync + Send + ChainInfo {
 
     /// Submit a seal for a block in the mining queue.
     fn submit_seal(&self, block_hash: H256, seal: Vec<Bytes>);
-
-    /// Broadcast a consensus message to the network.
-    fn broadcast_consensus_message(&self, message: Bytes);
 
     /// Get the transition to the epoch the given parent hash is part of
     /// or transitions to.

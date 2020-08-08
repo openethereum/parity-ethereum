@@ -63,12 +63,11 @@ use call_contract::RegistryInfo;
 use client::{
     ancient_import::AncientVerifier, bad_blocks, traits::ForceUpdateSealing, AccountData,
     BadBlocks, Balance, BlockChain as BlockChainTrait, BlockChainClient, BlockChainReset, BlockId,
-    BlockInfo, BlockProducer, BroadcastProposalBlock, Call, CallAnalytics, ChainInfo,
-    ChainMessageType, ChainNotify, ChainRoute, ClientConfig, ClientIoMessage, EngineInfo,
-    ImportBlock, ImportExportBlocks, ImportSealedBlock, IoClient, Mode, NewBlocks, Nonce,
-    PrepareOpenBlock, ProvingBlockChainClient, PruningInfo, ReopenBlock, ScheduleInfo,
-    SealedBlockImporter, StateClient, StateInfo, StateOrBlock, TraceFilter, TraceId, TransactionId,
-    TransactionInfo, UncleId,
+    BlockInfo, BlockProducer, Call, CallAnalytics, ChainInfo, ChainNotify, ChainRoute,
+    ClientConfig, ClientIoMessage, EngineInfo, ImportBlock, ImportExportBlocks, ImportSealedBlock,
+    IoClient, Mode, NewBlocks, Nonce, PrepareOpenBlock, ProvingBlockChainClient, PruningInfo,
+    ReopenBlock, ScheduleInfo, SealedBlockImporter, StateClient, StateInfo, StateOrBlock,
+    TraceFilter, TraceId, TransactionId, TransactionInfo, UncleId,
 };
 use engines::{
     epoch::PendingTransition, EngineError, EpochTransition, EthEngine, ForkChoice, MAX_UNCLE_AGE,
@@ -238,8 +237,6 @@ pub struct Client {
     /// Queued ancient blocks, make sure they are imported in order.
     queued_ancient_blocks: Arc<RwLock<(HashSet<H256>, VecDeque<(Unverified, Bytes)>)>>,
     ancient_blocks_import_lock: Arc<Mutex<()>>,
-    /// Consensus messages import queue
-    queue_consensus_message: IoChannelQueue,
 
     last_hashes: RwLock<VecDeque<H256>>,
     factories: Factories,
@@ -296,13 +293,11 @@ impl Importer {
             import_results,
             invalid_blocks,
             imported,
-            proposed_blocks,
             duration,
             has_more_blocks_to_import,
         ) = {
             let mut imported_blocks = Vec::with_capacity(max_blocks_to_import);
             let mut invalid_blocks = HashSet::new();
-            let proposed_blocks = Vec::with_capacity(max_blocks_to_import);
             let mut import_results = Vec::with_capacity(max_blocks_to_import);
 
             let _import_lock = self.import_lock.lock();
@@ -360,7 +355,6 @@ impl Importer {
                 import_results,
                 invalid_blocks,
                 imported,
-                proposed_blocks,
                 start.elapsed(),
                 has_more_blocks_to_import,
             )
@@ -387,7 +381,6 @@ impl Importer {
                         invalid_blocks.clone(),
                         route.clone(),
                         Vec::new(),
-                        proposed_blocks.clone(),
                         duration,
                         has_more_blocks_to_import,
                     ));
@@ -928,7 +921,6 @@ impl Client {
             queue_ancient_blocks: IoChannelQueue::new(MAX_ANCIENT_BLOCKS_QUEUE_SIZE),
             queued_ancient_blocks: Default::default(),
             ancient_blocks_import_lock: Default::default(),
-            queue_consensus_message: IoChannelQueue::new(usize::max_value()),
             last_hashes: RwLock::new(VecDeque::new()),
             factories,
             history,
@@ -2667,21 +2659,6 @@ impl IoClient for Client {
 
         Ok(hash)
     }
-
-    fn queue_consensus_message(&self, message: Bytes) {
-        match self
-            .queue_consensus_message
-            .queue(&self.io_channel.read(), 1, move |client| {
-                if let Err(e) = client.engine().handle_message(&message) {
-                    debug!(target: "poa", "Invalid message received: {}", e);
-                }
-            }) {
-            Ok(_) => (),
-            Err(e) => {
-                debug!(target: "poa", "Ignoring the message, error queueing: {}", e);
-            }
-        }
-    }
 }
 
 impl ReopenBlock for Client {
@@ -2835,7 +2812,6 @@ impl ImportSealedBlock for Client {
                 vec![],
                 route.clone(),
                 vec![hash],
-                vec![],
                 start.elapsed(),
                 false,
             ));
@@ -2846,23 +2822,6 @@ impl ImportSealedBlock for Client {
             .flush()
             .expect("DB flush failed.");
         Ok(hash)
-    }
-}
-
-impl BroadcastProposalBlock for Client {
-    fn broadcast_proposal_block(&self, block: SealedBlock) {
-        const DURATION_ZERO: Duration = Duration::from_millis(0);
-        self.notify(|notify| {
-            notify.new_blocks(NewBlocks::new(
-                vec![],
-                vec![],
-                ChainRoute::default(),
-                vec![],
-                vec![block.rlp_bytes()],
-                DURATION_ZERO,
-                false,
-            ));
-        });
     }
 }
 
@@ -2885,10 +2844,6 @@ impl super::traits::EngineClient for Client {
         if let Err(err) = import {
             warn!(target: "poa", "Wrong internal seal submission! {:?}", err);
         }
-    }
-
-    fn broadcast_consensus_message(&self, message: Bytes) {
-        self.notify(|notify| notify.broadcast(ChainMessageType::Consensus(message.clone())));
     }
 
     fn epoch_transition_for(&self, parent_hash: H256) -> Option<::engines::EpochTransition> {

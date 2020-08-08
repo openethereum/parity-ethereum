@@ -27,7 +27,7 @@ use types::{blockchain_info::BlockChainInfo, transaction::SignedTransaction, Blo
 
 use super::sync_packet::{
     SyncPacket,
-    SyncPacket::{ConsensusDataPacket, NewBlockHashesPacket, NewBlockPacket, TransactionsPacket},
+    SyncPacket::{NewBlockHashesPacket, NewBlockPacket, TransactionsPacket},
 };
 
 use super::{
@@ -303,54 +303,6 @@ impl SyncPropagator {
         sync.last_sent_block_number = chain_info.best_block_number;
     }
 
-    /// Distribute valid proposed blocks to subset of current peers.
-    pub fn propagate_proposed_blocks(
-        sync: &mut ChainSync,
-        io: &mut dyn SyncIo,
-        proposed: &[Bytes],
-    ) {
-        let peers = sync.get_consensus_peers();
-        trace!(target: "sync", "Sending proposed blocks to {:?}", peers);
-        for block in proposed {
-            let rlp = ChainSync::create_block_rlp(block, io.chain().chain_info().total_difficulty);
-            for peer_id in &peers {
-                SyncPropagator::send_packet(io, *peer_id, NewBlockPacket, rlp.clone());
-            }
-        }
-    }
-
-    /// Broadcast consensus message to peers.
-    pub fn propagate_consensus_packet(sync: &mut ChainSync, io: &mut dyn SyncIo, packet: Bytes) {
-        let lucky_peers = ChainSync::select_random_peers(&sync.get_consensus_peers());
-        trace!(target: "sync", "Sending consensus packet to {:?}", lucky_peers);
-        for peer_id in lucky_peers {
-            SyncPropagator::send_packet(io, peer_id, ConsensusDataPacket, packet.clone());
-        }
-    }
-
-    /// Broadcast private transaction message to peers.
-    pub fn propagate_private_transaction(
-        sync: &mut ChainSync,
-        io: &mut dyn SyncIo,
-        transaction_hash: H256,
-        packet_id: SyncPacket,
-        packet: Bytes,
-    ) {
-        let lucky_peers =
-            ChainSync::select_random_peers(&sync.get_private_transaction_peers(&transaction_hash));
-        if lucky_peers.is_empty() {
-            error!(target: "privatetx", "Cannot propagate the packet, no peers with private tx enabled connected");
-        } else {
-            trace!(target: "privatetx", "Sending private transaction packet to {:?}", lucky_peers);
-            for peer_id in lucky_peers {
-                if let Some(ref mut peer) = sync.peers.get_mut(&peer_id) {
-                    peer.last_sent_private_transactions.insert(transaction_hash);
-                }
-                SyncPropagator::send_packet(io, peer_id, packet_id, packet.clone());
-            }
-        }
-    }
-
     fn select_peers_for_transactions<F>(sync: &ChainSync, filter: F) -> Vec<PeerId>
     where
         F: Fn(&PeerId) -> bool,
@@ -386,7 +338,7 @@ impl SyncPropagator {
 
 #[cfg(test)]
 mod tests {
-    use ethcore::client::{BlockInfo, ChainInfo, EachBlockWith, TestBlockChainClient};
+    use ethcore::client::{ChainInfo, EachBlockWith, TestBlockChainClient};
     use parking_lot::RwLock;
     use rlp::Rlp;
     use std::collections::VecDeque;
@@ -468,48 +420,6 @@ mod tests {
     }
 
     #[test]
-    fn sends_proposed_block() {
-        let mut client = TestBlockChainClient::new();
-        client.add_blocks(2, EachBlockWith::Uncle);
-        let queue = RwLock::new(VecDeque::new());
-        let block = client.block(BlockId::Latest).unwrap().into_inner();
-        let mut sync = ChainSync::new(SyncConfig::default(), &client, None);
-        sync.peers.insert(
-            0,
-            PeerInfo {
-                // Messaging protocol
-                protocol_version: 2,
-                genesis: H256::zero(),
-                network_id: 0,
-                latest_hash: client.block_hash_delta_minus(1),
-                difficulty: None,
-                asking: PeerAsking::Nothing,
-                asking_blocks: Vec::new(),
-                asking_hash: None,
-                ask_time: Instant::now(),
-                last_sent_transactions: Default::default(),
-                last_sent_private_transactions: Default::default(),
-                expired: false,
-                private_tx_enabled: false,
-                confirmation: ForkConfirmation::Confirmed,
-                snapshot_number: None,
-                snapshot_hash: None,
-                asking_snapshot_data: None,
-                block_set: None,
-                client_version: ClientVersion::from(""),
-            },
-        );
-        let ss = TestSnapshotService::new();
-        let mut io = TestIo::new(&mut client, &ss, &queue, None);
-        SyncPropagator::propagate_proposed_blocks(&mut sync, &mut io, &[block]);
-
-        // 1 message should be sent
-        assert_eq!(1, io.packets.len());
-        // NEW_BLOCK_PACKET
-        assert_eq!(0x07, io.packets[0].packet_id);
-    }
-
-    #[test]
     fn propagates_transactions() {
         let mut client = TestBlockChainClient::new();
         client.add_blocks(100, EachBlockWith::Uncle);
@@ -522,7 +432,7 @@ mod tests {
         // Try to propagate same transactions for the second time
         let peer_count2 = SyncPropagator::propagate_new_transactions(&mut sync, &mut io, || true);
         // Even after new block transactions should not be propagated twice
-        sync.chain_new_blocks(&mut io, &[], &[], &[], &[], &[], &[]);
+        sync.chain_new_blocks(&mut io, &[], &[], &[], &[], &[]);
         // Try to propagate same transactions for the third time
         let peer_count3 = SyncPropagator::propagate_new_transactions(&mut sync, &mut io, || true);
 
@@ -549,7 +459,7 @@ mod tests {
         io.chain.insert_transaction_to_queue();
         // New block import should not trigger propagation.
         // (we only propagate on timeout)
-        sync.chain_new_blocks(&mut io, &[], &[], &[], &[], &[], &[]);
+        sync.chain_new_blocks(&mut io, &[], &[], &[], &[], &[]);
 
         // 2 message should be send
         assert_eq!(1, io.packets.len());
@@ -565,12 +475,12 @@ mod tests {
         client.add_blocks(100, EachBlockWith::Uncle);
         client.insert_transaction_to_queue();
         // Sync with no peers
-        let mut sync = ChainSync::new(SyncConfig::default(), &client, None);
+        let mut sync = ChainSync::new(SyncConfig::default(), &client);
         let queue = RwLock::new(VecDeque::new());
         let ss = TestSnapshotService::new();
         let mut io = TestIo::new(&mut client, &ss, &queue, None);
         let peer_count = SyncPropagator::propagate_new_transactions(&mut sync, &mut io, || true);
-        sync.chain_new_blocks(&mut io, &[], &[], &[], &[], &[], &[]);
+        sync.chain_new_blocks(&mut io, &[], &[], &[], &[], &[]);
         // Try to propagate same transactions for the second time
         let peer_count2 = SyncPropagator::propagate_new_transactions(&mut sync, &mut io, || true);
 
@@ -642,7 +552,7 @@ mod tests {
         let mut client = TestBlockChainClient::new();
         client.insert_transaction_with_gas_price_to_queue(U256::zero());
         let block_hash = client.block_hash_delta_minus(1);
-        let mut sync = ChainSync::new(SyncConfig::default(), &client, None);
+        let mut sync = ChainSync::new(SyncConfig::default(), &client);
         let queue = RwLock::new(VecDeque::new());
         let ss = TestSnapshotService::new();
         let mut io = TestIo::new(&mut client, &ss, &queue, None);
@@ -680,7 +590,7 @@ mod tests {
         let tx1_hash = client.insert_transaction_to_queue();
         let tx2_hash = client.insert_transaction_with_gas_price_to_queue(U256::zero());
         let block_hash = client.block_hash_delta_minus(1);
-        let mut sync = ChainSync::new(SyncConfig::default(), &client, None);
+        let mut sync = ChainSync::new(SyncConfig::default(), &client);
         let queue = RwLock::new(VecDeque::new());
         let ss = TestSnapshotService::new();
         let mut io = TestIo::new(&mut client, &ss, &queue, None);

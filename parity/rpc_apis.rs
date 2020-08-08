@@ -26,8 +26,6 @@ pub use parity_rpc::signer::SignerService;
 use account_utils::{self, AccountProvider};
 use ethcore::{client::Client, miner::Miner, snapshot::SnapshotService};
 use ethcore_logger::RotatingLogger;
-use ethcore_private_tx::Provider as PrivateTransactionManager;
-use ethcore_service::PrivateTxService;
 use hash_fetch::fetch::Client as FetchClient;
 use jsonrpc_core::{self as core, MetaIoHandler};
 use light::{
@@ -62,8 +60,6 @@ pub enum Api {
     Parity,
     /// Traces (Safe)
     Traces,
-    /// Private transaction manager (Safe)
-    Private,
     /// Whisper (Safe)
     // TODO: _if_ someone guesses someone else's key or filter IDs they can remove
     // BUT these are all ephemeral so it seems fine.
@@ -98,7 +94,6 @@ impl FromStr for Api {
             "parity_pubsub" => Ok(ParityPubSub),
             "parity_set" => Ok(ParitySet),
             "personal" => Ok(Personal),
-            "private" => Ok(Private),
             "pubsub" => Ok(EthPubSub),
             "secretstore" => Ok(SecretStore),
             "shh" => Ok(Whisper),
@@ -209,7 +204,6 @@ pub struct FullDependencies {
     pub sync: Arc<dyn SyncProvider>,
     pub net: Arc<dyn ManageNetwork>,
     pub accounts: Arc<AccountProvider>,
-    pub private_tx_service: Option<Arc<PrivateTxService>>,
     pub miner: Arc<Miner>,
     pub external_miner: Arc<ExternalMiner>,
     pub logger: Arc<RotatingLogger>,
@@ -423,12 +417,6 @@ impl FullDependencies {
                         }
                     }
                 }
-                Api::Private => {
-                    handler.extend_with(
-                        PrivateClient::new(self.private_tx_service.as_ref().map(|p| p.provider()))
-                            .to_delegate(),
-                    );
-                }
             }
         }
     }
@@ -475,7 +463,6 @@ pub struct LightDependencies<T> {
     pub experimental_rpcs: bool,
     pub executor: Executor,
     pub whisper_rpc: Option<::whisper::RpcFactory>,
-    pub private_tx_service: Option<Arc<PrivateTransactionManager>>,
     pub gas_price_percentile: usize,
     pub poll_lifetime: u32,
 }
@@ -654,12 +641,6 @@ impl<C: LightChainClient + 'static> LightDependencies<C> {
                         ));
                     }
                 }
-                Api::Private => {
-                    if let Some(ref tx_manager) = self.private_tx_service {
-                        let private_tx_service = Some(tx_manager.clone());
-                        handler.extend_with(PrivateClient::new(private_tx_service).to_delegate());
-                    }
-                }
             }
         }
     }
@@ -695,7 +676,6 @@ impl ApiSet {
             Api::Parity,
             Api::Whisper,
             Api::WhisperPubSub,
-            Api::Private,
         ]
         .iter()
         .cloned()
@@ -757,7 +737,6 @@ mod test {
         assert_eq!(Api::ParitySet, "parity_set".parse().unwrap());
         assert_eq!(Api::Traces, "traces".parse().unwrap());
         assert_eq!(Api::SecretStore, "secretstore".parse().unwrap());
-        assert_eq!(Api::Private, "private".parse().unwrap());
         assert_eq!(Api::Whisper, "shh".parse().unwrap());
         assert_eq!(Api::WhisperPubSub, "shh_pubsub".parse().unwrap());
         assert!("rp".parse::<Api>().is_err());
@@ -789,7 +768,6 @@ mod test {
             Api::Traces,
             Api::Whisper,
             Api::WhisperPubSub,
-            Api::Private,
         ]
         .into_iter()
         .collect();
@@ -809,7 +787,6 @@ mod test {
             Api::Traces,
             Api::Whisper,
             Api::WhisperPubSub,
-            Api::Private,
             // semi-safe
             Api::ParityAccounts,
         ]
@@ -838,7 +815,6 @@ mod test {
                     Api::ParitySet,
                     Api::Signer,
                     Api::Personal,
-                    Api::Private,
                     Api::Debug,
                 ]
                 .into_iter()
@@ -866,7 +842,6 @@ mod test {
                     Api::ParityAccounts,
                     Api::ParitySet,
                     Api::Signer,
-                    Api::Private,
                     Api::Debug,
                 ]
                 .into_iter()
@@ -890,7 +865,6 @@ mod test {
                     Api::Traces,
                     Api::Whisper,
                     Api::WhisperPubSub,
-                    Api::Private,
                 ]
                 .into_iter()
                 .collect()

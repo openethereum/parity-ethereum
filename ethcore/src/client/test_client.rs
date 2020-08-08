@@ -57,11 +57,10 @@ use block::{ClosedBlock, OpenBlock, SealedBlock};
 use call_contract::{CallContract, RegistryInfo};
 use client::{
     traits::ForceUpdateSealing, AccountData, BadBlocks, Balance, BlockChain, BlockChainClient,
-    BlockChainInfo, BlockId, BlockInfo, BlockProducer, BlockStatus, BroadcastProposalBlock, Call,
-    CallAnalytics, ChainInfo, EngineInfo, ImportBlock, ImportSealedBlock, IoClient, LastHashes,
-    Mode, Nonce, PrepareOpenBlock, ProvingBlockChainClient, ReopenBlock, ScheduleInfo,
-    SealedBlockImporter, StateClient, StateOrBlock, TraceFilter, TraceId, TransactionId,
-    TransactionInfo, UncleId,
+    BlockChainInfo, BlockId, BlockInfo, BlockProducer, BlockStatus, Call, CallAnalytics, ChainInfo,
+    EngineInfo, ImportBlock, ImportSealedBlock, IoClient, LastHashes, Mode, Nonce,
+    PrepareOpenBlock, ProvingBlockChainClient, ReopenBlock, ScheduleInfo, SealedBlockImporter,
+    StateClient, StateOrBlock, TraceFilter, TraceId, TransactionId, TransactionInfo, UncleId,
 };
 use engines::EthEngine;
 use error::{Error, EthcoreResult};
@@ -462,10 +461,6 @@ impl ImportSealedBlock for TestBlockChainClient {
 }
 
 impl BlockProducer for TestBlockChainClient {}
-
-impl BroadcastProposalBlock for TestBlockChainClient {
-    fn broadcast_proposal_block(&self, _block: SealedBlock) {}
-}
 
 impl SealedBlockImporter for TestBlockChainClient {}
 
@@ -1064,10 +1059,6 @@ impl IoClient for TestBlockChainClient {
     fn queue_ancient_block(&self, unverified: Unverified, _r: Bytes) -> EthcoreResult<H256> {
         self.import_block(unverified)
     }
-
-    fn queue_consensus_message(&self, message: Bytes) {
-        self.spec.engine.handle_message(&message).unwrap();
-    }
 }
 
 impl ProvingBlockChainClient for TestBlockChainClient {
@@ -1102,8 +1093,6 @@ impl super::traits::EngineClient for TestBlockChainClient {
             warn!(target: "poa", "Wrong internal seal submission! {:?}", err);
         }
     }
-
-    fn broadcast_consensus_message(&self, _message: Bytes) {}
 
     fn epoch_transition_for(&self, _block_hash: H256) -> Option<::engines::EpochTransition> {
         None

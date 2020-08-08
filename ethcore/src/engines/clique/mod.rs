@@ -370,7 +370,7 @@ impl Engine<EthereumMachine> for Clique {
     }
 
     // Clique use same fields, nonce + mixHash
-    fn seal_fields(&self, _header: &Header) -> usize {
+    fn seal_fields(&self) -> usize {
         2
     }
 
