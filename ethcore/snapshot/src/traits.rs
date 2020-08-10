@@ -22,7 +22,7 @@ use client_traits::{BlockChainClient, BlockInfo, DatabaseRestore, BlockChainRese
 use common_types::{
 	ids::BlockId,
 	errors::{EthcoreError as Error, SnapshotError},
-	snapshot::{ManifestData, ChunkSink, Progress, RestorationStatus},
+	snapshot::{ManifestData, ChunkSink, Progress, CreationStatus, RestorationStatus},
 };
 use engine::Engine;
 use ethereum_types::H256;
@@ -49,7 +49,10 @@ pub trait SnapshotService : Sync + Send {
 	fn chunk(&self, hash: H256) -> Option<Bytes>;
 
 	/// Ask the snapshot service for the restoration status.
-	fn status(&self) -> RestorationStatus;
+	fn restoration_status(&self) -> RestorationStatus;
+
+	/// Ask the snapshot service for the creation status.
+	fn creation_status(&self) -> CreationStatus;
 
 	/// Begin snapshot restoration.
 	/// If a restoration is in progress, this will reset it and clear all data.

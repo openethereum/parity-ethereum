@@ -30,7 +30,7 @@ use parking_lot::Mutex;
 use snapshot::SnapshotService;
 use common_types::{
 	BlockNumber,
-	snapshot::{ManifestData, RestorationStatus},
+	snapshot::{ManifestData, CreationStatus, RestorationStatus},
 };
 
 #[derive(Default)]
@@ -89,11 +89,12 @@ impl SnapshotService for TestSnapshotService {
 		self.chunks.get(&hash).cloned()
 	}
 
-	fn status(&self) -> RestorationStatus {
+	fn restoration_status(&self) -> RestorationStatus {
 		match *self.restoration_manifest.lock() {
 			Some(ref manifest) if self.state_restoration_chunks.lock().len() == manifest.state_hashes.len() &&
 				self.block_restoration_chunks.lock().len() == manifest.block_hashes.len() => RestorationStatus::Inactive,
 			Some(ref manifest) => RestorationStatus::Ongoing {
+				block_number: 0,
 				state_chunks: manifest.state_hashes.len() as u32,
 				block_chunks: manifest.block_hashes.len() as u32,
 				state_chunks_done: self.state_restoration_chunks.lock().len() as u32,
@@ -101,6 +102,9 @@ impl SnapshotService for TestSnapshotService {
 			},
 			None => RestorationStatus::Inactive,
 		}
+	}
+	fn creation_status(&self) -> CreationStatus {
+		CreationStatus::Inactive
 	}
 
 	fn begin_restore(&self, manifest: ManifestData) {

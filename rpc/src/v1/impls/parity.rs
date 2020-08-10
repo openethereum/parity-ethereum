@@ -39,6 +39,7 @@ use types::{
 };
 use updater::{Service as UpdateService};
 use version::version_data;
+use stats::PrometheusMetrics;
 
 use v1::helpers::{self, errors, fake_sign, NetworkSettings, verify_signature};
 use v1::helpers::external_signer::{SigningQueue, SignerService};
@@ -70,7 +71,7 @@ pub struct ParityClient<C, M, U> {
 }
 
 impl<C, M, U> ParityClient<C, M, U> where
-	C: BlockChainClient,
+	C: BlockChainClient + PrometheusMetrics,
 {
 	/// Creates new `ParityClient`.
 	pub fn new(
@@ -102,7 +103,7 @@ impl<C, M, U> ParityClient<C, M, U> where
 
 impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 	S: StateInfo + 'static,
-	C: miner::BlockChainClient + BlockChainClient + StateClient<State=S> + Call<State=S> + 'static,
+	C: miner::BlockChainClient + BlockChainClient + PrometheusMetrics + StateClient<State=S> + Call<State=S> + 'static,
 	M: MinerService<State=S> + 'static,
 	U: UpdateService + 'static,
 {
@@ -439,7 +440,7 @@ impl<C, M, U, S> Parity for ParityClient<C, M, U> where
 
 	fn status(&self) -> Result<()> {
 		let has_peers = self.settings.is_dev_chain || self.sync.status().num_peers > 0;
-		let is_warping = match self.snapshot.as_ref().map(|s| s.status()) {
+		let is_warping = match self.snapshot.as_ref().map(|s| s.restoration_status()) {
 			Some(RestorationStatus::Ongoing { .. }) => true,
 			_ => false,
 		};

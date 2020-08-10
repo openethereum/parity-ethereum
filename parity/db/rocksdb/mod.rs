@@ -24,6 +24,9 @@ extern crate tempfile;
 use std::{io, fs};
 use std::sync::Arc;
 use std::path::Path;
+
+use crate::cache::CacheConfig;
+
 use blooms_db;
 use ethcore_db::NUM_COLUMNS;
 use ethcore::client::{ClientConfig, DatabaseCompactionProfile};
@@ -31,7 +34,6 @@ use kvdb::KeyValueDB;
 use self::ethcore_blockchain::{BlockChainDBHandler, BlockChainDB};
 use self::kvdb_rocksdb::{Database, DatabaseConfig};
 
-use cache::CacheConfig;
 
 mod migration;
 mod helpers;

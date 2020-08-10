@@ -183,6 +183,8 @@ pub enum RestorationStatus {
 	},
 	/// Ongoing restoration.
 	Ongoing {
+		/// Block number specified in the manifest.
+		block_number: u64,
 		/// Total number of state chunks.
 		state_chunks: u32,
 		/// Total number of block chunks.
@@ -196,4 +198,16 @@ pub enum RestorationStatus {
 	Finalizing,
 	/// Failed restoration.
 	Failed,
+}
+
+/// Statuses for snapshot creation.
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
+pub enum CreationStatus {
+	/// No creation activity currently.
+	Inactive,
+	/// Snapshot creation is in progress.
+	Ongoing {
+		/// Current created snapshot.
+		block_number: u32,
+	}
 }

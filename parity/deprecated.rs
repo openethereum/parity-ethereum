@@ -15,7 +15,7 @@
 // along with Open Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::fmt;
-use cli::Args;
+use crate::cli::Args;
 
 #[derive(Debug, PartialEq)]
 pub enum Deprecated {
@@ -248,7 +248,7 @@ pub fn find_deprecated(args: &Args) -> Vec<Deprecated> {
 
 #[cfg(test)]
 mod tests {
-	use cli::Args;
+	use crate::cli::Args;
 	use super::{Deprecated, find_deprecated};
 
 	#[test]

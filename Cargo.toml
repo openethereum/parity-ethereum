@@ -4,6 +4,7 @@ name = "openethereum"
 # NOTE Make sure to update util/version/Cargo.toml as well
 version = "3.0.0"
 license = "GPL-3.0"
+edition = "2018"
 authors = [
 	"OpenEthereum developers",
 	"Parity Technologies <admin@parity.io>"
@@ -40,6 +41,7 @@ ethkey = { path = "accounts/ethkey" }
 ethstore = { path = "accounts/ethstore" }
 fdlimit = "0.1"
 futures = "0.1"
+hyper = { version = "0.13" }
 journaldb = { path = "util/journaldb" }
 jsonrpc-core = "14.0.3"
 keccak-hash = "0.5.0"
@@ -58,7 +60,7 @@ parity-hash-fetch = { path = "updater/hash-fetch" }
 parity-local-store = { path = "miner/local-store" }
 parity-path = "0.1"
 parity-rpc = { path = "rpc" }
-parity-runtime = "0.1.1"
+parity-runtime = "0.1.2"
 parity-secretstore = { git = "https://github.com/paritytech/secret-store", branch = "v1.x", optional = true }
 parity-updater = { path = "updater" }
 parity-util-mem = { version = "0.7", features = ["jemalloc-global"] }
@@ -75,10 +77,13 @@ serde_derive = "1.0"
 serde_json = "1.0"
 snapshot = { path = "ethcore/snapshot" }
 spec = { path = "ethcore/spec" }
+stats = { path = "util/stats" }
 term_size = "0.3"
 textwrap = "0.11.0"
 toml = "0.5.6"
+tokio = { version = "0.2", features = ["blocking"] }
 verification = { path = "ethcore/verification" }
+prometheus = "0.9.0"
 
 [build-dependencies]
 rustc_version = "0.2"

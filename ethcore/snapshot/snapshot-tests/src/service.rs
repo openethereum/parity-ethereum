@@ -71,7 +71,7 @@ fn sends_async_messages() {
 
 	assert!(service.manifest().is_none());
 	assert!(service.chunk(Default::default()).is_none());
-	assert_eq!(service.status(), RestorationStatus::Inactive);
+	assert_eq!(service.restoration_status(), RestorationStatus::Inactive);
 
 	let manifest = ManifestData {
 		version: 2,
@@ -190,7 +190,7 @@ fn restored_is_equivalent() {
 		service.feed_block_chunk(hash, &chunk);
 	}
 
-	assert_eq!(service.status(), RestorationStatus::Inactive);
+	assert_eq!(service.restoration_status(), RestorationStatus::Inactive);
 
 	for x in 0..NUM_BLOCKS {
 		let block1 = client.block(BlockId::Number(x as u64)).unwrap();
@@ -347,7 +347,7 @@ fn keep_ancient_blocks() {
 		service.feed_state_chunk(*hash, &chunk);
 	}
 
-	match service.status() {
+	match service.restoration_status() {
 		RestorationStatus::Inactive => (),
 		RestorationStatus::Failed => panic!("Snapshot Restoration has failed."),
 		RestorationStatus::Ongoing { .. } => panic!("Snapshot Restoration should be done."),
@@ -409,7 +409,7 @@ fn recover_aborted_recovery() {
 		service.feed_state_chunk(*hash, &chunk);
 	}
 
-	match service.status() {
+	match service.restoration_status() {
 		RestorationStatus::Ongoing { block_chunks_done, state_chunks_done, .. } => {
 			assert_eq!(state_chunks_done, manifest.state_hashes.len() as u32);
 			assert_eq!(block_chunks_done, 0);
@@ -423,7 +423,7 @@ fn recover_aborted_recovery() {
 	// And try again!
 	service.init_restore(manifest.clone(), true).unwrap();
 
-	match service.status() {
+	match service.restoration_status() {
 		RestorationStatus::Ongoing { block_chunks_done, state_chunks_done, .. } => {
 			assert_eq!(state_chunks_done, manifest.state_hashes.len() as u32);
 			assert_eq!(block_chunks_done, 0);
@@ -438,7 +438,7 @@ fn recover_aborted_recovery() {
 	// And try again!
 	service.init_restore(manifest.clone(), true).unwrap();
 
-	match service.status() {
+	match service.restoration_status() {
 		RestorationStatus::Ongoing { block_chunks_done, state_chunks_done, .. } => {
 			assert_eq!(block_chunks_done, 0);
 			assert_eq!(state_chunks_done, 0);

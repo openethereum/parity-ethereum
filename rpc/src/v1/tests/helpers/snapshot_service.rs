@@ -19,7 +19,7 @@ use snapshot::SnapshotService;
 use bytes::Bytes;
 use ethereum_types::H256;
 use parking_lot::Mutex;
-use types::snapshot::{ManifestData, RestorationStatus};
+use types::snapshot::{ManifestData, CreationStatus, RestorationStatus};
 
 /// Mocked snapshot service (used for sync info extensions).
 pub struct TestSnapshotService {
@@ -46,7 +46,8 @@ impl SnapshotService for TestSnapshotService {
 	fn supported_versions(&self) -> Option<(u64, u64)> { None }
 	fn completed_chunks(&self) -> Option<Vec<H256>> { Some(vec![]) }
 	fn chunk(&self, _hash: H256) -> Option<Bytes> { None }
-	fn status(&self) -> RestorationStatus { self.status.lock().clone() }
+	fn restoration_status(&self) -> RestorationStatus { self.status.lock().clone() }
+	fn creation_status(&self) -> CreationStatus { CreationStatus::Inactive }
 	fn begin_restore(&self, _manifest: ManifestData) { }
 	fn abort_restore(&self) { }
 	fn restore_state_chunk(&self, _hash: H256, _chunk: Bytes) { }

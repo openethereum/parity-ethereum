@@ -20,6 +20,12 @@ use std::time::Duration;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use crate::cache::CacheConfig;
+use crate::params::{SpecType, Pruning, Switch, tracing_switch_to_bool, fatdb_switch_to_bool};
+use crate::helpers::{to_client_config, execute_upgrades};
+use crate::user_defaults::UserDefaults;
+use crate::db;
+
 use hash::keccak;
 use snapshot::{SnapshotConfiguration, SnapshotService as SS, SnapshotClient};
 use snapshot::io::{SnapshotReader, PackedReader, PackedWriter};
@@ -35,13 +41,9 @@ use types::{
 	snapshot::RestorationStatus,
 };
 
-use cache::CacheConfig;
-use params::{SpecType, Pruning, Switch, tracing_switch_to_bool, fatdb_switch_to_bool};
-use helpers::{to_client_config, execute_upgrades};
+
 use dir::Directories;
-use user_defaults::UserDefaults;
 use ethcore_private_tx;
-use db;
 
 /// Kinds of snapshot commands.
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -86,7 +88,7 @@ fn restore_using<R: SnapshotReader>(snapshot: Arc<SnapshotService<Client>>, read
 
 	let informant_handle = snapshot.clone();
 	::std::thread::spawn(move || {
- 		while let RestorationStatus::Ongoing { state_chunks_done, block_chunks_done, .. } = informant_handle.status() {
+ 		while let RestorationStatus::Ongoing { state_chunks_done, block_chunks_done, .. } = informant_handle.restoration_status() {
  			info!("Processed {}/{} state chunks and {}/{} block chunks.",
  				state_chunks_done, num_state, block_chunks_done, num_blocks);
  			::std::thread::sleep(Duration::from_secs(5));
@@ -95,7 +97,7 @@ fn restore_using<R: SnapshotReader>(snapshot: Arc<SnapshotService<Client>>, read
 
  	info!("Restoring state");
  	for &state_hash in &manifest.state_hashes {
- 		if snapshot.status() == RestorationStatus::Failed {
+ 		if snapshot.restoration_status() == RestorationStatus::Failed {
  			return Err("Restoration failed".into());
  		}
 
@@ -112,7 +114,7 @@ fn restore_using<R: SnapshotReader>(snapshot: Arc<SnapshotService<Client>>, read
 
 	info!("Restoring blocks");
 	for &block_hash in &manifest.block_hashes {
-		if snapshot.status() == RestorationStatus::Failed {
+		if snapshot.restoration_status() == RestorationStatus::Failed {
 			return Err("Restoration failed".into());
 		}
 
@@ -126,7 +128,7 @@ fn restore_using<R: SnapshotReader>(snapshot: Arc<SnapshotService<Client>>, read
 		snapshot.feed_block_chunk(block_hash, &chunk);
 	}
 
-	match snapshot.status() {
+	match snapshot.restoration_status() {
 		RestorationStatus::Ongoing { .. } => Err("Snapshot file is incomplete and missing chunks.".into()),
 		RestorationStatus::Initializing { .. } => Err("Snapshot restoration is still initializing.".into()),
 		RestorationStatus::Finalizing => Err("Snapshot restoration is still finalizing.".into()),
@@ -270,7 +272,7 @@ impl SnapshotCommand {
 						let cur_size = progress.bytes();
 						if cur_size != last_size {
 							last_size = cur_size;
-							let bytes = ::informant::format_bytes(cur_size);
+							let bytes = crate::informant::format_bytes(cur_size);
 							info!("Snapshot: {} accounts (state), {} blocks, {} bytes", progress.accounts(), progress.blocks(), bytes);
 						}
 					} else {

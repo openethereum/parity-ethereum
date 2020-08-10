@@ -30,7 +30,7 @@ use common_types::{
 	io_message::ClientIoMessage,
 	errors::{EthcoreError as Error, SnapshotError, SnapshotError::UnlinkedAncientBlockChain},
 	ids::BlockId,
-	snapshot::{ManifestData, Progress, RestorationStatus},
+	snapshot::{ManifestData, Progress, CreationStatus, RestorationStatus},
 };
 use client_traits::ChainInfo;
 use engine::Engine;
@@ -265,6 +265,7 @@ pub struct Service<C: Send + Sync + 'static> {
 	client: Arc<C>,
 	progress: RwLock<Progress>,
 	taking_snapshot: AtomicBool,
+	taking_snapshot_at: AtomicUsize,
 	restoring_snapshot: AtomicBool,
 }
 
@@ -286,6 +287,7 @@ impl<C> Service<C> where C: SnapshotClient + ChainInfo {
 			client: params.client,
 			progress: RwLock::new(Progress::new()),
 			taking_snapshot: AtomicBool::new(false),
+			taking_snapshot_at: AtomicUsize::new(0),
 			restoring_snapshot: AtomicBool::new(false),
 		};
 
@@ -505,6 +507,7 @@ impl<C> Service<C> where C: SnapshotClient + ChainInfo {
 
 		info!("Taking snapshot at #{}", num);
 		{
+			self.taking_snapshot_at.store(num as usize, Ordering::SeqCst);
 			scopeguard::defer! {{
 				self.taking_snapshot.store(false, Ordering::SeqCst);
 			}}
@@ -609,6 +612,7 @@ impl<C> Service<C> where C: SnapshotClient + ChainInfo {
 
 		self.restoring_snapshot.store(true, Ordering::SeqCst);
 
+		let block_number = manifest.block_number;
 		// Import previous chunks, continue if it fails
 		self.import_prev_chunks(&mut res, manifest).ok();
 
@@ -616,6 +620,7 @@ impl<C> Service<C> where C: SnapshotClient + ChainInfo {
 		let mut restoration_status = self.status.lock();
 		if let RestorationStatus::Initializing { .. } = *restoration_status {
 			*restoration_status = RestorationStatus::Ongoing {
+				block_number,
 				state_chunks: state_chunks as u32,
 				block_chunks: block_chunks as u32,
 				state_chunks_done: self.state_chunks.load(Ordering::SeqCst) as u32,
@@ -760,7 +765,7 @@ impl<C> Service<C> where C: SnapshotClient + ChainInfo {
 		chunk: &[u8],
 		is_state: bool
 	) -> Result<(), Error> {
-		match self.status() {
+		match self.restoration_status() {
 			RestorationStatus::Inactive | RestorationStatus::Failed | RestorationStatus::Finalizing => {
 				trace!(target: "snapshot", "Tried to restore chunk {:x} while inactive, failed or finalizing", hash);
 				Ok(())
@@ -832,7 +837,17 @@ impl<C: Send + Sync> SnapshotService for Service<C> {
 		self.reader.read().as_ref().and_then(|r| r.chunk(hash).ok())
 	}
 
-	fn status(&self) -> RestorationStatus {
+	fn creation_status(&self) -> CreationStatus {
+		if self.taking_snapshot.load(Ordering::SeqCst) {
+			CreationStatus::Ongoing {
+				block_number: self.taking_snapshot_at.load(Ordering::SeqCst) as u32
+			}
+		} else {
+			CreationStatus::Inactive
+		}
+	}
+
+	fn restoration_status(&self) -> RestorationStatus {
 		let mut cur_status = self.status.lock();
 
 		match *cur_status {
