@@ -135,7 +135,6 @@ pub struct RunCmd {
     pub serve_light: bool,
     pub light: bool,
     pub no_persistent_txqueue: bool,
-    pub whisper: ::whisper::Config,
     pub no_hardcoded_sync: bool,
     pub max_round_blocks_to_import: usize,
     pub on_demand_response_time_window: Option<u64>,
@@ -309,16 +308,6 @@ where
         net_conf.boot_nodes = spec.nodes.clone();
     }
 
-    let mut attached_protos = Vec::new();
-    let whisper_factory = if cmd.whisper.enabled {
-        let whisper_factory =
-            ::whisper::setup(cmd.whisper.target_message_pool_size, &mut attached_protos)
-                .map_err(|e| format!("Failed to initialize whisper: {}", e))?;
-        whisper_factory
-    } else {
-        None
-    };
-
     // set network path.
     net_conf.net_config_path = Some(db_dirs.network_path().to_string_lossy().into_owned());
     let sync_params = LightSyncParams {
@@ -329,7 +318,6 @@ where
         network_id: cmd.network_id.unwrap_or(spec.network_id()),
         subprotocol_name: sync::LIGHT_PROTOCOL,
         handlers: vec![on_demand.clone()],
-        attached_protos: attached_protos,
     };
     let light_sync =
         LightSync::new(sync_params).map_err(|e| format!("Error starting network: {}", e))?;
@@ -376,7 +364,6 @@ where
         fetch: fetch,
         experimental_rpcs: cmd.experimental_rpcs,
         executor: runtime.executor(),
-        whisper_rpc: whisper_factory,
         private_tx_service: None, //TODO: add this to client.
         gas_price_percentile: cmd.gas_price_percentile,
         poll_lifetime: cmd.poll_lifetime,
@@ -748,18 +735,6 @@ where
             .map_err(|e| format!("Stratum start error: {:?}", e))?;
     }
 
-    let mut attached_protos = Vec::new();
-
-    let whisper_factory = if cmd.whisper.enabled {
-        let whisper_factory =
-            ::whisper::setup(cmd.whisper.target_message_pool_size, &mut attached_protos)
-                .map_err(|e| format!("Failed to initialize whisper: {}", e))?;
-
-        whisper_factory
-    } else {
-        None
-    };
-
     let private_tx_sync: Option<Arc<dyn PrivateTxHandler>> = match cmd.private_tx_enabled {
         true => Some(private_tx_service.clone() as Arc<dyn PrivateTxHandler>),
         false => None,
@@ -774,7 +749,6 @@ where
         private_tx_sync,
         client.clone(),
         &cmd.logger_config,
-        attached_protos,
         connection_filter
             .clone()
             .map(|f| f as Arc<dyn crate::sync::ConnectionFilter + 'static>),
@@ -867,7 +841,6 @@ where
         ws_address: cmd.ws_conf.address(),
         fetch: fetch.clone(),
         executor: runtime.executor(),
-        whisper_rpc: whisper_factory,
         private_tx_service: Some(private_tx_service.clone()),
         gas_price_percentile: cmd.gas_price_percentile,
         poll_lifetime: cmd.poll_lifetime,

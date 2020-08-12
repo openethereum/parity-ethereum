@@ -483,9 +483,9 @@ usage! {
             "--jsonrpc-interface=[IP]",
             "Specify the hostname portion of the HTTP JSON-RPC API server, IP should be an interface's IP address, or all (all interfaces) or local.",
 
-            ARG arg_jsonrpc_apis: (String) = "web3,eth,pubsub,net,parity,private,parity_pubsub,traces,shh,shh_pubsub", or |c: &Config| c.rpc.as_ref()?.apis.as_ref().map(|vec| vec.join(",")),
+            ARG arg_jsonrpc_apis: (String) = "web3,eth,pubsub,net,parity,private,parity_pubsub,traces", or |c: &Config| c.rpc.as_ref()?.apis.as_ref().map(|vec| vec.join(",")),
             "--jsonrpc-apis=[APIS]",
-            "Specify the APIs available through the HTTP JSON-RPC interface using a comma-delimited list of API names. Possible names are: all, safe, debug, web3, net, eth, pubsub, personal, signer, parity, parity_pubsub, parity_accounts, parity_set, traces, secretstore, shh, shh_pubsub. You can also disable a specific API by putting '-' in the front, example: all,-personal. 'safe' enables the following APIs: web3, net, eth, pubsub, parity, parity_pubsub, traces, shh, shh_pubsub",
+            "Specify the APIs available through the HTTP JSON-RPC interface using a comma-delimited list of API names. Possible names are: all, safe, debug, web3, net, eth, pubsub, personal, signer, parity, parity_pubsub, parity_accounts, parity_set, traces, secretstore. You can also disable a specific API by putting '-' in the front, example: all,-personal. 'safe' enables the following APIs: web3, net, eth, pubsub, parity, parity_pubsub, traces",
 
             ARG arg_jsonrpc_hosts: (String) = "none", or |c: &Config| c.rpc.as_ref()?.hosts.as_ref().map(|vec| vec.join(",")),
             "--jsonrpc-hosts=[HOSTS]",
@@ -524,9 +524,9 @@ usage! {
             "--ws-interface=[IP]",
             "Specify the hostname portion of the WebSockets JSON-RPC server, IP should be an interface's IP address, or all (all interfaces) or local.",
 
-            ARG arg_ws_apis: (String) = "web3,eth,pubsub,net,parity,parity_pubsub,private,traces,shh,shh_pubsub", or |c: &Config| c.websockets.as_ref()?.apis.as_ref().map(|vec| vec.join(",")),
+            ARG arg_ws_apis: (String) = "web3,eth,pubsub,net,parity,parity_pubsub,private,traces", or |c: &Config| c.websockets.as_ref()?.apis.as_ref().map(|vec| vec.join(",")),
             "--ws-apis=[APIS]",
-            "Specify the JSON-RPC APIs available through the WebSockets interface using a comma-delimited list of API names. Possible names are: all, safe, web3, net, eth, pubsub, personal, signer, parity, parity_pubsub, parity_accounts, parity_set, traces, secretstore, shh, shh_pubsub. You can also disable a specific API by putting '-' in the front, example: all,-personal. 'safe' enables the following APIs: web3, net, eth, pubsub, parity, parity_pubsub, traces, shh, shh_pubsub",
+            "Specify the JSON-RPC APIs available through the WebSockets interface using a comma-delimited list of API names. Possible names are: all, safe, web3, net, eth, pubsub, personal, signer, parity, parity_pubsub, parity_accounts, parity_set, traces, secretstore. You can also disable a specific API by putting '-' in the front, example: all,-personal. 'safe' enables the following APIs: web3, net, eth, pubsub, parity, parity_pubsub, traces",
 
             ARG arg_ws_origins: (String) = "parity://*,chrome-extension://*,moz-extension://*", or |c: &Config| c.websockets.as_ref()?.origins.as_ref().map(|vec| vec.join(",")),
             "--ws-origins=[URL]",
@@ -549,9 +549,9 @@ usage! {
             "--ipc-path=[PATH]",
             "Specify custom path for JSON-RPC over IPC service.",
 
-            ARG arg_ipc_apis: (String) = "web3,eth,pubsub,net,parity,parity_pubsub,parity_accounts,private,traces,shh,shh_pubsub", or |c: &Config| c.ipc.as_ref()?.apis.as_ref().map(|vec| vec.join(",")),
+            ARG arg_ipc_apis: (String) = "web3,eth,pubsub,net,parity,parity_pubsub,parity_accounts,private,traces", or |c: &Config| c.ipc.as_ref()?.apis.as_ref().map(|vec| vec.join(",")),
             "--ipc-apis=[APIS]",
-            "Specify custom API set available via JSON-RPC over IPC using a comma-delimited list of API names. Possible names are: all, safe, web3, net, eth, pubsub, personal, signer, parity, parity_pubsub, parity_accounts, parity_set, traces, secretstore, shh, shh_pubsub. You can also disable a specific API by putting '-' in the front, example: all,-personal. 'safe' enables the following APIs: web3, net, eth, pubsub, parity, parity_pubsub, traces, shh, shh_pubsub",
+            "Specify custom API set available via JSON-RPC over IPC using a comma-delimited list of API names. Possible names are: all, safe, web3, net, eth, pubsub, personal, signer, parity, parity_pubsub, parity_accounts, parity_set, traces, secretstore. You can also disable a specific API by putting '-' in the front, example: all,-personal. 'safe' enables the following APIs: web3, net, eth, pubsub, parity, parity_pubsub, traces",
 
         ["API and Console Options – IPFS"]
             FLAG flag_ipfs_api: (bool) = false, or |c: &Config| c.ipfs.as_ref()?.enable.clone(),
@@ -905,15 +905,6 @@ usage! {
             ARG arg_snapshot_threads: (Option<usize>) = None, or |c: &Config| c.snapshots.as_ref()?.processing_threads,
             "--snapshot-threads=[NUM]",
             "Enables multiple threads for snapshots creation.",
-
-        ["Whisper Options"]
-            FLAG flag_whisper: (bool) = false, or |c: &Config| c.whisper.as_ref()?.enabled,
-            "--whisper",
-            "Enable the Whisper network.",
-
-            ARG arg_whisper_pool_size: (usize) = 10usize, or |c: &Config| c.whisper.as_ref()?.pool_size.clone(),
-            "--whisper-pool-size=[MB]",
-            "Target size of the whisper message pool in megabytes.",
     }
 }
 
@@ -935,7 +926,6 @@ struct Config {
     snapshots: Option<Snapshots>,
     misc: Option<Misc>,
     stratum: Option<Stratum>,
-    whisper: Option<Whisper>,
     light: Option<Light>,
 }
 
@@ -1166,13 +1156,6 @@ struct Misc {
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct Whisper {
-    enabled: Option<bool>,
-    pool_size: Option<usize>,
-}
-
-#[derive(Default, Debug, PartialEq, Deserialize)]
-#[serde(deny_unknown_fields)]
 struct Light {
     on_demand_response_time_window: Option<u64>,
     on_demand_request_backoff_start: Option<u64>,
@@ -1185,7 +1168,7 @@ struct Light {
 mod tests {
     use super::{
         Account, Args, ArgsError, Config, Footprint, Ipc, Ipfs, Light, Mining, Misc, Network,
-        Operating, Rpc, SecretStore, Snapshots, Whisper, Ws,
+        Operating, Rpc, SecretStore, Snapshots, Ws,
     };
     use clap::ErrorKind as ClapErrorKind;
     use toml;
@@ -1606,10 +1589,6 @@ mod tests {
                 arg_on_demand_request_backoff_rounds_max: Some(100),
                 arg_on_demand_request_consecutive_failures: Some(1),
 
-                // -- Whisper options.
-                flag_whisper: false,
-                arg_whisper_pool_size: 20,
-
                 // -- Internal Options
                 flag_can_restart: false,
 
@@ -1825,10 +1804,6 @@ mod tests {
                     color: Some(true),
                     ports_shift: Some(0),
                     unsafe_expose: Some(false),
-                }),
-                whisper: Some(Whisper {
-                    enabled: Some(true),
-                    pool_size: Some(50),
                 }),
                 stratum: None,
             }

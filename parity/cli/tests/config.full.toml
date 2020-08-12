@@ -156,7 +156,3 @@ disable_periodic = false
 logging = "own_tx=trace"
 log_file = "/var/log/parity.log"
 color = true
-
-[whisper]
-enabled = false
-pool_size = 20
