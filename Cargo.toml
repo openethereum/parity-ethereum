@@ -135,7 +135,6 @@ members = [
 	"chainspec",
 	"ethcore/wasm/run",
 	"evmbin",
-	"parity-clib",
 	"util/triehash-ethereum",
 	"util/keccak-hasher",
 	"util/patricia-trie-ethereum",
