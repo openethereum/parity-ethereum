@@ -42,9 +42,6 @@ pub enum Availability {
 pub enum Capability {
     /// A full node stores the full state and fully enacts incoming blocks.
     Full,
-    /// A light node does a minimal header sync and fetches data as needed
-    /// from the network.
-    Light,
 }
 
 #[cfg(test)]
@@ -78,16 +75,10 @@ mod tests {
 
     #[test]
     fn capability() {
-        let light = r#""light""#;
         let full = r#""full""#;
 
-        assert_eq!(serde_json::to_string(&Capability::Light).unwrap(), light);
         assert_eq!(serde_json::to_string(&Capability::Full).unwrap(), full);
 
-        assert_eq!(
-            serde_json::from_str::<Capability>(light).unwrap(),
-            Capability::Light
-        );
         assert_eq!(
             serde_json::from_str::<Capability>(full).unwrap(),
             Capability::Full

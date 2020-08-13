@@ -37,8 +37,6 @@ mod signing_unsafe;
 mod traces;
 mod web3;
 
-pub mod light;
-
 #[cfg(any(test, feature = "accounts"))]
 pub use self::parity_accounts::ParityAccountsClient;
 #[cfg(any(test, feature = "accounts"))]

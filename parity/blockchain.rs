@@ -14,14 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::{
-    fs, io,
-    io::{BufRead, BufReader},
-    str::from_utf8,
-    sync::Arc,
-    thread::sleep,
-    time::{Duration, Instant},
-};
+use std::{fs, io, sync::Arc, time::Instant};
 
 use ansi_term::Colour;
 use bytes::ToPretty;
@@ -33,7 +26,6 @@ use ethcore::{
         Balance, BlockChainClient, BlockChainReset, BlockId, DatabaseCompactionProfile,
         ImportExportBlocks, Mode, Nonce, VMType,
     },
-    error::{Error as EthcoreError, ErrorKind as EthcoreErrorKind, ImportErrorKind},
     miner::Miner,
     verification::queue::VerifierSettings,
 };
@@ -44,8 +36,6 @@ use hash::{keccak, KECCAK_NULL_RLP};
 use helpers::{execute_upgrades, to_client_config};
 use informant::{FullNodeInformantData, Informant, MillisecondDuration};
 use params::{fatdb_switch_to_bool, tracing_switch_to_bool, Pruning, SpecType, Switch};
-use rlp::PayloadInfo;
-use rustc_hex::FromHex;
 use types::data_format::DataFormat;
 use user_defaults::UserDefaults;
 
@@ -96,7 +86,6 @@ pub struct ImportBlockchain {
     pub check_seal: bool,
     pub with_color: bool,
     pub verifier_settings: VerifierSettings,
-    pub light: bool,
     pub max_round_blocks_to_import: usize,
 }
 
@@ -143,199 +132,11 @@ pub struct ExportState {
 pub fn execute(cmd: BlockchainCmd) -> Result<(), String> {
     match cmd {
         BlockchainCmd::Kill(kill_cmd) => kill_db(kill_cmd),
-        BlockchainCmd::Import(import_cmd) => {
-            if import_cmd.light {
-                execute_import_light(import_cmd)
-            } else {
-                execute_import(import_cmd)
-            }
-        }
+        BlockchainCmd::Import(import_cmd) => execute_import(import_cmd),
         BlockchainCmd::Export(export_cmd) => execute_export(export_cmd),
         BlockchainCmd::ExportState(export_cmd) => execute_export_state(export_cmd),
         BlockchainCmd::Reset(reset_cmd) => execute_reset(reset_cmd),
     }
-}
-
-fn execute_import_light(cmd: ImportBlockchain) -> Result<(), String> {
-    use light::{
-        cache::Cache as LightDataCache,
-        client::{Config as LightClientConfig, Service as LightClientService},
-    };
-    use parking_lot::Mutex;
-
-    let timer = Instant::now();
-
-    // load spec file
-    let spec = cmd.spec.spec(&cmd.dirs.cache)?;
-
-    // load genesis hash
-    let genesis_hash = spec.genesis_header().hash();
-
-    // database paths
-    let db_dirs = cmd.dirs.database(genesis_hash, None, spec.data_dir.clone());
-
-    // user defaults path
-    let user_defaults_path = db_dirs.user_defaults_path();
-
-    // load user defaults
-    let user_defaults = UserDefaults::load(&user_defaults_path)?;
-
-    // select pruning algorithm
-    let algorithm = cmd.pruning.to_algorithm(&user_defaults);
-
-    // prepare client and snapshot paths.
-    let client_path = db_dirs.client_path(algorithm);
-
-    // execute upgrades
-    execute_upgrades(&cmd.dirs.base, &db_dirs, algorithm, &cmd.compaction)?;
-
-    // create dirs used by parity
-    cmd.dirs.create_dirs(false, false)?;
-
-    let cache = Arc::new(Mutex::new(LightDataCache::new(
-        Default::default(),
-        Duration::new(0, 0),
-    )));
-
-    let mut config = LightClientConfig {
-        queue: Default::default(),
-        chain_column: ethcore_db::COL_LIGHT_CHAIN,
-        verify_full: true,
-        check_seal: cmd.check_seal,
-        no_hardcoded_sync: true,
-    };
-
-    config.queue.max_mem_use = cmd.cache_config.queue() as usize * 1024 * 1024;
-    config.queue.verifier_settings = cmd.verifier_settings;
-
-    // initialize database.
-    let db = db::open_db(
-        &client_path
-            .to_str()
-            .expect("DB path could not be converted to string."),
-        &cmd.cache_config,
-        &cmd.compaction,
-    )
-    .map_err(|e| format!("Failed to open database: {:?}", e))?;
-
-    // TODO: could epoch signals be available at the end of the file?
-    let fetch = ::light::client::fetch::unavailable();
-    let service = LightClientService::start(config, &spec, fetch, db, cache)
-        .map_err(|e| format!("Failed to start client: {}", e))?;
-
-    // free up the spec in memory.
-    drop(spec);
-
-    let client = service.client();
-
-    let mut instream: Box<dyn io::Read> = match cmd.file_path {
-        Some(f) => {
-            Box::new(fs::File::open(&f).map_err(|_| format!("Cannot open given file: {}", f))?)
-        }
-        None => Box::new(io::stdin()),
-    };
-
-    const READAHEAD_BYTES: usize = 8;
-
-    let mut first_bytes: Vec<u8> = vec![0; READAHEAD_BYTES];
-    let mut first_read = 0;
-
-    let format = match cmd.format {
-        Some(format) => format,
-        None => {
-            first_read = instream
-                .read(&mut first_bytes)
-                .map_err(|_| "Error reading from the file/stream.")?;
-            match first_bytes[0] {
-                0xf9 => DataFormat::Binary,
-                _ => DataFormat::Hex,
-            }
-        }
-    };
-
-    let do_import = |bytes: Vec<u8>| {
-        while client.queue_info().is_full() {
-            sleep(Duration::from_secs(1));
-        }
-
-        let header: ::types::header::Header = ::rlp::Rlp::new(&bytes)
-            .val_at(0)
-            .map_err(|e| format!("Bad block: {}", e))?;
-
-        if client.best_block_header().number() >= header.number() {
-            return Ok(());
-        }
-
-        if header.number() % 10000 == 0 {
-            info!("#{}", header.number());
-        }
-
-        match client.import_header(header) {
-            Err(EthcoreError(EthcoreErrorKind::Import(ImportErrorKind::AlreadyInChain), _)) => {
-                trace!("Skipping block already in chain.");
-            }
-            Err(e) => {
-                return Err(format!("Cannot import block: {:?}", e));
-            }
-            Ok(_) => {}
-        }
-        Ok(())
-    };
-
-    match format {
-        DataFormat::Binary => loop {
-            let mut bytes = if first_read > 0 {
-                first_bytes.clone()
-            } else {
-                vec![0; READAHEAD_BYTES]
-            };
-            let n = if first_read > 0 {
-                first_read
-            } else {
-                instream
-                    .read(&mut bytes)
-                    .map_err(|_| "Error reading from the file/stream.")?
-            };
-            if n == 0 {
-                break;
-            }
-            first_read = 0;
-            let s = PayloadInfo::from(&bytes)
-                .map_err(|e| format!("Invalid RLP in the file/stream: {:?}", e))?
-                .total();
-            bytes.resize(s, 0);
-            instream
-                .read_exact(&mut bytes[n..])
-                .map_err(|_| "Error reading from the file/stream.")?;
-            do_import(bytes)?;
-        },
-        DataFormat::Hex => {
-            for line in BufReader::new(instream).lines() {
-                let s = line.map_err(|_| "Error reading from the file/stream.")?;
-                let s = if first_read > 0 {
-                    from_utf8(&first_bytes).unwrap().to_owned() + &(s[..])
-                } else {
-                    s
-                };
-                first_read = 0;
-                let bytes = s.from_hex().map_err(|_| "Invalid hex in file/stream.")?;
-                do_import(bytes)?;
-            }
-        }
-    }
-    client.flush_queue();
-
-    let ms = timer.elapsed().as_milliseconds();
-    let report = client.report();
-
-    info!(
-        "Import completed in {} seconds, {} headers, {} hdr/s",
-        ms / 1000,
-        report.blocks_imported,
-        (report.blocks_imported * 1000) as u64 / ms,
-    );
-
-    Ok(())
 }
 
 fn execute_import(cmd: ImportBlockchain) -> Result<(), String> {

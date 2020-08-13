@@ -19,7 +19,7 @@
 #[path = "rocksdb/mod.rs"]
 mod impls;
 
-pub use self::impls::{migrate, open_db, restoration_db_handler};
+pub use self::impls::{migrate, restoration_db_handler};
 
 #[cfg(feature = "secretstore")]
 pub use self::impls::open_secretstore_db;

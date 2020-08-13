@@ -51,7 +51,7 @@ pub mod pubsub;
 pub use self::{
     account_info::{AccountInfo, EthAccount, ExtAccountInfo, RecoveredAccount, StorageProof},
     block::{Block, BlockTransactions, Header, Rich, RichBlock, RichHeader},
-    block_number::{block_number_to_id, BlockNumber, LightBlockNumber},
+    block_number::{block_number_to_id, BlockNumber},
     bytes::Bytes,
     call_request::CallRequest,
     confirmations::{
@@ -74,7 +74,7 @@ pub use self::{
     secretstore::EncryptedDocumentKey,
     sync::{
         ChainStatus, EthProtocolInfo, PeerInfo, PeerNetworkInfo, PeerProtocolsInfo, Peers,
-        PipProtocolInfo, SyncInfo, SyncStatus, TransactionStats,
+        SyncInfo, SyncStatus, TransactionStats,
     },
     trace::{LocalizedTrace, TraceResults, TraceResultsWithTransactionHash},
     trace_filter::TraceFilter,

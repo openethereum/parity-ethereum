@@ -80,8 +80,6 @@ pub struct PeerNetworkInfo {
 pub struct PeerProtocolsInfo {
     /// Ethereum protocol information
     pub eth: Option<EthProtocolInfo>,
-    /// PIP protocol information.
-    pub pip: Option<PipProtocolInfo>,
 }
 
 /// Peer Ethereum protocol information
@@ -100,27 +98,6 @@ impl From<sync::EthProtocolInfo> for EthProtocolInfo {
         EthProtocolInfo {
             version: info.version,
             difficulty: info.difficulty.map(Into::into),
-            head: format!("{:x}", info.head),
-        }
-    }
-}
-
-/// Peer PIP protocol information
-#[derive(Default, Debug, Serialize)]
-pub struct PipProtocolInfo {
-    /// Negotiated PIP protocol version
-    pub version: u32,
-    /// Peer total difficulty
-    pub difficulty: U256,
-    /// SHA3 of peer best block hash
-    pub head: String,
-}
-
-impl From<sync::PipProtocolInfo> for PipProtocolInfo {
-    fn from(info: sync::PipProtocolInfo) -> Self {
-        PipProtocolInfo {
-            version: info.version,
-            difficulty: info.difficulty,
             head: format!("{:x}", info.head),
         }
     }
@@ -169,7 +146,6 @@ impl From<SyncPeerInfo> for PeerInfo {
             },
             protocols: PeerProtocolsInfo {
                 eth: p.eth_info.map(Into::into),
-                pip: p.pip_info.map(Into::into),
             },
         }
     }

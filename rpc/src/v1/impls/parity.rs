@@ -46,8 +46,8 @@ use v1::{
     traits::Parity,
     types::{
         block_number_to_id, BlockNumber, Bytes, CallRequest, ChainStatus, ConsensusCapability,
-        Filter, Histogram, LocalTransactionStatus, Log, OperationsInfo, Peers, Receipt,
-        RecoveredAccount, RichHeader, RpcSettings, Transaction, TransactionStats, VersionInfo,
+        Histogram, LocalTransactionStatus, OperationsInfo, Peers, Receipt, RecoveredAccount,
+        RichHeader, RpcSettings, Transaction, TransactionStats, VersionInfo,
     },
 };
 use Host;
@@ -491,12 +491,6 @@ where
         } else {
             Err(errors::status_error(has_peers))
         }
-    }
-
-    fn logs_no_tx_hash(&self, filter: Filter) -> BoxFuture<Vec<Log>> {
-        use v1::impls::eth::base_logs;
-        // only specific impl for lightclient
-        base_logs(&*self.client, &*self.miner, filter)
     }
 
     fn verify_signature(

@@ -27,7 +27,6 @@ pub mod engine_signer;
 pub mod external_signer;
 pub mod fake_sign;
 pub mod ipfs;
-pub mod light_fetch;
 pub mod nonce;
 #[cfg(any(test, feature = "accounts"))]
 pub mod secretstore;
@@ -42,7 +41,7 @@ mod subscription_manager;
 mod work;
 
 pub use self::{
-    dispatch::{Dispatcher, FullDispatcher, LightDispatcher},
+    dispatch::{Dispatcher, FullDispatcher},
     network_settings::NetworkSettings,
     poll_filter::{limit_logs, PollFilter, SyncPollFilter},
     poll_manager::PollManager,

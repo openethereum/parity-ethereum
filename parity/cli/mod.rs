@@ -230,11 +230,6 @@ usage! {
             }
 
         }
-
-        CMD cmd_export_hardcoded_sync
-        {
-            "Print the hashed light clients headers of the given --chain (default: mainnet) in a JSON format. To be used as hardcoded headers in a genesis file.",
-        }
     }
     {
         // Global flags and arguments
@@ -246,14 +241,6 @@ usage! {
             FLAG flag_no_consensus: (bool) = false, or |c: &Config| c.parity.as_ref()?.no_consensus.clone(),
             "--no-consensus",
             "Force the binary to run even if there are known issues regarding consensus. Not recommended.",
-
-            FLAG flag_light: (bool) = false, or |c: &Config| c.parity.as_ref()?.light,
-            "--light",
-            "Experimental: run in light client mode. Light clients synchronize a bare minimum of data and fetch necessary data on-demand from the network. Much lower in storage, potentially higher in bandwidth. Has no effect with subcommands.",
-
-            FLAG flag_no_hardcoded_sync: (bool) = false, or |c: &Config| c.parity.as_ref()?.no_hardcoded_sync,
-            "--no-hardcoded-sync",
-            "By default, if there is no existing database the light client will automatically jump to a block hardcoded in the chain's specifications. This disables this feature.",
 
             FLAG flag_force_direct: (bool) = false, or |_| None,
             "--force-direct",
@@ -391,10 +378,6 @@ usage! {
             FLAG flag_no_ancient_blocks: (bool) = false, or |_| None,
             "--no-ancient-blocks",
             "Disable downloading old blocks after snapshot restoration or warp sync. Not recommended.",
-
-            FLAG flag_no_serve_light: (bool) = false, or |c: &Config| c.network.as_ref()?.no_serve_light.clone(),
-            "--no-serve-light",
-            "Disable serving of light peers.",
 
             ARG arg_warp_barrier: (Option<u64>) = None, or |c: &Config| c.network.as_ref()?.warp_barrier.clone(),
             "--warp-barrier=[NUM]",
@@ -573,27 +556,6 @@ usage! {
             ARG arg_ipfs_api_cors: (String) = "none", or |c: &Config| c.ipfs.as_ref()?.cors.as_ref().map(|vec| vec.join(",")),
             "--ipfs-api-cors=[URL]",
             "Specify CORS header for IPFS API responses. Special options: \"all\", \"none\".",
-
-        ["Light Client Options"]
-            ARG arg_on_demand_response_time_window: (Option<u64>) = None, or |c: &Config| c.light.as_ref()?.on_demand_response_time_window,
-            "--on-demand-time-window=[S]",
-            "Specify the maximum time to wait for a successful response",
-
-            ARG arg_on_demand_request_backoff_start: (Option<u64>) = None, or |c: &Config| c.light.as_ref()?.on_demand_request_backoff_start,
-            "--on-demand-start-backoff=[S]",
-            "Specify light client initial backoff time for a request",
-
-            ARG arg_on_demand_request_backoff_max: (Option<u64>) = None, or |c: &Config| c.light.as_ref()?.on_demand_request_backoff_max,
-            "--on-demand-end-backoff=[S]",
-            "Specify light client maximum backoff time for a request",
-
-            ARG arg_on_demand_request_backoff_rounds_max: (Option<usize>) = None, or |c: &Config| c.light.as_ref()?.on_demand_request_backoff_rounds_max,
-            "--on-demand-max-backoff-rounds=[TIMES]",
-            "Specify light client maximum number of backoff iterations for a request",
-
-            ARG arg_on_demand_request_consecutive_failures: (Option<usize>) = None, or |c: &Config| c.light.as_ref()?.on_demand_request_consecutive_failures,
-            "--on-demand-consecutive-failures=[TIMES]",
-            "Specify light client the number of failures for a request until it gets exponentially backed off",
 
         ["Secret Store Options"]
             FLAG flag_no_secretstore: (bool) = false, or |c: &Config| c.secretstore.as_ref()?.disable.clone(),
@@ -926,7 +888,6 @@ struct Config {
     snapshots: Option<Snapshots>,
     misc: Option<Misc>,
     stratum: Option<Stratum>,
-    light: Option<Light>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
@@ -946,9 +907,7 @@ struct Operating {
     db_path: Option<String>,
     keys_path: Option<String>,
     identity: Option<String>,
-    light: Option<bool>,
     no_persistent_txqueue: Option<bool>,
-    no_hardcoded_sync: Option<bool>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
@@ -998,7 +957,6 @@ struct Network {
     node_key: Option<String>,
     reserved_peers: Option<String>,
     reserved_only: Option<bool>,
-    no_serve_light: Option<bool>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
@@ -1154,21 +1112,11 @@ struct Misc {
     unsafe_expose: Option<bool>,
 }
 
-#[derive(Default, Debug, PartialEq, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct Light {
-    on_demand_response_time_window: Option<u64>,
-    on_demand_request_backoff_start: Option<u64>,
-    on_demand_request_backoff_max: Option<u64>,
-    on_demand_request_backoff_rounds_max: Option<usize>,
-    on_demand_request_consecutive_failures: Option<usize>,
-}
-
 #[cfg(test)]
 mod tests {
     use super::{
-        Account, Args, ArgsError, Config, Footprint, Ipc, Ipfs, Light, Mining, Misc, Network,
-        Operating, Rpc, SecretStore, Snapshots, Ws,
+        Account, Args, ArgsError, Config, Footprint, Ipc, Ipfs, Mining, Misc, Network, Operating,
+        Rpc, SecretStore, Snapshots, Ws,
     };
     use clap::ErrorKind as ClapErrorKind;
     use toml;
@@ -1373,7 +1321,6 @@ mod tests {
                 cmd_db: false,
                 cmd_db_kill: false,
                 cmd_db_reset: false,
-                cmd_export_hardcoded_sync: false,
 
                 // Arguments
                 arg_daemon_pid_file: None,
@@ -1408,8 +1355,6 @@ mod tests {
                 arg_db_path: Some("$HOME/.parity/chains".into()),
                 arg_keys_path: "$HOME/.parity/keys".into(),
                 arg_identity: "".into(),
-                flag_light: false,
-                flag_no_hardcoded_sync: false,
                 flag_no_persistent_txqueue: false,
                 flag_force_direct: false,
 
@@ -1453,7 +1398,6 @@ mod tests {
                 arg_reserved_peers: Some("./path_to_file".into()),
                 flag_reserved_only: false,
                 flag_no_ancient_blocks: false,
-                flag_no_serve_light: false,
                 arg_warp_barrier: None,
 
                 // -- API and Console Options
@@ -1582,13 +1526,6 @@ mod tests {
                 flag_no_periodic_snapshot: false,
                 arg_snapshot_threads: None,
 
-                // -- Light options.
-                arg_on_demand_response_time_window: Some(2),
-                arg_on_demand_request_backoff_start: Some(9),
-                arg_on_demand_request_backoff_max: Some(15),
-                arg_on_demand_request_backoff_rounds_max: Some(100),
-                arg_on_demand_request_consecutive_failures: Some(1),
-
                 // -- Internal Options
                 flag_can_restart: false,
 
@@ -1648,8 +1585,6 @@ mod tests {
                     db_path: None,
                     keys_path: None,
                     identity: None,
-                    light: None,
-                    no_hardcoded_sync: None,
                     no_persistent_txqueue: None,
                 }),
                 account: Some(Account {
@@ -1677,7 +1612,6 @@ mod tests {
                     node_key: None,
                     reserved_peers: Some("./path/to/reserved_peers".into()),
                     reserved_only: Some(true),
-                    no_serve_light: None,
                 }),
                 websockets: Some(Ws {
                     disable: Some(true),
@@ -1786,13 +1720,6 @@ mod tests {
                     fat_db: Some("off".into()),
                     scale_verifiers: Some(false),
                     num_verifiers: None,
-                }),
-                light: Some(Light {
-                    on_demand_response_time_window: Some(2),
-                    on_demand_request_backoff_start: Some(9),
-                    on_demand_request_backoff_max: Some(15),
-                    on_demand_request_backoff_rounds_max: Some(10),
-                    on_demand_request_consecutive_failures: Some(1),
                 }),
                 snapshots: Some(Snapshots {
                     disable_periodic: Some(true),

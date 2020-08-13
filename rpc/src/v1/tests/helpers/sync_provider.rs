@@ -85,7 +85,6 @@ impl SyncProvider for TestSyncProvider {
                     difficulty: Some(40.into()),
                     head: 50.into(),
                 }),
-                pip_info: None,
             },
             PeerInfo {
                 id: None,
@@ -98,7 +97,6 @@ impl SyncProvider for TestSyncProvider {
                     difficulty: None,
                     head: 60.into(),
                 }),
-                pip_info: None,
             },
         ]
     }

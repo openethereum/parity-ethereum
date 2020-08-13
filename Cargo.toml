@@ -38,7 +38,6 @@ ethcore-blockchain = { path = "ethcore/blockchain" }
 ethcore-call-contract = { path = "ethcore/call-contract"}
 ethcore-db = { path = "ethcore/db" }
 ethcore-io = { path = "util/io" }
-ethcore-light = { path = "ethcore/light" }
 ethcore-logger = { path = "parity/logger" }
 ethcore-miner = { path = "miner" }
 ethcore-network = { path = "util/network" }

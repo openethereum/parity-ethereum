@@ -53,7 +53,6 @@ use dir::{
 };
 use ethcore_logger::Config as LogConfig;
 use ethcore_private_tx::{EncryptorConfig, ProviderConfig};
-use export_hardcoded_sync::ExportHsyncCmd;
 use helpers::{
     parity_ipc_path, to_address, to_addresses, to_block_id, to_bootnodes, to_duration, to_mode,
     to_pending_set, to_price, to_queue_penalization, to_queue_strategy, to_u256,
@@ -103,7 +102,6 @@ pub enum Cmd {
     },
     Snapshot(SnapshotCommand),
     Hash(Option<String>),
-    ExportHardcodedSync(ExportHsyncCmd),
 }
 
 pub struct Execute {
@@ -286,7 +284,6 @@ impl Configuration {
                 check_seal: !self.args.flag_no_seal_check,
                 with_color: logger_config.color,
                 verifier_settings: self.verifier_settings(),
-                light: self.args.flag_light,
                 max_round_blocks_to_import: self.args.arg_max_round_blocks_to_import,
             };
             Cmd::Blockchain(BlockchainCmd::Import(import_cmd))
@@ -376,15 +373,6 @@ impl Configuration {
                 snapshot_conf: snapshot_conf,
             };
             Cmd::Snapshot(restore_cmd)
-        } else if self.args.cmd_export_hardcoded_sync {
-            let export_hs_cmd = ExportHsyncCmd {
-                cache_config: cache_config,
-                dirs: dirs,
-                spec: spec,
-                pruning: pruning,
-                compaction: compaction,
-            };
-            Cmd::ExportHardcodedSync(export_hs_cmd)
         } else {
             let daemon = if self.args.cmd_daemon {
                 Some(
@@ -444,20 +432,8 @@ impl Configuration {
                 check_seal: !self.args.flag_no_seal_check,
                 download_old_blocks: !self.args.flag_no_ancient_blocks,
                 verifier_settings: verifier_settings,
-                serve_light: !self.args.flag_no_serve_light,
-                light: self.args.flag_light,
                 no_persistent_txqueue: self.args.flag_no_persistent_txqueue,
-                no_hardcoded_sync: self.args.flag_no_hardcoded_sync,
                 max_round_blocks_to_import: self.args.arg_max_round_blocks_to_import,
-                on_demand_response_time_window: self.args.arg_on_demand_response_time_window,
-                on_demand_request_backoff_start: self.args.arg_on_demand_request_backoff_start,
-                on_demand_request_backoff_max: self.args.arg_on_demand_request_backoff_max,
-                on_demand_request_backoff_rounds_max: self
-                    .args
-                    .arg_on_demand_request_backoff_rounds_max,
-                on_demand_request_consecutive_failures: self
-                    .args
-                    .arg_on_demand_request_consecutive_failures,
             };
             Cmd::Run(run_cmd)
         };
@@ -1106,16 +1082,7 @@ impl Configuration {
         let is_using_base_path = self.args.arg_base_path.is_some();
         // If base_path is set and db_path is not we default to base path subdir instead of LOCAL.
         let base_db_path = if is_using_base_path && self.args.arg_db_path.is_none() {
-            if self.args.flag_light {
-                "$BASE/chains_light"
-            } else {
-                "$BASE/chains"
-            }
-        } else if self.args.flag_light {
-            self.args
-                .arg_db_path
-                .as_ref()
-                .map_or(dir::CHAINS_PATH_LIGHT, |s| &s)
+            "$BASE/chains"
         } else {
             self.args
                 .arg_db_path
@@ -1479,7 +1446,6 @@ mod tests {
                 check_seal: true,
                 with_color: !cfg!(windows),
                 verifier_settings: Default::default(),
-                light: false,
                 max_round_blocks_to_import: 12,
             }))
         );
@@ -1674,16 +1640,8 @@ mod tests {
             check_seal: true,
             download_old_blocks: true,
             verifier_settings: Default::default(),
-            serve_light: true,
-            light: false,
-            no_hardcoded_sync: false,
             no_persistent_txqueue: false,
             max_round_blocks_to_import: 12,
-            on_demand_response_time_window: None,
-            on_demand_request_backoff_start: None,
-            on_demand_request_backoff_max: None,
-            on_demand_request_backoff_rounds_max: None,
-            on_demand_request_consecutive_failures: None,
         };
         expected.secretstore_conf.enabled = cfg!(feature = "secretstore");
         expected.secretstore_conf.http_enabled = cfg!(feature = "secretstore");

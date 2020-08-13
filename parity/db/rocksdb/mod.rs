@@ -23,12 +23,9 @@ use self::{
     kvdb_rocksdb::{Database, DatabaseConfig},
 };
 use blooms_db;
-use ethcore::client::{ClientConfig, DatabaseCompactionProfile};
-use ethcore_db::NUM_COLUMNS;
+use ethcore::client::ClientConfig;
 use kvdb::KeyValueDB;
 use std::{fs, io, path::Path, sync::Arc};
-
-use cache::CacheConfig;
 
 mod blooms;
 mod helpers;
@@ -91,23 +88,6 @@ pub fn restoration_db_handler(
     Box::new(RestorationDBHandler {
         config: client_db_config,
     })
-}
-
-/// Open a new main DB.
-pub fn open_db(
-    client_path: &str,
-    cache_config: &CacheConfig,
-    compaction: &DatabaseCompactionProfile,
-) -> io::Result<Arc<dyn BlockChainDB>> {
-    let path = Path::new(client_path);
-
-    let db_config = DatabaseConfig {
-        memory_budget: Some(cache_config.blockchain() as usize * 1024 * 1024),
-        compaction: helpers::compaction_profile(&compaction, path),
-        ..DatabaseConfig::with_columns(NUM_COLUMNS)
-    };
-
-    open_database(client_path, &db_config)
 }
 
 pub fn open_database(

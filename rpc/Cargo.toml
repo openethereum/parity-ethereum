@@ -38,14 +38,12 @@ common-types = { path = "../ethcore/types" }
 ethash = { path = "../ethash" }
 ethcore = { path = "../ethcore" }
 ethcore-accounts = { path = "../accounts", optional = true }
-ethcore-light = { path = "../ethcore/light" }
 ethcore-logger = { path = "../parity/logger" }
 ethcore-miner = { path = "../miner" }
 ethcore-network = { path = "../util/network" }
 ethcore-private-tx = { path = "../ethcore/private-tx" }
 ethcore-sync = { path = "../ethcore/sync" }
 ethereum-types = "0.4"
-fastmap = { path = "../util/fastmap" }
 parity-bytes = "0.1"
 parity-crypto = "0.3.0"
 

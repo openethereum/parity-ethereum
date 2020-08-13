@@ -15,8 +15,6 @@ base_path = "$HOME/.parity"
 db_path = "$HOME/.parity/chains"
 keys_path = "$HOME/.parity/keys"
 identity = ""
-light = false
-no_hardcoded_sync = false
 
 [account]
 unlock = ["0xdeadbeefcafe0000000000000000000000000000"]
@@ -47,7 +45,6 @@ warp = true
 allow_ips = "all"
 snapshot_peers = 0
 max_pending_peers = 64
-no_serve_light = false
 
 reserved_only = false
 reserved_peers = "./path_to_file"
@@ -141,13 +138,6 @@ db_compaction = "ssd"
 fat_db = "auto"
 scale_verifiers = true
 num_verifiers = 6
-
-[light]
-on_demand_response_time_window = 2
-on_demand_request_backoff_start = 9
-on_demand_request_backoff_max = 15
-on_demand_request_backoff_rounds_max = 100
-on_demand_request_consecutive_failures = 1
 
 [snapshots]
 disable_periodic = false

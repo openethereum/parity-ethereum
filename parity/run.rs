@@ -34,7 +34,6 @@ use ethcore::{
     },
     miner::{self, stratum, Miner, MinerOptions, MinerService},
     snapshot::{self, SnapshotConfiguration},
-    spec::{OptimizeFor, SpecParams},
     verification::queue::VerifierSettings,
 };
 use ethcore_logger::{Config as LogConfig, RotatingLogger};
@@ -44,11 +43,10 @@ use ethereum_types::Address;
 use futures::IntoFuture;
 use hash_fetch::{self, fetch};
 use helpers::{execute_upgrades, passwords_from_files, to_client_config};
-use informant::{FullNodeInformantData, Informant, LightNodeInformantData};
+use informant::{FullNodeInformantData, Informant};
 use ipfs;
 use journaldb::Algorithm;
 use jsonrpc_core;
-use light::Cache as LightDataCache;
 use miner::{external::ExternalMiner, work_notify::WorkPoster};
 use modules;
 use node_filter::NodeFilter;
@@ -77,15 +75,8 @@ const SNAPSHOT_PERIOD: u64 = 5000;
 // how many blocks to wait before starting a periodic snapshot.
 const SNAPSHOT_HISTORY: u64 = 100;
 
-// Number of minutes before a given gas price corpus should expire.
-// Light client only.
-const GAS_CORPUS_EXPIRATION_MINUTES: u64 = 60 * 6;
-
 // Full client number of DNS threads
 const FETCH_FULL_NUM_DNS_THREADS: usize = 4;
-
-// Light client number of DNS threads
-const FETCH_LIGHT_NUM_DNS_THREADS: usize = 1;
 
 #[derive(Debug, PartialEq)]
 pub struct RunCmd {
@@ -132,16 +123,8 @@ pub struct RunCmd {
     pub allow_missing_blocks: bool,
     pub download_old_blocks: bool,
     pub verifier_settings: VerifierSettings,
-    pub serve_light: bool,
-    pub light: bool,
     pub no_persistent_txqueue: bool,
-    pub no_hardcoded_sync: bool,
     pub max_round_blocks_to_import: usize,
-    pub on_demand_response_time_window: Option<u64>,
-    pub on_demand_request_backoff_start: Option<u64>,
-    pub on_demand_request_backoff_max: Option<u64>,
-    pub on_demand_request_backoff_rounds_max: Option<usize>,
-    pub on_demand_request_consecutive_failures: Option<usize>,
 }
 
 // node info fetcher for the local store.
@@ -169,252 +152,15 @@ impl ::local_store::NodeInfo for FullNodeInfo {
     }
 }
 
-type LightClient = ::light::client::Client<::light_helpers::EpochFetch>;
-
-// helper for light execution.
-fn execute_light_impl<Cr>(
-    cmd: RunCmd,
-    logger: Arc<RotatingLogger>,
-    on_client_rq: Cr,
-) -> Result<RunningClient, String>
-where
-    Cr: Fn(String) + 'static + Send,
-{
-    use light::client as light_client;
-    use parking_lot::{Mutex, RwLock};
-    use sync::{LightSync, LightSyncParams, ManageNetwork};
-
-    // load spec
-    let spec = cmd.spec.spec(SpecParams::new(
-        cmd.dirs.cache.as_ref(),
-        OptimizeFor::Memory,
-    ))?;
-
-    // load genesis hash
-    let genesis_hash = spec.genesis_header().hash();
-
-    // database paths
-    let db_dirs = cmd.dirs.database(
-        genesis_hash,
-        cmd.spec.legacy_fork_name(),
-        spec.data_dir.clone(),
-    );
-
-    // user defaults path
-    let user_defaults_path = db_dirs.user_defaults_path();
-
-    // load user defaults
-    let user_defaults = UserDefaults::load(&user_defaults_path)?;
-
-    // select pruning algorithm
-    let algorithm = cmd.pruning.to_algorithm(&user_defaults);
-
-    // execute upgrades
-    execute_upgrades(&cmd.dirs.base, &db_dirs, algorithm, &cmd.compaction)?;
-
-    // create dirs used by parity
-    cmd.dirs.create_dirs(
-        cmd.acc_conf.unlocked_accounts.len() == 0,
-        cmd.secretstore_conf.enabled,
-    )?;
-
-    //print out running parity environment
-    print_running_environment(&spec.data_dir, &cmd.dirs, &db_dirs);
-
-    info!(
-        "Running in experimental {} mode.",
-        Colour::Blue.bold().paint("Light Client")
-    );
-
-    // TODO: configurable cache size.
-    let cache = LightDataCache::new(
-        Default::default(),
-        Duration::from_secs(60 * GAS_CORPUS_EXPIRATION_MINUTES),
-    );
-    let cache = Arc::new(Mutex::new(cache));
-
-    // start client and create transaction queue.
-    let mut config = light_client::Config {
-        queue: Default::default(),
-        chain_column: ::ethcore_db::COL_LIGHT_CHAIN,
-        verify_full: true,
-        check_seal: cmd.check_seal,
-        no_hardcoded_sync: cmd.no_hardcoded_sync,
-    };
-
-    config.queue.max_mem_use = cmd.cache_config.queue() as usize * 1024 * 1024;
-    config.queue.verifier_settings = cmd.verifier_settings;
-
-    // start on_demand service.
-
-    let response_time_window = cmd
-        .on_demand_response_time_window
-        .map_or(::light::on_demand::DEFAULT_RESPONSE_TIME_TO_LIVE, |s| {
-            Duration::from_secs(s)
-        });
-
-    let request_backoff_start = cmd.on_demand_request_backoff_start.map_or(
-        ::light::on_demand::DEFAULT_REQUEST_MIN_BACKOFF_DURATION,
-        |s| Duration::from_secs(s),
-    );
-
-    let request_backoff_max = cmd.on_demand_request_backoff_max.map_or(
-        ::light::on_demand::DEFAULT_REQUEST_MAX_BACKOFF_DURATION,
-        |s| Duration::from_secs(s),
-    );
-
-    let on_demand = Arc::new({
-        ::light::on_demand::OnDemand::new(
-            cache.clone(),
-            response_time_window,
-            request_backoff_start,
-            request_backoff_max,
-            cmd.on_demand_request_backoff_rounds_max
-                .unwrap_or(::light::on_demand::DEFAULT_MAX_REQUEST_BACKOFF_ROUNDS),
-            cmd.on_demand_request_consecutive_failures
-                .unwrap_or(::light::on_demand::DEFAULT_NUM_CONSECUTIVE_FAILED_REQUESTS),
-        )
-    });
-
-    let sync_handle = Arc::new(RwLock::new(Weak::new()));
-    let fetch = ::light_helpers::EpochFetch {
-        on_demand: on_demand.clone(),
-        sync: sync_handle.clone(),
-    };
-
-    // initialize database.
-    let db = db::open_db(
-        &db_dirs
-            .client_path(algorithm)
-            .to_str()
-            .expect("DB path could not be converted to string."),
-        &cmd.cache_config,
-        &cmd.compaction,
-    )
-    .map_err(|e| format!("Failed to open database {:?}", e))?;
-
-    let service = light_client::Service::start(config, &spec, fetch, db, cache.clone())
-        .map_err(|e| format!("Error starting light client: {}", e))?;
-    let client = service.client().clone();
-    let txq = Arc::new(RwLock::new(
-        ::light::transaction_queue::TransactionQueue::default(),
-    ));
-    let provider = ::light::provider::LightProvider::new(client.clone(), txq.clone());
-
-    // start network.
-    // set up bootnodes
-    let mut net_conf = cmd.net_conf;
-    if !cmd.custom_bootnodes {
-        net_conf.boot_nodes = spec.nodes.clone();
-    }
-
-    // set network path.
-    net_conf.net_config_path = Some(db_dirs.network_path().to_string_lossy().into_owned());
-    let sync_params = LightSyncParams {
-        network_config: net_conf
-            .into_basic()
-            .map_err(|e| format!("Failed to produce network config: {}", e))?,
-        client: Arc::new(provider),
-        network_id: cmd.network_id.unwrap_or(spec.network_id()),
-        subprotocol_name: sync::LIGHT_PROTOCOL,
-        handlers: vec![on_demand.clone()],
-    };
-    let light_sync =
-        LightSync::new(sync_params).map_err(|e| format!("Error starting network: {}", e))?;
-    let light_sync = Arc::new(light_sync);
-    *sync_handle.write() = Arc::downgrade(&light_sync);
-
-    // spin up event loop
-    let runtime = Runtime::with_default_thread_count();
-
-    // start the network.
-    light_sync.start_network();
-
-    // fetch service
-    let fetch = fetch::Client::new(FETCH_LIGHT_NUM_DNS_THREADS)
-        .map_err(|e| format!("Error starting fetch client: {:?}", e))?;
-    let passwords = passwords_from_files(&cmd.acc_conf.password_files)?;
-
-    // prepare account provider
-    let account_provider = Arc::new(account_utils::prepare_account_provider(
-        &cmd.spec,
-        &cmd.dirs,
-        &spec.data_dir,
-        cmd.acc_conf,
-        &passwords,
-    )?);
-    let rpc_stats = Arc::new(informant::RpcStats::default());
-
-    // the dapps server
-    let signer_service = Arc::new(signer::new_service(&cmd.ws_conf, &cmd.logger_config));
-
-    // start RPCs
-    let deps_for_rpc_apis = Arc::new(rpc_apis::LightDependencies {
-        signer_service: signer_service,
-        client: client.clone(),
-        sync: light_sync.clone(),
-        net: light_sync.clone(),
-        accounts: account_provider,
-        logger: logger,
-        settings: Arc::new(cmd.net_settings),
-        on_demand: on_demand,
-        cache: cache.clone(),
-        transaction_queue: txq,
-        ws_address: cmd.ws_conf.address(),
-        fetch: fetch,
-        experimental_rpcs: cmd.experimental_rpcs,
-        executor: runtime.executor(),
-        private_tx_service: None, //TODO: add this to client.
-        gas_price_percentile: cmd.gas_price_percentile,
-        poll_lifetime: cmd.poll_lifetime,
-    });
-
-    let dependencies = rpc::Dependencies {
-        apis: deps_for_rpc_apis.clone(),
-        executor: runtime.executor(),
-        stats: rpc_stats.clone(),
-    };
-
-    // start rpc servers
-    let rpc_direct = rpc::setup_apis(rpc_apis::ApiSet::All, &dependencies);
-    let ws_server = rpc::new_ws(cmd.ws_conf, &dependencies)?;
-    let http_server = rpc::new_http(
-        "HTTP JSON-RPC",
-        "jsonrpc",
-        cmd.http_conf.clone(),
-        &dependencies,
-    )?;
-    let ipc_server = rpc::new_ipc(cmd.ipc_conf, &dependencies)?;
-
-    // the informant
-    let informant = Arc::new(Informant::new(
-        LightNodeInformantData {
-            client: client.clone(),
-            sync: light_sync.clone(),
-            cache: cache,
-        },
-        None,
-        Some(rpc_stats),
-        cmd.logger_config.color,
-    ));
-    service.add_notify(informant.clone());
-    service
-        .register_handler(informant.clone())
-        .map_err(|_| "Unable to register informant handler".to_owned())?;
-
-    client.set_exit_handler(on_client_rq);
-
-    Ok(RunningClient {
-        inner: RunningClientInner::Light {
-            rpc: rpc_direct,
-            informant,
-            client,
-            keep_alive: Box::new((service, ws_server, http_server, ipc_server, runtime)),
-        },
-    })
-}
-
-fn execute_impl<Cr, Rr>(
+/// Executes the given run command.
+///
+/// `on_client_rq` is the action to perform when the client receives an RPC request to be restarted
+/// with a different chain.
+///
+/// `on_updater_rq` is the action to perform when the updater has a new binary to execute.
+///
+/// On error, returns what to print on stderr.
+pub fn execute<Cr, Rr>(
     cmd: RunCmd,
     logger: Arc<RotatingLogger>,
     on_client_rq: Cr,
@@ -540,7 +286,6 @@ where
         _ => sync::WarpSync::Disabled,
     };
     sync_config.download_old_blocks = cmd.download_old_blocks;
-    sync_config.serve_light = cmd.serve_light;
 
     let passwords = passwords_from_files(&cmd.acc_conf.password_files)?;
 
@@ -595,11 +340,6 @@ where
         )? {
             miner.set_author(author);
         }
-    }
-
-    // display warning if using --no-hardcoded-sync
-    if cmd.no_hardcoded_sync {
-        warn!("The --no-hardcoded-sync flag has no effect if you don't use --light");
     }
 
     // create client config
@@ -747,7 +487,6 @@ where
         client.clone(),
         snapshot_service.clone(),
         private_tx_sync,
-        client.clone(),
         &cmd.logger_config,
         connection_filter
             .clone()
@@ -965,15 +704,6 @@ pub struct RunningClient {
 }
 
 enum RunningClientInner {
-    Light {
-        rpc: jsonrpc_core::MetaIoHandler<
-            Metadata,
-            informant::Middleware<rpc_apis::LightClientNotifier>,
-        >,
-        informant: Arc<Informant<LightNodeInformantData>>,
-        client: Arc<LightClient>,
-        keep_alive: Box<dyn Any>,
-    },
     Full {
         rpc:
             jsonrpc_core::MetaIoHandler<Metadata, informant::Middleware<informant::ClientNotifier>>,
@@ -998,7 +728,6 @@ impl RunningClient {
         };
 
         match self.inner {
-            RunningClientInner::Light { ref rpc, .. } => rpc.handle_request(request, metadata),
             RunningClientInner::Full { ref rpc, .. } => rpc.handle_request(request, metadata),
         }
     }
@@ -1006,22 +735,6 @@ impl RunningClient {
     /// Shuts down the client.
     pub fn shutdown(self) {
         match self.inner {
-            RunningClientInner::Light {
-                rpc,
-                informant,
-                client,
-                keep_alive,
-            } => {
-                // Create a weak reference to the client so that we can wait on shutdown
-                // until it is dropped
-                let weak_client = Arc::downgrade(&client);
-                drop(rpc);
-                drop(keep_alive);
-                informant.shutdown();
-                drop(informant);
-                drop(client);
-                wait_for_drop(weak_client);
-            }
             RunningClientInner::Full {
                 rpc,
                 informant,
@@ -1057,31 +770,6 @@ impl RunningClient {
                 wait_for_drop(weak_client);
             }
         }
-    }
-}
-
-/// Executes the given run command.
-///
-/// `on_client_rq` is the action to perform when the client receives an RPC request to be restarted
-/// with a different chain.
-///
-/// `on_updater_rq` is the action to perform when the updater has a new binary to execute.
-///
-/// On error, returns what to print on stderr.
-pub fn execute<Cr, Rr>(
-    cmd: RunCmd,
-    logger: Arc<RotatingLogger>,
-    on_client_rq: Cr,
-    on_updater_rq: Rr,
-) -> Result<RunningClient, String>
-where
-    Cr: Fn(String) + 'static + Send,
-    Rr: Fn() + 'static + Send,
-{
-    if cmd.light {
-        execute_light_impl(cmd, logger, on_client_rq)
-    } else {
-        execute_impl(cmd, logger, on_client_rq, on_updater_rq)
     }
 }
 

@@ -37,8 +37,6 @@ extern crate rand;
 extern crate rlp;
 extern crate triehash_ethereum;
 
-extern crate ethcore_light as light;
-
 #[cfg(test)]
 extern crate env_logger;
 #[cfg(test)]
@@ -66,8 +64,6 @@ mod private_tx;
 mod snapshot;
 mod sync_io;
 mod transactions_stats;
-
-pub mod light_sync;
 
 #[cfg(test)]
 mod tests;

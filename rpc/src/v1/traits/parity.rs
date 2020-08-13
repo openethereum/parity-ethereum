@@ -22,8 +22,8 @@ use ethereum_types::{H160, H256, H512, H64, U256, U64};
 use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_derive::rpc;
 use v1::types::{
-    BlockNumber, Bytes, CallRequest, ChainStatus, ConsensusCapability, Filter, Histogram,
-    LocalTransactionStatus, Log, OperationsInfo, Peers, Receipt, RecoveredAccount, RichHeader,
+    BlockNumber, Bytes, CallRequest, ChainStatus, ConsensusCapability, Histogram,
+    LocalTransactionStatus, OperationsInfo, Peers, Receipt, RecoveredAccount, RichHeader,
     RpcSettings, Transaction, TransactionStats, VersionInfo,
 };
 
@@ -242,9 +242,4 @@ pub trait Parity {
         _: H256,
         _: U64,
     ) -> Result<RecoveredAccount>;
-
-    /// Returns logs matching given filter object.
-    /// Is allowed to skip filling transaction hash for faster query.
-    #[rpc(name = "parity_getLogsNoTransactionHash")]
-    fn logs_no_tx_hash(&self, _: Filter) -> BoxFuture<Vec<Log>>;
 }

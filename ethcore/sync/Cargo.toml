@@ -12,7 +12,6 @@ common-types = { path = "../types" }
 enum_primitive = "0.1.1"
 ethcore = { path = ".." }
 ethcore-io = { path = "../../util/io" }
-ethcore-light = { path = "../light" }
 ethcore-network = { path = "../../util/network" }
 ethcore-network-devp2p = { path = "../../util/network-devp2p" }
 ethereum-types = "0.4"

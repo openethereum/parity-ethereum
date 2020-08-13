@@ -22,5 +22,5 @@ mod spec;
 
 pub use self::{
     genesis::Genesis,
-    spec::{CommonParams, OptimizeFor, Spec, SpecHardcodedSync, SpecParams},
+    spec::{CommonParams, OptimizeFor, Spec, SpecParams},
 };

@@ -156,16 +156,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bincode"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-dependencies = [
- "byteorder 1.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "num-traits 0.1.43 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde 1.0.102 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
 name = "bit-set"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -985,49 +975,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ethcore-light"
-version = "1.12.0"
-dependencies = [
- "bincode 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "common-types 0.1.0",
- "error-chain 0.12.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethcore 1.12.0",
- "ethcore-blockchain 0.1.0",
- "ethcore-db 0.1.0",
- "ethcore-io 1.12.0",
- "ethcore-network 1.12.0",
- "ethereum-types 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "failsafe 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "fastmap 0.1.0",
- "futures 0.1.29 (registry+https://github.com/rust-lang/crates.io-index)",
- "hash-db 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "heapsize 0.4.2 (git+https://github.com/cheme/heapsize.git?branch=ec-macfix)",
- "itertools 0.5.10 (registry+https://github.com/rust-lang/crates.io-index)",
- "journaldb 0.2.0",
- "keccak-hash 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "keccak-hasher 0.1.1",
- "kvdb 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "kvdb-memorydb 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
- "memory-cache 0.1.0",
- "memory-db 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "parity-bytes 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "parking_lot 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "patricia-trie-ethereum 0.1.0",
- "rand 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "rlp 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "rlp_derive 0.1.0",
- "serde 1.0.102 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde_derive 1.0.102 (registry+https://github.com/rust-lang/crates.io-index)",
- "smallvec 0.6.13 (registry+https://github.com/rust-lang/crates.io-index)",
- "stats 0.1.0",
- "tempdir 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
- "trie-db 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "triehash-ethereum 0.2.0",
- "vm 0.1.0",
-]
-
-[[package]]
 name = "ethcore-logger"
 version = "1.12.0"
 dependencies = [
@@ -1255,7 +1202,6 @@ dependencies = [
  "env_logger 0.5.13 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore 1.12.0",
  "ethcore-io 1.12.0",
- "ethcore-light 1.12.0",
  "ethcore-network 1.12.0",
  "ethcore-network-devp2p 1.12.0",
  "ethcore-private-tx 1.0.0",
@@ -1432,16 +1378,6 @@ dependencies = [
  "serde_json 1.0.41 (registry+https://github.com/rust-lang/crates.io-index)",
  "tempdir 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "vm 0.1.0",
-]
-
-[[package]]
-name = "failsafe"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-dependencies = [
- "futures 0.1.29 (registry+https://github.com/rust-lang/crates.io-index)",
- "parking_lot 0.6.4 (registry+https://github.com/rust-lang/crates.io-index)",
- "rand 0.5.6 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -2675,7 +2611,6 @@ dependencies = [
  "ethcore-call-contract 0.1.0",
  "ethcore-db 0.1.0",
  "ethcore-io 1.12.0",
- "ethcore-light 1.12.0",
  "ethcore-logger 1.12.0",
  "ethcore-miner 1.12.0",
  "ethcore-network 1.12.0",
@@ -2826,7 +2761,6 @@ dependencies = [
  "ethcore 1.12.0",
  "ethcore-accounts 0.1.0",
  "ethcore-io 1.12.0",
- "ethcore-light 1.12.0",
  "ethcore-logger 1.12.0",
  "ethcore-miner 1.12.0",
  "ethcore-network 1.12.0",
@@ -2837,7 +2771,6 @@ dependencies = [
  "ethkey 0.3.0",
  "ethstore 0.2.1",
  "fake-fetch 0.0.1",
- "fastmap 0.1.0",
  "fetch 0.1.0",
  "futures 0.1.29 (registry+https://github.com/rust-lang/crates.io-index)",
  "itertools 0.5.10 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -4843,7 +4776,6 @@ dependencies = [
 "checksum base-x 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)" = "1b20b618342cf9891c292c4f5ac2cde7287cc5c87e87e9c769d617793607dec1"
 "checksum base64 0.10.1 (registry+https://github.com/rust-lang/crates.io-index)" = "0b25d992356d2eb0ed82172f5248873db5560c4721f564b13cb5193bda5e668e"
 "checksum base64 0.9.3 (registry+https://github.com/rust-lang/crates.io-index)" = "489d6c0ed21b11d038c31b6ceccca973e65d73ba3bd8ecb9a2babf5546164643"
-"checksum bincode 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)" = "e103c8b299b28a9c6990458b7013dc4a8356a9b854c51b9883241f5866fac36e"
 "checksum bit-set 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "d9bf6104718e80d7b26a68fdbacff3481cfc05df670821affc7e9cbc1884400c"
 "checksum bit-vec 0.4.4 (registry+https://github.com/rust-lang/crates.io-index)" = "02b4ff8b16e6076c3e14220b39fbc1fabb6737522281a388998046859400895f"
 "checksum bitflags 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)" = "aad18937a628ec6abcd26d1489012cc0e18c21798210f491af69ded9b881106d"
@@ -4905,7 +4837,6 @@ dependencies = [
 "checksum ethbloom 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)" = "1a93a43ce2e9f09071449da36bfa7a1b20b950ee344b6904ff23de493b03b386"
 "checksum ethereum-types 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)" = "6e742184dc63a01c8ea0637369f8faa27c40f537949908a237f95c05e68d2c96"
 "checksum ethereum-types-serialize 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "1873d77b32bc1891a79dad925f2acbc318ee942b38b9110f9dbc5fbeffcea350"
-"checksum failsafe 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)" = "cf04c6ffd217a68c73fdf40eb3331c484fd7a9fa4fd1028fcf74456ef889ca12"
 "checksum failure 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)" = "f8273f13c977665c5db7eb2b99ae520952fe5ac831ae4cd09d80c4c7042b5ed9"
 "checksum failure_derive 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)" = "0bc225b78e0391e4b8683440bf2e63c2deeeb2ce5189eab46e2b68c6d3725d08"
 "checksum fake-simd 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "e88a8acf291dafb59c2d96e8f59828f3838bb1a70398823ade51a84de6a6deed"

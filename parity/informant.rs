@@ -37,16 +37,11 @@ use ethcore::{
     },
     snapshot::{service::Service as SnapshotService, RestorationStatus, SnapshotService as SS},
 };
-use ethereum_types::H256;
 use io::{IoContext, IoHandler, TimerToken};
-use light::{
-    client::{LightChainClient, LightChainNotify},
-    Cache as LightDataCache,
-};
 use number_prefix::{binary_prefix, Prefixed, Standalone};
 use parity_rpc::{informant::RpcStats, is_major_importing_or_waiting};
 use parking_lot::{Mutex, RwLock};
-use sync::{LightSync, LightSyncProvider, ManageNetwork, SyncProvider};
+use sync::{ManageNetwork, SyncProvider};
 use types::BlockNumber;
 
 /// Format byte counts to standard denominations.
@@ -180,53 +175,6 @@ impl InformantData for FullNodeInformantData {
 
         Report {
             importing,
-            chain_info,
-            client_report,
-            queue_info,
-            cache_sizes,
-            sync_info,
-        }
-    }
-}
-
-/// Informant data for a light node -- note that the network is required.
-pub struct LightNodeInformantData {
-    pub client: Arc<dyn LightChainClient>,
-    pub sync: Arc<LightSync>,
-    pub cache: Arc<Mutex<LightDataCache>>,
-}
-
-impl InformantData for LightNodeInformantData {
-    fn executes_transactions(&self) -> bool {
-        false
-    }
-
-    fn is_major_importing(&self) -> bool {
-        self.sync.is_major_importing()
-    }
-
-    fn report(&self) -> Report {
-        let (client_report, queue_info, chain_info) = (
-            self.client.report(),
-            self.client.queue_info(),
-            self.client.chain_info(),
-        );
-
-        let mut cache_sizes = CacheSizes::default();
-        cache_sizes.insert("queue", queue_info.mem_used);
-        cache_sizes.insert("cache", self.cache.lock().mem_used());
-
-        let peer_numbers = self.sync.peer_numbers();
-        let sync_info = Some(SyncInfo {
-            last_imported_block_number: chain_info.best_block_number,
-            last_imported_old_block_number: None,
-            num_peers: peer_numbers.connected,
-            max_peers: peer_numbers.max as u32,
-            snapshot_sync: false,
-        });
-
-        Report {
-            importing: self.sync.is_major_importing(),
             chain_info,
             client_report,
             queue_info,
@@ -445,36 +393,6 @@ impl ChainNotify for Informant<FullNodeInformantData> {
                 .fetch_add(new_blocks.imported.len(), AtomicOrdering::Relaxed);
             self.skipped_txs
                 .fetch_add(txs_imported, AtomicOrdering::Relaxed);
-        }
-    }
-}
-
-impl LightChainNotify for Informant<LightNodeInformantData> {
-    fn new_headers(&self, good: &[H256]) {
-        let mut last_import = self.last_import.lock();
-        let client = &self.target.client;
-
-        let importing = self.target.is_major_importing();
-        let ripe = Instant::now() > *last_import + Duration::from_secs(1) && !importing;
-
-        if ripe {
-            if let Some(header) = good
-                .last()
-                .and_then(|h| client.block_header(BlockId::Hash(*h)))
-            {
-                info!(target: "import", "Imported {} {} ({} Mgas){}",
-                    Colour::White.bold().paint(format!("#{}", header.number())),
-                    Colour::White.bold().paint(format!("{}", header.hash())),
-                    Colour::Yellow.bold().paint(format!("{:.2}", header.gas_used().low_u64() as f32 / 1000000f32)),
-                    if good.len() > 1 {
-                        format!(" + another {} header(s)",
-                                Colour::Red.bold().paint(format!("{}", good.len() - 1)))
-                    } else {
-                        String::new()
-                    }
-                );
-                *last_import = Instant::now();
-            }
         }
     }
 }

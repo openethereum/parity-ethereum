@@ -46,7 +46,6 @@ extern crate ethcore;
 extern crate ethcore_call_contract as call_contract;
 extern crate ethcore_db;
 extern crate ethcore_io as io;
-extern crate ethcore_light as light;
 extern crate ethcore_logger;
 extern crate ethcore_miner as miner;
 extern crate ethcore_network as network;
@@ -98,11 +97,9 @@ mod cache;
 mod cli;
 mod configuration;
 mod db;
-mod export_hardcoded_sync;
 mod helpers;
 mod informant;
 mod ipfs;
-mod light_helpers;
 mod modules;
 mod params;
 mod presale;
@@ -234,9 +231,6 @@ where
         }
         Cmd::Snapshot(snapshot_cmd) => {
             snapshot::execute(snapshot_cmd).map(|s| ExecutionAction::Instant(Some(s)))
-        }
-        Cmd::ExportHardcodedSync(export_hs_cmd) => {
-            export_hardcoded_sync::execute(export_hs_cmd).map(|s| ExecutionAction::Instant(Some(s)))
         }
     }
 }

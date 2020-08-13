@@ -733,26 +733,6 @@ mod test {
     }
 
     #[test]
-    fn it_should_fetch_in_light_mode() {
-        let server = TestServer::run();
-        let client = Client::new(1).unwrap();
-        let mut runtime = Runtime::new().unwrap();
-
-        let future = client
-            .get(&format!("http://{}?123", server.addr()), Abort::default())
-            .map(|resp| {
-                assert!(resp.is_success());
-                resp
-            })
-            .map(|resp| resp.concat2())
-            .flatten()
-            .map(|body| assert_eq!(&body[..], b"123"))
-            .map_err(|err| panic!(err));
-
-        runtime.block_on(future).unwrap();
-    }
-
-    #[test]
     fn it_should_timeout() {
         let server = TestServer::run();
         let client = Client::new(4).unwrap();

@@ -1572,53 +1572,6 @@ impl Engine<EthereumMachine> for AuthorityRound {
         self.validators.signals_epoch_end(first, header, aux)
     }
 
-    fn is_epoch_end_light(
-        &self,
-        chain_head: &Header,
-        chain: &super::Headers<Header>,
-        transition_store: &super::PendingTransitionStore,
-    ) -> Option<Vec<u8>> {
-        // epochs only matter if we want to support light clients.
-        if self.immediate_transitions {
-            return None;
-        }
-
-        let epoch_transition_hash = {
-            let client = match self.client.read().as_ref().and_then(|weak| weak.upgrade()) {
-                Some(client) => client,
-                None => {
-                    warn!(target: "engine", "Unable to check for epoch end: missing client ref.");
-                    return None;
-                }
-            };
-
-            let mut epoch_manager = self.epoch_manager.lock();
-            if !epoch_manager.zoom_to(&*client, &self.machine, &*self.validators, chain_head) {
-                return None;
-            }
-
-            epoch_manager.epoch_transition_hash
-        };
-
-        let mut hash = *chain_head.parent_hash();
-
-        let mut ancestry = itertools::repeat_call(move || {
-            chain(hash).and_then(|header| {
-                if header.number() == 0 {
-                    return None;
-                }
-                hash = *header.parent_hash();
-                Some(header)
-            })
-        })
-        .while_some()
-        .take_while(|header| header.hash() != epoch_transition_hash);
-
-        let finalized = self.build_finality(chain_head, &mut ancestry);
-
-        self.is_epoch_end(chain_head, &finalized, chain, transition_store)
-    }
-
     fn is_epoch_end(
         &self,
         chain_head: &Header,

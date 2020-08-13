@@ -17,7 +17,6 @@
 //! Utilities and helpers for transaction dispatch.
 
 mod full;
-pub(crate) mod light;
 mod prospective_signer;
 
 #[cfg(any(test, feature = "accounts"))]
@@ -81,7 +80,7 @@ mod signing {
     }
 }
 
-pub use self::{full::FullDispatcher, light::LightDispatcher, signing::Signer};
+pub use self::{full::FullDispatcher, signing::Signer};
 pub use v1::helpers::nonce::Reservations;
 
 use std::{fmt::Debug, ops::Deref, sync::Arc};

@@ -23,7 +23,7 @@ use std::{
 
 use jsonrpc_core::{
     futures::{self, Future, IntoFuture},
-    BoxFuture, Error, Result,
+    Error, Result,
 };
 use jsonrpc_pubsub::{
     typed::{Sink, Subscriber},
@@ -31,7 +31,7 @@ use jsonrpc_pubsub::{
 };
 
 use v1::{
-    helpers::{errors, light_fetch::LightFetch, limit_logs, Subscribers},
+    helpers::{errors, limit_logs, Subscribers},
     metadata::Metadata,
     traits::EthPubSub,
     types::{pubsub, Log, RichHeader},
@@ -39,15 +39,8 @@ use v1::{
 
 use ethcore::client::{BlockChainClient, BlockId, ChainNotify, ChainRouteType, NewBlocks};
 use ethereum_types::H256;
-use light::{
-    cache::Cache,
-    client::{LightChainClient, LightChainNotify},
-    on_demand::OnDemandRequester,
-};
 use parity_runtime::Executor;
-use parking_lot::{Mutex, RwLock};
-
-use sync::{LightNetworkDispatcher, LightSyncProvider, ManageNetwork};
+use parking_lot::RwLock;
 
 use types::{encoded, filter::Filter as EthFilter};
 
@@ -95,31 +88,6 @@ impl<C> EthPubSubClient<C> {
     /// Returns a chain notification handler.
     pub fn handler(&self) -> Weak<ChainNotificationHandler<C>> {
         Arc::downgrade(&self.handler)
-    }
-}
-
-impl<S, OD> EthPubSubClient<LightFetch<S, OD>>
-where
-    S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static,
-    OD: OnDemandRequester + 'static,
-{
-    /// Creates a new `EthPubSubClient` for `LightClient`.
-    pub fn light(
-        client: Arc<dyn LightChainClient>,
-        on_demand: Arc<OD>,
-        sync: Arc<S>,
-        cache: Arc<Mutex<Cache>>,
-        executor: Executor,
-        gas_price_percentile: usize,
-    ) -> Self {
-        let fetch = LightFetch {
-            client,
-            on_demand,
-            sync,
-            cache,
-            gas_price_percentile,
-        };
-        EthPubSubClient::new(Arc::new(fetch), executor)
     }
 }
 
@@ -203,45 +171,6 @@ impl<C> ChainNotificationHandler<C> {
                 );
             }
         }
-    }
-}
-
-/// A light client wrapper struct.
-pub trait LightClient: Send + Sync {
-    /// Get a recent block header.
-    fn block_header(&self, id: BlockId) -> Option<encoded::Header>;
-
-    /// Fetch logs.
-    fn logs(&self, filter: EthFilter) -> BoxFuture<Vec<Log>>;
-}
-
-impl<S, OD> LightClient for LightFetch<S, OD>
-where
-    S: LightSyncProvider + LightNetworkDispatcher + ManageNetwork + 'static,
-    OD: OnDemandRequester + 'static,
-{
-    fn block_header(&self, id: BlockId) -> Option<encoded::Header> {
-        self.client.block_header(id)
-    }
-
-    fn logs(&self, filter: EthFilter) -> BoxFuture<Vec<Log>> {
-        Box::new(LightFetch::logs(self, filter)) as BoxFuture<_>
-    }
-}
-
-impl<C: LightClient> LightChainNotify for ChainNotificationHandler<C> {
-    fn new_headers(&self, enacted: &[H256]) {
-        let headers = enacted
-            .iter()
-            .filter_map(|hash| self.client.block_header(BlockId::Hash(*hash)))
-            .map(|header| (header, Default::default()))
-            .collect::<Vec<_>>();
-
-        self.notify_heads(&headers);
-        self.notify_logs(
-            &enacted.iter().map(|h| (*h, ())).collect::<Vec<_>>(),
-            |filter, _| self.client.logs(filter),
-        )
     }
 }
 
