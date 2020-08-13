@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use api::WARP_SYNC_PROTOCOL_ID;
+use api::PAR_PROTOCOL;
 use block_sync::{BlockDownloaderImportError as DownloaderImportError, DownloadAction};
 use bytes::Bytes;
 use enum_primitive::FromPrimitive;
@@ -659,7 +659,7 @@ impl SyncHandler {
     ) -> Result<(), DownloaderImportError> {
         sync.handshaking_peers.remove(&peer_id);
         let protocol_version: u8 = r.val_at(0)?;
-        let warp_protocol_version = io.protocol_version(&WARP_SYNC_PROTOCOL_ID, peer_id);
+        let warp_protocol_version = io.protocol_version(&PAR_PROTOCOL, peer_id);
         let warp_protocol = warp_protocol_version != 0;
         let private_tx_protocol = warp_protocol_version >= PAR_PROTOCOL_VERSION_3.0;
         let peer = PeerInfo {

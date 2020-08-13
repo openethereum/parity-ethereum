@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use api::WARP_SYNC_PROTOCOL_ID;
+use api::PAR_PROTOCOL;
 use bytes::Bytes;
 use chain::{
     sync_packet::{
@@ -176,7 +176,7 @@ where
     }
 
     fn protocol_version(&self, protocol: &ProtocolId, peer_id: PeerId) -> u8 {
-        if protocol == &WARP_SYNC_PROTOCOL_ID {
+        if protocol == &PAR_PROTOCOL {
             PAR_PROTOCOL_VERSION_3.0
         } else {
             self.eth_protocol_version(peer_id)

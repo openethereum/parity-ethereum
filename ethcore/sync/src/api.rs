@@ -62,7 +62,7 @@ use types::{pruning_info::PruningInfo, transaction::UnverifiedTransaction, Block
 use super::light_sync::SyncInfo;
 
 /// Parity sync protocol
-pub const WARP_SYNC_PROTOCOL_ID: ProtocolId = *b"par";
+pub const PAR_PROTOCOL: ProtocolId = *b"par";
 /// Ethereum sync protocol
 pub const ETH_PROTOCOL: ProtocolId = *b"eth";
 /// Ethereum light protocol
@@ -449,7 +449,7 @@ struct SyncProtocolHandler {
 
 impl NetworkProtocolHandler for SyncProtocolHandler {
     fn initialize(&self, io: &dyn NetworkContext) {
-        if io.subprotocol_name() != WARP_SYNC_PROTOCOL_ID {
+        if io.subprotocol_name() != PAR_PROTOCOL {
             io.register_timer(PEERS_TIMER, Duration::from_millis(700))
                 .expect("Error registering peers timer");
             io.register_timer(MAINTAIN_SYNC_TIMER, Duration::from_millis(1100))
@@ -476,11 +476,8 @@ impl NetworkProtocolHandler for SyncProtocolHandler {
     fn connected(&self, io: &dyn NetworkContext, peer: &PeerId) {
         trace_time!("sync::connected");
         // If warp protocol is supported only allow warp handshake
-        let warp_protocol = io
-            .protocol_version(WARP_SYNC_PROTOCOL_ID, *peer)
-            .unwrap_or(0)
-            != 0;
-        let warp_context = io.subprotocol_name() == WARP_SYNC_PROTOCOL_ID;
+        let warp_protocol = io.protocol_version(PAR_PROTOCOL, *peer).unwrap_or(0) != 0;
+        let warp_context = io.subprotocol_name() == PAR_PROTOCOL;
         if warp_protocol == warp_context {
             self.sync.write().on_peer_connected(
                 &mut NetSyncIo::new(io, &*self.chain, &*self.snapshot_service, &self.overlay),
@@ -491,7 +488,7 @@ impl NetworkProtocolHandler for SyncProtocolHandler {
 
     fn disconnected(&self, io: &dyn NetworkContext, peer: &PeerId) {
         trace_time!("sync::disconnected");
-        if io.subprotocol_name() != WARP_SYNC_PROTOCOL_ID {
+        if io.subprotocol_name() != PAR_PROTOCOL {
             self.sync.write().on_peer_aborting(
                 &mut NetSyncIo::new(io, &*self.chain, &*self.snapshot_service, &self.overlay),
                 *peer,
@@ -598,7 +595,7 @@ impl ChainNotify for EthSync {
         self.network
             .register_protocol(
                 self.eth_handler.clone(),
-                WARP_SYNC_PROTOCOL_ID,
+                PAR_PROTOCOL,
                 &[
                     PAR_PROTOCOL_VERSION_1,
                     PAR_PROTOCOL_VERSION_2,
@@ -625,7 +622,7 @@ impl ChainNotify for EthSync {
     }
 
     fn broadcast(&self, message_type: ChainMessageType) {
-        self.network.with_context(WARP_SYNC_PROTOCOL_ID, |context| {
+        self.network.with_context(PAR_PROTOCOL, |context| {
             let mut sync_io = NetSyncIo::new(
                 context,
                 &*self.eth_handler.chain,
@@ -827,7 +824,7 @@ impl NetworkConfiguration {
             max_peers: self.max_peers,
             min_peers: self.min_peers,
             max_handshakes: self.max_pending_peers,
-            reserved_protocols: hash_map![WARP_SYNC_PROTOCOL_ID => self.snapshot_peers],
+            reserved_protocols: hash_map![PAR_PROTOCOL => self.snapshot_peers],
             reserved_nodes: self.reserved_nodes,
             ip_filter: self.ip_filter,
             non_reserved_mode: if self.allow_non_reserved {
@@ -859,10 +856,7 @@ impl From<BasicNetworkConfiguration> for NetworkConfiguration {
             max_peers: other.max_peers,
             min_peers: other.min_peers,
             max_pending_peers: other.max_handshakes,
-            snapshot_peers: *other
-                .reserved_protocols
-                .get(&WARP_SYNC_PROTOCOL_ID)
-                .unwrap_or(&0),
+            snapshot_peers: *other.reserved_protocols.get(&PAR_PROTOCOL).unwrap_or(&0),
             reserved_nodes: other.reserved_nodes,
             ip_filter: other.ip_filter,
             allow_non_reserved: match other.non_reserved_mode {

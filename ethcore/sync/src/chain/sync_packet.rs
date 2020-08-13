@@ -24,7 +24,7 @@
 
 #![allow(unused_doc_comments)]
 
-use api::{ETH_PROTOCOL, WARP_SYNC_PROTOCOL_ID};
+use api::{ETH_PROTOCOL, PAR_PROTOCOL};
 use network::{PacketId, ProtocolId};
 
 // An enum that defines all known packet ids in the context of
@@ -93,7 +93,7 @@ impl PacketInfo for SyncPacket {
             | SnapshotDataPacket
             | ConsensusDataPacket
             | PrivateTransactionPacket
-            | SignedPrivateTransactionPacket => WARP_SYNC_PROTOCOL_ID,
+            | SignedPrivateTransactionPacket => PAR_PROTOCOL,
         }
     }
 
@@ -132,6 +132,6 @@ mod tests {
     #[test]
     fn when_consensus_data_packet_then_id_and_protocol_match() {
         assert_eq!(ConsensusDataPacket.id(), ConsensusDataPacket as PacketId);
-        assert_eq!(ConsensusDataPacket.protocol(), WARP_SYNC_PROTOCOL_ID);
+        assert_eq!(ConsensusDataPacket.protocol(), PAR_PROTOCOL);
     }
 }
