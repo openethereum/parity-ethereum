@@ -23,10 +23,7 @@ use sync::ManageNetwork;
 
 use super::manage_network::TestManageNetwork;
 use jsonrpc_core::IoHandler;
-use v1::{
-    tests::helpers::{TestMinerService, TestUpdater},
-    ParitySet, ParitySetClient,
-};
+use v1::{tests::helpers::TestMinerService, ParitySet, ParitySetClient};
 
 use fake_fetch::FakeFetch;
 
@@ -42,64 +39,20 @@ fn network_service() -> Arc<TestManageNetwork> {
     Arc::new(TestManageNetwork)
 }
 
-fn updater_service() -> Arc<TestUpdater> {
-    Arc::new(TestUpdater::default())
-}
-
 pub type TestParitySetClient =
-    ParitySetClient<TestBlockChainClient, TestMinerService, TestUpdater, FakeFetch<usize>>;
+    ParitySetClient<TestBlockChainClient, TestMinerService, FakeFetch<usize>>;
 
 fn parity_set_client(
     client: &Arc<TestBlockChainClient>,
     miner: &Arc<TestMinerService>,
-    updater: &Arc<TestUpdater>,
     net: &Arc<TestManageNetwork>,
 ) -> TestParitySetClient {
     ParitySetClient::new(
         client,
         miner,
-        updater,
         &(net.clone() as Arc<dyn ManageNetwork>),
         FakeFetch::new(Some(1)),
     )
-}
-
-#[test]
-fn rpc_parity_execute_upgrade() {
-    let miner = miner_service();
-    let client = client_service();
-    let network = network_service();
-    let updater = updater_service();
-    let mut io = IoHandler::new();
-    io.extend_with(parity_set_client(&client, &miner, &updater, &network).to_delegate());
-
-    let request = r#"{"jsonrpc": "2.0", "method": "parity_executeUpgrade", "params": [], "id": 1}"#;
-    let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
-    assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
-
-    let request = r#"{"jsonrpc": "2.0", "method": "parity_executeUpgrade", "params": [], "id": 1}"#;
-    let response = r#"{"jsonrpc":"2.0","result":false,"id":1}"#;
-    assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
-}
-
-#[test]
-fn rpc_parity_upgrade_ready() {
-    let miner = miner_service();
-    let client = client_service();
-    let network = network_service();
-    let updater = updater_service();
-    let mut io = IoHandler::new();
-    io.extend_with(parity_set_client(&client, &miner, &updater, &network).to_delegate());
-
-    let request = r#"{"jsonrpc": "2.0", "method": "parity_upgradeReady", "params": [], "id": 1}"#;
-    let response = r#"{"jsonrpc":"2.0","result":{"binary":"0x00000000000000000000000000000000000000000000000000000000000005e6","fork":15100,"is_critical":true,"version":{"hash":"0x0000000000000000000000000000000000000097","track":"beta","version":{"major":1,"minor":5,"patch":1}}},"id":1}"#;
-    assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
-
-    updater.set_updated(true);
-
-    let request = r#"{"jsonrpc": "2.0", "method": "parity_upgradeReady", "params": [], "id": 1}"#;
-    let response = r#"{"jsonrpc":"2.0","result":null,"id":1}"#;
-    assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]
@@ -107,10 +60,9 @@ fn rpc_parity_set_min_gas_price() {
     let miner = miner_service();
     let client = client_service();
     let network = network_service();
-    let updater = updater_service();
 
     let mut io = IoHandler::new();
-    io.extend_with(parity_set_client(&client, &miner, &updater, &network).to_delegate());
+    io.extend_with(parity_set_client(&client, &miner, &network).to_delegate());
 
     let request = r#"{"jsonrpc": "2.0", "method": "parity_setMinGasPrice", "params":["0xcd1722f3947def4cf144679da39c4c32bdc35681"], "id": 1}"#;
     let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
@@ -125,10 +77,9 @@ fn rpc_parity_set_min_gas_price_with_automated_calibration_enabled() {
 
     let client = client_service();
     let network = network_service();
-    let updater = updater_service();
 
     let mut io = IoHandler::new();
-    io.extend_with(parity_set_client(&client, &miner, &updater, &network).to_delegate());
+    io.extend_with(parity_set_client(&client, &miner, &network).to_delegate());
 
     let request = r#"{"jsonrpc": "2.0", "method": "parity_setMinGasPrice", "params":["0xdeadbeef"], "id": 1}"#;
     let response = r#"{"jsonrpc":"2.0","error":{"code":-32000,"message":"Can't update fixed gas price while automatic gas calibration is enabled."},"id":1}"#;
@@ -141,10 +92,9 @@ fn rpc_parity_set_gas_floor_target() {
     let miner = miner_service();
     let client = client_service();
     let network = network_service();
-    let updater = updater_service();
 
     let mut io = IoHandler::new();
-    io.extend_with(parity_set_client(&client, &miner, &updater, &network).to_delegate());
+    io.extend_with(parity_set_client(&client, &miner, &network).to_delegate());
 
     let request = r#"{"jsonrpc": "2.0", "method": "parity_setGasFloorTarget", "params":["0xcd1722f3947def4cf144679da39c4c32bdc35681"], "id": 1}"#;
     let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
@@ -161,10 +111,9 @@ fn rpc_parity_set_extra_data() {
     let miner = miner_service();
     let client = client_service();
     let network = network_service();
-    let updater = updater_service();
 
     let mut io = IoHandler::new();
-    io.extend_with(parity_set_client(&client, &miner, &updater, &network).to_delegate());
+    io.extend_with(parity_set_client(&client, &miner, &network).to_delegate());
 
     let request = r#"{"jsonrpc": "2.0", "method": "parity_setExtraData", "params":["0xcd1722f3947def4cf144679da39c4c32bdc35681"], "id": 1}"#;
     let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
@@ -183,9 +132,9 @@ fn rpc_parity_set_author() {
     let miner = miner_service();
     let client = client_service();
     let network = network_service();
-    let updater = updater_service();
+
     let mut io = IoHandler::new();
-    io.extend_with(parity_set_client(&client, &miner, &updater, &network).to_delegate());
+    io.extend_with(parity_set_client(&client, &miner, &network).to_delegate());
 
     let request = r#"{"jsonrpc": "2.0", "method": "parity_setAuthor", "params":["0xcd1722f3947def4cf144679da39c4c32bdc35681"], "id": 1}"#;
     let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
@@ -202,9 +151,9 @@ fn rpc_parity_set_transactions_limit() {
     let miner = miner_service();
     let client = client_service();
     let network = network_service();
-    let updater = updater_service();
+
     let mut io = IoHandler::new();
-    io.extend_with(parity_set_client(&client, &miner, &updater, &network).to_delegate());
+    io.extend_with(parity_set_client(&client, &miner, &network).to_delegate());
 
     let request = r#"{"jsonrpc": "2.0", "method": "parity_setTransactionsLimit", "params":[10240240], "id": 1}"#;
     let response = r#"{"jsonrpc":"2.0","result":false,"id":1}"#;
@@ -217,9 +166,9 @@ fn rpc_parity_set_hash_content() {
     let miner = miner_service();
     let client = client_service();
     let network = network_service();
-    let updater = updater_service();
+
     let mut io = IoHandler::new();
-    io.extend_with(parity_set_client(&client, &miner, &updater, &network).to_delegate());
+    io.extend_with(parity_set_client(&client, &miner, &network).to_delegate());
 
     let request = r#"{"jsonrpc": "2.0", "method": "parity_hashContent", "params":["https://parity.io/assets/images/ethcore-black-horizontal.png"], "id": 1}"#;
     let response = r#"{"jsonrpc":"2.0","result":"0x2be00befcf008bc0e7d9cdefc194db9c75352e8632f48498b5a6bfce9f02c88e","id":1}"#;
@@ -234,9 +183,9 @@ fn rpc_parity_remove_transaction() {
     let miner = miner_service();
     let client = client_service();
     let network = network_service();
-    let updater = updater_service();
+
     let mut io = IoHandler::new();
-    io.extend_with(parity_set_client(&client, &miner, &updater, &network).to_delegate());
+    io.extend_with(parity_set_client(&client, &miner, &network).to_delegate());
 
     let tx = Transaction {
         nonce: 1.into(),

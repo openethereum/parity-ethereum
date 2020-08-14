@@ -25,7 +25,6 @@ mod block_number;
 mod bytes;
 mod call_request;
 mod confirmations;
-mod consensus_status;
 mod derivation;
 mod eip191;
 mod filter;
@@ -59,7 +58,6 @@ pub use self::{
         ConfirmationResponseWithToken, DecryptRequest, EIP191SignRequest, Either, EthSignRequest,
         TransactionModification,
     },
-    consensus_status::*,
     derivation::{Derive, DeriveHash, DeriveHierarchical},
     eip191::{EIP191Version, PresignedTransaction},
     filter::{Filter, FilterChanges},

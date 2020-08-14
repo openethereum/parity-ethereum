@@ -1,5 +1,3 @@
-# NOTE This file is used by the auto-updater service.
-# Make sure to update the service if it's moved or the structure is changed.
 [package]
 name = "parity-version"
 # NOTE: this value is used for Parity Ethereum version string (via env CARGO_PKG_VERSION)
@@ -8,18 +6,6 @@ authors = ["Parity Technologies <admin@parity.io>"]
 build = "build.rs"
 
 [package.metadata]
-# This versions track. Should be changed to `stable` or `beta` when on respective branches.
-# Used by auto-updater and for Parity version string.
-track = "stable"
-
-# Network specific settings, used ONLY by auto-updater.
-# Latest supported fork blocks.
-# Indicates a critical release in this track (i.e. consensus issue).
-[package.metadata.networks]
-foundation = { forkBlock = 7280000, critical = false }
-ropsten = { forkBlock = 4939394, critical = false }
-kovan = { forkBlock = 10255201, critical = false }
-goerli = { forkBlock = 0, critical = false }
 
 [dependencies]
 parity-bytes = "0.1"

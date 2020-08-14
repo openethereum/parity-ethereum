@@ -2,12 +2,6 @@
 mode = "last"
 mode_timeout = 300
 mode_alarm = 3600
-auto_update = "none"
-auto_update_delay = 200
-auto_update_check_frequency = 50
-release_track = "current"
-no_download = false
-no_consensus = false
 no_persistent_txqueue = false
 
 chain = "homestead"

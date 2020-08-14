@@ -34,8 +34,8 @@ mod generated {
 }
 
 #[cfg(feature = "final")]
-const THIS_TRACK: &'static str = generated::TRACK;
-// ^^^ should be reset in Cargo.toml to "stable" or "beta" according to the release branch.
+const THIS_TRACK: &'static str = "stable";
+// ^^^ should be reset in Cargo.toml to "stable"
 
 #[cfg(not(feature = "final"))]
 const THIS_TRACK: &'static str = "unstable";

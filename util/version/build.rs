@@ -28,25 +28,15 @@ fn main() {
 
     let version = rustc_version::version().expect(ERROR_MSG);
 
-    let cargo: toml::Value = toml::from_str(include_str!("./Cargo.toml")).expect(ERROR_MSG);
-    let track = cargo["package"]["metadata"]["track"]
-        .as_str()
-        .expect("'track' has to be a string!");
-
     create_file(
         "meta.rs",
         format!(
             "
-			/// This versions track.
-			#[allow(unused)]
-			pub const TRACK: &str = {track:?};
-
 			/// Returns compiler version.
 			pub fn rustc_version() -> &'static str {{
 				\"{version}\"
 			}}
 		",
-            track = track,
             version = version,
         ),
     );

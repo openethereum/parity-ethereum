@@ -268,16 +268,6 @@ pub fn default_local_path() -> String {
         .unwrap_or_else(|_| "$HOME/.parity".to_owned())
 }
 
-/// Default hypervisor path
-pub fn default_hypervisor_path() -> PathBuf {
-    let app_info = AppInfo {
-        name: PRODUCT_HYPERVISOR,
-        author: AUTHOR,
-    };
-    get_app_root(AppDataType::UserData, &app_info)
-        .unwrap_or_else(|_| "$HOME/.parity-hypervisor".into())
-}
-
 /// Get home directory.
 fn home() -> PathBuf {
     home_dir().expect("Failed to get home dir")
@@ -295,7 +285,6 @@ mod platform {
     use std::path::PathBuf;
     pub const AUTHOR: &str = "Parity";
     pub const PRODUCT: &str = "io.parity.ethereum";
-    pub const PRODUCT_HYPERVISOR: &str = "io.parity.ethereum-updates";
 
     pub fn parity_base() -> PathBuf {
         let mut home = super::home();
@@ -312,7 +301,6 @@ mod platform {
     use std::path::PathBuf;
     pub const AUTHOR: &str = "Parity";
     pub const PRODUCT: &str = "Ethereum";
-    pub const PRODUCT_HYPERVISOR: &str = "EthereumUpdates";
 
     pub fn parity_base() -> PathBuf {
         let mut home = super::home();
@@ -330,7 +318,6 @@ mod platform {
     use std::path::PathBuf;
     pub const AUTHOR: &str = "parity";
     pub const PRODUCT: &str = "io.parity.ethereum";
-    pub const PRODUCT_HYPERVISOR: &str = "io.parity.ethereum-updates";
 
     pub fn parity_base() -> PathBuf {
         let mut home = super::home();

@@ -234,18 +234,6 @@ usage! {
     {
         // Global flags and arguments
         ["Operating Options"]
-            FLAG flag_no_download: (bool) = false, or |c: &Config| c.parity.as_ref()?.no_download.clone(),
-            "--no-download",
-            "Normally new releases will be downloaded ready for updating. This disables it. Not recommended.",
-
-            FLAG flag_no_consensus: (bool) = false, or |c: &Config| c.parity.as_ref()?.no_consensus.clone(),
-            "--no-consensus",
-            "Force the binary to run even if there are known issues regarding consensus. Not recommended.",
-
-            FLAG flag_force_direct: (bool) = false, or |_| None,
-            "--force-direct",
-            "Run the originally installed version of Parity, ignoring any updates that have since been installed.",
-
             ARG arg_mode: (String) = "last", or |c: &Config| c.parity.as_ref()?.mode.clone(),
             "--mode=[MODE]",
             "Set the operating mode. MODE can be one of: last - Uses the last-used mode, active if none; active - Parity continuously syncs the chain; passive - Parity syncs initially, then sleeps and wakes regularly to resync; dark - Parity syncs only when the JSON-RPC is active; offline - Parity doesn't sync.",
@@ -257,22 +245,6 @@ usage! {
             ARG arg_mode_alarm: (u64) = 3600u64, or |c: &Config| c.parity.as_ref()?.mode_alarm.clone(),
             "--mode-alarm=[SECS]",
             "Specify the number of seconds before auto sleep reawake timeout occurs when mode is passive",
-
-            ARG arg_auto_update: (String) = "critical", or |c: &Config| c.parity.as_ref()?.auto_update.clone(),
-            "--auto-update=[SET]",
-            "Set a releases set to automatically update and install. SET can be one of: all - All updates in the our release track; critical - Only consensus/security updates; none - No updates will be auto-installed.",
-
-            ARG arg_auto_update_delay: (u16) = 100u16, or |c: &Config| c.parity.as_ref()?.auto_update_delay.clone(),
-            "--auto-update-delay=[NUM]",
-            "Specify the maximum number of blocks used for randomly delaying updates.",
-
-            ARG arg_auto_update_check_frequency: (u16) = 20u16, or |c: &Config| c.parity.as_ref()?.auto_update_check_frequency.clone(),
-            "--auto-update-check-frequency=[NUM]",
-            "Specify the number of blocks between each auto-update check.",
-
-            ARG arg_release_track: (String) = "current", or |c: &Config| c.parity.as_ref()?.release_track.clone(),
-            "--release-track=[TRACK]",
-            "Set which release track we should use for updates. TRACK can be one of: stable - Stable releases; beta - Beta releases; nightly - Nightly releases (unstable); testing - Testing releases (do not use); current - Whatever track this executable was released on.",
 
             ARG arg_chain: (String) = "foundation", or |c: &Config| c.parity.as_ref()?.chain.clone(),
             "--chain=[CHAIN]",
@@ -896,12 +868,6 @@ struct Operating {
     mode: Option<String>,
     mode_timeout: Option<u64>,
     mode_alarm: Option<u64>,
-    auto_update: Option<String>,
-    auto_update_delay: Option<u16>,
-    auto_update_check_frequency: Option<u16>,
-    release_track: Option<String>,
-    no_download: Option<bool>,
-    no_consensus: Option<bool>,
     chain: Option<String>,
     base_path: Option<String>,
     db_path: Option<String>,
@@ -1344,19 +1310,12 @@ mod tests {
                 arg_mode: "last".into(),
                 arg_mode_timeout: 300u64,
                 arg_mode_alarm: 3600u64,
-                arg_auto_update: "none".into(),
-                arg_auto_update_delay: 200u16,
-                arg_auto_update_check_frequency: 50u16,
-                arg_release_track: "current".into(),
-                flag_no_download: false,
-                flag_no_consensus: false,
                 arg_chain: "xyz".into(),
                 arg_base_path: Some("$HOME/.parity".into()),
                 arg_db_path: Some("$HOME/.parity/chains".into()),
                 arg_keys_path: "$HOME/.parity/keys".into(),
                 arg_identity: "".into(),
                 flag_no_persistent_txqueue: false,
-                flag_force_direct: false,
 
                 // -- Convenience Options
                 arg_config: "$BASE/config.toml".into(),
@@ -1574,12 +1533,6 @@ mod tests {
                     mode: Some("dark".into()),
                     mode_timeout: Some(15u64),
                     mode_alarm: Some(10u64),
-                    auto_update: None,
-                    auto_update_delay: None,
-                    auto_update_check_frequency: None,
-                    release_track: None,
-                    no_download: None,
-                    no_consensus: None,
                     chain: Some("./chain.json".into()),
                     base_path: None,
                     db_path: None,

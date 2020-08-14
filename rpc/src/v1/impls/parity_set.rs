@@ -27,13 +27,12 @@ use ethkey;
 use fetch::{self, Fetch};
 use hash::keccak_buffer;
 use sync::ManageNetwork;
-use updater::Service as UpdateService;
 
 use jsonrpc_core::{futures::Future, BoxFuture, Result};
 use v1::{
     helpers::errors,
     traits::ParitySet,
-    types::{Bytes, ReleaseInfo, Transaction},
+    types::{Bytes, Transaction},
 };
 
 #[cfg(any(test, feature = "accounts"))]
@@ -82,41 +81,32 @@ pub mod accounts {
 }
 
 /// Parity-specific rpc interface for operations altering the settings.
-pub struct ParitySetClient<C, M, U, F = fetch::Client> {
+pub struct ParitySetClient<C, M, F = fetch::Client> {
     client: Arc<C>,
     miner: Arc<M>,
-    updater: Arc<U>,
     net: Arc<dyn ManageNetwork>,
     fetch: F,
 }
 
-impl<C, M, U, F> ParitySetClient<C, M, U, F>
+impl<C, M, F> ParitySetClient<C, M, F>
 where
     C: BlockChainClient + 'static,
 {
     /// Creates new `ParitySetClient` with given `Fetch`.
-    pub fn new(
-        client: &Arc<C>,
-        miner: &Arc<M>,
-        updater: &Arc<U>,
-        net: &Arc<dyn ManageNetwork>,
-        fetch: F,
-    ) -> Self {
+    pub fn new(client: &Arc<C>, miner: &Arc<M>, net: &Arc<dyn ManageNetwork>, fetch: F) -> Self {
         ParitySetClient {
             client: client.clone(),
             miner: miner.clone(),
-            updater: updater.clone(),
             net: net.clone(),
             fetch,
         }
     }
 }
 
-impl<C, M, U, F> ParitySet for ParitySetClient<C, M, U, F>
+impl<C, M, F> ParitySet for ParitySetClient<C, M, F>
 where
     C: BlockChainClient + 'static,
     M: MinerService + 'static,
-    U: UpdateService + 'static,
     F: Fetch + 'static,
 {
     fn set_min_gas_price(&self, gas_price: U256) -> Result<bool> {
@@ -237,14 +227,6 @@ where
                     .map(Into::into)
             });
         Box::new(future)
-    }
-
-    fn upgrade_ready(&self) -> Result<Option<ReleaseInfo>> {
-        Ok(self.updater.upgrade_ready().map(Into::into))
-    }
-
-    fn execute_upgrade(&self) -> Result<bool> {
-        Ok(self.updater.execute_upgrade())
     }
 
     fn remove_transaction(&self, hash: H256) -> Result<Option<Transaction>> {

@@ -22,7 +22,7 @@ use ethcore::{
     spec::{Spec, SpecParams},
 };
 use ethereum_types::{Address, U256};
-use hash_fetch::fetch::Client as FetchClient;
+use fetch::Client as FetchClient;
 use journaldb::Algorithm;
 use miner::{
     gas_price_calibrator::{GasPriceCalibrator, GasPriceCalibratorOptions},

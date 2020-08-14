@@ -20,7 +20,7 @@ use ethereum_types::{H160, H256, U256};
 use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_derive::rpc;
 
-use v1::types::{Bytes, ReleaseInfo, Transaction};
+use v1::types::{Bytes, Transaction};
 
 /// Parity-specific rpc interface for operations altering the account-related settings.
 #[rpc(server)]
@@ -104,14 +104,6 @@ pub trait ParitySet {
     /// Hash a file content under given URL.
     #[rpc(name = "parity_hashContent")]
     fn hash_content(&self, _: String) -> BoxFuture<H256>;
-
-    /// Is there a release ready for install?
-    #[rpc(name = "parity_upgradeReady")]
-    fn upgrade_ready(&self) -> Result<Option<ReleaseInfo>>;
-
-    /// Execute a release which is ready according to upgrade_ready().
-    #[rpc(name = "parity_executeUpgrade")]
-    fn execute_upgrade(&self) -> Result<bool>;
 
     /// Removes transaction from transaction queue.
     /// Makes sense only for transactions that were not propagated to other peers yet

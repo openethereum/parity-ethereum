@@ -55,18 +55,17 @@ extern crate ethcore_sync as sync;
 extern crate ethereum_types;
 extern crate ethkey;
 extern crate ethstore;
+extern crate fetch;
 extern crate journaldb;
 extern crate keccak_hash as hash;
 extern crate kvdb;
 extern crate node_filter;
 extern crate parity_bytes as bytes;
-extern crate parity_hash_fetch as hash_fetch;
 extern crate parity_ipfs_api;
 extern crate parity_local_store as local_store;
 extern crate parity_path as path;
 extern crate parity_rpc;
 extern crate parity_runtime;
-extern crate parity_updater as updater;
 extern crate parity_version;
 extern crate registrar;
 
@@ -182,22 +181,13 @@ pub enum ExecutionAction {
     Running(RunningClient),
 }
 
-fn execute<Cr, Rr>(
-    command: Execute,
-    logger: Arc<RotatingLogger>,
-    on_client_rq: Cr,
-    on_updater_rq: Rr,
-) -> Result<ExecutionAction, String>
-where
-    Cr: Fn(String) + 'static + Send,
-    Rr: Fn() + 'static + Send,
-{
+fn execute(command: Execute, logger: Arc<RotatingLogger>) -> Result<ExecutionAction, String> {
     #[cfg(feature = "deadlock_detection")]
     run_deadlock_detection_thread();
 
     match command.cmd {
         Cmd::Run(run_cmd) => {
-            let outcome = run::execute(run_cmd, logger, on_client_rq, on_updater_rq)?;
+            let outcome = run::execute(run_cmd, logger)?;
             Ok(ExecutionAction::Running(outcome))
         }
         Cmd::Version => Ok(ExecutionAction::Instant(Some(Args::print_version()))),
@@ -237,25 +227,11 @@ where
 
 /// Starts the parity client.
 ///
-/// `on_client_rq` is the action to perform when the client receives an RPC request to be restarted
-/// with a different chain.
-///
-/// `on_updater_rq` is the action to perform when the updater has a new binary to execute.
-///
 /// The first parameter is the command line arguments that you would pass when running the parity
 /// binary.
 ///
 /// On error, returns what to print on stderr.
 // FIXME: totally independent logging capability, see https://github.com/paritytech/parity-ethereum/issues/10252
-pub fn start<Cr, Rr>(
-    conf: Configuration,
-    logger: Arc<RotatingLogger>,
-    on_client_rq: Cr,
-    on_updater_rq: Rr,
-) -> Result<ExecutionAction, String>
-where
-    Cr: Fn(String) + 'static + Send,
-    Rr: Fn() + 'static + Send,
-{
-    execute(conf.into_command()?, logger, on_client_rq, on_updater_rq)
+pub fn start(conf: Configuration, logger: Arc<RotatingLogger>) -> Result<ExecutionAction, String> {
+    execute(conf.into_command()?, logger)
 }

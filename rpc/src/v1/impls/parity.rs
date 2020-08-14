@@ -31,7 +31,6 @@ use ethstore::random_phrase;
 use jsonrpc_core::{futures::future, BoxFuture, Result};
 use sync::{ManageNetwork, SyncProvider};
 use types::ids::BlockId;
-use updater::Service as UpdateService;
 use version::version_data;
 
 use v1::{
@@ -45,18 +44,17 @@ use v1::{
     metadata::Metadata,
     traits::Parity,
     types::{
-        block_number_to_id, BlockNumber, Bytes, CallRequest, ChainStatus, ConsensusCapability,
-        Histogram, LocalTransactionStatus, OperationsInfo, Peers, Receipt, RecoveredAccount,
-        RichHeader, RpcSettings, Transaction, TransactionStats, VersionInfo,
+        block_number_to_id, BlockNumber, Bytes, CallRequest, ChainStatus, Histogram,
+        LocalTransactionStatus, Peers, Receipt, RecoveredAccount, RichHeader, RpcSettings,
+        Transaction, TransactionStats,
     },
 };
 use Host;
 
 /// Parity implementation.
-pub struct ParityClient<C, M, U> {
+pub struct ParityClient<C, M> {
     client: Arc<C>,
     miner: Arc<M>,
-    updater: Arc<U>,
     sync: Arc<dyn SyncProvider>,
     net: Arc<dyn ManageNetwork>,
     logger: Arc<RotatingLogger>,
@@ -66,7 +64,7 @@ pub struct ParityClient<C, M, U> {
     snapshot: Option<Arc<dyn SnapshotService>>,
 }
 
-impl<C, M, U> ParityClient<C, M, U>
+impl<C, M> ParityClient<C, M>
 where
     C: BlockChainClient,
 {
@@ -75,7 +73,6 @@ where
         client: Arc<C>,
         miner: Arc<M>,
         sync: Arc<dyn SyncProvider>,
-        updater: Arc<U>,
         net: Arc<dyn ManageNetwork>,
         logger: Arc<RotatingLogger>,
         settings: Arc<NetworkSettings>,
@@ -87,7 +84,6 @@ where
             client,
             miner,
             sync,
-            updater,
             net,
             logger,
             settings,
@@ -98,7 +94,7 @@ where
     }
 }
 
-impl<C, M, U, S> Parity for ParityClient<C, M, U>
+impl<C, M, S> Parity for ParityClient<C, M>
 where
     S: StateInfo + 'static,
     C: miner::BlockChainClient
@@ -107,7 +103,6 @@ where
         + Call<State = S>
         + 'static,
     M: MinerService<State = S> + 'static,
-    U: UpdateService + 'static,
 {
     type Metadata = Metadata;
 
@@ -328,18 +323,6 @@ where
 
     fn enode(&self) -> Result<String> {
         self.sync.enode().ok_or_else(errors::network_disabled)
-    }
-
-    fn consensus_capability(&self) -> Result<ConsensusCapability> {
-        Ok(self.updater.capability().into())
-    }
-
-    fn version_info(&self) -> Result<VersionInfo> {
-        Ok(self.updater.version_info().into())
-    }
-
-    fn releases_info(&self) -> Result<Option<OperationsInfo>> {
-        Ok(self.updater.info().map(Into::into))
     }
 
     fn chain_status(&self) -> Result<ChainStatus> {

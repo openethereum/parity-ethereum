@@ -22,9 +22,8 @@ use ethereum_types::{H160, H256, H512, H64, U256, U64};
 use jsonrpc_core::{BoxFuture, Result};
 use jsonrpc_derive::rpc;
 use v1::types::{
-    BlockNumber, Bytes, CallRequest, ChainStatus, ConsensusCapability, Histogram,
-    LocalTransactionStatus, OperationsInfo, Peers, Receipt, RecoveredAccount, RichHeader,
-    RpcSettings, Transaction, TransactionStats, VersionInfo,
+    BlockNumber, Bytes, CallRequest, ChainStatus, Histogram, LocalTransactionStatus, Peers,
+    Receipt, RecoveredAccount, RichHeader, RpcSettings, Transaction, TransactionStats,
 };
 
 /// Parity-specific rpc interface.
@@ -176,18 +175,6 @@ pub trait Parity {
     /// Get the enode of this node.
     #[rpc(name = "parity_enode")]
     fn enode(&self) -> Result<String>;
-
-    /// Returns information on current consensus capability.
-    #[rpc(name = "parity_consensusCapability")]
-    fn consensus_capability(&self) -> Result<ConsensusCapability>;
-
-    /// Get our version information in a nice object.
-    #[rpc(name = "parity_versionInfo")]
-    fn version_info(&self) -> Result<VersionInfo>;
-
-    /// Get information concerning the latest releases if available.
-    #[rpc(name = "parity_releasesInfo")]
-    fn releases_info(&self) -> Result<Option<OperationsInfo>>;
 
     /// Get the current chain status.
     #[rpc(name = "parity_chainStatus")]

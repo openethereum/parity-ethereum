@@ -22,7 +22,7 @@ use account_utils::{self, AccountProvider};
 use ethcore::{client::Client, miner::Miner, snapshot::SnapshotService};
 use ethcore_logger::RotatingLogger;
 use ethcore_service::PrivateTxService;
-use hash_fetch::fetch::Client as FetchClient;
+use fetch::Client as FetchClient;
 use jsonrpc_core::{self as core, MetaIoHandler};
 use miner::external::ExternalMiner;
 use parity_rpc::{
@@ -33,7 +33,6 @@ use parity_rpc::{
 use parity_runtime::Executor;
 use parking_lot::Mutex;
 use sync::{ManageNetwork, SyncProvider};
-use updater::Updater;
 
 #[derive(Debug, PartialEq, Clone, Eq, Hash)]
 pub enum Api {
@@ -198,7 +197,6 @@ pub struct FullDependencies {
     pub logger: Arc<RotatingLogger>,
     pub settings: Arc<NetworkSettings>,
     pub net_service: Arc<dyn ManageNetwork>,
-    pub updater: Arc<Updater>,
     pub experimental_rpcs: bool,
     pub ws_address: Option<Host>,
     pub fetch: FetchClient,
@@ -326,7 +324,6 @@ impl FullDependencies {
                             self.client.clone(),
                             self.miner.clone(),
                             self.sync.clone(),
-                            self.updater.clone(),
                             self.net_service.clone(),
                             self.logger.clone(),
                             self.settings.clone(),
@@ -373,7 +370,6 @@ impl FullDependencies {
                         ParitySetClient::new(
                             &self.client,
                             &self.miner,
-                            &self.updater,
                             &self.net_service,
                             self.fetch.clone(),
                         )

@@ -28,18 +28,17 @@ use jsonrpc_core::IoHandler;
 use v1::{
     helpers::{external_signer::SignerService, NetworkSettings},
     metadata::Metadata,
-    tests::helpers::{Config, TestMinerService, TestSyncProvider, TestUpdater},
+    tests::helpers::{Config, TestMinerService, TestSyncProvider},
     Parity, ParityClient,
 };
 use Host;
 
-pub type TestParityClient = ParityClient<TestBlockChainClient, TestMinerService, TestUpdater>;
+pub type TestParityClient = ParityClient<TestBlockChainClient, TestMinerService>;
 
 pub struct Dependencies {
     pub miner: Arc<TestMinerService>,
     pub client: Arc<TestBlockChainClient>,
     pub sync: Arc<TestSyncProvider>,
-    pub updater: Arc<TestUpdater>,
     pub logger: Arc<RotatingLogger>,
     pub settings: Arc<NetworkSettings>,
     pub network: Arc<dyn ManageNetwork>,
@@ -55,7 +54,6 @@ impl Dependencies {
                 network_id: 3,
                 num_peers: 120,
             })),
-            updater: Arc::new(TestUpdater::default()),
             logger: Arc::new(RotatingLogger::new("rpc=trace".to_owned())),
             settings: Arc::new(NetworkSettings {
                 name: "mynode".to_owned(),
@@ -76,7 +74,6 @@ impl Dependencies {
             self.client.clone(),
             self.miner.clone(),
             self.sync.clone(),
-            self.updater.clone(),
             self.network.clone(),
             self.logger.clone(),
             self.settings.clone(),
@@ -97,51 +94,6 @@ impl Dependencies {
         io.extend_with(self.client(Some(Arc::new(signer))).to_delegate());
         io
     }
-}
-
-#[test]
-fn rpc_parity_consensus_capability() {
-    let deps = Dependencies::new();
-    let io = deps.default_client();
-
-    let request =
-        r#"{"jsonrpc": "2.0", "method": "parity_consensusCapability", "params": [], "id": 1}"#;
-    let response = r#"{"jsonrpc":"2.0","result":{"capableUntil":15100},"id":1}"#;
-    assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
-
-    deps.updater.set_current_block(15101);
-
-    let request =
-        r#"{"jsonrpc": "2.0", "method": "parity_consensusCapability", "params": [], "id": 1}"#;
-    let response = r#"{"jsonrpc":"2.0","result":{"incapableSince":15100},"id":1}"#;
-    assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
-
-    deps.updater.set_updated(true);
-
-    let request =
-        r#"{"jsonrpc": "2.0", "method": "parity_consensusCapability", "params": [], "id": 1}"#;
-    let response = r#"{"jsonrpc":"2.0","result":"capable","id":1}"#;
-    assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
-}
-
-#[test]
-fn rpc_parity_version_info() {
-    let deps = Dependencies::new();
-    let io = deps.default_client();
-
-    let request = r#"{"jsonrpc": "2.0", "method": "parity_versionInfo", "params": [], "id": 1}"#;
-    let response = r#"{"jsonrpc":"2.0","result":{"hash":"0x0000000000000000000000000000000000000096","track":"beta","version":{"major":1,"minor":5,"patch":0}},"id":1}"#;
-    assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
-}
-
-#[test]
-fn rpc_parity_releases_info() {
-    let deps = Dependencies::new();
-    let io = deps.default_client();
-
-    let request = r#"{"jsonrpc": "2.0", "method": "parity_releasesInfo", "params": [], "id": 1}"#;
-    let response = r#"{"jsonrpc":"2.0","result":{"fork":15100,"minor":null,"this_fork":15000,"track":{"binary":"0x00000000000000000000000000000000000000000000000000000000000005e6","fork":15100,"is_critical":true,"version":{"hash":"0x0000000000000000000000000000000000000097","track":"beta","version":{"major":1,"minor":5,"patch":1}}}},"id":1}"#;
-    assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]

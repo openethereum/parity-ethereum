@@ -47,7 +47,7 @@ use blockchain::{
 };
 use cache::CacheConfig;
 use dir::{
-    self, default_data_path, default_hypervisor_path, default_local_path,
+    self, default_data_path, default_local_path,
     helpers::{replace_home, replace_home_and_local},
     Directories,
 };
@@ -70,7 +70,6 @@ use secretstore::{
 };
 use snapshot::{self, SnapshotCommand};
 use types::data_format::DataFormat;
-use updater::{ReleaseTrack, UpdateFilter, UpdatePolicy};
 
 const DEFAULT_MAX_PEERS: u16 = 50;
 const DEFAULT_MIN_PEERS: u16 = 25;
@@ -146,7 +145,6 @@ impl Configuration {
                 self.args.arg_mode_alarm,
             )?),
         };
-        let update_policy = self.update_policy()?;
         let logger_config = self.logger_config();
         let ws_conf = self.ws_config()?;
         let snapshot_conf = self.snapshot_config()?;
@@ -411,7 +409,6 @@ impl Configuration {
                 gas_pricer_conf: self.gas_pricer_config()?,
                 miner_extras: self.miner_extras()?,
                 stratum: self.stratum_options()?,
-                update_policy: update_policy,
                 allow_missing_blocks: self.args.flag_jsonrpc_allow_missing_blocks,
                 mode: mode,
                 tracing: tracing,
@@ -1036,41 +1033,6 @@ impl Configuration {
         })
     }
 
-    fn update_policy(&self) -> Result<UpdatePolicy, String> {
-        Ok(UpdatePolicy {
-            enable_downloading: !self.args.flag_no_download,
-            require_consensus: !self.args.flag_no_consensus,
-            filter: match self.args.arg_auto_update.as_ref() {
-                "none" => UpdateFilter::None,
-                "critical" => UpdateFilter::Critical,
-                "all" => UpdateFilter::All,
-                _ => {
-                    return Err(
-                        "Invalid value for `--auto-update`. See `--help` for more information."
-                            .into(),
-                    )
-                }
-            },
-            track: match self.args.arg_release_track.as_ref() {
-                "stable" => ReleaseTrack::Stable,
-                "beta" => ReleaseTrack::Beta,
-                "nightly" => ReleaseTrack::Nightly,
-                "testing" => ReleaseTrack::Testing,
-                "current" => ReleaseTrack::Unknown,
-                _ => {
-                    return Err(
-                        "Invalid value for `--releases-track`. See `--help` for more information."
-                            .into(),
-                    )
-                }
-            },
-            path: default_hypervisor_path(),
-            max_size: 128 * 1024 * 1024,
-            max_delay: self.args.arg_auto_update_delay as u64,
-            frequency: self.args.arg_auto_update_check_frequency as u64,
-        })
-    }
-
     fn directories(&self) -> Directories {
         let local_path = default_local_path();
         let base_path = self
@@ -1318,7 +1280,7 @@ mod tests {
     use account::{AccountCmd, ImportAccounts, ListAccounts, NewAccount};
     use blockchain::{BlockchainCmd, ExportBlockchain, ExportState, ImportBlockchain};
     use cli::Args;
-    use dir::{default_hypervisor_path, Directories};
+    use dir::Directories;
     use ethcore::{client::VMType, miner::MinerOptions};
     use helpers::default_network_config;
     use miner::pool::PrioritizationStrategy;
@@ -1330,7 +1292,6 @@ mod tests {
     use run::RunCmd;
     use tempdir::TempDir;
     use types::{data_format::DataFormat, ids::BlockId};
-    use updater::{ReleaseTrack, UpdateFilter, UpdatePolicy};
 
     use network::{AllowIP, IpFilter};
 
@@ -1611,16 +1572,6 @@ mod tests {
             acc_conf: Default::default(),
             gas_pricer_conf: Default::default(),
             miner_extras: Default::default(),
-            update_policy: UpdatePolicy {
-                enable_downloading: true,
-                require_consensus: true,
-                filter: UpdateFilter::Critical,
-                track: ReleaseTrack::Unknown,
-                path: default_hypervisor_path(),
-                max_size: 128 * 1024 * 1024,
-                max_delay: 100,
-                frequency: 20,
-            },
             mode: Default::default(),
             tracing: Default::default(),
             compaction: Default::default(),
@@ -1675,71 +1626,6 @@ mod tests {
         ]);
 
         assert!(conf.miner_options().is_err());
-    }
-
-    #[test]
-    fn should_parse_updater_options() {
-        // when
-        let conf0 = parse(&["parity", "--release-track=testing"]);
-        let conf1 = parse(&[
-            "parity",
-            "--auto-update",
-            "all",
-            "--no-consensus",
-            "--auto-update-delay",
-            "300",
-        ]);
-        let conf2 = parse(&[
-            "parity",
-            "--no-download",
-            "--auto-update=all",
-            "--release-track=beta",
-            "--auto-update-delay=300",
-            "--auto-update-check-frequency=100",
-        ]);
-        let conf3 = parse(&["parity", "--auto-update=xxx"]);
-
-        // then
-        assert_eq!(
-            conf0.update_policy().unwrap(),
-            UpdatePolicy {
-                enable_downloading: true,
-                require_consensus: true,
-                filter: UpdateFilter::Critical,
-                track: ReleaseTrack::Testing,
-                path: default_hypervisor_path(),
-                max_size: 128 * 1024 * 1024,
-                max_delay: 100,
-                frequency: 20,
-            }
-        );
-        assert_eq!(
-            conf1.update_policy().unwrap(),
-            UpdatePolicy {
-                enable_downloading: true,
-                require_consensus: false,
-                filter: UpdateFilter::All,
-                track: ReleaseTrack::Unknown,
-                path: default_hypervisor_path(),
-                max_size: 128 * 1024 * 1024,
-                max_delay: 300,
-                frequency: 20,
-            }
-        );
-        assert_eq!(
-            conf2.update_policy().unwrap(),
-            UpdatePolicy {
-                enable_downloading: false,
-                require_consensus: true,
-                filter: UpdateFilter::All,
-                track: ReleaseTrack::Beta,
-                path: default_hypervisor_path(),
-                max_size: 128 * 1024 * 1024,
-                max_delay: 300,
-                frequency: 100,
-            }
-        );
-        assert!(conf3.update_policy().is_err());
     }
 
     #[test]
@@ -1922,7 +1808,6 @@ mod tests {
         let conf = Configuration::parse_cli(&args).unwrap();
         match conf.into_command().unwrap().cmd {
             Cmd::Run(c) => {
-                assert_eq!(c.update_policy.require_consensus, false);
                 assert_eq!(c.net_settings.rpc_interface, "0.0.0.0");
                 match c.http_conf.apis {
                     ApiSet::List(set) => assert_eq!(set, ApiSet::All.list_apis()),
@@ -1945,7 +1830,6 @@ mod tests {
                 assert_eq!(c.net_settings.chain, "dev");
                 assert_eq!(c.gas_pricer_conf, GasPricerConfig::Fixed(0.into()));
                 assert_eq!(c.miner_options.reseal_min_period, Duration::from_millis(0));
-                assert_eq!(c.update_policy.require_consensus, false);
                 assert_eq!(c.net_settings.rpc_interface, "0.0.0.0");
                 match c.http_conf.apis {
                     ApiSet::List(set) => assert_eq!(set, ApiSet::All.list_apis()),

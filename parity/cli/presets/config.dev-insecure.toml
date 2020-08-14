@@ -1,5 +1,4 @@
 [parity]
-no_consensus = true
 chain = "dev"
 
 [mining]

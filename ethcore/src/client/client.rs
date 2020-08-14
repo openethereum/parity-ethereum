@@ -194,11 +194,6 @@ struct Importer {
 /// Call `import_block()` to import a block asynchronously; `flush_queue()` flushes the queue.
 pub struct Client {
     /// Flag used to disable the client forever. Not to be confused with `liveness`.
-    ///
-    /// For example, auto-updater will disable client forever if there is a
-    /// hard fork registered on-chain that we don't have capability for.
-    /// When hard fork block rolls around, the client (if `update` is false)
-    /// knows it can't proceed further.
     enabled: AtomicBool,
 
     /// Operating mode for the client
@@ -1001,17 +996,6 @@ impl Client {
     /// Adds an actor to be notified on certain events
     pub fn add_notify(&self, target: Arc<dyn ChainNotify>) {
         self.notify.write().push(Arc::downgrade(&target));
-    }
-
-    /// Set a closure to call when the client wants to be restarted.
-    ///
-    /// The parameter passed to the callback is the name of the new chain spec to use after
-    /// the restart.
-    pub fn set_exit_handler<F>(&self, f: F)
-    where
-        F: Fn(String) + 'static + Send,
-    {
-        *self.exit_handler.lock() = Some(Box::new(f));
     }
 
     /// Returns engine reference.
