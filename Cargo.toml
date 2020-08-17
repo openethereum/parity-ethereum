@@ -52,7 +52,6 @@ node-filter = { path = "ethcore/node-filter" }
 rlp = { version = "0.3.0", features = ["ethereum"] }
 cli-signer= { path = "cli-signer" }
 parity-daemonize = "0.3"
-parity-ipfs-api = { path = "ipfs" }
 parity-local-store = { path = "miner/local-store" }
 parity-runtime = { path = "util/runtime" }
 parity-rpc = { path = "rpc" }

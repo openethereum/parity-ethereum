@@ -276,10 +276,6 @@ Caching, Importing Blocks, and Block Information
     ```bash
     evmbin
     ```
-  * Parity Ethereum IPFS-compatible API
-    ```bash
-    parity-ipfs-api
-    ```
   * Parity Ethereum JSON Deserialization
     ```bash
     ethjson

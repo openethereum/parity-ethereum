@@ -39,7 +39,7 @@ use v1::{
         block_import::is_major_importing,
         errors,
         external_signer::{SignerService, SigningQueue},
-        fake_sign, ipfs, verify_signature, NetworkSettings,
+        fake_sign, verify_signature, NetworkSettings,
     },
     metadata::Metadata,
     traits::Parity,
@@ -405,10 +405,6 @@ where
             .localized_block_receipts(id)
             .ok_or_else(errors::unknown_block));
         Box::new(future::ok(receipts.into_iter().map(Into::into).collect()))
-    }
-
-    fn ipfs_cid(&self, content: Bytes) -> Result<String> {
-        ipfs::cid(content)
     }
 
     fn call(&self, requests: Vec<CallRequest>, num: Option<BlockNumber>) -> Result<Vec<Bytes>> {

@@ -33,8 +33,8 @@ PARITY_RUNNER_IMAGE_TAG - latest
 
 All default ports you might use will be exposed:
 ```
-#           secret
-#      ipfs store     ui   rpc  ws   listener  discovery
-#      ↓    ↓         ↓    ↓    ↓    ↓         ↓
-EXPOSE 5001 8082 8083 8180 8545 8546 30303/tcp 30303/udp
+#      secret
+#      store     ui   rpc  ws   listener  discovery
+#      ↓         ↓    ↓    ↓    ↓         ↓
+EXPOSE 8082 8083 8180 8545 8546 30303/tcp 30303/udp
 ```

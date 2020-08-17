@@ -37,7 +37,6 @@ use ethcore_private_tx::{EncryptorConfig, ProviderConfig, SecretStoreEncryptor};
 use ethcore_service::ClientService;
 use helpers::{execute_upgrades, passwords_from_files, to_client_config};
 use informant::{FullNodeInformantData, Informant};
-use ipfs;
 use journaldb::Algorithm;
 use jsonrpc_core;
 use miner::{external::ExternalMiner, work_notify::WorkPoster};
@@ -100,7 +99,6 @@ pub struct RunCmd {
     pub vm_type: VMType,
     pub experimental_rpcs: bool,
     pub net_settings: NetworkSettings,
-    pub ipfs_conf: ipfs::Configuration,
     pub secretstore_conf: secretstore::Configuration,
     pub private_provider_conf: ProviderConfig,
     pub private_encryptor_conf: EncryptorConfig,
@@ -555,9 +553,6 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<RunningClient
         runtime.executor(),
     )?;
 
-    // the ipfs server
-    let ipfs_server = ipfs::start_server(cmd.ipfs_conf.clone(), client.clone())?;
-
     // the informant
     let informant = Arc::new(Informant::new(
         FullNodeInformantData {
@@ -621,7 +616,6 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<RunningClient
                 http_server,
                 ipc_server,
                 secretstore_key_server,
-                ipfs_server,
                 runtime,
             )),
         },

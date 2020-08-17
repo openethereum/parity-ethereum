@@ -2,7 +2,3 @@
 interface = "all"
 apis = ["all"]
 hosts = ["all"]
-
-[ipfs]
-enable = false # this is the default
-hosts = ["all"]

@@ -330,14 +330,6 @@ pub fn encryption<T: fmt::Debug>(error: T) -> Error {
     }
 }
 
-pub fn encoding<T: fmt::Debug>(error: T) -> Error {
-    Error {
-        code: ErrorCode::ServerError(codes::ENCODING_ERROR),
-        message: "Encoding error.".into(),
-        data: Some(Value::String(format!("{:?}", error))),
-    }
-}
-
 pub fn database<T: fmt::Debug>(error: T) -> Error {
     Error {
         code: ErrorCode::ServerError(codes::DATABASE_ERROR),
