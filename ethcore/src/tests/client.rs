@@ -90,15 +90,6 @@ fn should_return_registrar() {
 }
 
 #[test]
-fn returns_state_root_basic() {
-    let client = generate_dummy_client(6);
-    let test_spec = Spec::new_test();
-    let genesis_header = test_spec.genesis_header();
-
-    assert!(client.state_data(genesis_header.state_root()).is_some());
-}
-
-#[test]
 fn imports_good_block() {
     let db = test_helpers::new_db();
     let spec = Spec::new_test();

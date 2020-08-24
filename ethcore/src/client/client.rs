@@ -2278,10 +2278,6 @@ impl BlockChainClient for Client {
         self.chain.read().find_uncle_hashes(hash, MAX_UNCLE_AGE)
     }
 
-    fn state_data(&self, hash: &H256) -> Option<Bytes> {
-        self.state_db.read().journal_db().state(hash)
-    }
-
     fn block_receipts(&self, hash: &H256) -> Option<BlockReceipts> {
         self.chain.read().block_receipts(hash)
     }

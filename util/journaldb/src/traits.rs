@@ -18,7 +18,6 @@
 
 use std::{io, sync::Arc};
 
-use bytes::Bytes;
 use ethereum_types::H256;
 use hash_db::{AsHashDB, HashDB};
 use keccak_hasher::KeccakHasher;
@@ -80,9 +79,6 @@ pub trait JournalDB: KeyedHashDB {
     /// either to restore a state to a fresh database, or to insert data which may only be journalled
     /// from this point onwards.
     fn inject(&mut self, batch: &mut DBTransaction) -> io::Result<u32>;
-
-    /// State data query
-    fn state(&self, _id: &H256) -> Option<Bytes>;
 
     /// Whether this database is pruned.
     fn is_pruned(&self) -> bool {

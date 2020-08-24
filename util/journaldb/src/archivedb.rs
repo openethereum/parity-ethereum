@@ -23,10 +23,8 @@ use std::{
 };
 
 use super::{
-    error_key_already_exists, error_negatively_reference_hash, memory_db::*, DB_PREFIX_LEN,
-    LATEST_ERA_KEY,
+    error_key_already_exists, error_negatively_reference_hash, memory_db::*, LATEST_ERA_KEY,
 };
-use bytes::Bytes;
 use ethereum_types::H256;
 use hash_db::HashDB;
 use keccak_hasher::KeccakHasher;
@@ -203,12 +201,6 @@ impl JournalDB for ArchiveDB {
 
     fn latest_era(&self) -> Option<u64> {
         self.latest_era
-    }
-
-    fn state(&self, id: &H256) -> Option<Bytes> {
-        self.backing
-            .get_by_prefix(self.column, &id[0..DB_PREFIX_LEN])
-            .map(|b| b.into_vec())
     }
 
     fn is_pruned(&self) -> bool {
@@ -491,24 +483,6 @@ mod tests {
             jdb.commit_batch(2, &keccak(b"2b"), Some((1, keccak(b"1b"))))
                 .unwrap();
             assert!(jdb.contains(&foo));
-        }
-    }
-
-    #[test]
-    fn returns_state() {
-        let shared_db = Arc::new(kvdb_memorydb::create(0));
-
-        let key = {
-            let mut jdb = ArchiveDB::new(shared_db.clone(), None);
-            let key = jdb.insert(b"foo");
-            jdb.commit_batch(0, &keccak(b"0"), None).unwrap();
-            key
-        };
-
-        {
-            let jdb = ArchiveDB::new(shared_db, None);
-            let state = jdb.state(&key);
-            assert!(state.is_some());
         }
     }
 

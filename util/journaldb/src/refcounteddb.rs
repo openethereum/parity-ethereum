@@ -18,8 +18,7 @@
 
 use std::{collections::HashMap, io, sync::Arc};
 
-use super::{traits::JournalDB, DB_PREFIX_LEN, LATEST_ERA_KEY};
-use bytes::Bytes;
+use super::{traits::JournalDB, LATEST_ERA_KEY};
 use ethereum_types::H256;
 use hash_db::HashDB;
 use heapsize::HeapSizeOf;
@@ -131,12 +130,6 @@ impl JournalDB for RefCountedDB {
 
     fn latest_era(&self) -> Option<u64> {
         self.latest_era
-    }
-
-    fn state(&self, id: &H256) -> Option<Bytes> {
-        self.backing
-            .get_by_prefix(self.column, &id[0..DB_PREFIX_LEN])
-            .map(|b| b.into_vec())
     }
 
     fn journal_under(&mut self, batch: &mut DBTransaction, now: u64, id: &H256) -> io::Result<u32> {

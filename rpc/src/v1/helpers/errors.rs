@@ -52,6 +52,7 @@ mod codes {
     pub const REQUEST_REJECTED_LIMIT: i64 = -32041;
     pub const REQUEST_NOT_FOUND: i64 = -32042;
     pub const ENCRYPTION_ERROR: i64 = -32055;
+    #[cfg(any(test, feature = "accounts"))]
     pub const ENCODING_ERROR: i64 = -32058;
     pub const FETCH_ERROR: i64 = -32060;
     pub const NO_PEERS: i64 = -32066;

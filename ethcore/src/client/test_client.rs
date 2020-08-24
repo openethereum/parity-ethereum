@@ -929,17 +929,6 @@ impl BlockChainClient for TestBlockChainClient {
         None
     }
 
-    // TODO: returns just hashes instead of node state rlp(?)
-    fn state_data(&self, hash: &H256) -> Option<Bytes> {
-        // starts with 'f' ?
-        if *hash > H256::from("f000000000000000000000000000000000000000000000000000000000000000") {
-            let mut rlp = RlpStream::new();
-            rlp.append(&hash.clone());
-            return Some(rlp.out());
-        }
-        None
-    }
-
     fn block_receipts(&self, hash: &H256) -> Option<BlockReceipts> {
         // starts with 'f' ?
         if *hash > H256::from("f000000000000000000000000000000000000000000000000000000000000000") {

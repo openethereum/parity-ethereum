@@ -23,8 +23,7 @@ use std::{
 };
 
 use super::{
-    error_key_already_exists, error_negatively_reference_hash, traits::JournalDB, DB_PREFIX_LEN,
-    LATEST_ERA_KEY,
+    error_key_already_exists, error_negatively_reference_hash, traits::JournalDB, LATEST_ERA_KEY,
 };
 use bytes::Bytes;
 use ethereum_types::H256;
@@ -423,12 +422,6 @@ impl JournalDB for EarlyMergeDB {
                 Some(ref c) => c.read().heap_size_of_children(),
                 None => 0,
             }
-    }
-
-    fn state(&self, id: &H256) -> Option<Bytes> {
-        self.backing
-            .get_by_prefix(self.column, &id[0..DB_PREFIX_LEN])
-            .map(|b| b.into_vec())
     }
 
     fn journal_under(&mut self, batch: &mut DBTransaction, now: u64, id: &H256) -> io::Result<u32> {

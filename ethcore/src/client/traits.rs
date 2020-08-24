@@ -322,9 +322,6 @@ pub trait BlockChainClient:
     /// Get all possible uncle hashes for a block.
     fn find_uncles(&self, hash: &H256) -> Option<Vec<H256>>;
 
-    /// Get latest state node
-    fn state_data(&self, hash: &H256) -> Option<Bytes>;
-
     /// Get block receipts data by block header hash.
     fn block_receipts(&self, hash: &H256) -> Option<BlockReceipts>;
 
