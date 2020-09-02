@@ -479,11 +479,6 @@ impl Response {
         self.status() == StatusCode::OK
     }
 
-    /// Status code == 404.
-    pub fn is_not_found(&self) -> bool {
-        self.status() == StatusCode::NOT_FOUND
-    }
-
     /// Is the content-type text/html?
     pub fn is_html(&self) -> bool {
         self.headers

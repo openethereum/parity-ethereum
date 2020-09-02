@@ -38,7 +38,6 @@ ethcore-accounts = { path = "../accounts", optional = true }
 ethcore-logger = { path = "../parity/logger" }
 ethcore-miner = { path = "../miner" }
 ethcore-network = { path = "../util/network" }
-ethcore-private-tx = { path = "../ethcore/private-tx" }
 ethcore-sync = { path = "../ethcore/sync" }
 ethereum-types = "0.4"
 parity-bytes = "0.1"

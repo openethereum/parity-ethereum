@@ -52,7 +52,6 @@ use dir::{
     Directories,
 };
 use ethcore_logger::Config as LogConfig;
-use ethcore_private_tx::{EncryptorConfig, ProviderConfig};
 use helpers::{
     parity_ipc_path, to_address, to_addresses, to_block_id, to_bootnodes, to_duration, to_mode,
     to_pending_set, to_price, to_queue_penalization, to_queue_strategy, to_u256,
@@ -382,8 +381,6 @@ impl Configuration {
             };
 
             let verifier_settings = self.verifier_settings();
-            let (private_provider_conf, private_enc_conf, private_tx_enabled) =
-                self.private_provider_config()?;
 
             let run_cmd = RunCmd {
                 cache_config: cache_config,
@@ -418,9 +415,6 @@ impl Configuration {
                 experimental_rpcs,
                 net_settings: self.network_settings()?,
                 secretstore_conf: secretstore_conf,
-                private_provider_conf: private_provider_conf,
-                private_encryptor_conf: private_enc_conf,
-                private_tx_enabled,
                 name: self.args.arg_identity,
                 custom_bootnodes: self.args.arg_bootnodes.is_some(),
                 check_seal: !self.args.flag_no_seal_check,
@@ -957,33 +951,6 @@ impl Configuration {
         };
 
         Ok(conf)
-    }
-
-    fn private_provider_config(&self) -> Result<(ProviderConfig, EncryptorConfig, bool), String> {
-        let provider_conf = ProviderConfig {
-            validator_accounts: to_addresses(&self.args.arg_private_validators)?,
-            signer_account: self
-                .args
-                .arg_private_signer
-                .clone()
-                .and_then(|account| to_address(Some(account)).ok()),
-        };
-
-        let encryptor_conf = EncryptorConfig {
-            base_url: self.args.arg_private_sstore_url.clone(),
-            threshold: self.args.arg_private_sstore_threshold.unwrap_or(0),
-            key_server_account: self
-                .args
-                .arg_private_account
-                .clone()
-                .and_then(|account| to_address(Some(account)).ok()),
-        };
-
-        Ok((
-            provider_conf,
-            encryptor_conf,
-            self.args.flag_private_enabled,
-        ))
     }
 
     fn snapshot_config(&self) -> Result<SnapshotConfiguration, String> {
@@ -1554,9 +1521,6 @@ mod tests {
             experimental_rpcs: false,
             net_settings: Default::default(),
             secretstore_conf: Default::default(),
-            private_provider_conf: Default::default(),
-            private_encryptor_conf: Default::default(),
-            private_tx_enabled: false,
             name: "".into(),
             custom_bootnodes: false,
             fat_db: Default::default(),

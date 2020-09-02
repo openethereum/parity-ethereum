@@ -244,10 +244,6 @@ Caching, Importing Blocks, and Block Information
     ```bash
     node-filter
     ```
-  * Parity Private Transactions
-    ```bash
-    ethcore-private-tx
-    ```
   * Parity Ethereum (EthCore) Client & Network Service Creation & Registration with the I/O Subsystem
     ```bash
     ethcore-service

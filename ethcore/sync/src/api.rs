@@ -30,9 +30,8 @@ use std::{
 };
 
 use chain::{
-    sync_packet::SyncPacket::{PrivateTransactionPacket, SignedPrivateTransactionPacket},
     ChainSyncApi, SyncStatus as EthSyncStatus, ETH_PROTOCOL_VERSION_62, ETH_PROTOCOL_VERSION_63,
-    PAR_PROTOCOL_VERSION_1, PAR_PROTOCOL_VERSION_2, PAR_PROTOCOL_VERSION_3,
+    PAR_PROTOCOL_VERSION_1, PAR_PROTOCOL_VERSION_2,
 };
 use ethcore::{
     client::{BlockChainClient, ChainMessageType, ChainNotify, NewBlocks},
@@ -43,7 +42,6 @@ use ethkey::Secret;
 use io::TimerToken;
 use network::IpFilter;
 use parking_lot::{Mutex, RwLock};
-use private_tx::PrivateTxHandler;
 use std::{
     net::{AddrParseError, SocketAddr},
     str::FromStr,
@@ -214,8 +212,6 @@ pub struct Params {
     pub chain: Arc<dyn BlockChainClient>,
     /// Snapshot service.
     pub snapshot_service: Arc<dyn SnapshotService>,
-    /// Private tx service.
-    pub private_tx_handler: Option<Arc<dyn PrivateTxHandler>>,
     /// Network layer configuration.
     pub network_config: NetworkConfiguration,
 }
@@ -239,12 +235,7 @@ impl EthSync {
         connection_filter: Option<Arc<dyn ConnectionFilter>>,
     ) -> Result<Arc<EthSync>, Error> {
         let (priority_tasks_tx, priority_tasks_rx) = mpsc::channel();
-        let sync = ChainSyncApi::new(
-            params.config,
-            &*params.chain,
-            params.private_tx_handler.as_ref().cloned(),
-            priority_tasks_rx,
-        );
+        let sync = ChainSyncApi::new(params.config, &*params.chain, priority_tasks_rx);
         let service = NetworkService::new(
             params.network_config.clone().into_basic()?,
             connection_filter,
@@ -463,11 +454,7 @@ impl ChainNotify for EthSync {
             .register_protocol(
                 self.eth_handler.clone(),
                 PAR_PROTOCOL,
-                &[
-                    PAR_PROTOCOL_VERSION_1,
-                    PAR_PROTOCOL_VERSION_2,
-                    PAR_PROTOCOL_VERSION_3,
-                ],
+                &[PAR_PROTOCOL_VERSION_1, PAR_PROTOCOL_VERSION_2],
             )
             .unwrap_or_else(|e| warn!("Error registering snapshot sync protocol: {:?}", e));
     }
@@ -491,22 +478,6 @@ impl ChainNotify for EthSync {
                     .sync
                     .write()
                     .propagate_consensus_packet(&mut sync_io, message),
-                ChainMessageType::PrivateTransaction(transaction_hash, message) => {
-                    self.eth_handler.sync.write().propagate_private_transaction(
-                        &mut sync_io,
-                        transaction_hash,
-                        PrivateTransactionPacket,
-                        message,
-                    )
-                }
-                ChainMessageType::SignedPrivateTransaction(transaction_hash, message) => {
-                    self.eth_handler.sync.write().propagate_private_transaction(
-                        &mut sync_io,
-                        transaction_hash,
-                        SignedPrivateTransactionPacket,
-                        message,
-                    )
-                }
             }
         });
     }

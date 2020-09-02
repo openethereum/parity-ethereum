@@ -38,7 +38,6 @@ use types::ids::BlockId;
 use cache::CacheConfig;
 use db;
 use dir::Directories;
-use ethcore_private_tx;
 use helpers::{execute_upgrades, to_client_config};
 use params::{fatdb_switch_to_bool, tracing_switch_to_bool, Pruning, SpecType, Switch};
 use user_defaults::UserDefaults;
@@ -239,10 +238,6 @@ impl SnapshotCommand {
             // TODO [ToDr] don't use test miner here
             // (actually don't require miner at all)
             Arc::new(Miner::new_for_tests(&spec, None)),
-            Arc::new(ethcore_private_tx::DummySigner),
-            Box::new(ethcore_private_tx::NoopEncryptor),
-            Default::default(),
-            Default::default(),
         )
         .map_err(|e| format!("Client service error: {:?}", e))?;
 

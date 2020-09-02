@@ -17,11 +17,8 @@
 use api::PAR_PROTOCOL;
 use bytes::Bytes;
 use chain::{
-    sync_packet::{
-        PacketInfo, SyncPacket,
-        SyncPacket::{PrivateTransactionPacket, SignedPrivateTransactionPacket},
-    },
-    ChainSync, SyncSupplier, ETH_PROTOCOL_VERSION_63, PAR_PROTOCOL_VERSION_3,
+    sync_packet::{PacketInfo, SyncPacket},
+    ChainSync, SyncSupplier, ETH_PROTOCOL_VERSION_63, PAR_PROTOCOL_VERSION_2,
 };
 use ethcore::{
     client::{
@@ -36,7 +33,7 @@ use ethcore::{
 use ethereum_types::H256;
 use io::{IoChannel, IoContext, IoHandler};
 use network::{self, client_version::ClientVersion, PacketId, PeerId, ProtocolId, SessionInfo};
-use parking_lot::{Mutex, RwLock};
+use parking_lot::RwLock;
 use std::{
     collections::{HashMap, HashSet, VecDeque},
     sync::Arc,
@@ -44,7 +41,6 @@ use std::{
 use sync_io::SyncIo;
 use tests::snapshot::*;
 
-use private_tx::SimplePrivateTxHandler;
 use types::BlockNumber;
 use SyncConfig;
 
@@ -177,7 +173,7 @@ where
 
     fn protocol_version(&self, protocol: &ProtocolId, peer_id: PeerId) -> u8 {
         if protocol == &PAR_PROTOCOL {
-            PAR_PROTOCOL_VERSION_3.0
+            PAR_PROTOCOL_VERSION_2.0
         } else {
             self.eth_protocol_version(peer_id)
         }
@@ -262,7 +258,6 @@ where
     pub snapshot_service: Arc<TestSnapshotService>,
     pub sync: RwLock<ChainSync>,
     pub queue: RwLock<VecDeque<TestPacket>>,
-    pub private_tx_handler: Arc<SimplePrivateTxHandler>,
     pub io_queue: RwLock<VecDeque<ChainMessageType>>,
     new_blocks_queue: RwLock<VecDeque<NewBlockMessage>>,
 }
@@ -284,22 +279,6 @@ where
         match message {
             ChainMessageType::Consensus(data) => {
                 self.sync.write().propagate_consensus_packet(&mut io, data)
-            }
-            ChainMessageType::PrivateTransaction(transaction_hash, data) => {
-                self.sync.write().propagate_private_transaction(
-                    &mut io,
-                    transaction_hash,
-                    PrivateTransactionPacket,
-                    data,
-                )
-            }
-            ChainMessageType::SignedPrivateTransaction(transaction_hash, data) => {
-                self.sync.write().propagate_private_transaction(
-                    &mut io,
-                    transaction_hash,
-                    SignedPrivateTransactionPacket,
-                    data,
-                )
             }
         }
     }
@@ -426,15 +405,13 @@ impl TestNet<EthPeer<TestBlockChainClient>> {
         for _ in 0..n {
             let chain = TestBlockChainClient::new();
             let ss = Arc::new(TestSnapshotService::new());
-            let private_tx_handler = Arc::new(SimplePrivateTxHandler::default());
-            let sync = ChainSync::new(config.clone(), &chain, Some(private_tx_handler.clone()));
+            let sync = ChainSync::new(config.clone(), &chain);
             net.peers.push(Arc::new(EthPeer {
                 sync: RwLock::new(sync),
                 snapshot_service: ss,
                 chain: Arc::new(chain),
                 miner: Arc::new(Miner::new_for_tests(&Spec::new_test(), None)),
                 queue: RwLock::new(VecDeque::new()),
-                private_tx_handler,
                 io_queue: RwLock::new(VecDeque::new()),
                 new_blocks_queue: RwLock::new(VecDeque::new()),
             }));
@@ -476,16 +453,14 @@ impl TestNet<EthPeer<EthcoreClient>> {
         )
         .unwrap();
 
-        let private_tx_handler = Arc::new(SimplePrivateTxHandler::default());
         let ss = Arc::new(TestSnapshotService::new());
-        let sync = ChainSync::new(config, &*client, Some(private_tx_handler.clone()));
+        let sync = ChainSync::new(config, &*client);
         let peer = Arc::new(EthPeer {
             sync: RwLock::new(sync),
             snapshot_service: ss,
             chain: client,
             miner,
             queue: RwLock::new(VecDeque::new()),
-            private_tx_handler,
             io_queue: RwLock::new(VecDeque::new()),
             new_blocks_queue: RwLock::new(VecDeque::new()),
         });
@@ -604,15 +579,11 @@ impl<C: FlushingBlockChainClient> TestNet<EthPeer<C>> {
 
 pub struct TestIoHandler {
     pub client: Arc<EthcoreClient>,
-    pub private_tx_queued: Mutex<usize>,
 }
 
 impl TestIoHandler {
     pub fn new(client: Arc<EthcoreClient>) -> Self {
-        TestIoHandler {
-            client,
-            private_tx_queued: Mutex::default(),
-        }
+        TestIoHandler { client }
     }
 }
 
@@ -620,7 +591,6 @@ impl IoHandler<ClientIoMessage> for TestIoHandler {
     fn message(&self, _io: &IoContext<ClientIoMessage>, net_message: &ClientIoMessage) {
         match *net_message {
             ClientIoMessage::Execute(ref exec) => {
-                *self.private_tx_queued.lock() += 1;
                 (*exec.0)(&self.client);
             }
             _ => {} // ignore other messages

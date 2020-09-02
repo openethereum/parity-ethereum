@@ -328,29 +328,6 @@ impl SyncPropagator {
         }
     }
 
-    /// Broadcast private transaction message to peers.
-    pub fn propagate_private_transaction(
-        sync: &mut ChainSync,
-        io: &mut dyn SyncIo,
-        transaction_hash: H256,
-        packet_id: SyncPacket,
-        packet: Bytes,
-    ) {
-        let lucky_peers =
-            ChainSync::select_random_peers(&sync.get_private_transaction_peers(&transaction_hash));
-        if lucky_peers.is_empty() {
-            error!(target: "privatetx", "Cannot propagate the packet, no peers with private tx enabled connected");
-        } else {
-            trace!(target: "privatetx", "Sending private transaction packet to {:?}", lucky_peers);
-            for peer_id in lucky_peers {
-                if let Some(ref mut peer) = sync.peers.get_mut(&peer_id) {
-                    peer.last_sent_private_transactions.insert(transaction_hash);
-                }
-                SyncPropagator::send_packet(io, peer_id, packet_id, packet.clone());
-            }
-        }
-    }
-
     fn select_peers_for_transactions<F>(sync: &ChainSync, filter: F) -> Vec<PeerId>
     where
         F: Fn(&PeerId) -> bool,
@@ -473,7 +450,7 @@ mod tests {
         client.add_blocks(2, EachBlockWith::Uncle);
         let queue = RwLock::new(VecDeque::new());
         let block = client.block(BlockId::Latest).unwrap().into_inner();
-        let mut sync = ChainSync::new(SyncConfig::default(), &client, None);
+        let mut sync = ChainSync::new(SyncConfig::default(), &client);
         sync.peers.insert(
             0,
             PeerInfo {
@@ -488,9 +465,7 @@ mod tests {
                 asking_hash: None,
                 ask_time: Instant::now(),
                 last_sent_transactions: Default::default(),
-                last_sent_private_transactions: Default::default(),
                 expired: false,
-                private_tx_enabled: false,
                 confirmation: ForkConfirmation::Confirmed,
                 snapshot_number: None,
                 snapshot_hash: None,
@@ -565,7 +540,7 @@ mod tests {
         client.add_blocks(100, EachBlockWith::Uncle);
         client.insert_transaction_to_queue();
         // Sync with no peers
-        let mut sync = ChainSync::new(SyncConfig::default(), &client, None);
+        let mut sync = ChainSync::new(SyncConfig::default(), &client);
         let queue = RwLock::new(VecDeque::new());
         let ss = TestSnapshotService::new();
         let mut io = TestIo::new(&mut client, &ss, &queue, None);
@@ -642,7 +617,7 @@ mod tests {
         let mut client = TestBlockChainClient::new();
         client.insert_transaction_with_gas_price_to_queue(U256::zero());
         let block_hash = client.block_hash_delta_minus(1);
-        let mut sync = ChainSync::new(SyncConfig::default(), &client, None);
+        let mut sync = ChainSync::new(SyncConfig::default(), &client);
         let queue = RwLock::new(VecDeque::new());
         let ss = TestSnapshotService::new();
         let mut io = TestIo::new(&mut client, &ss, &queue, None);
@@ -680,7 +655,7 @@ mod tests {
         let tx1_hash = client.insert_transaction_to_queue();
         let tx2_hash = client.insert_transaction_with_gas_price_to_queue(U256::zero());
         let block_hash = client.block_hash_delta_minus(1);
-        let mut sync = ChainSync::new(SyncConfig::default(), &client, None);
+        let mut sync = ChainSync::new(SyncConfig::default(), &client);
         let queue = RwLock::new(VecDeque::new());
         let ss = TestSnapshotService::new();
         let mut io = TestIo::new(&mut client, &ss, &queue, None);

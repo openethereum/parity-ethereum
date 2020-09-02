@@ -60,4 +60,3 @@ pub use verification::VerifierType;
 pub mod traits;
 
 mod chain_notify;
-mod private_notify;

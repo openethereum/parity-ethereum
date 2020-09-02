@@ -22,7 +22,6 @@ use ethcore::{
     client::{BlockChainClient, BlockId},
     error::{CallError, Error as EthcoreError, ErrorKind},
 };
-use ethcore_private_tx::Error as PrivateTransactionError;
 use jsonrpc_core::{Error, ErrorCode, Result as RpcResult, Value};
 use rlp::DecoderError;
 use types::{blockchain_info::BlockChainInfo, transaction::Error as TransactionError};
@@ -47,7 +46,6 @@ mod codes {
     #[cfg(any(test, feature = "accounts"))]
     pub const PASSWORD_INVALID: i64 = -32021;
     pub const ACCOUNT_ERROR: i64 = -32023;
-    pub const PRIVATE_ERROR: i64 = -32024;
     pub const REQUEST_REJECTED: i64 = -32040;
     pub const REQUEST_REJECTED_LIMIT: i64 = -32041;
     pub const REQUEST_NOT_FOUND: i64 = -32042;
@@ -66,14 +64,6 @@ pub fn unimplemented(details: Option<String>) -> Error {
         code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
         message: "This request is not implemented yet. Please create an issue on Github repo."
             .into(),
-        data: details.map(Value::String),
-    }
-}
-
-pub fn light_unimplemented(details: Option<String>) -> Error {
-    Error {
-        code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
-        message: "This request is unsupported for light clients.".into(),
         data: details.map(Value::String),
     }
 }
@@ -371,22 +361,6 @@ pub fn password(error: ::accounts::SignError) -> Error {
         code: ErrorCode::ServerError(codes::PASSWORD_INVALID),
         message: "Account password is invalid or account does not exist.".into(),
         data: Some(Value::String(format!("{:?}", error))),
-    }
-}
-
-pub fn private_message(error: PrivateTransactionError) -> Error {
-    Error {
-        code: ErrorCode::ServerError(codes::PRIVATE_ERROR),
-        message: "Private transactions call failed.".into(),
-        data: Some(Value::String(format!("{:?}", error))),
-    }
-}
-
-pub fn private_message_block_id_not_supported() -> Error {
-    Error {
-        code: ErrorCode::ServerError(codes::PRIVATE_ERROR),
-        message: "Pending block id not supported.".into(),
-        data: None,
     }
 }
 

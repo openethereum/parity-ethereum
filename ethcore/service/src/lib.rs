@@ -18,7 +18,6 @@ extern crate ansi_term;
 extern crate ethcore;
 extern crate ethcore_blockchain as blockchain;
 extern crate ethcore_io as io;
-extern crate ethcore_private_tx;
 extern crate ethcore_sync as sync;
 extern crate ethereum_types;
 extern crate kvdb;
@@ -43,4 +42,4 @@ mod stop_guard;
 extern crate kvdb_rocksdb;
 
 pub use error::{Error, ErrorKind};
-pub use service::{ClientService, PrivateTxService};
+pub use service::ClientService;

@@ -300,35 +300,6 @@ usage! {
             "--password=[FILE]...",
             "Provide a file containing a password for unlocking an account. Leading and trailing whitespace is trimmed.",
 
-        ["Private Transactions Options"]
-            FLAG flag_private_enabled: (bool) = false, or |c: &Config| c.private_tx.as_ref()?.enabled,
-            "--private-tx-enabled",
-            "Enable private transactions.",
-
-            ARG arg_private_signer: (Option<String>) = None, or |c: &Config| c.private_tx.as_ref()?.signer.clone(),
-            "--private-signer=[ACCOUNT]",
-            "Specify the account for signing public transaction created upon verified private transaction.",
-
-            ARG arg_private_validators: (Option<String>) = None, or |c: &Config| c.private_tx.as_ref()?.validators.as_ref().map(|vec| vec.join(",")),
-            "--private-validators=[ACCOUNTS]",
-            "Specify the accounts for validating private transactions. ACCOUNTS is a comma-delimited list of addresses.",
-
-            ARG arg_private_account: (Option<String>) = None, or |c: &Config| c.private_tx.as_ref()?.account.clone(),
-            "--private-account=[ACCOUNT]",
-            "Specify the account for signing requests to secret store.",
-
-            ARG arg_private_sstore_url: (Option<String>) = None, or |c: &Config| c.private_tx.as_ref()?.sstore_url.clone(),
-            "--private-sstore-url=[URL]",
-            "Specify secret store URL used for encrypting private transactions.",
-
-            ARG arg_private_sstore_threshold: (Option<u32>) = None, or |c: &Config| c.private_tx.as_ref()?.sstore_threshold.clone(),
-            "--private-sstore-threshold=[NUM]",
-            "Specify secret store threshold used for encrypting private transactions.",
-
-            ARG arg_private_passwords: (Option<String>) = None, or |c: &Config| c.private_tx.as_ref()?.passwords.clone(),
-            "--private-passwords=[FILE]...",
-            "Provide a file containing passwords for unlocking accounts (signer, private account, validators).",
-
         ["UI Options"]
             ARG arg_ui_path: (String) = "$BASE/signer", or |c: &Config| c.ui.as_ref()?.path.clone(),
             "--ui-path=[PATH]",
@@ -438,7 +409,7 @@ usage! {
             "--jsonrpc-interface=[IP]",
             "Specify the hostname portion of the HTTP JSON-RPC API server, IP should be an interface's IP address, or all (all interfaces) or local.",
 
-            ARG arg_jsonrpc_apis: (String) = "web3,eth,pubsub,net,parity,private,parity_pubsub,traces", or |c: &Config| c.rpc.as_ref()?.apis.as_ref().map(|vec| vec.join(",")),
+            ARG arg_jsonrpc_apis: (String) = "web3,eth,pubsub,net,parity,parity_pubsub,traces", or |c: &Config| c.rpc.as_ref()?.apis.as_ref().map(|vec| vec.join(",")),
             "--jsonrpc-apis=[APIS]",
             "Specify the APIs available through the HTTP JSON-RPC interface using a comma-delimited list of API names. Possible names are: all, safe, debug, web3, net, eth, pubsub, personal, signer, parity, parity_pubsub, parity_accounts, parity_set, traces, secretstore. You can also disable a specific API by putting '-' in the front, example: all,-personal. 'safe' enables the following APIs: web3, net, eth, pubsub, parity, parity_pubsub, traces",
 
@@ -479,7 +450,7 @@ usage! {
             "--ws-interface=[IP]",
             "Specify the hostname portion of the WebSockets JSON-RPC server, IP should be an interface's IP address, or all (all interfaces) or local.",
 
-            ARG arg_ws_apis: (String) = "web3,eth,pubsub,net,parity,parity_pubsub,private,traces", or |c: &Config| c.websockets.as_ref()?.apis.as_ref().map(|vec| vec.join(",")),
+            ARG arg_ws_apis: (String) = "web3,eth,pubsub,net,parity,parity_pubsub,traces", or |c: &Config| c.websockets.as_ref()?.apis.as_ref().map(|vec| vec.join(",")),
             "--ws-apis=[APIS]",
             "Specify the JSON-RPC APIs available through the WebSockets interface using a comma-delimited list of API names. Possible names are: all, safe, web3, net, eth, pubsub, personal, signer, parity, parity_pubsub, parity_accounts, parity_set, traces, secretstore. You can also disable a specific API by putting '-' in the front, example: all,-personal. 'safe' enables the following APIs: web3, net, eth, pubsub, parity, parity_pubsub, traces",
 
@@ -504,7 +475,7 @@ usage! {
             "--ipc-path=[PATH]",
             "Specify custom path for JSON-RPC over IPC service.",
 
-            ARG arg_ipc_apis: (String) = "web3,eth,pubsub,net,parity,parity_pubsub,parity_accounts,private,traces", or |c: &Config| c.ipc.as_ref()?.apis.as_ref().map(|vec| vec.join(",")),
+            ARG arg_ipc_apis: (String) = "web3,eth,pubsub,net,parity,parity_pubsub,parity_accounts,traces", or |c: &Config| c.ipc.as_ref()?.apis.as_ref().map(|vec| vec.join(",")),
             "--ipc-apis=[APIS]",
             "Specify custom API set available via JSON-RPC over IPC using a comma-delimited list of API names. Possible names are: all, safe, web3, net, eth, pubsub, personal, signer, parity, parity_pubsub, parity_accounts, parity_set, traces, secretstore. You can also disable a specific API by putting '-' in the front, example: all,-personal. 'safe' enables the following APIs: web3, net, eth, pubsub, parity, parity_pubsub, traces",
 
@@ -832,7 +803,6 @@ struct Config {
     websockets: Option<Ws>,
     ipc: Option<Ipc>,
     secretstore: Option<SecretStore>,
-    private_tx: Option<PrivateTransactions>,
     mining: Option<Mining>,
     footprint: Option<Footprint>,
     snapshots: Option<Snapshots>,
@@ -862,18 +832,6 @@ struct Account {
     keys_iterations: Option<u32>,
     refresh_time: Option<u64>,
     fast_unlock: Option<bool>,
-}
-
-#[derive(Default, Debug, PartialEq, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct PrivateTransactions {
-    enabled: Option<bool>,
-    signer: Option<String>,
-    validators: Option<Vec<String>>,
-    account: Option<String>,
-    passwords: Option<String>,
-    sstore_url: Option<String>,
-    sstore_threshold: Option<u32>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
@@ -1297,15 +1255,6 @@ mod tests {
                 arg_accounts_refresh: 5u64,
                 flag_fast_unlock: false,
 
-                // -- Private Transactions Options
-                flag_private_enabled: true,
-                arg_private_signer: Some("0xdeadbeefcafe0000000000000000000000000000".into()),
-                arg_private_validators: Some("0xdeadbeefcafe0000000000000000000000000000".into()),
-                arg_private_passwords: Some("~/.safe/password.file".into()),
-                arg_private_account: Some("0xdeadbeefcafe0000000000000000000000000000".into()),
-                arg_private_sstore_url: Some("http://localhost:8082".into()),
-                arg_private_sstore_threshold: Some(0),
-
                 arg_ui_path: "$HOME/.parity/signer".into(),
 
                 // -- Networking Options
@@ -1576,7 +1525,6 @@ mod tests {
                     http_port: Some(8082),
                     path: None,
                 }),
-                private_tx: None,
                 mining: Some(Mining {
                     author: Some("0xdeadbeefcafe0000000000000000000000000001".into()),
                     engine_signer: Some("0xdeadbeefcafe0000000000000000000000000001".into()),

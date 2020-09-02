@@ -614,8 +614,6 @@ impl ChainNotify for TestNotify {
     fn broadcast(&self, message: ChainMessageType) {
         let data = match message {
             ChainMessageType::Consensus(data) => data,
-            ChainMessageType::SignedPrivateTransaction(_, data) => data,
-            ChainMessageType::PrivateTransaction(_, data) => data,
         };
         self.messages.write().push(data);
     }

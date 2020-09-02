@@ -26,7 +26,6 @@ pub mod parity_accounts;
 pub mod parity_set;
 pub mod parity_signing;
 pub mod personal;
-pub mod private;
 pub mod pubsub;
 pub mod secretstore;
 pub mod signer;
@@ -44,7 +43,6 @@ pub use self::{
     parity_set::{ParitySet, ParitySetAccounts},
     parity_signing::ParitySigning,
     personal::Personal,
-    private::Private,
     pubsub::PubSub,
     secretstore::SecretStore,
     signer::Signer,

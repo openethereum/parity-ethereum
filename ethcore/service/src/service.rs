@@ -19,7 +19,6 @@
 use std::{path::Path, sync::Arc, time::Duration};
 
 use ansi_term::Colour;
-use ethereum_types::H256;
 use io::{IoContext, IoError, IoHandler, IoService, TimerToken};
 use stop_guard::StopGuard;
 
@@ -34,54 +33,14 @@ use ethcore::{
     },
     spec::Spec,
 };
-use sync::PrivateTxHandler;
 
-use ethcore_private_tx::{self, Importer, Signer};
 use Error;
-
-pub struct PrivateTxService {
-    provider: Arc<ethcore_private_tx::Provider>,
-}
-
-impl PrivateTxService {
-    fn new(provider: Arc<ethcore_private_tx::Provider>) -> Self {
-        PrivateTxService { provider }
-    }
-
-    /// Returns underlying provider.
-    pub fn provider(&self) -> Arc<ethcore_private_tx::Provider> {
-        self.provider.clone()
-    }
-}
-
-impl PrivateTxHandler for PrivateTxService {
-    fn import_private_transaction(&self, rlp: &[u8]) -> Result<H256, String> {
-        match self.provider.import_private_transaction(rlp) {
-            Ok(import_result) => Ok(import_result),
-            Err(err) => {
-                warn!(target: "privatetx", "Unable to import private transaction packet: {}", err);
-                bail!(err.to_string())
-            }
-        }
-    }
-
-    fn import_signed_private_transaction(&self, rlp: &[u8]) -> Result<H256, String> {
-        match self.provider.import_signed_private_transaction(rlp) {
-            Ok(import_result) => Ok(import_result),
-            Err(err) => {
-                warn!(target: "privatetx", "Unable to import signed private transaction packet: {}", err);
-                bail!(err.to_string())
-            }
-        }
-    }
-}
 
 /// Client service setup. Creates and registers client and network services with the IO subsystem.
 pub struct ClientService {
     io_service: Arc<IoService<ClientIoMessage>>,
     client: Arc<Client>,
     snapshot: Arc<SnapshotService>,
-    private_tx: Arc<PrivateTxService>,
     database: Arc<dyn BlockChainDB>,
     _stop_guard: StopGuard,
 }
@@ -96,10 +55,6 @@ impl ClientService {
         restoration_db_handler: Box<dyn BlockChainDBHandler>,
         _ipc_path: &Path,
         miner: Arc<Miner>,
-        signer: Arc<dyn Signer>,
-        encryptor: Box<dyn ethcore_private_tx::Encryptor>,
-        private_tx_conf: ethcore_private_tx::ProviderConfig,
-        private_encryptor_conf: ethcore_private_tx::EncryptorConfig,
     ) -> Result<ClientService, Error> {
         let io_service = IoService::<ClientIoMessage>::start()?;
 
@@ -131,21 +86,6 @@ impl ClientService {
         };
         let snapshot = Arc::new(SnapshotService::new(snapshot_params)?);
 
-        let private_keys = Arc::new(ethcore_private_tx::SecretStoreKeys::new(
-            client.clone(),
-            private_encryptor_conf.key_server_account,
-        ));
-        let provider = Arc::new(ethcore_private_tx::Provider::new(
-            client.clone(),
-            miner,
-            signer,
-            encryptor,
-            private_tx_conf,
-            io_service.channel(),
-            private_keys,
-        ));
-        let private_tx = Arc::new(PrivateTxService::new(provider));
-
         let client_io = Arc::new(ClientIoHandler {
             client: client.clone(),
             snapshot: snapshot.clone(),
@@ -160,7 +100,6 @@ impl ClientService {
             io_service: Arc::new(io_service),
             client: client,
             snapshot: snapshot,
-            private_tx,
             database: blockchain_db,
             _stop_guard: stop_guard,
         })
@@ -182,11 +121,6 @@ impl ClientService {
     /// Get snapshot interface.
     pub fn snapshot_service(&self) -> Arc<SnapshotService> {
         self.snapshot.clone()
-    }
-
-    /// Get private transaction service.
-    pub fn private_tx_service(&self) -> Arc<PrivateTxService> {
-        self.private_tx.clone()
     }
 
     /// Get network service component
@@ -309,8 +243,6 @@ mod tests {
     use ethcore_db::NUM_COLUMNS;
     use kvdb_rocksdb::{CompactionProfile, DatabaseConfig};
 
-    use ethcore_private_tx;
-
     #[test]
     fn it_can_be_started() {
         let tempdir = TempDir::new("").unwrap();
@@ -336,10 +268,6 @@ mod tests {
             restoration_db_handler,
             tempdir.path(),
             Arc::new(Miner::new_for_tests(&spec, None)),
-            Arc::new(ethcore_private_tx::DummySigner),
-            Box::new(ethcore_private_tx::NoopEncryptor),
-            Default::default(),
-            Default::default(),
         );
         assert!(service.is_ok());
         drop(service.unwrap());

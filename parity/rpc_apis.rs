@@ -21,7 +21,6 @@ pub use parity_rpc::signer::SignerService;
 use account_utils::{self, AccountProvider};
 use ethcore::{client::Client, miner::Miner, snapshot::SnapshotService};
 use ethcore_logger::RotatingLogger;
-use ethcore_service::PrivateTxService;
 use fetch::Client as FetchClient;
 use jsonrpc_core::{self as core, MetaIoHandler};
 use miner::external::ExternalMiner;
@@ -52,8 +51,6 @@ pub enum Api {
     Parity,
     /// Traces (Safe)
     Traces,
-    /// Private transaction manager (Safe)
-    Private,
     /// Parity PubSub - Generic Publish-Subscriber (Safety depends on other APIs exposed).
     ParityPubSub,
     /// Parity Accounts extensions (UNSAFE: Passwords, Side Effects (new account))
@@ -82,7 +79,6 @@ impl FromStr for Api {
             "parity_pubsub" => Ok(ParityPubSub),
             "parity_set" => Ok(ParitySet),
             "personal" => Ok(Personal),
-            "private" => Ok(Private),
             "pubsub" => Ok(EthPubSub),
             "secretstore" => Ok(SecretStore),
             "signer" => Ok(Signer),
@@ -191,7 +187,6 @@ pub struct FullDependencies {
     pub sync: Arc<dyn SyncProvider>,
     pub net: Arc<dyn ManageNetwork>,
     pub accounts: Arc<AccountProvider>,
-    pub private_tx_service: Option<Arc<PrivateTxService>>,
     pub miner: Arc<Miner>,
     pub external_miner: Arc<ExternalMiner>,
     pub logger: Arc<RotatingLogger>,
@@ -385,12 +380,6 @@ impl FullDependencies {
                     #[cfg(feature = "accounts")]
                     handler.extend_with(SecretStoreClient::new(&self.accounts).to_delegate());
                 }
-                Api::Private => {
-                    handler.extend_with(
-                        PrivateClient::new(self.private_tx_service.as_ref().map(|p| p.provider()))
-                            .to_delegate(),
-                    );
-                }
             }
         }
     }
@@ -420,17 +409,11 @@ impl ApiSet {
     }
 
     pub fn list_apis(&self) -> HashSet<Api> {
-        let mut public_list: HashSet<Api> = [
-            Api::Web3,
-            Api::Net,
-            Api::Eth,
-            Api::EthPubSub,
-            Api::Parity,
-            Api::Private,
-        ]
-        .iter()
-        .cloned()
-        .collect();
+        let mut public_list: HashSet<Api> =
+            [Api::Web3, Api::Net, Api::Eth, Api::EthPubSub, Api::Parity]
+                .iter()
+                .cloned()
+                .collect();
 
         match *self {
             ApiSet::List(ref apis) => apis.clone(),
@@ -488,7 +471,6 @@ mod test {
         assert_eq!(Api::ParitySet, "parity_set".parse().unwrap());
         assert_eq!(Api::Traces, "traces".parse().unwrap());
         assert_eq!(Api::SecretStore, "secretstore".parse().unwrap());
-        assert_eq!(Api::Private, "private".parse().unwrap());
         assert!("rp".parse::<Api>().is_err());
     }
 
@@ -516,7 +498,6 @@ mod test {
             Api::Parity,
             Api::ParityPubSub,
             Api::Traces,
-            Api::Private,
         ]
         .into_iter()
         .collect();
@@ -534,7 +515,6 @@ mod test {
             Api::Parity,
             Api::ParityPubSub,
             Api::Traces,
-            Api::Private,
             // semi-safe
             Api::ParityAccounts,
         ]
@@ -561,7 +541,6 @@ mod test {
                     Api::ParitySet,
                     Api::Signer,
                     Api::Personal,
-                    Api::Private,
                     Api::Debug,
                 ]
                 .into_iter()
@@ -587,7 +566,6 @@ mod test {
                     Api::ParityAccounts,
                     Api::ParitySet,
                     Api::Signer,
-                    Api::Private,
                     Api::Debug,
                 ]
                 .into_iter()
@@ -609,7 +587,6 @@ mod test {
                     Api::Parity,
                     Api::ParityPubSub,
                     Api::Traces,
-                    Api::Private,
                 ]
                 .into_iter()
                 .collect()

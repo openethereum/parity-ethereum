@@ -24,10 +24,6 @@ use types::transaction::UnverifiedTransaction;
 pub enum ChainMessageType {
     /// Consensus message
     Consensus(Vec<u8>),
-    /// Message with private transaction
-    PrivateTransaction(H256, Vec<u8>),
-    /// Message with signed private transaction
-    SignedPrivateTransaction(H256, Vec<u8>),
 }
 
 /// Route type to indicate whether it is enacted or retracted.

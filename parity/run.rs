@@ -33,7 +33,6 @@ use ethcore::{
     verification::queue::VerifierSettings,
 };
 use ethcore_logger::{Config as LogConfig, RotatingLogger};
-use ethcore_private_tx::{EncryptorConfig, ProviderConfig, SecretStoreEncryptor};
 use ethcore_service::ClientService;
 use helpers::{execute_upgrades, passwords_from_files, to_client_config};
 use informant::{FullNodeInformantData, Informant};
@@ -56,7 +55,7 @@ use rpc;
 use rpc_apis;
 use secretstore;
 use signer;
-use sync::{self, PrivateTxHandler, SyncConfig};
+use sync::{self, SyncConfig};
 use user_defaults::UserDefaults;
 
 // how often to take periodic snapshots.
@@ -100,9 +99,6 @@ pub struct RunCmd {
     pub experimental_rpcs: bool,
     pub net_settings: NetworkSettings,
     pub secretstore_conf: secretstore::Configuration,
-    pub private_provider_conf: ProviderConfig,
-    pub private_encryptor_conf: EncryptorConfig,
-    pub private_tx_enabled: bool,
     pub name: String,
     pub custom_bootnodes: bool,
     pub stratum: Option<stratum::Options>,
@@ -348,8 +344,6 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<RunningClient
         .open(&client_path)
         .map_err(|e| format!("Failed to open database {:?}", e))?;
 
-    let private_tx_signer = account_utils::private_tx_signer(account_provider.clone(), &passwords)?;
-
     // create client service.
     let service = ClientService::start(
         client_config,
@@ -359,17 +353,6 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<RunningClient
         restoration_db_handler,
         &cmd.dirs.ipc_path(),
         miner.clone(),
-        private_tx_signer.clone(),
-        Box::new(
-            SecretStoreEncryptor::new(
-                cmd.private_encryptor_conf.clone(),
-                fetch.clone(),
-                private_tx_signer,
-            )
-            .map_err(|e| e.to_string())?,
-        ),
-        cmd.private_provider_conf,
-        cmd.private_encryptor_conf,
     )
     .map_err(|e| format!("Client service error: {:?}", e))?;
 
@@ -382,9 +365,6 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<RunningClient
     // Update miners block gas limit
     miner.update_transaction_queue_limits(*client.best_block_header().gas_limit());
 
-    // take handle to private transactions service
-    let private_tx_service = service.private_tx_service();
-    let private_tx_provider = private_tx_service.provider();
     let connection_filter = connection_filter_address.map(|a| {
         Arc::new(NodeFilter::new(
             Arc::downgrade(&client) as Weak<dyn BlockChainClient>,
@@ -446,18 +426,12 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<RunningClient
             .map_err(|e| format!("Stratum start error: {:?}", e))?;
     }
 
-    let private_tx_sync: Option<Arc<dyn PrivateTxHandler>> = match cmd.private_tx_enabled {
-        true => Some(private_tx_service.clone() as Arc<dyn PrivateTxHandler>),
-        false => None,
-    };
-
     // create sync object
     let (sync_provider, manage_network, chain_notify, priority_tasks) = modules::sync(
         sync_config,
         net_conf.clone().into(),
         client.clone(),
         snapshot_service.clone(),
-        private_tx_sync,
         &cmd.logger_config,
         connection_filter
             .clone()
@@ -479,15 +453,6 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<RunningClient
             let _ = tx.lock().send(task);
         }
     }));
-
-    // provider not added to a notification center is effectively disabled
-    // TODO [debris] refactor it later on
-    if cmd.private_tx_enabled {
-        service.add_notify(private_tx_provider.clone());
-        // TODO [ToDr] PrivateTX should use separate notifications
-        // re-using ChainNotify for this is a bit abusive.
-        private_tx_provider.add_notify(chain_notify.clone());
-    }
 
     // start network
     if network_enabled {
@@ -515,7 +480,6 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<RunningClient
         ws_address: cmd.ws_conf.address(),
         fetch: fetch.clone(),
         executor: runtime.executor(),
-        private_tx_service: Some(private_tx_service.clone()),
         gas_price_percentile: cmd.gas_price_percentile,
         poll_lifetime: cmd.poll_lifetime,
         allow_missing_blocks: cmd.allow_missing_blocks,

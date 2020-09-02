@@ -17,7 +17,6 @@
 mod chain;
 mod consensus;
 pub mod helpers;
-mod private;
 pub mod snapshot;
 
 #[cfg(feature = "ipc")]

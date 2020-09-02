@@ -55,8 +55,6 @@ pub enum SyncPacket {
     GetSnapshotDataPacket = 0x13,
     SnapshotDataPacket = 0x14,
     ConsensusDataPacket = 0x15,
-    PrivateTransactionPacket = 0x16,
-    SignedPrivateTransactionPacket = 0x17,
 }
 }
 
@@ -91,9 +89,7 @@ impl PacketInfo for SyncPacket {
             | SnapshotManifestPacket
             | GetSnapshotDataPacket
             | SnapshotDataPacket
-            | ConsensusDataPacket
-            | PrivateTransactionPacket
-            | SignedPrivateTransactionPacket => PAR_PROTOCOL,
+            | ConsensusDataPacket => PAR_PROTOCOL,
         }
     }
 
