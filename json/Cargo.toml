@@ -13,3 +13,4 @@ serde_derive = "1.0"
 
 [dev-dependencies]
 macros = { path = "../util/macros" }
+maplit = "1.0.2"

@@ -24,6 +24,10 @@ extern crate serde_derive;
 #[cfg(test)]
 extern crate macros;
 
+#[cfg(test)]
+#[macro_use]
+extern crate maplit;
+
 pub mod blockchain;
 pub mod bytes;
 pub mod hash;
