@@ -507,36 +507,52 @@ impl<K: Kind> VerificationQueue<K> {
     }
 
     /// Add a block to the queue.
-    pub fn import(&self, input: K::Input) -> Result<H256, (K::Input, Error)> {
+    pub fn import(&self, input: K::Input) -> Result<H256, (Option<K::Input>, Error)> {
         let hash = input.hash();
         let raw_hash = input.raw_hash();
         {
             if self.processing.read().contains_key(&hash) {
                 bail!((
-                    input,
+                    Some(input),
                     ErrorKind::Import(ImportErrorKind::AlreadyQueued).into()
                 ));
             }
 
             let mut bad = self.verification.bad.lock();
             if bad.contains(&hash) || bad.contains(&raw_hash) {
-                bail!((input, ErrorKind::Import(ImportErrorKind::KnownBad).into()));
+                bail!((
+                    Some(input),
+                    ErrorKind::Import(ImportErrorKind::KnownBad).into()
+                ));
             }
 
             if bad.contains(&input.parent_hash()) {
                 bad.insert(hash);
-                bail!((input, ErrorKind::Import(ImportErrorKind::KnownBad).into()));
+                bail!((
+                    Some(input),
+                    ErrorKind::Import(ImportErrorKind::KnownBad).into()
+                ));
             }
         }
 
         match K::create(input, &*self.engine, self.verification.check_seal) {
             Ok(item) => {
+                if self
+                    .processing
+                    .write()
+                    .insert(hash, item.difficulty())
+                    .is_some()
+                {
+                    bail!((
+                        None,
+                        ErrorKind::Import(ImportErrorKind::AlreadyQueued).into()
+                    ));
+                }
                 self.verification
                     .sizes
                     .unverified
                     .fetch_add(item.heap_size_of_children(), AtomicOrdering::SeqCst);
 
-                self.processing.write().insert(hash, item.difficulty());
                 {
                     let mut td = self.total_difficulty.write();
                     *td = *td + item.difficulty();
@@ -563,7 +579,7 @@ impl<K: Kind> VerificationQueue<K> {
                         self.verification.bad.lock().insert(hash);
                     }
                 }
-                Err((input, err))
+                Err((Some(input), err))
             }
         }
     }
