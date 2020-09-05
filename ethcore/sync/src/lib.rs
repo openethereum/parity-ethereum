@@ -22,6 +22,7 @@
 //!
 
 extern crate common_types as types;
+extern crate derive_more;
 extern crate ethcore;
 extern crate ethcore_io as io;
 extern crate ethcore_network as network;

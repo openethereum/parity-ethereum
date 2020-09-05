@@ -575,6 +575,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "derive_more"
+version = "0.99.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "proc-macro2 1.0.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "quote 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "syn 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "difference"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1160,6 +1170,7 @@ name = "ethcore-sync"
 version = "1.12.0"
 dependencies = [
  "common-types 0.1.0",
+ "derive_more 0.99.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "enum_primitive 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.5.13 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore 1.12.0",
@@ -4712,6 +4723,7 @@ dependencies = [
 "checksum ct-logs 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)" = "1b4660f8b07a560a88c02d76286edb9f0d5d64e495d2b0f233186155aa51be1f"
 "checksum ctr 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)" = "022cd691704491df67d25d006fe8eca083098253c4d43516c2206479c58c6736"
 "checksum ctrlc 1.1.1 (git+https://github.com/paritytech/rust-ctrlc.git)" = "<none>"
+"checksum derive_more 0.99.9 (registry+https://github.com/rust-lang/crates.io-index)" = "298998b1cf6b5b2c8a7b023dfd45821825ce3ba8a8af55c921a0e734e4653f76"
 "checksum difference 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "b3304d19798a8e067e48d8e69b2c37f0b5e9b4e462504ad9e27e9f3fce02bba8"
 "checksum digest 0.7.6 (registry+https://github.com/rust-lang/crates.io-index)" = "03b072242a8cbaf9c145665af9d250c59af3b958f83ed6824e13533cf76d5b90"
 "checksum digest 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)" = "f3d0c8c8752312f9713efd397ff63acb9f85585afbf179282e720e7704954dd5"

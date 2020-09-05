@@ -427,6 +427,9 @@ pub trait BlockChainClient:
 
     /// Get the address of the registry itself.
     fn registrar_address(&self) -> Option<Address>;
+
+    /// Returns true, if underlying import queue is processing possible fork at the moment
+    fn is_processing_fork(&self) -> bool;
 }
 
 /// Provides `reopen_block` method

@@ -223,6 +223,18 @@ impl BlockDownloader {
         self.blocks.heap_size() + self.round_parents.heap_size_of_children()
     }
 
+    fn reset_to_block(&mut self, start_hash: &H256, start_number: BlockNumber) {
+        self.reset();
+        self.last_imported_block = start_number;
+        self.last_imported_hash = start_hash.clone();
+        self.last_round_start = start_number;
+        self.last_round_start_hash = start_hash.clone();
+        self.imported_this_round = None;
+        self.round_parents = VecDeque::new();
+        self.target_hash = None;
+        self.retract_step = 1;
+    }
+
     /// Returns best imported block number.
     pub fn last_imported_block_number(&self) -> BlockNumber {
         self.last_imported_block
@@ -491,6 +503,7 @@ impl BlockDownloader {
                     );
                 } else {
                     let best = io.chain().chain_info().best_block_number;
+                    let best_hash = io.chain().chain_info().best_block_hash;
                     let oldest_reorg = io.chain().pruning_info().earliest_state;
                     if self.block_set == BlockSet::NewBlocks && best > start && start < oldest_reorg
                     {
@@ -500,29 +513,34 @@ impl BlockDownloader {
                             start,
                             start_hash
                         );
-                        self.reset();
+                        self.reset_to_block(&best_hash, best);
                     } else {
                         let n = start - cmp::min(self.retract_step, start);
-                        self.retract_step *= 2;
-                        match io.chain().block_hash(BlockId::Number(n)) {
-                            Some(h) => {
-                                self.last_imported_block = n;
-                                self.last_imported_hash = h;
-                                trace_sync!(
-                                    self,
-                                    "Searching common header in the blockchain {} ({})",
-                                    start,
-                                    self.last_imported_hash
-                                );
-                            }
-                            None => {
-                                debug_sync!(
-                                    self,
-                                    "Could not revert to previous block, last: {} ({})",
-                                    start,
-                                    self.last_imported_hash
-                                );
-                                self.reset();
+                        if n == 0 {
+                            debug_sync!(self, "Header not found, bottom line reached, resetting, last imported: {}", self.last_imported_hash);
+                            self.reset_to_block(&best_hash, best);
+                        } else {
+                            self.retract_step *= 2;
+                            match io.chain().block_hash(BlockId::Number(n)) {
+                                Some(h) => {
+                                    self.last_imported_block = n;
+                                    self.last_imported_hash = h;
+                                    trace_sync!(
+                                        self,
+                                        "Searching common header in the blockchain {} ({})",
+                                        start,
+                                        self.last_imported_hash
+                                    );
+                                }
+                                None => {
+                                    debug_sync!(
+                                        self,
+                                        "Could not revert to previous block, last: {} ({})",
+                                        start,
+                                        self.last_imported_hash
+                                    );
+                                    self.reset_to_block(&best_hash, best);
+                                }
                             }
                         }
                     }
