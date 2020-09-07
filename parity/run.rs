@@ -18,7 +18,8 @@ use std::any::Any;
 use std::sync::{Arc, Weak, atomic};
 use std::time::{Duration, Instant};
 use std::thread;
-
+use std::str::FromStr;
+use ethereum_types::H256;
 use ansi_term::Colour;
 use client_traits::{BlockInfo, BlockChainClient};
 use ethcore::client::{Client, DatabaseCompactionProfile};
@@ -544,6 +545,7 @@ fn execute_impl<Cr, Rr>(
 
 	client_config.queue.verifier_settings = cmd.verifier_settings;
 	client_config.transaction_verification_queue_size = ::std::cmp::max(2048, txpool_size / 4);
+	client_config.queue.verifier_settings.bad_hashes = verification_bad_blocks(&cmd.spec);
 	client_config.snapshot = cmd.snapshot_conf.clone();
 
 	// set up bootnodes
@@ -828,6 +830,15 @@ fn execute_impl<Cr, Rr>(
 		}
 	})
 }
+
+/// Set bad blocks in VerificationQeueu. By omiting header we can omit particular fork of chain.
+fn verification_bad_blocks(spec: &SpecType) -> Vec<H256> {
+    match *spec {
+        SpecType::Ropsten => vec![H256::from_str("1eac3d16c642411f13c287e29144c6f58fda859407c8f24c38deb168e1040714").unwrap()],
+        _ => vec![],
+    }
+}
+
 
 /// Parity client currently executing in background threads.
 ///

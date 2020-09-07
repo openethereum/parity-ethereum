@@ -17,6 +17,7 @@
 //! A queue of blocks. Sits between network or other I/O and the `BlockChain`.
 //! Sorts them ready for blockchain insertion.
 
+use std::iter::FromIterator;
 use std::thread::{self, JoinHandle};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering as AtomicOrdering};
 use std::sync::Arc;
@@ -84,6 +85,8 @@ pub struct VerifierSettings {
 	pub scale_verifiers: bool,
 	/// Beginning amount of verifiers.
 	pub num_verifiers: usize,
+	/// list of block and header hashes that will marked as bad and not included into chain.
+	pub bad_hashes: Vec<H256>,
 }
 
 impl Default for VerifierSettings {
@@ -91,6 +94,7 @@ impl Default for VerifierSettings {
 		VerifierSettings {
 			scale_verifiers: false,
 			num_verifiers: num_cpus::get(),
+			bad_hashes: Vec::new(),
 		}
 	}
 }
@@ -212,7 +216,7 @@ impl<K: Kind, C> VerificationQueue<K, C> {
 			unverified: LenCachingMutex::new(VecDeque::new()),
 			verifying: LenCachingMutex::new(VecDeque::new()),
 			verified: LenCachingMutex::new(VecDeque::new()),
-			bad: Mutex::new(HashSet::new()),
+			bad: Mutex::new(HashSet::from_iter(config.verifier_settings.bad_hashes)),
 			sizes: Sizes {
 				unverified: AtomicUsize::new(0),
 				verifying: AtomicUsize::new(0),
