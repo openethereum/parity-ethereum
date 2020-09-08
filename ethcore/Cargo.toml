@@ -31,6 +31,7 @@ ethereum-types = "0.4"
 ethjson = { path = "../json" }
 ethkey = { path = "../accounts/ethkey" }
 evm = { path = "evm" }
+globset = "0.4"
 hash-db = "0.11.0"
 heapsize = "0.4"
 itertools = "0.5"
@@ -60,14 +61,17 @@ rlp_derive = { path = "../util/rlp-derive" }
 rustc-hex = "1.0"
 serde = "1.0"
 serde_derive = "1.0"
+serde_json = "1.0"
 stats = { path = "../util/stats" }
 tempdir = {version="0.3", optional = true}
+tempfile = "3.1.0"
 time-utils = { path = "../util/time-utils" }
 trace-time = "0.1"
 triehash-ethereum = { version = "0.2",  path = "../util/triehash-ethereum" }
 unexpected = { path = "../util/unexpected" }
 using_queue = { path = "../miner/using-queue" }
 vm = { path = "vm" }
+walkdir = "2"
 wasm = { path = "wasm" }
 
 [dev-dependencies]

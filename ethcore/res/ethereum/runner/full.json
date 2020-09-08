@@ -1,0 +1,51 @@
+{
+	"chain": [
+		{
+			"path": "res/ethereum/tests/BlockchainTests",
+			"skip" : []
+		}
+	],
+	"state": [
+		{
+			"path": "res/ethereum/tests/GeneralStateTests",
+			"skip" : []
+
+		}
+	],
+	"difficulty": [
+		{
+			"path": [
+				"res/ethereum/tests/BasicTests/difficulty.json",
+				"res/ethereum/tests/BasicTests/difficultyMainNetwork.json"
+			],
+			"chainspec": "Foundation"
+		}
+	],
+	"executive": [
+		{
+			"path": "res/ethereum/tests/VMTests"
+		}
+	],
+	"transaction": [
+		{
+			"path": "res/ethereum/tests/TransactionTests"
+		}
+	],
+	"trie": [
+		{
+			"path": [
+				"res/ethereum/tests/TrieTests/trietest.json",
+				"res/ethereum/tests/TrieTests/trieanyorder.json"
+			],
+			"triespec": "Generic"
+		},
+		{
+			"path": [
+				"res/ethereum/tests/TrieTests/hex_encoded_securetrie_test.json",
+				"res/ethereum/tests/TrieTests/trietest_secureTrie.json",
+				"res/ethereum/tests/TrieTests/trieanyorder_secureTrie.json"
+			],
+			"triespec": "Secure"
+		}
+	]
+}

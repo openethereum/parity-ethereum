@@ -112,6 +112,8 @@ extern crate env_logger;
 extern crate ethcore_accounts as accounts;
 #[cfg(feature = "stratum")]
 extern crate ethcore_stratum;
+#[cfg(feature = "json-tests")]
+extern crate globset;
 #[cfg(any(test, feature = "test-helpers"))]
 extern crate kvdb_memorydb;
 #[cfg(any(test, feature = "kvdb-rocksdb"))]
@@ -120,6 +122,10 @@ extern crate kvdb_rocksdb;
 extern crate rlp_compress;
 #[cfg(any(test, feature = "tempdir"))]
 extern crate tempdir;
+#[cfg(feature = "json-tests")]
+extern crate tempfile;
+#[cfg(feature = "json-tests")]
+extern crate walkdir;
 
 #[macro_use]
 extern crate ethabi_derive;

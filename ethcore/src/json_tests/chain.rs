@@ -14,50 +14,135 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use super::{HookType, SKIP_TEST_STATE};
-use client::{ChainInfo, Client, ClientConfig, EvmTestClient, ImportBlock};
+use super::HookType;
+use client::{
+    Balance, BlockChainClient, BlockId, ChainInfo, Client, ClientConfig, EvmTestClient,
+    ImportBlock, Nonce, StateOrBlock,
+};
+use ethereum_types::{H256, U256};
 use ethjson;
 use io::IoChannel;
+use log::warn;
 use miner::Miner;
+use rustc_hex::ToHex;
 use spec::Genesis;
 use std::{path::Path, sync::Arc};
 use test_helpers;
 use verification::{queue::kind::blocks::Unverified, VerifierType};
 
-/// Run chain jsontests on a given folder.
-pub fn run_test_path<H: FnMut(&str, HookType)>(p: &Path, skip: &[&'static str], h: &mut H) {
-    ::json_tests::test_common::run_test_path(p, skip, json_chain_test, h)
-}
+fn check_poststate(
+    client: &Arc<Client>,
+    test_name: &str,
+    post_state: ethjson::blockchain::State,
+) -> bool {
+    let mut success = true;
 
-/// Run chain jsontests on a given file.
-pub fn run_test_file<H: FnMut(&str, HookType)>(p: &Path, h: &mut H) {
-    ::json_tests::test_common::run_test_file(p, json_chain_test, h)
-}
+    for (address, expected) in post_state {
+        if let Some(expected_balance) = expected.balance {
+            let expected_balance: U256 = expected_balance.into();
+            let current_balance = client
+                .balance(
+                    &address.clone().into(),
+                    StateOrBlock::Block(BlockId::Latest),
+                )
+                .unwrap();
+            if expected_balance != current_balance {
+                warn!(target: "json-tests", "{} – Poststate {:?} balance mismatch current={} expected={}",
+					test_name, address, current_balance, expected_balance);
+                success = false;
+            }
+        }
 
-fn skip_test(name: &String) -> bool {
-    SKIP_TEST_STATE
-        .block
-        .iter()
-        .any(|block_test| block_test.subtests.contains(name))
+        if let Some(expected_nonce) = expected.nonce {
+            let expected_nonce: U256 = expected_nonce.into();
+            let current_nonce = client
+                .nonce(&address.clone().into(), BlockId::Latest)
+                .unwrap();
+            if expected_nonce != current_nonce {
+                warn!(target: "json-tests", "{} – Poststate {:?} nonce mismatch current={} expected={}",
+					test_name, address, current_nonce, expected_nonce);
+                success = false;
+            }
+        }
+
+        if let Some(expected_code) = expected.code {
+            let expected_code: String = expected_code.to_hex();
+            let current_code = match client.code(
+                &address.clone().into(),
+                StateOrBlock::Block(BlockId::Latest),
+            ) {
+                Some(Some(code)) => code.to_hex(),
+                _ => "".to_string(),
+            };
+            if current_code != expected_code {
+                warn!(target: "json-tests", "{} – Poststate {:?} code mismatch current={} expected={}",
+					test_name, address, current_code, expected_code);
+                success = false;
+            }
+        }
+
+        if let Some(expected_storage) = expected.storage {
+            for (uint_position, uint_expected_value) in expected_storage.iter() {
+                let mut position = H256::default();
+                uint_position.0.to_big_endian(position.as_mut());
+
+                let mut expected_value = H256::default();
+                uint_expected_value.0.to_big_endian(expected_value.as_mut());
+
+                let current_value = client
+                    .storage_at(
+                        &address.clone().into(),
+                        &position,
+                        StateOrBlock::Block(BlockId::Latest),
+                    )
+                    .unwrap();
+
+                if current_value != expected_value {
+                    let position: &[u8] = position.as_ref();
+                    let current_value: &[u8] = current_value.as_ref();
+                    let expected_value: &[u8] = expected_value.as_ref();
+                    warn!(target: "json-tests", "{} – Poststate {:?} state {} mismatch actual={} expected={}",
+						test_name, address, position.to_hex(), current_value.to_hex(),
+						expected_value.to_hex());
+                    success = false;
+                }
+            }
+        }
+
+        if expected.builtin.is_some() {
+            warn!(target: "json-tests", "{} – Poststate {:?} builtin not supported", test_name, address);
+            success = false;
+        }
+        if expected.constructor.is_some() {
+            warn!(target: "json-tests", "{} – Poststate {:?} constructor not supported", test_name, address);
+            success = false;
+        }
+    }
+    success
 }
 
 pub fn json_chain_test<H: FnMut(&str, HookType)>(
+    test: &ethjson::test::ChainTests,
+    path: &Path,
     json_data: &[u8],
     start_stop_hook: &mut H,
 ) -> Vec<String> {
     let _ = ::env_logger::try_init();
-    let tests = ethjson::blockchain::Test::load(json_data).unwrap();
+    let tests = ethjson::blockchain::Test::load(json_data).expect(&format!(
+        "Could not parse JSON chain test data from {}",
+        path.display()
+    ));
     let mut failed = Vec::new();
 
     for (name, blockchain) in tests.into_iter() {
-        if skip_test(&name) {
-            println!(
-                "   - {} | {:?} Ignoring tests because in skip list",
-                name, blockchain.network
-            );
+        let skip_test = test
+            .skip
+            .iter()
+            .any(|block_test| block_test.names.contains(&name));
+        if skip_test {
+            info!("   SKIPPED {:?} {:?}", name, blockchain.network);
             continue;
         }
-        start_stop_hook(&name, HookType::OnStart);
 
         let mut fail = false;
         {
@@ -72,14 +157,12 @@ pub fn json_chain_test<H: FnMut(&str, HookType)>(
                 }
             };
 
-            flush!("   - {}...", name);
-
             let spec = {
                 let mut spec = match EvmTestClient::spec_from_json(&blockchain.network) {
                     Some(spec) => spec,
                     None => {
-                        println!(
-                            "   - {} | {:?} Ignoring tests because of missing spec",
+                        info!(
+                            "   SKIPPED {:?} {:?} - Unimplemented chainspec ",
                             name, blockchain.network
                         );
                         continue;
@@ -91,9 +174,10 @@ pub fn json_chain_test<H: FnMut(&str, HookType)>(
                 spec.set_genesis_state(state)
                     .expect("Failed to overwrite genesis state");
                 spec.overwrite_genesis_params(genesis);
-                assert!(spec.is_state_root_valid());
                 spec
             };
+
+            start_stop_hook(&name, HookType::OnStart);
 
             {
                 let db = test_helpers::new_db();
@@ -103,6 +187,7 @@ pub fn json_chain_test<H: FnMut(&str, HookType)>(
                     config.check_seal = false;
                 }
                 config.history = 8;
+                config.queue.verifier_settings.num_verifiers = 1;
                 let client = Client::new(
                     config,
                     &spec,
@@ -110,103 +195,49 @@ pub fn json_chain_test<H: FnMut(&str, HookType)>(
                     Arc::new(Miner::new_for_tests(&spec, None)),
                     IoChannel::disconnected(),
                 )
-                .unwrap();
+                .expect("Failed to instantiate a new Client");
+
                 for b in blockchain.blocks_rlp() {
-                    if let Ok(block) = Unverified::from_rlp(b) {
-                        let _ = client.import_block(block);
-                        client.flush_queue();
-                        client.import_verified_blocks();
+                    let bytes_len = b.len();
+                    let block = Unverified::from_rlp(b);
+                    match block {
+                        Ok(block) => {
+                            let num = block.header.number();
+                            trace!(target: "json-tests", "{} – Importing {} bytes. Block #{}", name, bytes_len, num);
+                            let res = client.import_block(block);
+                            if let Err(e) = res {
+                                warn!(target: "json-tests", "{} – Error importing block #{}: {:?}", name, num, e);
+                            }
+                            client.flush_queue();
+                            client.import_verified_blocks();
+                        }
+                        Err(decoder_err) => {
+                            warn!(target: "json-tests", "Error decoding test block: {:?} ({} bytes)", decoder_err, bytes_len);
+                        }
                     }
                 }
-                fail_unless(client.chain_info().best_block_hash == blockchain.best_block.into());
+
+                let post_state_success = if let Some(post_state) = blockchain.post_state.clone() {
+                    check_poststate(&client, &name, post_state)
+                } else {
+                    true
+                };
+
+                fail_unless(
+                    client.chain_info().best_block_hash == blockchain.best_block.into()
+                        && post_state_success,
+                );
             }
         }
 
-        if !fail {
-            flushln!("ok");
+        if fail {
+            flushln!("   - chain: {}...FAILED", name);
+        } else {
+            flushln!("   - chain: {}...OK", name);
         }
 
         start_stop_hook(&name, HookType::OnStop);
     }
 
-    println!("!!! {:?} tests from failed.", failed.len());
     failed
-}
-
-#[cfg(test)]
-mod block_tests {
-    use super::json_chain_test;
-    use json_tests::HookType;
-
-    fn do_json_test<H: FnMut(&str, HookType)>(json_data: &[u8], h: &mut H) -> Vec<String> {
-        json_chain_test(json_data, h)
-    }
-
-    declare_test! {BlockchainTests_bcBlockGasLimitTest, "BlockchainTests/bcBlockGasLimitTest"}
-    declare_test! {BlockchainTests_bcExploitTest, "BlockchainTests/bcExploitTest"}
-    declare_test! {BlockchainTests_bcForgedTest, "BlockchainTests/bcForgedTest"}
-    declare_test! {BlockchainTests_bcForkStressTest, "BlockchainTests/bcForkStressTest"}
-    declare_test! {BlockchainTests_bcGasPricerTest, "BlockchainTests/bcGasPricerTest"}
-    declare_test! {BlockchainTests_bcInvalidHeaderTest, "BlockchainTests/bcInvalidHeaderTest"}
-    declare_test! {BlockchainTests_bcMultiChainTest, "BlockchainTests/bcMultiChainTest"}
-    declare_test! {BlockchainTests_bcRandomBlockhashTest, "BlockchainTests/bcRandomBlockhashTest"}
-    declare_test! {BlockchainTests_bcStateTest, "BlockchainTests/bcStateTests"}
-    declare_test! {BlockchainTests_bcTotalDifficultyTest, "BlockchainTests/bcTotalDifficultyTest"}
-    declare_test! {BlockchainTests_bcUncleHeaderValidity, "BlockchainTests/bcUncleHeaderValidity"}
-    declare_test! {BlockchainTests_bcUncleTest, "BlockchainTests/bcUncleTest"}
-    declare_test! {BlockchainTests_bcValidBlockTest, "BlockchainTests/bcValidBlockTest"}
-    declare_test! {BlockchainTests_bcWalletTest, "BlockchainTests/bcWalletTest"}
-
-    declare_test! {BlockchainTests_GeneralStateTest_stArgsZeroOneBalance, "BlockchainTests/GeneralStateTests/stArgsZeroOneBalance/"}
-    declare_test! {BlockchainTests_GeneralStateTest_stAttackTest, "BlockchainTests/GeneralStateTests/stAttackTest/"}
-    declare_test! {BlockchainTests_GeneralStateTest_stBadOpcodeTest, "BlockchainTests/GeneralStateTests/stBadOpcode/"}
-    declare_test! {BlockchainTests_GeneralStateTest_stBugsTest, "BlockchainTests/GeneralStateTests/stBugs/"}
-    declare_test! {BlockchainTests_GeneralStateTest_stCallCodes, "BlockchainTests/GeneralStateTests/stCallCodes/"}
-    declare_test! {BlockchainTests_GeneralStateTest_stCallCreateCallCodeTest, "BlockchainTests/GeneralStateTests/stCallCreateCallCodeTest/"}
-    declare_test! {BlockchainTests_GeneralStateTest_stCallDelegateCodesCallCodeHomestead, "BlockchainTests/GeneralStateTests/stCallDelegateCodesCallCodeHomestead/"}
-    declare_test! {BlockchainTests_GeneralStateTest_stCallDelegateCodesHomestead, "BlockchainTests/GeneralStateTests/stCallDelegateCodesHomestead/"}
-    declare_test! {BlockchainTests_GeneralStateTest_stChangedEIP150, "BlockchainTests/GeneralStateTests/stChangedEIP150/"}
-    declare_test! {BlockchainTests_GeneralStateTest_stCodeSizeLimit, "BlockchainTests/GeneralStateTests/stCodeSizeLimit/"}
-    declare_test! {BlockchainTests_GeneralStateTest_stCreate2, "BlockchainTests/GeneralStateTests/stCreate2/"}
-    declare_test! {BlockchainTests_GeneralStateTest_stCreateTest, "BlockchainTests/GeneralStateTests/stCreateTest/"}
-    declare_test! {BlockchainTests_GeneralStateTest_stDelegatecallTestHomestead, "BlockchainTests/GeneralStateTests/stDelegatecallTestHomestead/"}
-    declare_test! {BlockchainTests_GeneralStateTest_stEIP150singleCodeGasPrices, "BlockchainTests/GeneralStateTests/stEIP150singleCodeGasPrices/"}
-    declare_test! {BlockchainTests_GeneralStateTest_stEIP150Specific, "BlockchainTests/GeneralStateTests/stEIP150Specific/"}
-    declare_test! {BlockchainTests_GeneralStateTest_stEIP158Specific, "BlockchainTests/GeneralStateTests/stEIP158Specific/"}
-    declare_test! {BlockchainTests_GeneralStateTest_stExample, "BlockchainTests/GeneralStateTests/stExample/"}
-    declare_test! {BlockchainTests_GeneralStateTest_stHomesteadSpecific, "BlockchainTests/GeneralStateTests/stHomesteadSpecific/"}
-    declare_test! {BlockchainTests_GeneralStateTest_stInitCodeTest, "BlockchainTests/GeneralStateTests/stInitCodeTest/"}
-    declare_test! {BlockchainTests_GeneralStateTest_stLogTests, "BlockchainTests/GeneralStateTests/stLogTests/"}
-    declare_test! {BlockchainTests_GeneralStateTest_stMemExpandingEIP150Calls, "BlockchainTests/GeneralStateTests/stMemExpandingEIP150Calls/"}
-    declare_test! {heavy => BlockchainTests_GeneralStateTest_stMemoryStressTest, "BlockchainTests/GeneralStateTests/stMemoryStressTest/"}
-    declare_test! {BlockchainTests_GeneralStateTest_stMemoryTest, "BlockchainTests/GeneralStateTests/stMemoryTest/"}
-    declare_test! {BlockchainTests_GeneralStateTest_stNonZeroCallsTest, "BlockchainTests/GeneralStateTests/stNonZeroCallsTest/"}
-    declare_test! {BlockchainTests_GeneralStateTest_stPreCompiledContracts, "BlockchainTests/GeneralStateTests/stPreCompiledContracts/"}
-    declare_test! {BlockchainTests_GeneralStateTest_stPreCompiledContracts2, "BlockchainTests/GeneralStateTests/stPreCompiledContracts2/"}
-    declare_test! {heavy => BlockchainTests_GeneralStateTest_stQuadraticComplexityTest, "BlockchainTests/GeneralStateTests/stQuadraticComplexityTest/"}
-    declare_test! {BlockchainTests_GeneralStateTest_stRandom, "BlockchainTests/GeneralStateTests/stRandom/"}
-    declare_test! {BlockchainTests_GeneralStateTest_stRandom2, "BlockchainTests/GeneralStateTests/stRandom2/"}
-    declare_test! {BlockchainTests_GeneralStateTest_stRecursiveCreate, "BlockchainTests/GeneralStateTests/stRecursiveCreate/"}
-    declare_test! {BlockchainTests_GeneralStateTest_stRefundTest, "BlockchainTests/GeneralStateTests/stRefundTest/"}
-    declare_test! {BlockchainTests_GeneralStateTest_stReturnDataTest, "BlockchainTests/GeneralStateTests/stReturnDataTest/"}
-    declare_test! {BlockchainTests_GeneralStateTest_stRevertTest, "BlockchainTests/GeneralStateTests/stRevertTest/"}
-    declare_test! {BlockchainTests_GeneralStateTest_stShift, "BlockchainTests/GeneralStateTests/stShift/"}
-    declare_test! {BlockchainTests_GeneralStateTest_stSolidityTest, "BlockchainTests/GeneralStateTests/stSolidityTest/"}
-    declare_test! {BlockchainTests_GeneralStateTest_stSpecialTest, "BlockchainTests/GeneralStateTests/stSpecialTest/"}
-    declare_test! {BlockchainTests_GeneralStateTest_stStackTests, "BlockchainTests/GeneralStateTests/stStackTests/"}
-    declare_test! {BlockchainTests_GeneralStateTest_stStaticCall, "BlockchainTests/GeneralStateTests/stStaticCall/"}
-    declare_test! {BlockchainTests_GeneralStateTest_stSystemOperationsTest, "BlockchainTests/GeneralStateTests/stSystemOperationsTest/"}
-    declare_test! {BlockchainTests_GeneralStateTest_stTransactionTest, "BlockchainTests/GeneralStateTests/stTransactionTest/"}
-    declare_test! {BlockchainTests_GeneralStateTest_stTransitionTest, "BlockchainTests/GeneralStateTests/stTransitionTest/"}
-    declare_test! {BlockchainTests_GeneralStateTest_stWalletTest, "BlockchainTests/GeneralStateTests/stWalletTest/"}
-    declare_test! {BlockchainTests_GeneralStateTest_stZeroCallsRevert, "BlockchainTests/GeneralStateTests/stZeroCallsRevert/"}
-    declare_test! {BlockchainTests_GeneralStateTest_stZeroCallsTest, "BlockchainTests/GeneralStateTests/stZeroCallsTest/"}
-    declare_test! {BlockchainTests_GeneralStateTest_stZeroKnowledge, "BlockchainTests/GeneralStateTests/stZeroKnowledge/"}
-    declare_test! {BlockchainTests_GeneralStateTest_stZeroKnowledge2, "BlockchainTests/GeneralStateTests/stZeroKnowledge2/"}
-    declare_test! {BlockchainTests_GeneralStateTest_stSStoreTest, "BlockchainTests/GeneralStateTests/stSStoreTest/"}
-
-    declare_test! {BlockchainTests_TransitionTests_bcEIP158ToByzantium, "BlockchainTests/TransitionTests/bcEIP158ToByzantium/"}
-    declare_test! {BlockchainTests_TransitionTests_bcFrontierToHomestead, "BlockchainTests/TransitionTests/bcFrontierToHomestead/"}
-    declare_test! {BlockchainTests_TransitionTests_bcHomesteadToDao, "BlockchainTests/TransitionTests/bcHomesteadToDao/"}
-    declare_test! {BlockchainTests_TransitionTests_bcHomesteadToEIP150, "BlockchainTests/TransitionTests/bcHomesteadToEIP150/"}
 }

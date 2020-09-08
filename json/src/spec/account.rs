@@ -23,7 +23,7 @@ use spec::builtin::BuiltinCompat;
 use uint::Uint;
 
 /// Spec account.
-#[derive(Debug, PartialEq, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "camelCase")]
 pub struct Account {

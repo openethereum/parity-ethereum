@@ -148,10 +148,9 @@ fn run_stats_jsontests_vm(args: Args) {
                 });
             }
         };
-        if !file.is_file() {
-            json_tests::run_executive_test_path(&file, &[], &mut record_time);
-        } else {
-            json_tests::run_executive_test_file(&file, &mut record_time);
+        for file_path in json_tests::find_json_files_recursive(&file) {
+            let json_data = std::fs::read(&file_path).unwrap();
+            json_tests::json_executive_test(&file_path, &json_data, &mut record_time);
         }
     }
 

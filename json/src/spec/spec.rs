@@ -35,6 +35,7 @@ pub enum ForkSpec {
     FrontierToHomesteadAt5,
     HomesteadToDaoAt5,
     HomesteadToEIP150At5,
+    ByzantiumToConstantinopleAt5,
 }
 
 /// Spec deserialization.

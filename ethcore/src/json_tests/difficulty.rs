@@ -17,24 +17,27 @@
 use ethereum_types::U256;
 use ethjson;
 use spec::Spec;
+use std::path::Path;
 use types::header::Header;
 
 use super::HookType;
 
 pub fn json_difficulty_test<H: FnMut(&str, HookType)>(
+    path: &Path,
     json_data: &[u8],
     spec: Spec,
     start_stop_hook: &mut H,
 ) -> Vec<String> {
-    let _ = ::env_logger::try_init();
-    let tests = ethjson::test::DifficultyTest::load(json_data).unwrap();
+    let mut ret = Vec::new();
+    let _ = env_logger::try_init();
+    let tests = ethjson::test::DifficultyTest::load(json_data).expect(&format!(
+        "Could not parse JSON difficulty test data from {}",
+        path.display()
+    ));
     let engine = &spec.engine;
 
     for (name, test) in tests.into_iter() {
         start_stop_hook(&name, HookType::OnStart);
-
-        flush!("   - {}...", name);
-        println!("   - {}...", name);
 
         let mut parent_header = Header::new();
         let block_number: u64 = test.current_block_number.into();
@@ -48,65 +51,14 @@ pub fn json_difficulty_test<H: FnMut(&str, HookType)>(
         header.set_timestamp(test.current_timestamp.into());
         engine.populate_from_parent(&mut header, &parent_header);
         let expected_difficulty: U256 = test.current_difficulty.into();
-        assert_eq!(header.difficulty(), &expected_difficulty);
-        flushln!("ok");
+        if header.difficulty() == &expected_difficulty {
+            flushln!("   - difficulty: {}...OK", name);
+        } else {
+            flushln!("   - difficulty: {}...FAILED", name);
+            ret.push(format!("{}:{}", path.to_string_lossy(), name));
+        }
 
         start_stop_hook(&name, HookType::OnStop);
     }
-    vec![]
-}
-
-macro_rules! difficulty_json_test {
-    ( $spec:ident ) => {
-        use super::json_difficulty_test;
-        use json_tests::HookType;
-        use tempdir::TempDir;
-
-        fn do_json_test<H: FnMut(&str, HookType)>(json_data: &[u8], h: &mut H) -> Vec<String> {
-            let tempdir = TempDir::new("").unwrap();
-            json_difficulty_test(json_data, ::ethereum::$spec(&tempdir.path()), h)
-        }
-    };
-}
-
-macro_rules! difficulty_json_test_nopath {
-    ( $spec:ident ) => {
-        use super::json_difficulty_test;
-        use json_tests::HookType;
-
-        fn do_json_test<H: FnMut(&str, HookType)>(json_data: &[u8], h: &mut H) -> Vec<String> {
-            json_difficulty_test(json_data, ::ethereum::$spec(), h)
-        }
-    };
-}
-
-mod difficulty_test {
-    difficulty_json_test!(new_foundation);
-    declare_test! {DifficultyTests_difficulty, "BasicTests/difficulty.json"}
-}
-
-mod difficulty_test_byzantium {
-    difficulty_json_test_nopath!(new_byzantium_test);
-    declare_test! {DifficultyTests_difficultyByzantium, "BasicTests/difficultyByzantium.json"}
-}
-
-mod difficulty_test_foundation {
-    difficulty_json_test!(new_foundation);
-    declare_test! {DifficultyTests_difficultyMainNetwork, "BasicTests/difficultyMainNetwork.json"}
-}
-
-// Disabling Ropsten diff tests; waiting for upstream ethereum/tests Constantinople update
-//mod difficulty_test_ropsten {
-//	difficulty_json_test_nopath!(new_ropsten_test);
-//	declare_test!{DifficultyTests_difficultyRopsten, "BasicTests/difficultyRopsten.json"}
-//}
-
-mod difficulty_test_frontier {
-    difficulty_json_test_nopath!(new_frontier_test);
-    declare_test! {DifficultyTests_difficultyFrontier, "BasicTests/difficultyFrontier.json"}
-}
-
-mod difficulty_test_homestead {
-    difficulty_json_test_nopath!(new_homestead_test);
-    declare_test! {DifficultyTests_difficultyHomestead, "BasicTests/difficultyHomestead.json"}
+    ret
 }

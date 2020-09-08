@@ -107,6 +107,7 @@ impl<'a> EvmTestClient<'a> {
             ForkSpec::FrontierToHomesteadAt5
             | ForkSpec::HomesteadToDaoAt5
             | ForkSpec::HomesteadToEIP150At5 => None,
+            ForkSpec::ByzantiumToConstantinopleAt5 => None,
         }
     }
 

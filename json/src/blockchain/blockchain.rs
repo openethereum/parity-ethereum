@@ -49,7 +49,7 @@ pub struct BlockChain {
     /// Blocks.
     pub blocks: Vec<Block>,
     /// Post state.
-    pub post_state: State,
+    pub post_state: Option<State>,
     /// Pre state.
     #[serde(rename = "pre")]
     pub pre_state: State,
