@@ -56,6 +56,10 @@ pub fn json_chain_test<H: FnMut(&str, HookType)>(
     let mut failed = Vec::new();
 
     for (name, test) in tests.into_iter() {
+        if !super::debug_include_test(&name) {
+            continue;
+        }
+
         start_stop_hook(&name, HookType::OnStart);
 
         {

@@ -173,13 +173,14 @@ impl EthTester {
 
 #[test]
 fn harness_works() {
-    let chain: BlockChain = extract_chain!("BlockchainTests/bcWalletTest/wallet2outOf3txs");
+    let chain: BlockChain =
+        extract_chain!("BlockchainTests/ValidBlocks/bcWalletTest/wallet2outOf3txs");
     let _ = EthTester::from_chain(&chain);
 }
 
 #[test]
 fn eth_get_balance() {
-    let chain = extract_chain!("BlockchainTests/bcWalletTest/wallet2outOf3txs");
+    let chain = extract_chain!("BlockchainTests/ValidBlocks/bcWalletTest/wallet2outOf3txs");
     let tester = EthTester::from_chain(&chain);
     // final account state
     let req_latest = r#"{
@@ -211,7 +212,7 @@ fn eth_get_balance() {
 
 #[test]
 fn eth_get_proof() {
-    let chain = extract_chain!("BlockchainTests/bcWalletTest/wallet2outOf3txs");
+    let chain = extract_chain!("BlockchainTests/ValidBlocks/bcWalletTest/wallet2outOf3txs");
     let tester = EthTester::from_chain(&chain);
     // final account state
     let req_latest = r#"{
@@ -248,7 +249,7 @@ fn eth_get_proof() {
 
 #[test]
 fn eth_block_number() {
-    let chain = extract_chain!("BlockchainTests/bcGasPricerTest/RPC_API_Test");
+    let chain = extract_chain!("BlockchainTests/ValidBlocks/bcGasPricerTest/RPC_API_Test");
     let tester = EthTester::from_chain(&chain);
     let req_number = r#"{
 		"jsonrpc": "2.0",
@@ -266,7 +267,7 @@ fn eth_block_number() {
 
 #[test]
 fn eth_get_block() {
-    let chain = extract_chain!("BlockchainTests/bcGasPricerTest/RPC_API_Test");
+    let chain = extract_chain!("BlockchainTests/ValidBlocks/bcGasPricerTest/RPC_API_Test");
     let tester = EthTester::from_chain(&chain);
     let req_block =
         r#"{"method":"eth_getBlockByNumber","params":["0x0",false],"id":1,"jsonrpc":"2.0"}"#;
@@ -280,13 +281,13 @@ fn eth_get_block() {
 
 #[test]
 fn eth_get_block_by_hash() {
-    let chain = extract_chain!("BlockchainTests/bcGasPricerTest/RPC_API_Test");
+    let chain = extract_chain!("BlockchainTests/ValidBlocks/bcGasPricerTest/RPC_API_Test");
     let tester = EthTester::from_chain(&chain);
 
     // We're looking for block number 4 from "RPC_API_Test_Frontier"
-    let req_block = r#"{"method":"eth_getBlockByHash","params":["0xaddb9e39795e9e041c936b88a2577802569f34afded0948707b074caa3163a87",false],"id":1,"jsonrpc":"2.0"}"#;
+    let req_block = r#"{"method":"eth_getBlockByHash","params":["0x088987877b431b8156c79c4b1c9543a8747531e5acaebca8f5d516cb3b35b0f2",false],"id":1,"jsonrpc":"2.0"}"#;
 
-    let res_block = r#"{"jsonrpc":"2.0","result":{"author":"0x8888f1f195afa192cfee860698584c030f4c9db1","difficulty":"0x20080","extraData":"0x","gasLimit":"0x1dd7ea0","gasUsed":"0x5458","hash":"0xaddb9e39795e9e041c936b88a2577802569f34afded0948707b074caa3163a87","logsBloom":"0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000","miner":"0x8888f1f195afa192cfee860698584c030f4c9db1","mixHash":"0x713b0b31f6e72d8cb7367eaf59447ea531f209fc80e6379edd9f8d3bb73931c4","nonce":"0x4534b406bc23b86d","number":"0x4","parentHash":"0x17567aa5995b703736e32972289d68af50543acc4d56d37e8ad1fea7252cac4a","receiptsRoot":"0x7ed8026cf72ed0e98e6fd53ab406e51ffd34397d9da0052494ff41376fda7b5f","sealFields":["0xa0713b0b31f6e72d8cb7367eaf59447ea531f209fc80e6379edd9f8d3bb73931c4","0x884534b406bc23b86d"],"sha3Uncles":"0xe588a44b3e320e72e70b32b531f3ac0d432e756120135ae8fe5fa10895196b40","size":"0x661","stateRoot":"0x68805721294e365020aca15ed56c360d9dc2cf03cbeff84c9b84b8aed023bfb5","timestamp":"0x5bbdf772","totalDifficulty":"0xa00c0","transactions":["0xb094b9dc356dbb8b256402c6d5709288066ad6a372c90c9c516f14277545fd58"],"transactionsRoot":"0x97a593d8d7e15b57f5c6bb25bc6c325463ef99f874bc08a78656c3ab5cb23262","uncles":["0x86b48f5186c4b0882d3dca7977aa37840008832ef092f8ef797019dc74bfa8c7","0x2da9d062c11d536f0f1cc2a4e0111597c79926958d0fc26ae1a2d07d1a3bf47d"]},"id":1}"#;
+    let res_block = r#"{"jsonrpc":"2.0","result":{"author":"0x8888f1f195afa192cfee860698584c030f4c9db1","difficulty":"0x200c0","extraData":"0x","gasLimit":"0x1dd7ea0","gasUsed":"0x5458","hash":"0x088987877b431b8156c79c4b1c9543a8747531e5acaebca8f5d516cb3b35b0f2","logsBloom":"0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000","miner":"0x8888f1f195afa192cfee860698584c030f4c9db1","mixHash":"0xeb709bc3b92c8f28ffa3d4ad7558689316cfbf599ac9541d9f3e79d31b0b9af6","nonce":"0x6ab72973b649825d","number":"0x4","parentHash":"0x095303ee87197430f9bf30ecd09735a11ab78db59abf67a36d4ada73f96800b9","receiptsRoot":"0x7ed8026cf72ed0e98e6fd53ab406e51ffd34397d9da0052494ff41376fda7b5f","sealFields":["0xa0eb709bc3b92c8f28ffa3d4ad7558689316cfbf599ac9541d9f3e79d31b0b9af6","0x886ab72973b649825d"],"sha3Uncles":"0xb9cf7d3adde9f960e6c2510c1a7d35e94223db71277463ef8dc94f8afbe44403","size":"0x661","stateRoot":"0x68805721294e365020aca15ed56c360d9dc2cf03cbeff84c9b84b8aed023bfb5","timestamp":"0x5db6f5a1","totalDifficulty":"0xa0180","transactions":["0xb094b9dc356dbb8b256402c6d5709288066ad6a372c90c9c516f14277545fd58"],"transactionsRoot":"0x97a593d8d7e15b57f5c6bb25bc6c325463ef99f874bc08a78656c3ab5cb23262","uncles":["0xffa20f3c2eafd8a4def16b2742e576280282c1476a8307ac6ff5a8a1eac99cdf","0x67faba5ff44f91127c12823a820ab5456252afa3397d08b2781fe308fb1c8359"]},"id":1}"#;
     assert_eq!(
         tester.handler.handle_request_sync(req_block).unwrap(),
         res_block
@@ -595,15 +596,15 @@ fn starting_nonce_test() {
 register_test!(
     eth_transaction_count_1,
     verify_transaction_counts,
-    "BlockchainTests/bcWalletTest/wallet2outOf3txs"
+    "BlockchainTests/ValidBlocks/bcWalletTest/wallet2outOf3txs"
 );
 register_test!(
     eth_transaction_count_2,
     verify_transaction_counts,
-    "BlockchainTests/bcTotalDifficultyTest/sideChainWithMoreTransactions"
+    "BlockchainTests/ValidBlocks/bcTotalDifficultyTest/sideChainWithMoreTransactions"
 );
 register_test!(
     eth_transaction_count_3,
     verify_transaction_counts,
-    "BlockchainTests/bcGasPricerTest/RPC_API_Test"
+    "BlockchainTests/ValidBlocks/bcGasPricerTest/RPC_API_Test"
 );

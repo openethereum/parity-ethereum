@@ -657,45 +657,49 @@ impl Spec {
                 gas_limit: U256::max_value(),
             };
 
-            let from = Address::default();
-            for &(ref address, ref constructor) in self.constructors.iter() {
-                trace!(target: "spec", "run_constructors: Creating a contract at {}.", address);
-                trace!(target: "spec", "  .. root before = {}", state.root());
-                let params = ActionParams {
-                    code_address: address.clone(),
-                    code_hash: Some(keccak(constructor)),
-                    address: address.clone(),
-                    sender: from.clone(),
-                    origin: from.clone(),
-                    gas: U256::max_value(),
-                    gas_price: Default::default(),
-                    value: ActionValue::Transfer(Default::default()),
-                    code: Some(Arc::new(constructor.clone())),
-                    data: None,
-                    call_type: CallType::None,
-                    params_type: ParamsType::Embedded,
-                };
+            if !self.constructors.is_empty() {
+                let from = Address::default();
+                for &(ref address, ref constructor) in self.constructors.iter() {
+                    trace!(target: "spec", "run_constructors: Creating a contract at {}.", address);
+                    trace!(target: "spec", "  .. root before = {}", state.root());
+                    let params = ActionParams {
+                        code_address: address.clone(),
+                        code_hash: Some(keccak(constructor)),
+                        address: address.clone(),
+                        sender: from.clone(),
+                        origin: from.clone(),
+                        gas: U256::max_value(),
+                        gas_price: Default::default(),
+                        value: ActionValue::Transfer(Default::default()),
+                        code: Some(Arc::new(constructor.clone())),
+                        data: None,
+                        call_type: CallType::None,
+                        params_type: ParamsType::Embedded,
+                    };
 
-                let mut substate = Substate::new();
+                    let mut substate = Substate::new();
 
-                {
-                    let machine = self.engine.machine();
-                    let schedule = machine.schedule(env_info.number);
-                    let mut exec = Executive::new(&mut state, &env_info, &machine, &schedule);
-                    if let Err(e) =
-                        exec.create(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer)
                     {
-                        warn!(target: "spec", "Genesis constructor execution at {} failed: {}.", address, e);
+                        let machine = self.engine.machine();
+                        let schedule = machine.schedule(env_info.number);
+                        let mut exec = Executive::new(&mut state, &env_info, &machine, &schedule);
+                        if let Err(e) =
+                            exec.create(params, &mut substate, &mut NoopTracer, &mut NoopVMTracer)
+                        {
+                            warn!(target: "spec", "Genesis constructor execution at {} failed: {}.", address, e);
+                        }
                     }
-                }
 
-                if let Err(e) = state.commit() {
-                    warn!(target: "spec", "Genesis constructor trie commit at {} failed: {}.", address, e);
-                }
+                    if let Err(e) = state.commit() {
+                        warn!(target: "spec", "Genesis constructor trie commit at {} failed: {}.", address, e);
+                    }
 
-                trace!(target: "spec", "  .. root after = {}", state.root());
+                    trace!(target: "spec", "  .. root after = {}", state.root());
+                }
+            } else {
+                state.populate_from(self.genesis_state().to_owned());
+                state.commit()?;
             }
-
             state.drop()
         };
 

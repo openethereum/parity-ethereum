@@ -31,7 +31,7 @@ pub mod helpers;
 macro_rules! extract_chain {
 	(iter $file:expr) => {{
 		const RAW_DATA: &'static [u8] =
-			include_bytes!(concat!("../../../../ethcore/res/ethereum/tests/", $file, ".json"));
+			include_bytes!(concat!("../../../../ethcore/res/ethereum/tests/LegacyTests/Constantinople/", $file, ".json"));
 		::ethjson::blockchain::Test::load(RAW_DATA).unwrap().into_iter()
 	}};
 

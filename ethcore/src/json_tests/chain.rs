@@ -135,10 +135,15 @@ pub fn json_chain_test<H: FnMut(&str, HookType)>(
     let mut failed = Vec::new();
 
     for (name, blockchain) in tests.into_iter() {
+        if !super::debug_include_test(&name) {
+            continue;
+        }
+
         let skip_test = test
             .skip
             .iter()
             .any(|block_test| block_test.names.contains(&name));
+
         if skip_test {
             info!("   SKIPPED {:?} {:?}", name, blockchain.network);
             continue;

@@ -3,11 +3,20 @@
 		{
 			"path": "res/ethereum/tests/BlockchainTests",
 			"skip" : []
+		},
+		{
+			"path": "res/ethereum/tests/LegacyTests/Constantinople/BlockchainTests",
+			"skip" : []
 		}
 	],
 	"state": [
 		{
 			"path": "res/ethereum/tests/GeneralStateTests",
+			"skip" : []
+
+		},
+		{
+			"path": "res/ethereum/tests//LegacyTests/Constantinople/GeneralStateTests",
 			"skip" : []
 
 		}

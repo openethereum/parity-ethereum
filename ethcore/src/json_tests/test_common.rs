@@ -35,3 +35,14 @@ pub fn find_json_files_recursive(path: &PathBuf) -> Vec<PathBuf> {
         .map(DirEntry::into_path)
         .collect::<Vec<PathBuf>>()
 }
+
+pub fn debug_include_test(name: &str) -> bool {
+    match std::env::var_os("TEST_DEBUG") {
+        Some(s) => s.to_string_lossy().split_terminator(",").any(|expr| {
+            regex::Regex::new(expr)
+                .expect("invalid regex expression in TEST_DEBUG")
+                .is_match(name)
+        }),
+        _ => true,
+    }
+}
