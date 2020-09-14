@@ -171,7 +171,7 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
             CLIENT_TICK_TIMER => {
                 use ethcore::snapshot::SnapshotService;
                 let snapshot_restoration =
-                    if let RestorationStatus::Ongoing { .. } = self.snapshot.status() {
+                    if let RestorationStatus::Ongoing { .. } = self.snapshot.restoration_status() {
                         true
                     } else {
                         false

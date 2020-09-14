@@ -17,7 +17,7 @@
 //! Disk-backed `HashDB` implementation.
 
 use std::{
-    collections::{hash_map::Entry, HashMap},
+    collections::{hash_map::Entry, BTreeMap, HashMap},
     io,
     sync::Arc,
 };
@@ -416,12 +416,14 @@ impl JournalDB for EarlyMergeDB {
         self.latest_era
     }
 
-    fn mem_used(&self) -> usize {
-        self.overlay.mem_used()
-            + match self.refs {
-                Some(ref c) => c.read().heap_size_of_children(),
-                None => 0,
-            }
+    fn get_sizes(&self, sizes: &mut BTreeMap<String, usize>) {
+        let refs_size = match self.refs {
+            Some(ref c) => c.read().len(),
+            None => 0,
+        };
+
+        sizes.insert(String::from("db_archive_overlay"), self.overlay.len());
+        sizes.insert(String::from("db_early_merge_refs-size"), refs_size);
     }
 
     fn journal_under(&mut self, batch: &mut DBTransaction, now: u64, id: &H256) -> io::Result<u32> {

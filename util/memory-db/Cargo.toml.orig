@@ -1,0 +1,19 @@
+[package]
+name = "memory-db"
+version = "0.11.0"
+authors = ["Parity Technologies <admin@parity.io>"]
+description = "In-memory implementation of hash-db, useful for tests"
+repository = "https://github.com/paritytech/parity-common"
+license = "Apache-2.0"
+
+[dependencies]
+heapsize = "0.4"
+hash-db = { path = "../hash-db", version = "0.11.0"}
+
+[dev-dependencies]
+keccak-hasher = { path = "../test-support/keccak-hasher", version = "0.11.0"}
+criterion = "0.2.8"
+
+[[bench]]
+name = "bench"
+harness = false

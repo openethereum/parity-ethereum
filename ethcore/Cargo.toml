@@ -47,7 +47,7 @@ log = "0.4"
 lru-cache = "0.1"
 macros = { path = "../util/macros" }
 memory-cache = { path = "../util/memory-cache" }
-memory-db = "0.11"
+memory-db = { path = "../util/memory-db" }
 num_cpus = "1.2"
 parity-bytes = "0.1"
 parity-snappy = "0.1"

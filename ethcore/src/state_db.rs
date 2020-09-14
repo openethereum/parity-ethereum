@@ -17,7 +17,7 @@
 //! State database abstraction. For more info, see the doc for `StateDB`
 
 use std::{
-    collections::{HashSet, VecDeque},
+    collections::{BTreeMap, HashSet, VecDeque},
     io,
     sync::Arc,
 };
@@ -394,13 +394,17 @@ impl StateDB {
     }
 
     /// Heap size used.
-    pub fn mem_used(&self) -> usize {
-        // TODO: account for LRU-cache overhead; this is a close approximation.
-        self.db.mem_used() + {
-            let accounts = self.account_cache.lock().accounts.len();
-            let code_size = self.code_cache.lock().current_size();
-            code_size + accounts * ::std::mem::size_of::<Option<Account>>()
-        }
+    pub fn get_sizes(&self, sizes: &mut BTreeMap<String, usize>) {
+        self.db.get_sizes(sizes);
+
+        sizes.insert(
+            String::from("account_cache_len"),
+            self.account_cache.lock().accounts.len(),
+        );
+        sizes.insert(
+            String::from("code_cache_size"),
+            self.code_cache.lock().current_size(),
+        );
     }
 
     /// Returns underlying `JournalDB`.

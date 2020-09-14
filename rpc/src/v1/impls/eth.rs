@@ -575,7 +575,7 @@ where
 
         let status = self.sync.status();
         let client = &self.client;
-        let snapshot_status = self.snapshot.status();
+        let snapshot_status = self.snapshot.restoration_status();
 
         let (warping, warp_chunks_amount, warp_chunks_processed) = match snapshot_status {
             RestorationStatus::Ongoing {
@@ -583,6 +583,7 @@ where
                 block_chunks,
                 state_chunks_done,
                 block_chunks_done,
+                ..
             } => (
                 true,
                 Some(block_chunks + state_chunks),

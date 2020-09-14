@@ -36,6 +36,7 @@ extern crate parity_bytes as bytes;
 extern crate parking_lot;
 extern crate rand;
 extern crate rlp;
+extern crate stats;
 extern crate triehash_ethereum;
 
 #[cfg(test)]

@@ -24,14 +24,13 @@ use ethcore::{
     },
 };
 use ethereum_types::H256;
-use heapsize::HeapSizeOf;
 use network::{client_version::ClientCapabilities, PeerId};
 use rlp::{self, Rlp};
 use std::cmp;
 ///
 /// Blockchain downloader
 ///
-use std::collections::{HashSet, VecDeque};
+use std::collections::{BTreeMap, HashSet, VecDeque};
 use sync_io::SyncIo;
 use types::BlockNumber;
 
@@ -218,9 +217,14 @@ impl BlockDownloader {
         self.state = State::Blocks;
     }
 
-    /// Returns used heap memory size.
-    pub fn heap_size(&self) -> usize {
-        self.blocks.heap_size() + self.round_parents.heap_size_of_children()
+    /// Returns number if items in structures
+    pub fn get_sizes(&self, sizes: &mut BTreeMap<String, usize>) {
+        let prefix = format!("{}_", self.block_set.to_string());
+        self.blocks.get_sizes(sizes, &prefix);
+        sizes.insert(
+            format!("{}{}", prefix, "round_parents"),
+            self.round_parents.len(),
+        );
     }
 
     fn reset_to_block(&mut self, start_hash: &H256, start_number: BlockNumber) {

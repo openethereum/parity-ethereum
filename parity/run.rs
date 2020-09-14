@@ -38,6 +38,7 @@ use helpers::{execute_upgrades, passwords_from_files, to_client_config};
 use informant::{FullNodeInformantData, Informant};
 use journaldb::Algorithm;
 use jsonrpc_core;
+use metrics::{start_prometheus_metrics, MetricsConfiguration};
 use miner::{external::ExternalMiner, work_notify::WorkPoster};
 use modules;
 use node_filter::NodeFilter;
@@ -109,6 +110,7 @@ pub struct RunCmd {
     pub verifier_settings: VerifierSettings,
     pub no_persistent_txqueue: bool,
     pub max_round_blocks_to_import: usize,
+    pub metrics_conf: MetricsConfiguration,
 }
 
 // node info fetcher for the local store.
@@ -496,6 +498,10 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<RunningClient
     let rpc_direct = rpc::setup_apis(rpc_apis::ApiSet::All, &dependencies);
     let ws_server = rpc::new_ws(cmd.ws_conf.clone(), &dependencies)?;
     let ipc_server = rpc::new_ipc(cmd.ipc_conf, &dependencies)?;
+
+    // start the prometheus metrics server
+    start_prometheus_metrics(&cmd.metrics_conf, &dependencies)?;
+
     let http_server = rpc::new_http(
         "HTTP JSON-RPC",
         "jsonrpc",

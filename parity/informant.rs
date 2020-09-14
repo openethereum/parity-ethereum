@@ -146,7 +146,6 @@ impl InformantData for FullNodeInformantData {
         let chain_info = self.client.chain_info();
 
         let mut cache_sizes = CacheSizes::default();
-        cache_sizes.insert("db", client_report.state_db_mem);
         cache_sizes.insert("queue", queue_info.mem_used);
         cache_sizes.insert("chain", blockchain_cache_info.total());
 
@@ -156,8 +155,6 @@ impl InformantData for FullNodeInformantData {
                 let status = sync.status();
                 let num_peers_range = net.num_peers_range();
                 debug_assert!(num_peers_range.end() >= num_peers_range.start());
-
-                cache_sizes.insert("sync", status.mem_used);
 
                 Some(SyncInfo {
                     last_imported_block_number: status
@@ -247,10 +244,15 @@ impl<T: InformantData> Informant<T> {
 
         let rpc_stats = self.rpc_stats.as_ref();
         let snapshot_sync = sync_info.as_ref().map_or(false, |s| s.snapshot_sync)
-            && self.snapshot.as_ref().map_or(false, |s| match s.status() {
-                RestorationStatus::Ongoing { .. } | RestorationStatus::Initializing { .. } => true,
-                _ => false,
-            });
+            && self
+                .snapshot
+                .as_ref()
+                .map_or(false, |s| match s.restoration_status() {
+                    RestorationStatus::Ongoing { .. } | RestorationStatus::Initializing { .. } => {
+                        true
+                    }
+                    _ => false,
+                });
         if !importing && !snapshot_sync && elapsed < Duration::from_secs(30) {
             return;
         }
@@ -285,8 +287,8 @@ impl<T: InformantData> Informant<T> {
                     ),
                     true => {
                         self.snapshot.as_ref().map_or(String::new(), |s|
-                            match s.status() {
-                                RestorationStatus::Ongoing { state_chunks, block_chunks, state_chunks_done, block_chunks_done } => {
+                            match s.restoration_status() {
+                                RestorationStatus::Ongoing { state_chunks, block_chunks, state_chunks_done, block_chunks_done, .. } => {
                                     format!("Syncing snapshot {}/{}", state_chunks_done + block_chunks_done, state_chunks + block_chunks)
                                 },
                                 RestorationStatus::Initializing { chunks_done } => {

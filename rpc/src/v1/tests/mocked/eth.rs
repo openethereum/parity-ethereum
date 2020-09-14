@@ -180,6 +180,7 @@ fn rpc_eth_syncing() {
 
     let snap_res = r#"{"jsonrpc":"2.0","result":{"currentBlock":"0x3e8","highestBlock":"0x9c4","startingBlock":"0x0","warpChunksAmount":"0x32","warpChunksProcessed":"0x18"},"id":1}"#;
     tester.snapshot.set_status(RestorationStatus::Ongoing {
+        block_number: 0,
         state_chunks: 40,
         block_chunks: 10,
         state_chunks_done: 18,

@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
 
-use super::{ManifestData, RestorationStatus};
+use super::{CreationStatus, ManifestData, RestorationStatus};
 use bytes::Bytes;
 use ethereum_types::H256;
 
@@ -37,7 +37,10 @@ pub trait SnapshotService: Sync + Send {
     fn chunk(&self, hash: H256) -> Option<Bytes>;
 
     /// Ask the snapshot service for the restoration status.
-    fn status(&self) -> RestorationStatus;
+    fn restoration_status(&self) -> RestorationStatus;
+
+    /// Ask the snapshot service for the creation status.
+    fn creation_status(&self) -> CreationStatus;
 
     /// Begin snapshot restoration.
     /// If restoration in-progress, this will reset it.

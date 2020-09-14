@@ -466,6 +466,19 @@ usage! {
             "--ws-max-connections=[CONN]",
             "Maximum number of allowed concurrent WebSockets JSON-RPC connections.",
 
+        ["Metrics"]
+            FLAG flag_metrics: (bool) = false, or |c: &Config| c.metrics.as_ref()?.enable.clone(),
+            "--metrics",
+            "Enable prometheus metrics (only full client).",
+
+            ARG arg_metrics_port: (u16) = 3000u16, or |c: &Config| c.metrics.as_ref()?.port.clone(),
+            "--metrics-port=[PORT]",
+            "Specify the port portion of the metrics server.",
+
+            ARG arg_metrics_interface: (String) = "local", or |c: &Config| c.metrics.as_ref()?.interface.clone(),
+            "--metrics-interface=[IP]",
+            "Specify the hostname portion of the metrics server, IP should be an interface's IP address, or all (all interfaces) or local.",
+
         ["API and Console Options – IPC"]
             FLAG flag_no_ipc: (bool) = false, or |c: &Config| c.ipc.as_ref()?.disable.clone(),
             "--no-ipc",
@@ -808,6 +821,7 @@ struct Config {
     snapshots: Option<Snapshots>,
     misc: Option<Misc>,
     stratum: Option<Stratum>,
+    metrics: Option<Metrics>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
@@ -897,6 +911,14 @@ struct Ipc {
     disable: Option<bool>,
     path: Option<String>,
     apis: Option<Vec<String>>,
+}
+
+#[derive(Default, Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Metrics {
+    enable: Option<bool>,
+    port: Option<u16>,
+    interface: Option<String>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
@@ -1007,8 +1029,8 @@ struct Misc {
 #[cfg(test)]
 mod tests {
     use super::{
-        Account, Args, ArgsError, Config, Footprint, Ipc, Mining, Misc, Network, Operating, Rpc,
-        SecretStore, Snapshots, Ws,
+        Account, Args, ArgsError, Config, Footprint, Ipc, Metrics, Mining, Misc, Network,
+        Operating, Rpc, SecretStore, Snapshots, Ws,
     };
     use clap::ErrorKind as ClapErrorKind;
     use toml;
@@ -1307,6 +1329,11 @@ mod tests {
                 arg_ipc_apis: "web3,eth,net,parity,parity_accounts,personal,traces,secretstore"
                     .into(),
 
+                // METRICS
+                flag_metrics: false,
+                arg_metrics_port: 3000u16,
+                arg_metrics_interface: "local".into(),
+
                 // SECRETSTORE
                 flag_no_secretstore: false,
                 flag_no_secretstore_http: false,
@@ -1504,6 +1531,11 @@ mod tests {
                     disable: None,
                     path: None,
                     apis: Some(vec!["rpc".into(), "eth".into()]),
+                }),
+                metrics: Some(Metrics {
+                    enable: Some(true),
+                    interface: Some("local".to_string()),
+                    port: Some(4000),
                 }),
                 secretstore: Some(SecretStore {
                     disable: None,

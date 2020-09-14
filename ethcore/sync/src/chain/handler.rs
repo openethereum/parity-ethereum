@@ -599,7 +599,7 @@ impl SyncHandler {
         }
 
         // check service status
-        let status = io.snapshot_service().status();
+        let status = io.snapshot_service().restoration_status();
         match status {
             RestorationStatus::Inactive | RestorationStatus::Failed => {
                 trace!(target: "sync", "{}: Snapshot restoration aborted", peer_id);

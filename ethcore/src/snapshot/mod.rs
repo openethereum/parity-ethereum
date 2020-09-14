@@ -64,8 +64,8 @@ pub use self::{
     watcher::Watcher,
 };
 pub use types::{
-    basic_account::BasicAccount, restoration_status::RestorationStatus,
-    snapshot_manifest::ManifestData,
+    basic_account::BasicAccount, creation_status::CreationStatus,
+    restoration_status::RestorationStatus, snapshot_manifest::ManifestData,
 };
 
 pub mod io;

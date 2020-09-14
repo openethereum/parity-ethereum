@@ -17,7 +17,7 @@
 //! Disk-backed `HashDB` implementation.
 
 use std::{
-    collections::{hash_map::Entry, HashMap},
+    collections::{hash_map::Entry, BTreeMap, HashMap},
     io,
     sync::Arc,
 };
@@ -127,8 +127,8 @@ impl JournalDB for ArchiveDB {
         })
     }
 
-    fn mem_used(&self) -> usize {
-        self.overlay.mem_used()
+    fn get_sizes(&self, sizes: &mut BTreeMap<String, usize>) {
+        sizes.insert(String::from("db_archive_overlay"), self.overlay.len());
     }
 
     fn is_empty(&self) -> bool {

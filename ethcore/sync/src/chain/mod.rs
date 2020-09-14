@@ -105,7 +105,6 @@ use ethcore::{
 use ethereum_types::{H256, U256};
 use fastmap::{H256FastMap, H256FastSet};
 use hash::keccak;
-use heapsize::HeapSizeOf;
 use network::{self, client_version::ClientVersion, PeerId};
 use parking_lot::{Mutex, RwLock, RwLockWriteGuard};
 use rand::Rng;
@@ -214,7 +213,7 @@ pub enum SyncState {
 }
 
 /// Syncing status and statistics
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct SyncStatus {
     /// State
     pub state: SyncState,
@@ -236,14 +235,14 @@ pub struct SyncStatus {
     pub num_peers: usize,
     /// Total number of active peers.
     pub num_active_peers: usize,
-    /// Heap memory used in bytes.
-    pub mem_used: usize,
     /// Snapshot chunks
     pub num_snapshot_chunks: usize,
     /// Snapshot chunks downloaded
     pub snapshot_chunks_done: usize,
     /// Last fully downloaded and imported ancient block number (if any).
     pub last_imported_old_block_number: Option<BlockNumber>,
+    /// Internal structure item numbers
+    pub item_sizes: BTreeMap<String, usize>,
 }
 
 impl SyncStatus {
@@ -297,6 +296,16 @@ pub enum BlockSet {
     /// Missing old blocks
     OldBlocks,
 }
+
+impl BlockSet {
+    pub fn to_string(&self) -> &'static str {
+        match *self {
+            Self::NewBlocks => "new_blocks",
+            Self::OldBlocks => "old_blocks",
+        }
+    }
+}
+
 #[derive(Clone, Eq, PartialEq)]
 pub enum ForkConfirmation {
     /// Fork block confirmation pending.
@@ -708,6 +717,12 @@ impl ChainSync {
     /// Returns synchonization status
     pub fn status(&self) -> SyncStatus {
         let last_imported_number = self.new_blocks.last_imported_block_number();
+        let mut item_sizes = BTreeMap::<String, usize>::new();
+        self.old_blocks
+            .as_ref()
+            .map_or((), |d| d.get_sizes(&mut item_sizes));
+        self.new_blocks.get_sizes(&mut item_sizes);
+
         SyncStatus {
             state: self.state.clone(),
             protocol_version: ETH_PROTOCOL_VERSION_63.0,
@@ -738,9 +753,7 @@ impl ChainSync {
                 .count(),
             num_snapshot_chunks: self.snapshot.total_chunks(),
             snapshot_chunks_done: self.snapshot.done_chunks(),
-            mem_used: self.new_blocks.heap_size()
-                + self.old_blocks.as_ref().map_or(0, |d| d.heap_size())
-                + self.peers.heap_size_of_children(),
+            item_sizes: item_sizes,
         }
     }
 
@@ -1108,7 +1121,7 @@ impl ChainSync {
 					}
 				},
 				SyncState::SnapshotData => {
-					match io.snapshot_service().status() {
+					match io.snapshot_service().restoration_status() {
 						RestorationStatus::Ongoing { state_chunks_done, block_chunks_done, .. } => {
 							// Initialize the snapshot if not already done
 							self.snapshot.initialize(io.snapshot_service());
@@ -1309,13 +1322,13 @@ impl ChainSync {
                 self.state = SyncState::Blocks;
                 self.continue_sync(io);
             }
-            SyncState::SnapshotData => match io.snapshot_service().status() {
+            SyncState::SnapshotData => match io.snapshot_service().restoration_status() {
                 RestorationStatus::Inactive | RestorationStatus::Failed => {
                     self.state = SyncState::SnapshotWaiting;
                 }
                 RestorationStatus::Initializing { .. } | RestorationStatus::Ongoing { .. } => (),
             },
-            SyncState::SnapshotWaiting => match io.snapshot_service().status() {
+            SyncState::SnapshotWaiting => match io.snapshot_service().restoration_status() {
                 RestorationStatus::Inactive => {
                     trace!(target:"sync", "Snapshot restoration is complete");
                     self.restart(io);
@@ -1541,7 +1554,7 @@ pub mod tests {
             blocks_received: 0,
             num_peers: 0,
             num_active_peers: 0,
-            mem_used: 0,
+            item_sizes: BTreeMap::new(),
             num_snapshot_chunks: 0,
             snapshot_chunks_done: 0,
             last_imported_old_block_number: None,

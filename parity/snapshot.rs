@@ -96,7 +96,7 @@ fn restore_using<R: SnapshotReader>(
             state_chunks_done,
             block_chunks_done,
             ..
-        } = informant_handle.status()
+        } = informant_handle.restoration_status()
         {
             info!(
                 "Processed {}/{} state chunks and {}/{} block chunks.",
@@ -108,7 +108,7 @@ fn restore_using<R: SnapshotReader>(
 
     info!("Restoring state");
     for &state_hash in &manifest.state_hashes {
-        if snapshot.status() == RestorationStatus::Failed {
+        if snapshot.restoration_status() == RestorationStatus::Failed {
             return Err("Restoration failed".into());
         }
 
@@ -132,7 +132,7 @@ fn restore_using<R: SnapshotReader>(
 
     info!("Restoring blocks");
     for &block_hash in &manifest.block_hashes {
-        if snapshot.status() == RestorationStatus::Failed {
+        if snapshot.restoration_status() == RestorationStatus::Failed {
             return Err("Restoration failed".into());
         }
 
@@ -153,7 +153,7 @@ fn restore_using<R: SnapshotReader>(
         snapshot.feed_block_chunk(block_hash, &chunk);
     }
 
-    match snapshot.status() {
+    match snapshot.restoration_status() {
         RestorationStatus::Ongoing { .. } => {
             Err("Snapshot file is incomplete and missing chunks.".into())
         }

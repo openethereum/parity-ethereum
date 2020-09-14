@@ -85,6 +85,7 @@ use snapshot::{self, io as snapshot_io, SnapshotClient};
 use spec::Spec;
 use state::{self, State};
 use state_db::StateDB;
+use stats::{prometheus, prometheus_counter, prometheus_gauge, PrometheusMetrics};
 use trace::{
     self, Database as TraceDatabase, ImportRequest as TraceImportRequest, LocalizedTrace, TraceDB,
 };
@@ -118,8 +119,8 @@ pub struct ClientReport {
     pub transactions_applied: usize,
     /// How much gas has been processed so far.
     pub gas_processed: U256,
-    /// Memory used by state DB
-    pub state_db_mem: usize,
+    /// Internal structure item sizes
+    pub item_sizes: BTreeMap<String, usize>,
 }
 
 impl ClientReport {
@@ -135,13 +136,9 @@ impl<'a> ::std::ops::Sub<&'a ClientReport> for ClientReport {
     type Output = Self;
 
     fn sub(mut self, other: &'a ClientReport) -> Self {
-        let higher_mem = ::std::cmp::max(self.state_db_mem, other.state_db_mem);
-        let lower_mem = ::std::cmp::min(self.state_db_mem, other.state_db_mem);
-
         self.blocks_imported -= other.blocks_imported;
         self.transactions_applied -= other.transactions_applied;
         self.gas_processed = self.gas_processed - other.gas_processed;
-        self.state_db_mem = higher_mem - lower_mem;
 
         self
     }
@@ -1245,7 +1242,7 @@ impl Client {
     /// Get the report.
     pub fn report(&self) -> ClientReport {
         let mut report = self.report.read().clone();
-        report.state_db_mem = self.state_db.read().mem_used();
+        self.state_db.read().get_sizes(&mut report.item_sizes);
         report
     }
 
@@ -3180,6 +3177,163 @@ impl IoChannelQueue {
         self.currently_queued
             .fetch_add(count, AtomicOrdering::SeqCst);
         Ok(())
+    }
+}
+
+impl PrometheusMetrics for Client {
+    fn prometheus_metrics(&self, r: &mut prometheus::Registry) {
+        // gas, tx & blocks
+        let report = self.report();
+
+        for (key, value) in report.item_sizes.iter() {
+            prometheus_gauge(
+                r,
+                &key,
+                format!("Total item number of {}", key).as_str(),
+                *value as i64,
+            );
+        }
+
+        prometheus_counter(
+            r,
+            "import_gas",
+            "Gas processed",
+            report.gas_processed.as_u64() as i64,
+        );
+        prometheus_counter(
+            r,
+            "import_blocks",
+            "Blocks imported",
+            report.blocks_imported as i64,
+        );
+        prometheus_counter(
+            r,
+            "import_txs",
+            "Transactions applied",
+            report.transactions_applied as i64,
+        );
+
+        let state_db = self.state_db.read();
+        prometheus_gauge(
+            r,
+            "statedb_cache_size",
+            "State DB cache size",
+            state_db.cache_size() as i64,
+        );
+
+        // blockchain cache
+        let blockchain_cache_info = self.blockchain_cache_info();
+        prometheus_gauge(
+            r,
+            "blockchaincache_block_details",
+            "BlockDetails cache size",
+            blockchain_cache_info.block_details as i64,
+        );
+        prometheus_gauge(
+            r,
+            "blockchaincache_block_recipts",
+            "Block receipts size",
+            blockchain_cache_info.block_receipts as i64,
+        );
+        prometheus_gauge(
+            r,
+            "blockchaincache_blocks",
+            "Blocks cache size",
+            blockchain_cache_info.blocks as i64,
+        );
+        prometheus_gauge(
+            r,
+            "blockchaincache_txaddrs",
+            "Transaction addresses cache size",
+            blockchain_cache_info.transaction_addresses as i64,
+        );
+        prometheus_gauge(
+            r,
+            "blockchaincache_size",
+            "Total blockchain cache size",
+            blockchain_cache_info.total() as i64,
+        );
+
+        // chain info
+        let chain = self.chain_info();
+
+        let gap = chain
+            .ancient_block_number
+            .map(|x| U256::from(x + 1))
+            .and_then(|first| {
+                chain
+                    .first_block_number
+                    .map(|last| (first, U256::from(last)))
+            });
+        if let Some((first, last)) = gap {
+            prometheus_gauge(
+                r,
+                "chain_warpsync_gap_first",
+                "Warp sync gap, first block",
+                first.as_u64() as i64,
+            );
+            prometheus_gauge(
+                r,
+                "chain_warpsync_gap_last",
+                "Warp sync gap, last block",
+                last.as_u64() as i64,
+            );
+        }
+
+        prometheus_gauge(
+            r,
+            "chain_block",
+            "Best block number",
+            chain.best_block_number as i64,
+        );
+
+        // prunning info
+        let prunning = self.pruning_info();
+        prometheus_gauge(
+            r,
+            "prunning_earliest_chain",
+            "The first block which everything can be served after",
+            prunning.earliest_chain as i64,
+        );
+        prometheus_gauge(
+            r,
+            "prunning_earliest_state",
+            "The first block where state requests may be served",
+            prunning.earliest_state as i64,
+        );
+
+        // queue info
+        let queue = self.queue_info();
+        prometheus_gauge(
+            r,
+            "queue_mem_used",
+            "Queue heap memory used in bytes",
+            queue.mem_used as i64,
+        );
+        prometheus_gauge(
+            r,
+            "queue_size_total",
+            "The total size of the queues",
+            queue.total_queue_size() as i64,
+        );
+        prometheus_gauge(
+            r,
+            "queue_size_unverified",
+            "Number of queued items pending verification",
+            queue.unverified_queue_size as i64,
+        );
+        prometheus_gauge(
+            r,
+            "queue_size_verified",
+            "Number of verified queued items pending import",
+            queue.verified_queue_size as i64,
+        );
+        prometheus_gauge(
+            r,
+            "queue_size_verifying",
+            "Number of items being verified",
+            queue.verifying_queue_size as i64,
+        );
     }
 }
 

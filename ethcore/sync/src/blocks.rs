@@ -21,7 +21,7 @@ use hash::{keccak, KECCAK_EMPTY_LIST_RLP, KECCAK_NULL_RLP};
 use heapsize::HeapSizeOf;
 use network;
 use rlp::{DecoderError, Rlp, RlpStream};
-use std::collections::{hash_map, HashMap, HashSet};
+use std::collections::{hash_map, BTreeMap, HashMap, HashSet};
 use triehash_ethereum::ordered_trie_root;
 use types::{header::Header as BlockHeader, transaction::UnverifiedTransaction};
 
@@ -414,14 +414,37 @@ impl BlockCollection {
         self.heads.len()
     }
 
-    /// Return used heap size.
-    pub fn heap_size(&self) -> usize {
-        self.heads.heap_size_of_children()
-            + self.blocks.heap_size_of_children()
-            + self.parents.heap_size_of_children()
-            + self.header_ids.heap_size_of_children()
-            + self.downloading_headers.heap_size_of_children()
-            + self.downloading_bodies.heap_size_of_children()
+    /// Return number of items size.
+    pub fn get_sizes(&self, sizes: &mut BTreeMap<String, usize>, insert_prefix: &str) {
+        sizes.insert(format!("{}{}", insert_prefix, "heads"), self.heads.len());
+        sizes.insert(format!("{}{}", insert_prefix, "blocks"), self.blocks.len());
+        sizes.insert(
+            format!("{}{}", insert_prefix, "parents_len"),
+            self.parents.len(),
+        );
+        sizes.insert(
+            format!("{}{}", insert_prefix, "header_ids_len"),
+            self.header_ids.len(),
+        );
+        sizes.insert(
+            format!("{}{}", insert_prefix, "downloading_headers_len"),
+            self.downloading_headers.len(),
+        );
+        sizes.insert(
+            format!("{}{}", insert_prefix, "downloading_bodies_len"),
+            self.downloading_bodies.len(),
+        );
+
+        if self.need_receipts {
+            sizes.insert(
+                format!("{}{}", insert_prefix, "downloading_receipts_len"),
+                self.downloading_receipts.len(),
+            );
+            sizes.insert(
+                format!("{}{}", insert_prefix, "receipt_ids_len"),
+                self.receipt_ids.len(),
+            );
+        }
     }
 
     /// Check if given block hash is marked as being downloaded.

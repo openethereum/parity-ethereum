@@ -17,7 +17,7 @@
 //! `JournalDB` over in-memory overlay
 
 use std::{
-    collections::{hash_map::Entry, HashMap},
+    collections::{hash_map::Entry, BTreeMap, HashMap},
     io,
     sync::Arc,
 };
@@ -288,15 +288,25 @@ impl JournalDB for OverlayRecentDB {
         Box::new(self.clone())
     }
 
-    fn mem_used(&self) -> usize {
-        let mut mem = self.transaction_overlay.mem_used();
+    fn get_sizes(&self, sizes: &mut BTreeMap<String, usize>) {
+        sizes.insert(
+            String::from("db_overlay_recent_transactions_size"),
+            self.transaction_overlay.len(),
+        );
+
         let overlay = self.journal_overlay.read();
-
-        mem += overlay.backing_overlay.mem_used();
-        mem += overlay.pending_overlay.heap_size_of_children();
-        mem += overlay.journal.heap_size_of_children();
-
-        mem
+        sizes.insert(
+            String::from("db_overlay_recent_backing_size"),
+            overlay.backing_overlay.len(),
+        );
+        sizes.insert(
+            String::from("db_overlay_recent_pending_size"),
+            overlay.pending_overlay.len(),
+        );
+        sizes.insert(
+            String::from("db_overlay_recent_journal_size"),
+            overlay.journal.len(),
+        );
     }
 
     fn journal_size(&self) -> usize {
@@ -462,6 +472,7 @@ impl JournalDB for OverlayRecentDB {
             }
         }
         journal_overlay.journal.remove(&end_era);
+        journal_overlay.backing_overlay.shrink_to_fit();
 
         if !journal_overlay.journal.is_empty() {
             trace!(target: "journaldb", "Set earliest_era to {}", end_era + 1);

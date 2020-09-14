@@ -16,7 +16,11 @@
 
 //! Disk-backed, ref-counted `JournalDB` implementation.
 
-use std::{collections::HashMap, io, sync::Arc};
+use std::{
+    collections::{BTreeMap, HashMap},
+    io,
+    sync::Arc,
+};
 
 use super::{traits::JournalDB, LATEST_ERA_KEY};
 use ethereum_types::H256;
@@ -116,8 +120,15 @@ impl JournalDB for RefCountedDB {
         })
     }
 
-    fn mem_used(&self) -> usize {
-        self.inserts.heap_size_of_children() + self.removes.heap_size_of_children()
+    fn get_sizes(&self, sizes: &mut BTreeMap<String, usize>) {
+        sizes.insert(
+            String::from("db_ref_counted_inserts"),
+            self.inserts.heap_size_of_children(),
+        );
+        sizes.insert(
+            String::from("db_ref_counted_removes"),
+            self.removes.heap_size_of_children(),
+        );
     }
 
     fn is_empty(&self) -> bool {

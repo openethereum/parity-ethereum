@@ -28,6 +28,8 @@ pub enum RestorationStatus {
     },
     /// Ongoing restoration.
     Ongoing {
+        /// Block number specified in the manifest.
+        block_number: u64,
         /// Total number of state chunks.
         state_chunks: u32,
         /// Total number of block chunks.
