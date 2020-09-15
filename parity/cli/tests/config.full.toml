@@ -118,7 +118,7 @@ scale_verifiers = true
 num_verifiers = 6
 
 [snapshots]
-disable_periodic = false
+enable = false
 
 [misc]
 logging = "own_tx=trace"

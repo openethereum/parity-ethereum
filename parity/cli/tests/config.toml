@@ -65,7 +65,7 @@ fat_db = "off"
 scale_verifiers = false
 
 [snapshots]
-disable_periodic = true
+enable = false
 
 [misc]
 logging = "own_tx=trace"

@@ -795,9 +795,9 @@ usage! {
             "Skip block seal check.",
 
         ["Snapshot Options"]
-            FLAG flag_no_periodic_snapshot: (bool) = false, or |c: &Config| c.snapshots.as_ref()?.disable_periodic.clone(),
-            "--no-periodic-snapshot",
-            "Disable automated snapshots which usually occur once every 5000 blocks.",
+            FLAG flag_enable_snapshotting: (bool) = false, or |c: &Config| c.snapshots.as_ref()?.enable.clone(),
+            "--enable-snapshotting",
+            "Enable automated snapshots which usually occur once every 5000 blocks.",
 
             ARG arg_snapshot_threads: (Option<usize>) = None, or |c: &Config| c.snapshots.as_ref()?.processing_threads,
             "--snapshot-threads=[NUM]",
@@ -1012,7 +1012,7 @@ struct Footprint {
 #[derive(Default, Debug, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Snapshots {
-    disable_periodic: Option<bool>,
+    enable: Option<bool>,
     processing_threads: Option<usize>,
 }
 
@@ -1419,7 +1419,7 @@ mod tests {
                 // -- Snapshot Optons
                 arg_export_state_at: "latest".into(),
                 arg_snapshot_at: "latest".into(),
-                flag_no_periodic_snapshot: false,
+                flag_enable_snapshotting: false,
                 arg_snapshot_threads: None,
 
                 // -- Internal Options
@@ -1609,7 +1609,7 @@ mod tests {
                     num_verifiers: None,
                 }),
                 snapshots: Some(Snapshots {
-                    disable_periodic: Some(true),
+                    enable: Some(false),
                     processing_threads: None,
                 }),
                 misc: Some(Misc {

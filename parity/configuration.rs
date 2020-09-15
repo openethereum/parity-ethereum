@@ -967,7 +967,7 @@ impl Configuration {
 
     fn snapshot_config(&self) -> Result<SnapshotConfiguration, String> {
         let conf = SnapshotConfiguration {
-            no_periodic: self.args.flag_no_periodic_snapshot,
+            enable: self.args.flag_enable_snapshotting,
             processing_threads: match self.args.arg_snapshot_threads {
                 Some(threads) if threads > 0 => threads,
                 _ => ::std::cmp::max(1, num_cpus::get_physical() / 2),
