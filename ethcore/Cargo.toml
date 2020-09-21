@@ -46,6 +46,7 @@ len-caching-lock = { path = "../util/len-caching-lock" }
 log = "0.4"
 lru-cache = "0.1"
 macros = { path = "../util/macros" }
+maplit = "1"
 memory-cache = { path = "../util/memory-cache" }
 memory-db = { path = "../util/memory-db" }
 num_cpus = "1.2"

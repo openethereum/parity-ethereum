@@ -18,7 +18,7 @@ use api::PAR_PROTOCOL;
 use bytes::Bytes;
 use chain::{
     sync_packet::{PacketInfo, SyncPacket},
-    ChainSync, SyncSupplier, ETH_PROTOCOL_VERSION_63, PAR_PROTOCOL_VERSION_2,
+    ChainSync, ForkFilterApi, SyncSupplier, ETH_PROTOCOL_VERSION_64, PAR_PROTOCOL_VERSION_2,
 };
 use ethcore::{
     client::{
@@ -30,6 +30,7 @@ use ethcore::{
     spec::Spec,
     test_helpers,
 };
+
 use ethereum_types::H256;
 use io::{IoChannel, IoContext, IoHandler};
 use network::{self, client_version::ClientVersion, PacketId, PeerId, ProtocolId, SessionInfo};
@@ -168,7 +169,7 @@ where
     }
 
     fn eth_protocol_version(&self, _peer: PeerId) -> u8 {
-        ETH_PROTOCOL_VERSION_63.0
+        ETH_PROTOCOL_VERSION_64.0
     }
 
     fn protocol_version(&self, protocol: &ProtocolId, peer_id: PeerId) -> u8 {
@@ -405,7 +406,7 @@ impl TestNet<EthPeer<TestBlockChainClient>> {
         for _ in 0..n {
             let chain = TestBlockChainClient::new();
             let ss = Arc::new(TestSnapshotService::new());
-            let sync = ChainSync::new(config.clone(), &chain);
+            let sync = ChainSync::new(config.clone(), &chain, ForkFilterApi::new_dummy(&chain));
             net.peers.push(Arc::new(EthPeer {
                 sync: RwLock::new(sync),
                 snapshot_service: ss,
@@ -454,7 +455,7 @@ impl TestNet<EthPeer<EthcoreClient>> {
         .unwrap();
 
         let ss = Arc::new(TestSnapshotService::new());
-        let sync = ChainSync::new(config, &*client);
+        let sync = ChainSync::new(config, &*client, ForkFilterApi::new_dummy(&*client));
         let peer = Arc::new(EthPeer {
             sync: RwLock::new(sync),
             snapshot_service: ss,

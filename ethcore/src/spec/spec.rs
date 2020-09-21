@@ -16,7 +16,13 @@
 
 //! Parameters for a block chain.
 
-use std::{collections::BTreeMap, convert::TryFrom, io::Read, path::Path, sync::Arc};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    convert::TryFrom,
+    io::Read,
+    path::Path,
+    sync::Arc,
+};
 
 use bytes::Bytes;
 use ethereum_types::{Address, Bloom, H256, U256};
@@ -37,6 +43,7 @@ use error::Error;
 use executive::Executive;
 use factory::Factories;
 use machine::EthereumMachine;
+use maplit::btreeset;
 use pod_state::PodState;
 use spec::{seal::Generic as GenericSeal, Genesis};
 use state::{backend::Basic as BasicBackend, Backend, State, Substate};
@@ -436,6 +443,9 @@ pub struct Spec {
     /// Each seal field, expressed as RLP, concatenated.
     pub seal_rlp: Bytes,
 
+    /// List of hard forks in the network.
+    pub hard_forks: BTreeSet<BlockNumber>,
+
     /// Contract constructors to be executed on genesis.
     constructors: Vec<(Address, Bytes)>,
 
@@ -464,6 +474,7 @@ impl Clone for Spec {
             timestamp: self.timestamp.clone(),
             extra_data: self.extra_data.clone(),
             seal_rlp: self.seal_rlp.clone(),
+            hard_forks: self.hard_forks.clone(),
             constructors: self.constructors.clone(),
             state_root_memo: RwLock::new(*self.state_root_memo.read()),
             genesis_state: self.genesis_state.clone(),
@@ -508,9 +519,11 @@ fn load_from(spec_params: SpecParams, s: ethjson::spec::Spec) -> Result<Spec, Er
     let GenericSeal(seal_rlp) = g.seal.into();
     let params = CommonParams::from(s.params);
 
+    let (engine, hard_forks) = Spec::engine(spec_params, s.engine, params, builtins);
+
     let mut s = Spec {
         name: s.name.clone().into(),
-        engine: Spec::engine(spec_params, s.engine, params, builtins),
+        engine,
         data_dir: s.data_dir.unwrap_or(s.name).into(),
         nodes: s.nodes.unwrap_or_else(Vec::new),
         parent_hash: g.parent_hash,
@@ -523,6 +536,7 @@ fn load_from(spec_params: SpecParams, s: ethjson::spec::Spec) -> Result<Spec, Er
         timestamp: g.timestamp,
         extra_data: g.extra_data,
         seal_rlp: seal_rlp,
+        hard_forks,
         constructors: s
             .accounts
             .constructors()
@@ -586,19 +600,75 @@ impl Spec {
         engine_spec: ethjson::spec::Engine,
         params: CommonParams,
         builtins: BTreeMap<Address, Builtin>,
-    ) -> Arc<dyn EthEngine> {
+    ) -> (Arc<dyn EthEngine>, BTreeSet<BlockNumber>) {
+        let mut hard_forks = btreeset![
+            params.eip150_transition,
+            params.eip160_transition,
+            params.eip161abc_transition,
+            params.eip161d_transition,
+            params.eip98_transition,
+            params.eip658_transition,
+            params.eip155_transition,
+            params.validate_receipts_transition,
+            params.validate_chain_id_transition,
+            params.eip140_transition,
+            params.eip210_transition,
+            params.eip211_transition,
+            params.eip214_transition,
+            params.eip145_transition,
+            params.eip1052_transition,
+            params.eip1283_transition,
+            params.eip1283_disable_transition,
+            params.eip1283_reenable_transition,
+            params.eip1014_transition,
+            params.eip1706_transition,
+            params.eip1344_transition,
+            params.eip1884_transition,
+            params.eip2028_transition,
+            params.eip2315_transition,
+            params.dust_protection_transition,
+            params.wasm_activation_transition,
+            params.kip4_transition,
+            params.kip6_transition,
+            params.max_code_size_transition,
+            params.transaction_permission_contract_transition,
+        ];
+        // BUG: Rinkeby has homestead transition at block 1 but we can't reflect that in specs for non-Ethash networks
+        if params.network_id == 0x4 {
+            hard_forks.insert(1);
+        }
+
         let machine = Self::machine(&engine_spec, params, builtins);
 
-        match engine_spec {
+        let engine: Arc<dyn EthEngine> = match engine_spec {
             ethjson::spec::Engine::Null(null) => {
                 Arc::new(NullEngine::new(null.params.into(), machine))
             }
-            ethjson::spec::Engine::Ethash(ethash) => Arc::new(::ethereum::Ethash::new(
-                spec_params.cache_dir,
-                ethash.params.into(),
-                machine,
-                spec_params.optimization_setting,
-            )),
+            ethjson::spec::Engine::Ethash(ethash) => {
+                // Specific transitions for Ethash-based networks
+                for block in &[
+                    ethash.params.homestead_transition,
+                    ethash.params.dao_hardfork_transition,
+                ] {
+                    if let Some(block) = *block {
+                        hard_forks.insert(block.into());
+                    }
+                }
+
+                // Ethereum's difficulty bomb delay is a fork too
+                if let Some(delays) = &ethash.params.difficulty_bomb_delays {
+                    for delay in delays.keys().copied() {
+                        hard_forks.insert(delay.into());
+                    }
+                }
+
+                Arc::new(::ethereum::Ethash::new(
+                    spec_params.cache_dir,
+                    ethash.params.into(),
+                    machine,
+                    spec_params.optimization_setting,
+                ))
+            }
             ethjson::spec::Engine::InstantSeal(Some(instant_seal)) => {
                 Arc::new(InstantSeal::new(instant_seal.params.into(), machine))
             }
@@ -614,7 +684,12 @@ impl Spec {
                 AuthorityRound::new(authority_round.params.into(), machine)
                     .expect("Failed to start AuthorityRound consensus engine.")
             }
-        }
+        };
+
+        // Dummy value is a filler for non-existent transitions
+        hard_forks.remove(&BlockNumber::max_value());
+
+        (engine, hard_forks)
     }
 
     // given a pre-constructor state, run all the given constructors and produce a new state and

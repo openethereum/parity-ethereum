@@ -360,6 +360,7 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<RunningClient
 
     let connection_filter_address = spec.params().node_permission_contract;
     // drop the spec to free up genesis state.
+    let forks = spec.hard_forks.clone();
     drop(spec);
 
     // take handle to client
@@ -433,6 +434,7 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<RunningClient
         sync_config,
         net_conf.clone().into(),
         client.clone(),
+        forks,
         snapshot_service.clone(),
         &cmd.logger_config,
         connection_filter

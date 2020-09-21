@@ -15,6 +15,8 @@ ethcore = { path = ".." }
 ethcore-io = { path = "../../util/io" }
 ethcore-network = { path = "../../util/network" }
 ethcore-network-devp2p = { path = "../../util/network-devp2p" }
+ethereum-forkid = "0.2"
+primitive_types07 = { package = "primitive-types", version = "0.7"}
 ethereum-types = "0.4"
 ethkey = { path = "../../accounts/ethkey" }
 ethstore = { path = "../../accounts/ethstore" }
@@ -30,6 +32,7 @@ parity-bytes = "0.1"
 parking_lot = "0.7"
 rand = "0.4"
 rlp = { version = "0.3.0", features = ["ethereum"] }
+rlp04 = { package = "rlp", version = "0.4" }
 trace-time = "0.1"
 triehash-ethereum = {version = "0.2", path = "../../util/triehash-ethereum" }
 stats = { path = "../../util/stats" }

@@ -27,6 +27,7 @@ extern crate ethcore;
 extern crate ethcore_io as io;
 extern crate ethcore_network as network;
 extern crate ethcore_network_devp2p as devp2p;
+extern crate ethereum_forkid;
 extern crate ethereum_types;
 extern crate ethkey;
 extern crate ethstore;
@@ -34,8 +35,10 @@ extern crate fastmap;
 extern crate keccak_hash as hash;
 extern crate parity_bytes as bytes;
 extern crate parking_lot;
+extern crate primitive_types07;
 extern crate rand;
 extern crate rlp;
+extern crate rlp04;
 extern crate stats;
 extern crate triehash_ethereum;
 

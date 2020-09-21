@@ -99,6 +99,12 @@ pub enum BlockDownloaderImportError {
     Useless,
 }
 
+impl From<rlp04::DecoderError> for BlockDownloaderImportError {
+    fn from(_: rlp04::DecoderError) -> BlockDownloaderImportError {
+        BlockDownloaderImportError::Invalid
+    }
+}
+
 impl From<rlp::DecoderError> for BlockDownloaderImportError {
     fn from(_: rlp::DecoderError) -> BlockDownloaderImportError {
         BlockDownloaderImportError::Invalid
