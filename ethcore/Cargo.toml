@@ -9,7 +9,6 @@ authors = ["Parity Technologies <admin@parity.io>"]
 [dependencies]
 ansi_term = "0.10"
 blooms-db = { path = "../util/blooms-db", optional = true }
-byteorder = "1.0"
 common-types = { path = "types" }
 crossbeam-utils = "0.6"
 eip-152 = { version = "0.1", path = "../util/EIP-152" }

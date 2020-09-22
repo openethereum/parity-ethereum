@@ -47,7 +47,7 @@ pub const TO_V12: ChangeColumns = ChangeColumns {
 /// Database is assumed to be at default version, when no version file is found.
 const DEFAULT_VERSION: u32 = 5;
 /// Current version of database models.
-const CURRENT_VERSION: u32 = 13;
+const CURRENT_VERSION: u32 = 16;
 /// A version of database at which blooms-db was introduced
 const BLOOMS_DB_VERSION: u32 = 13;
 /// Defines how many items are migrated to the new version of database at once.

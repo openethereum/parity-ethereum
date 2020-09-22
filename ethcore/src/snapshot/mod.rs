@@ -34,9 +34,8 @@ use blockchain::{BlockChain, BlockProvider};
 use engines::EthEngine;
 use types::{header::Header, ids::BlockId};
 
-use bloom_journal::Bloom;
 use bytes::Bytes;
-use ethereum_types::{H256, U256};
+use ethereum_types::H256;
 use ethtrie::{TrieDB, TrieDBMut};
 use hash_db::HashDB;
 use journaldb::{self, Algorithm, JournalDB};
@@ -49,8 +48,6 @@ use snappy;
 use trie::{Trie, TrieMut};
 
 use self::io::SnapshotWriter;
-
-use super::{state::Account as StateAccount, state_db::StateDB};
 
 use crossbeam_utils::thread;
 use rand::{OsRng, Rng};
@@ -433,7 +430,6 @@ pub struct StateRebuilder {
     state_root: H256,
     known_code: HashMap<H256, H256>, // code hashes mapped to first account with this code.
     missing_code: HashMap<H256, Vec<H256>>, // maps code hashes to lists of accounts missing that code.
-    bloom: Bloom,
     known_storage_roots: HashMap<H256, H256>, // maps account hashes to last known storage root. Only filled for last account per chunk.
 }
 
@@ -445,7 +441,6 @@ impl StateRebuilder {
             state_root: KECCAK_NULL_RLP,
             known_code: HashMap::new(),
             missing_code: HashMap::new(),
-            bloom: StateDB::load_bloom(&*db),
             known_storage_roots: HashMap::new(),
         }
     }
@@ -453,7 +448,6 @@ impl StateRebuilder {
     /// Feed an uncompressed state chunk into the rebuilder.
     pub fn feed(&mut self, chunk: &[u8], flag: &AtomicBool) -> Result<(), ::error::Error> {
         let rlp = Rlp::new(chunk);
-        let empty_rlp = StateAccount::new_basic(U256::zero(), U256::zero()).rlp();
         let mut pairs = Vec::with_capacity(rlp.item_count()?);
 
         // initialize the pairs vector with empty values so we have slots to write into.
@@ -489,8 +483,6 @@ impl StateRebuilder {
             self.known_code.insert(code_hash, first_with);
         }
 
-        let backing = self.db.backing().clone();
-
         // batch trie writes
         {
             let mut account_trie = if self.state_root != KECCAK_NULL_RLP {
@@ -504,18 +496,10 @@ impl StateRebuilder {
                     return Err(Error::RestorationAborted.into());
                 }
 
-                if &thin_rlp[..] != &empty_rlp[..] {
-                    self.bloom.set(&*hash);
-                }
                 account_trie.insert(&hash, &thin_rlp)?;
             }
         }
 
-        let bloom_journal = self.bloom.drain_journal();
-        let mut batch = backing.transaction();
-        StateDB::commit_bloom(&mut batch, bloom_journal)?;
-        self.db.inject(&mut batch)?;
-        backing.write_buffered(batch);
         trace!(target: "snapshot", "current state root: {:?}", self.state_root);
         Ok(())
     }

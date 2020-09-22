@@ -707,7 +707,6 @@ impl Spec {
         }
 
         for (address, account) in self.genesis_state.get().iter() {
-            db.note_non_null_account(address);
             account.insert_additional(
                 &mut *factories
                     .accountdb

@@ -554,19 +554,17 @@ impl<B: Backend> State<B> {
     pub fn exists(&self, a: &Address) -> TrieResult<bool> {
         // Bloom filter does not contain empty accounts, so it is important here to
         // check if account exists in the database directly before EIP-161 is in effect.
-        self.ensure_cached(a, RequireCache::None, false, |a| a.is_some())
+        self.ensure_cached(a, RequireCache::None, |a| a.is_some())
     }
 
     /// Determine whether an account exists and if not empty.
     pub fn exists_and_not_null(&self, a: &Address) -> TrieResult<bool> {
-        self.ensure_cached(a, RequireCache::None, false, |a| {
-            a.map_or(false, |a| !a.is_null())
-        })
+        self.ensure_cached(a, RequireCache::None, |a| a.map_or(false, |a| !a.is_null()))
     }
 
     /// Determine whether an account exists and has code or non-zero nonce.
     pub fn exists_and_has_code_or_nonce(&self, a: &Address) -> TrieResult<bool> {
-        self.ensure_cached(a, RequireCache::CodeSize, false, |a| {
+        self.ensure_cached(a, RequireCache::CodeSize, |a| {
             a.map_or(false, |a| {
                 a.code_hash() != KECCAK_EMPTY || *a.nonce() != self.account_start_nonce
             })
@@ -575,7 +573,7 @@ impl<B: Backend> State<B> {
 
     /// Get the balance of account `a`.
     pub fn balance(&self, a: &Address) -> TrieResult<U256> {
-        self.ensure_cached(a, RequireCache::None, true, |a| {
+        self.ensure_cached(a, RequireCache::None, |a| {
             a.as_ref()
                 .map_or(U256::zero(), |account| *account.balance())
         })
@@ -583,7 +581,7 @@ impl<B: Backend> State<B> {
 
     /// Get the nonce of account `a`.
     pub fn nonce(&self, a: &Address) -> TrieResult<U256> {
-        self.ensure_cached(a, RequireCache::None, true, |a| {
+        self.ensure_cached(a, RequireCache::None, |a| {
             a.as_ref()
                 .map_or(self.account_start_nonce, |account| *account.nonce())
         })
@@ -592,7 +590,7 @@ impl<B: Backend> State<B> {
     /// Whether the base storage root of an account remains unchanged.
     pub fn is_base_storage_root_unchanged(&self, a: &Address) -> TrieResult<bool> {
         Ok(self
-            .ensure_cached(a, RequireCache::None, true, |a| {
+            .ensure_cached(a, RequireCache::None, |a| {
                 a.as_ref()
                     .map(|account| account.is_base_storage_root_unchanged())
             })?
@@ -601,7 +599,7 @@ impl<B: Backend> State<B> {
 
     /// Get the storage root of account `a`.
     pub fn storage_root(&self, a: &Address) -> TrieResult<Option<H256>> {
-        self.ensure_cached(a, RequireCache::None, true, |a| {
+        self.ensure_cached(a, RequireCache::None, |a| {
             a.as_ref().and_then(|account| account.storage_root())
         })
     }
@@ -609,7 +607,7 @@ impl<B: Backend> State<B> {
     /// Get the original storage root since last commit of account `a`.
     pub fn original_storage_root(&self, a: &Address) -> TrieResult<H256> {
         Ok(self
-            .ensure_cached(a, RequireCache::None, true, |a| {
+            .ensure_cached(a, RequireCache::None, |a| {
                 a.as_ref().map(|account| account.original_storage_root())
             })?
             .unwrap_or(KECCAK_NULL_RLP))
@@ -755,11 +753,6 @@ impl<B: Backend> State<B> {
             }
         }
 
-        // check if the account could exist before any requests to trie
-        if self.db.is_known_null(address) {
-            return Ok(H256::zero());
-        }
-
         // account is not found in the global cache, get from the DB and insert into local
         let db = &self.db.as_hash_db();
         let db = self
@@ -802,21 +795,19 @@ impl<B: Backend> State<B> {
 
     /// Get accounts' code.
     pub fn code(&self, a: &Address) -> TrieResult<Option<Arc<Bytes>>> {
-        self.ensure_cached(a, RequireCache::Code, true, |a| {
+        self.ensure_cached(a, RequireCache::Code, |a| {
             a.as_ref().map_or(None, |a| a.code().clone())
         })
     }
 
     /// Get an account's code hash.
     pub fn code_hash(&self, a: &Address) -> TrieResult<Option<H256>> {
-        self.ensure_cached(a, RequireCache::None, true, |a| {
-            a.as_ref().map(|a| a.code_hash())
-        })
+        self.ensure_cached(a, RequireCache::None, |a| a.as_ref().map(|a| a.code_hash()))
     }
 
     /// Get accounts' code size.
     pub fn code_size(&self, a: &Address) -> TrieResult<Option<usize>> {
-        self.ensure_cached(a, RequireCache::CodeSize, true, |a| {
+        self.ensure_cached(a, RequireCache::CodeSize, |a| {
             a.as_ref().and_then(|a| a.code_size())
         })
     }
@@ -1021,9 +1012,6 @@ impl<B: Backend> State<B> {
                     account.commit_storage(&self.factories.trie, account_db.as_hash_db_mut())?;
                     account.commit_code(account_db.as_hash_db_mut());
                 }
-                if !account.is_empty() {
-                    self.db.note_non_null_account(address);
-                }
             }
         }
 
@@ -1208,7 +1196,7 @@ impl<B: Backend> State<B> {
             |m: TrieResult<_>, address| {
                 let mut m = m?;
 
-                let account = self.ensure_cached(&address, RequireCache::Code, true, |acc| {
+                let account = self.ensure_cached(&address, RequireCache::Code, |acc| {
                     acc.map(|acc| {
                         // Merge all modified storage keys.
                         let all_keys = {
@@ -1324,13 +1312,7 @@ impl<B: Backend> State<B> {
     /// Check caches for required data
     /// First searches for account in the local, then the shared cache.
     /// Populates local cache if nothing found.
-    fn ensure_cached<F, U>(
-        &self,
-        a: &Address,
-        require: RequireCache,
-        check_null: bool,
-        f: F,
-    ) -> TrieResult<U>
+    fn ensure_cached<F, U>(&self, a: &Address, require: RequireCache, f: F) -> TrieResult<U>
     where
         F: Fn(Option<&Account>) -> U,
     {
@@ -1365,11 +1347,6 @@ impl<B: Backend> State<B> {
         match result {
             Some(r) => Ok(r?),
             None => {
-                // first check if it is not in database for sure
-                if check_null && self.db.is_known_null(a) {
-                    return Ok(f(None));
-                }
-
                 // not found in the global cache, get from the DB and insert into local
                 let db = &self.db.as_hash_db();
                 let db = self.factories.trie.readonly(db, &self.root)?;
@@ -1424,15 +1401,11 @@ impl<B: Backend> State<B> {
             match self.db.get_cached_account(a) {
                 Some(acc) => self.insert_cache(a, AccountEntry::new_clean_cached(acc)),
                 None => {
-                    let maybe_acc = if !self.db.is_known_null(a) {
-                        let db = &self.db.as_hash_db();
-                        let db = self.factories.trie.readonly(db, &self.root)?;
-                        let from_rlp =
-                            |b: &[u8]| Account::from_rlp(b).expect("decoding db value failed");
-                        AccountEntry::new_clean(db.get_with(a, from_rlp)?)
-                    } else {
-                        AccountEntry::new_clean(None)
-                    };
+                    let db = &self.db.as_hash_db();
+                    let db = self.factories.trie.readonly(db, &self.root)?;
+                    let from_rlp =
+                        |b: &[u8]| Account::from_rlp(b).expect("decoding db value failed");
+                    let maybe_acc = AccountEntry::new_clean(db.get_with(a, from_rlp)?);
                     self.insert_cache(a, maybe_acc);
                 }
             }
