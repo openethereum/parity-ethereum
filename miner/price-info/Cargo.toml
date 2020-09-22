@@ -1,6 +1,6 @@
 [package]
 description = "Fetch current ETH price"
-homepage = "http://parity.io"
+homepage = "https://github.com/openethereum/openethereum"
 license = "GPL-3.0"
 name = "price-info"
 version = "1.12.0"

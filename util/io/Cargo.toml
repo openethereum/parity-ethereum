@@ -1,6 +1,6 @@
 [package]
 description = "Ethcore IO library"
-homepage = "http://parity.io"
+homepage = "https://github.com/openethereum/openethereum"
 license = "GPL-3.0"
 name = "ethcore-io"
 version = "1.12.0"

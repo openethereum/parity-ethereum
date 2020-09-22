@@ -1,23 +1,23 @@
-// Copyright 2015-2019 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// Copyright 2015-2020 Parity Technologies (UK) Ltd.
+// This file is part of OpenEthereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// OpenEthereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// OpenEthereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with OpenEthereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Snapshot creation, restoration, and network service.
 //!
 //! Documentation of the format can be found at
-//! https://wiki.parity.io/Warp-Sync-Snapshot-Format
+//! https://openethereum.github.io/wiki/Warp-Sync-Snapshot-Format
 
 use hash::{keccak, KECCAK_EMPTY, KECCAK_NULL_RLP};
 use std::{

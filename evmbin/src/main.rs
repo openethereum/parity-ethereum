@@ -1,20 +1,20 @@
-// Copyright 2015-2019 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// Copyright 2015-2020 Parity Technologies (UK) Ltd.
+// This file is part of OpenEthereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// OpenEthereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// OpenEthereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with OpenEthereum.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Parity EVM interpreter binary.
+//! OpenEthereum EVM interpreter binary.
 
 #![warn(missing_docs)]
 
@@ -60,11 +60,11 @@ EVM implementation for Parity.
   Copyright 2015-2019 Parity Technologies (UK) Ltd.
 
 Usage:
-    parity-evm state-test <file> [--json --std-json --std-dump-json --only NAME --chain CHAIN --std-out-only --std-err-only]
-    parity-evm stats [options]
-    parity-evm stats-jsontests-vm <file>
-    parity-evm [options]
-    parity-evm [-h | --help]
+    openethereum-evm state-test <file> [--json --std-json --std-dump-json --only NAME --chain CHAIN --std-out-only --std-err-only]
+    openethereum-evm stats [options]
+    openethereum-evm stats-jsontests-vm <file>
+    openethereum-evm [options]
+    openethereum-evm [-h | --help]
 
 Commands:
     state-test         Run a state test from a json file.
@@ -414,7 +414,7 @@ mod tests {
     #[test]
     fn should_parse_all_the_options() {
         let args = run(&[
-            "parity-evm",
+            "openethereum-evm",
             "--json",
             "--std-json",
             "--std-dump-json",
@@ -453,7 +453,7 @@ mod tests {
     #[test]
     fn should_parse_state_test_command() {
         let args = run(&[
-            "parity-evm",
+            "openethereum-evm",
             "state-test",
             "./file.json",
             "--chain",

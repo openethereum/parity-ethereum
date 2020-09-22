@@ -1,8 +1,8 @@
 [Desktop Entry]
 Type=Application
 Encoding=UTF-8
-Name=Parity Ethereum
-Comment=The fastest and most advanced Ethereum client.
-Exec=parity
+Name=OpenEthereum
+Comment=Fast and feature-rich multi-network Ethereum client.
+Exec=openethereum
 Icon=/usr/share/pixmaps/icon.png
 Terminal=true

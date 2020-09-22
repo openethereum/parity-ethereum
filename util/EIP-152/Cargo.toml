@@ -2,7 +2,7 @@
 name = "eip-152"
 version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]
-repository = "https://github.com/paritytech/parity-ethereum"
+repository = "https://github.com/openethereum/openethereum"
 documentation = "https://docs.rs/eip-152"
 readme = "README.md"
 description = "eip-512 blake2 F compression function"

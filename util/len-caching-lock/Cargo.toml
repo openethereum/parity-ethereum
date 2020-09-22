@@ -1,6 +1,6 @@
 [package]
 description = "Atomically cached len(), for use with collections contained in parking_lot Mutex and RwLock"
-homepage = "http://parity.io"
+homepage = "https://github.com/openethereum/openethereum"
 license = "GPL-3.0"
 name = "len-caching-lock"
 version = "0.1.1"

@@ -1,18 +1,18 @@
-// Copyright 2015-2019 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// Copyright 2015-2020 Parity Technologies (UK) Ltd.
+// This file is part of OpenEthereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// OpenEthereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// OpenEthereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with OpenEthereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use ethereum_types::{H256, H520};
 use ethkey::{recover, sign, KeyPair, Secret};
@@ -131,7 +131,7 @@ struct PingRequest {
     node: NodeEntry,
     // The hash sent in the Ping request
     echo_hash: H256,
-    // The hash Parity used to respond with (until rev 01f825b0e1f1c4c420197b51fc801cbe89284b29)
+    // The hash OpenEthereum used to respond with (until rev 01f825b0e1f1c4c420197b51fc801cbe89284b29)
     #[deprecated()]
     deprecated_echo_hash: H256,
     reason: PingReason,
@@ -589,9 +589,9 @@ impl<'a> Discovery<'a> {
         };
         // Here the PONG's `To` field should be the node we are
         // sending the request to
-        // WARNING: this field _should not be used_, but old Parity versions
+        // WARNING: this field _should not be used_, but old OpenEthereum versions
         // use it in order to get the node's address.
-        // So this is a temporary fix so that older Parity versions don't brake completely.
+        // So this is a temporary fix so that older OpenEthereum versions don't brake completely.
         ping_to.to_rlp_list(&mut response);
         // pong_to.to_rlp_list(&mut response);
 

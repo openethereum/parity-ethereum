@@ -27,7 +27,7 @@ Parity 1.4.10 is a first stable release of 1.4.x series. It includes a few minor
 
 - Gas_limit for blocks, mined by Parity will be divisible by 37 (#4154) [#4179](https://github.com/paritytech/parity/pull/4179)
   - gas_limit for new blocks will divide evenly by 13
-  - increased PARITY_GAS_LIMIT_DETERMINANT to 37
+  - increased GAS_LIMIT_DETERMINANT to 37
   - separate method for marking mined block
   - debug_asserts(gas_limit within protocol range)
   - round_block_gas_limit method is now static

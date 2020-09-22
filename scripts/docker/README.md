@@ -1,40 +1,40 @@
 ## Usage
 
-```docker build -f docker/ubuntu/Dockerfile --tag ethcore/parity:branch_or_tag_name .```
+```docker build -f docker/ubuntu/Dockerfile --tag ethcore/openethereum:branch_or_tag_name .```
 
 ## Usage - CentOS
 
-Builds a lightweight non-root Parity docker image:
+Builds a lightweight non-root OpenEthereum docker image:
 ```
-git clone https://github.com/paritytech/parity-ethereum.git
-cd parity-ethereum
+git clone https://github.com/openethereum/openethereum.git
+cd openethereum
 ./scripts/docker/centos/build.sh
 ```
 
 Fully customised build:
 ```
-PARITY_IMAGE_REPO=my-personal/parity \
-PARITY_BUILDER_IMAGE_TAG=build-latest \
-PARITY_RUNNER_IMAGE_TAG=centos-parity-experimental \
+OPENETHEREUM_IMAGE_REPO=my-personal/openethereum \
+OPENETHEREUM_BUILDER_IMAGE_TAG=build-latest \
+OPENETHEREUM_RUNNER_IMAGE_TAG=centos-openethereum-experimental \
 ./scripts/docker/centos/build.sh
 ```
 
 Default values:
 ```
 # The image name
-PARITY_IMAGE_REPO - parity/parity
+OPENETHEREUM_IMAGE_REPO - openethereum/openethereum
 
 # The tag to be used for builder image, git commit sha will be appended
-PARITY_BUILDER_IMAGE_TAG - build
+OPENETHEREUM_BUILDER_IMAGE_TAG - build
 
 # The tag to be used for runner image
-PARITY_RUNNER_IMAGE_TAG - latest
+OPENETHEREUM_RUNNER_IMAGE_TAG - latest
 ```
 
 All default ports you might use will be exposed:
 ```
 #      secret
 #      store     ui   rpc  ws   listener  discovery
-#      ↓         ↓    ↓    ↓    ↓         ↓
+#      ↓         ↓    ↓    ↓    ↓    ↓         ↓
 EXPOSE 8082 8083 8180 8545 8546 30303/tcp 30303/udp
 ```

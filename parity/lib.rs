@@ -1,18 +1,18 @@
-// Copyright 2015-2019 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// Copyright 2015-2020 Parity Technologies (UK) Ltd.
+// This file is part of OpenEthereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// OpenEthereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// OpenEthereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with OpenEthereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Ethcore client application.
 #![warn(missing_docs)]
@@ -170,7 +170,7 @@ fn run_deadlock_detection_thread() {
     });
 }
 
-/// Action that Parity performed when running `start`.
+/// Action that OpenEthereum performed when running `start`.
 pub enum ExecutionAction {
     /// The execution didn't require starting a node, and thus has finished.
     /// Contains the string to print on stdout, if any.
@@ -226,13 +226,13 @@ fn execute(command: Execute, logger: Arc<RotatingLogger>) -> Result<ExecutionAct
     }
 }
 
-/// Starts the parity client.
+/// Starts the OpenEthereum client.
 ///
-/// The first parameter is the command line arguments that you would pass when running the parity
+/// The first parameter is the command line arguments that you would pass when running the openethereum
 /// binary.
 ///
 /// On error, returns what to print on stderr.
-// FIXME: totally independent logging capability, see https://github.com/paritytech/parity-ethereum/issues/10252
+// FIXME: totally independent logging capability, see https://github.com/openethereum/openethereum/issues/10252
 pub fn start(conf: Configuration, logger: Arc<RotatingLogger>) -> Result<ExecutionAction, String> {
     execute(conf.into_command()?, logger)
 }

@@ -1,18 +1,18 @@
-// Copyright 2015-2019 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// Copyright 2015-2020 Parity Technologies (UK) Ltd.
+// This file is part of OpenEthereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// OpenEthereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// OpenEthereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with OpenEthereum.  If not, see <http://www.gnu.org/licenses/>.
 
 #[macro_use]
 mod usage;
@@ -31,7 +31,7 @@ usage! {
 
         CMD cmd_daemon
         {
-            "Use Parity as a daemon",
+            "Use OpenEthereum as a daemon",
 
             ARG arg_daemon_pid_file: (Option<String>) = None,
             "<PID-FILE>",
@@ -277,7 +277,7 @@ usage! {
 
             ARG arg_ports_shift: (u16) = 0u16, or |c: &Config| c.misc.as_ref()?.ports_shift,
             "--ports-shift=[SHIFT]",
-            "Add SHIFT to all port numbers Parity is listening on. Includes network port and all servers (HTTP JSON-RPC, WebSockets JSON-RPC, SecretStore).",
+            "Add SHIFT to all port numbers OpenEthereum is listening on. Includes network port and all servers (HTTP JSON-RPC, WebSockets JSON-RPC, SecretStore).",
 
         ["Account Options"]
             FLAG flag_fast_unlock: (bool) = false, or |c: &Config| c.account.as_ref()?.fast_unlock.clone(),
@@ -332,7 +332,7 @@ usage! {
 
             ARG arg_interface: (String) = "all", or |c: &Config| c.network.as_ref()?.interface.clone(),
             "--interface=[IP]",
-            "Network interfaces. Valid values are 'all', 'local' or the ip of the interface you want parity to listen to.",
+            "Network interfaces. Valid values are 'all', 'local' or the ip of the interface you want OpenEthereum to listen to.",
 
             ARG arg_min_peers: (Option<u16>) = None, or |c: &Config| c.network.as_ref()?.min_peers.clone(),
             "--min-peers=[NUM]",
@@ -1037,46 +1037,47 @@ mod tests {
 
     #[test]
     fn should_accept_any_argument_order() {
-        let args = Args::parse(&["parity", "--no-warp", "account", "list"]).unwrap();
+        let args = Args::parse(&["openethereum", "--no-warp", "account", "list"]).unwrap();
         assert_eq!(args.flag_no_warp, true);
 
-        let args = Args::parse(&["parity", "account", "list", "--no-warp"]).unwrap();
+        let args = Args::parse(&["openethereum", "account", "list", "--no-warp"]).unwrap();
         assert_eq!(args.flag_no_warp, true);
 
-        let args = Args::parse(&["parity", "--chain=dev", "account", "list"]).unwrap();
+        let args = Args::parse(&["openethereum", "--chain=dev", "account", "list"]).unwrap();
         assert_eq!(args.arg_chain, "dev");
 
-        let args = Args::parse(&["parity", "account", "list", "--chain=dev"]).unwrap();
+        let args = Args::parse(&["openethereum", "account", "list", "--chain=dev"]).unwrap();
         assert_eq!(args.arg_chain, "dev");
     }
 
     #[test]
     fn should_reject_invalid_values() {
-        let args = Args::parse(&["parity", "--jsonrpc-port=8545"]);
+        let args = Args::parse(&["openethereum", "--jsonrpc-port=8545"]);
         assert!(args.is_ok());
 
-        let args = Args::parse(&["parity", "--jsonrpc-port=asd"]);
+        let args = Args::parse(&["openethereum", "--jsonrpc-port=asd"]);
         assert!(args.is_err());
     }
 
     #[test]
     fn should_parse_args_and_flags() {
-        let args = Args::parse(&["parity", "--no-warp"]).unwrap();
+        let args = Args::parse(&["openethereum", "--no-warp"]).unwrap();
         assert_eq!(args.flag_no_warp, true);
 
-        let args = Args::parse(&["parity", "--pruning", "archive"]).unwrap();
+        let args = Args::parse(&["openethereum", "--pruning", "archive"]).unwrap();
         assert_eq!(args.arg_pruning, "archive");
 
-        let args = Args::parse(&["parity", "export", "state", "--no-storage"]).unwrap();
+        let args = Args::parse(&["openethereum", "export", "state", "--no-storage"]).unwrap();
         assert_eq!(args.flag_export_state_no_storage, true);
 
-        let args = Args::parse(&["parity", "export", "state", "--min-balance", "123"]).unwrap();
+        let args =
+            Args::parse(&["openethereum", "export", "state", "--min-balance", "123"]).unwrap();
         assert_eq!(args.arg_export_state_min_balance, Some("123".to_string()));
     }
 
     #[test]
     fn should_exit_gracefully_on_unknown_argument() {
-        let result = Args::parse(&["parity", "--please-exit-gracefully"]);
+        let result = Args::parse(&["openethereum", "--please-exit-gracefully"]);
         assert!(match result {
             Err(ArgsError::Clap(ref clap_error))
                 if clap_error.kind == ClapErrorKind::UnknownArgument =>
@@ -1087,39 +1088,39 @@ mod tests {
 
     #[test]
     fn should_use_subcommand_arg_default() {
-        let args = Args::parse(&["parity", "export", "state", "--at", "123"]).unwrap();
+        let args = Args::parse(&["openethereum", "export", "state", "--at", "123"]).unwrap();
         assert_eq!(args.arg_export_state_at, "123");
         assert_eq!(args.arg_snapshot_at, "latest");
 
-        let args = Args::parse(&["parity", "snapshot", "--at", "123", "file.dump"]).unwrap();
+        let args = Args::parse(&["openethereum", "snapshot", "--at", "123", "file.dump"]).unwrap();
         assert_eq!(args.arg_snapshot_at, "123");
         assert_eq!(args.arg_export_state_at, "latest");
 
-        let args = Args::parse(&["parity", "export", "state"]).unwrap();
+        let args = Args::parse(&["openethereum", "export", "state"]).unwrap();
         assert_eq!(args.arg_snapshot_at, "latest");
         assert_eq!(args.arg_export_state_at, "latest");
 
-        let args = Args::parse(&["parity", "snapshot", "file.dump"]).unwrap();
+        let args = Args::parse(&["openethereum", "snapshot", "file.dump"]).unwrap();
         assert_eq!(args.arg_snapshot_at, "latest");
         assert_eq!(args.arg_export_state_at, "latest");
     }
 
     #[test]
     fn should_parse_multiple_values() {
-        let args = Args::parse(&["parity", "account", "import", "~/1", "~/2"]).unwrap();
+        let args = Args::parse(&["openethereum", "account", "import", "~/1", "~/2"]).unwrap();
         assert_eq!(
             args.arg_account_import_path,
             Some(vec!["~/1".to_owned(), "~/2".to_owned()])
         );
 
-        let args = Args::parse(&["parity", "account", "import", "~/1,ext"]).unwrap();
+        let args = Args::parse(&["openethereum", "account", "import", "~/1,ext"]).unwrap();
         assert_eq!(
             args.arg_account_import_path,
             Some(vec!["~/1,ext".to_owned()])
         );
 
         let args = Args::parse(&[
-            "parity",
+            "openethereum",
             "--secretstore-nodes",
             "abc@127.0.0.1:3333,cde@10.10.10.10:4444",
         ])
@@ -1130,7 +1131,7 @@ mod tests {
         );
 
         let args = Args::parse(&[
-            "parity",
+            "openethereum",
             "--password",
             "~/.safe/1",
             "--password",
@@ -1142,7 +1143,7 @@ mod tests {
             vec!["~/.safe/1".to_owned(), "~/.safe/2".to_owned()]
         );
 
-        let args = Args::parse(&["parity", "--password", "~/.safe/1,~/.safe/2"]).unwrap();
+        let args = Args::parse(&["openethereum", "--password", "~/.safe/1,~/.safe/2"]).unwrap();
         assert_eq!(
             args.arg_password,
             vec!["~/.safe/1".to_owned(), "~/.safe/2".to_owned()]
@@ -1151,7 +1152,7 @@ mod tests {
 
     #[test]
     fn should_parse_global_args_with_subcommand() {
-        let args = Args::parse(&["parity", "--chain", "dev", "account", "list"]).unwrap();
+        let args = Args::parse(&["openethereum", "--chain", "dev", "account", "list"]).unwrap();
         assert_eq!(args.arg_chain, "dev".to_owned());
     }
 
@@ -1164,7 +1165,7 @@ mod tests {
         config.parity = Some(operating);
 
         // when
-        let args = Args::parse_with_config(&["parity"], config).unwrap();
+        let args = Args::parse_with_config(&["openethereum"], config).unwrap();
 
         // then
         assert_eq!(args.arg_chain, "goerli".to_owned());
@@ -1179,7 +1180,7 @@ mod tests {
         config.parity = Some(operating);
 
         // when
-        let args = Args::parse_with_config(&["parity", "--chain", "xyz"], config).unwrap();
+        let args = Args::parse_with_config(&["openethereum", "--chain", "xyz"], config).unwrap();
 
         // then
         assert_eq!(args.arg_chain, "xyz".to_owned());
@@ -1193,7 +1194,7 @@ mod tests {
         config.footprint = Some(footprint);
 
         // when
-        let args = Args::parse_with_config(&["parity"], config).unwrap();
+        let args = Args::parse_with_config(&["openethereum"], config).unwrap();
 
         // then
         assert_eq!(args.arg_pruning_history, 128);
@@ -1205,7 +1206,7 @@ mod tests {
         let config = toml::from_str(include_str!("./tests/config.full.toml")).unwrap();
 
         // when
-        let args = Args::parse_with_config(&["parity", "--chain", "xyz"], config).unwrap();
+        let args = Args::parse_with_config(&["openethereum", "--chain", "xyz"], config).unwrap();
 
         // then
         assert_eq!(
@@ -1428,7 +1429,7 @@ mod tests {
                 // -- Miscellaneous Options
                 flag_version: false,
                 arg_logging: Some("own_tx=trace".into()),
-                arg_log_file: Some("/var/log/parity.log".into()),
+                arg_log_file: Some("/var/log/openethereum.log".into()),
                 flag_no_color: false,
                 flag_no_config: false,
             }
@@ -1614,7 +1615,7 @@ mod tests {
                 }),
                 misc: Some(Misc {
                     logging: Some("own_tx=trace".into()),
-                    log_file: Some("/var/log/parity.log".into()),
+                    log_file: Some("/var/log/openethereum.log".into()),
                     color: Some(true),
                     ports_shift: Some(0),
                     unsafe_expose: Some(false),
@@ -1626,7 +1627,7 @@ mod tests {
 
     #[test]
     fn should_not_accept_min_peers_bigger_than_max_peers() {
-        match Args::parse(&["parity", "--max-peers=39", "--min-peers=40"]) {
+        match Args::parse(&["openethereum", "--max-peers=39", "--min-peers=40"]) {
             Err(ArgsError::PeerConfiguration) => (),
             _ => assert_eq!(false, true),
         }
@@ -1634,7 +1635,7 @@ mod tests {
 
     #[test]
     fn should_accept_max_peers_equal_or_bigger_than_min_peers() {
-        Args::parse(&["parity", "--max-peers=40", "--min-peers=40"]).unwrap();
-        Args::parse(&["parity", "--max-peers=100", "--min-peers=40"]).unwrap();
+        Args::parse(&["openethereum", "--max-peers=40", "--min-peers=40"]).unwrap();
+        Args::parse(&["openethereum", "--max-peers=100", "--min-peers=40"]).unwrap();
     }
 }

@@ -1,18 +1,18 @@
-// Copyright 2015-2019 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// Copyright 2015-2020 Parity Technologies (UK) Ltd.
+// This file is part of OpenEthereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// OpenEthereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// OpenEthereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with OpenEthereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Base data structure of this module is `Block`.
 //!
@@ -471,7 +471,7 @@ impl LockedBlock {
     /// Provide a valid seal in order to turn this into a `SealedBlock`.
     /// This does check the validity of `seal` with the engine.
     /// Returns the `ClosedBlock` back again if the seal is no good.
-    /// TODO(https://github.com/paritytech/parity-ethereum/issues/10407): This is currently only used in POW chain call paths, we should really merge it with seal() above.
+    /// TODO(https://github.com/openethereum/openethereum/issues/10407): This is currently only used in POW chain call paths, we should really merge it with seal() above.
     pub fn try_seal(self, engine: &dyn EthEngine, seal: Vec<Bytes>) -> Result<SealedBlock, Error> {
         let mut s = self;
         s.block.header.set_seal(seal);

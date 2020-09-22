@@ -1,18 +1,18 @@
-// Copyright 2015-2019 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// Copyright 2015-2020 Parity Technologies (UK) Ltd.
+// This file is part of OpenEthereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// OpenEthereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// OpenEthereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with OpenEthereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Ethereum-like state machine definition.
 
@@ -46,8 +46,8 @@ use state::{CleanupMode, Substate};
 use trace::{NoopTracer, NoopVMTracer};
 use tx_filter::TransactionFilter;
 
-/// Parity tries to round block.gas_limit to multiple of this constant
-pub const PARITY_GAS_LIMIT_DETERMINANT: U256 = U256([37, 0, 0, 0]);
+/// Open tries to round block.gas_limit to multiple of this constant
+pub const GAS_LIMIT_DETERMINANT: U256 = U256([37, 0, 0, 0]);
 
 /// Ethash-specific extensions.
 #[derive(Debug, Clone)]
@@ -515,12 +515,12 @@ impl super::Machine for EthereumMachine {
 
 // Try to round gas_limit a bit so that:
 // 1) it will still be in desired range
-// 2) it will be a nearest (with tendency to increase) multiple of PARITY_GAS_LIMIT_DETERMINANT
+// 2) it will be a nearest (with tendency to increase) multiple of GAS_LIMIT_DETERMINANT
 fn round_block_gas_limit(gas_limit: U256, lower_limit: U256, upper_limit: U256) -> U256 {
     let increased_gas_limit =
-        gas_limit + (PARITY_GAS_LIMIT_DETERMINANT - gas_limit % PARITY_GAS_LIMIT_DETERMINANT);
+        gas_limit + (GAS_LIMIT_DETERMINANT - gas_limit % GAS_LIMIT_DETERMINANT);
     if increased_gas_limit > upper_limit {
-        let decreased_gas_limit = increased_gas_limit - PARITY_GAS_LIMIT_DETERMINANT;
+        let decreased_gas_limit = increased_gas_limit - GAS_LIMIT_DETERMINANT;
         if decreased_gas_limit < lower_limit {
             gas_limit
         } else {
@@ -587,7 +587,7 @@ mod tests {
         header.set_number(1);
 
         // this test will work for this constant only
-        assert_eq!(PARITY_GAS_LIMIT_DETERMINANT, U256::from(37));
+        assert_eq!(GAS_LIMIT_DETERMINANT, U256::from(37));
 
         // when parent.gas_limit < gas_floor_target:
         parent.set_gas_limit(U256::from(50_000));

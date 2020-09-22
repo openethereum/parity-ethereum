@@ -1,18 +1,18 @@
-// Copyright 2015-2018 Parity Technologies (UK) Ltd.
-// This file is part of Parity.
+// Copyright 2015-2020 Parity Technologies (UK) Ltd.
+// This file is part of OpenEthereum.
 
-// Parity is free software: you can redistribute it and/or modify
+// OpenEthereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity is distributed in the hope that it will be useful,
+// OpenEthereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with OpenEthereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
 
@@ -42,7 +42,7 @@ mod accounts {
         _cfg: AccountsConfig,
         _passwords: &[Password],
     ) -> Result<AccountProvider, String> {
-        warn!("Note: Your instance of Parity Ethereum is running without account support. Some CLI options are ignored.");
+        warn!("Note: Your instance of OpenEthereum is running without account support. Some CLI options are ignored.");
         Ok(AccountProvider)
     }
 
@@ -248,7 +248,7 @@ mod accounts {
 
     // Construct an error `String` with an adaptive hint on how to create an account.
     fn build_create_account_hint(spec: &SpecType, keys: &str) -> String {
-        format!("You can create an account via RPC, UI or `parity account new --chain {} --keys-path {}`.", spec, keys)
+        format!("You can create an account via RPC, UI or `openethereum account new --chain {} --keys-path {}`.", spec, keys)
     }
 }
 

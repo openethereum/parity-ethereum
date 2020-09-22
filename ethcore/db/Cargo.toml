@@ -1,6 +1,6 @@
 [package]
-description = "Ethcore DB access utilities"
-homepage = "http://parity.io"
+description = "OpenEthereum DB access utilities"
+homepage = "https://github.com/openethereum/openethereum"
 license = "GPL-3.0"
 name = "ethcore-db"
 version = "0.1.0"

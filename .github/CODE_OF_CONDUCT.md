@@ -2,11 +2,11 @@
 
 ## 1. Purpose
 
-A primary goal of Parity is to be inclusive to the largest number of contributors, with the most varied and diverse backgrounds possible. As such, we are committed to providing a friendly, safe and welcoming environment for all, regardless of gender, sexual orientation, ability, ethnicity, socioeconomic status, and religion (or lack thereof).
+A primary goal of OpenEthereum is to be inclusive to the largest number of contributors, with the most varied and diverse backgrounds possible. As such, we are committed to providing a friendly, safe and welcoming environment for all, regardless of gender, sexual orientation, ability, ethnicity, socioeconomic status, and religion (or lack thereof).
 
 This code of conduct outlines our expectations for all those who participate in our community, as well as the consequences for unacceptable behavior.
 
-We invite all those who participate in Parity to help us create safe and positive experiences for everyone.
+We invite all those who participate in OpenEthereum to help us create safe and positive experiences for everyone.
 
 ## 2. Open Source Citizenship
 
@@ -63,7 +63,7 @@ Additionally, community organizers are available to help community members engag
 
 ## 7. Addressing Grievances
 
-If you feel you have been falsely or unfairly accused of violating this Code of Conduct, you should notify Parity Technologies with a concise description of your grievance. Your grievance will be handled in accordance with our existing governing policies.
+If you feel you have been falsely or unfairly accused of violating this Code of Conduct, you should notify OpenEthereum Technologies with a concise description of your grievance. Your grievance will be handled in accordance with our existing governing policies.
 
 ## 8. Scope
 
@@ -73,7 +73,7 @@ This code of conduct and its related procedures also applies to unacceptable beh
 
 ## 9. Contact info
 
-You can contact Parity via Email: community@parity.io
+You can contact OpenEthereum via Email: community@parity.io
 
 ## 10. License and attribution
 

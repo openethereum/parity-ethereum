@@ -5,7 +5,7 @@ version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [[bin]]
-name = "parity-evm"
+name = "openethereum-evm"
 path = "./src/main.rs"
 
 [dependencies]

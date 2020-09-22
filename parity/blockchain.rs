@@ -1,18 +1,18 @@
-// Copyright 2015-2019 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// Copyright 2015-2020 Parity Technologies (UK) Ltd.
+// This file is part of OpenEthereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// OpenEthereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// OpenEthereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with OpenEthereum.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::{fs, io, sync::Arc, time::Instant};
 
@@ -300,7 +300,7 @@ fn start_client(
     // check if fatdb is on
     let fat_db = fatdb_switch_to_bool(fat_db, &user_defaults, algorithm)?;
     if !fat_db && require_fat_db {
-        return Err("This command requires Parity to be synced with --fat-db on.".to_owned());
+        return Err("This command requires OpenEthereum to be synced with --fat-db on.".to_owned());
     }
 
     // prepare client and snapshot paths.
@@ -310,7 +310,7 @@ fn start_client(
     // execute upgrades
     execute_upgrades(&dirs.base, &db_dirs, algorithm, &compaction)?;
 
-    // create dirs used by parity
+    // create dirs used by OpenEthereum.
     dirs.create_dirs(false, false)?;
 
     // prepare client config

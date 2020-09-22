@@ -1,18 +1,18 @@
-// Copyright 2015-2019 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// Copyright 2015-2020 Parity Technologies (UK) Ltd.
+// This file is part of OpenEthereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// OpenEthereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// OpenEthereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with OpenEthereum.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Parameters for a block chain.
 
@@ -1038,13 +1038,13 @@ impl Spec {
 
     /// Create a new Spec with AuthorityRound consensus (with empty steps) using a block reward
     /// contract. The contract source code can be found at:
-    /// https://github.com/parity-contracts/block-reward/blob/daf7d44383b6cdb11cb6b953b018648e2b027cfb/contracts/ExampleBlockReward.sol
+    /// https://github.com/openethereum/block-reward/blob/daf7d44383b6cdb11cb6b953b018648e2b027cfb/contracts/ExampleBlockReward.sol
     #[cfg(any(test, feature = "test-helpers"))]
     pub fn new_test_round_block_reward_contract() -> Self {
         load_bundled!("authority_round_block_reward_contract")
     }
 
-    /// TestList.sol used in both specs: https://github.com/paritytech/contracts/pull/30/files
+    /// TestList.sol used in both specs: https://github.com/paritytech/contracts/pull/30/files (link not valid)
     /// Accounts with secrets keccak("0") and keccak("1") are initially the validators.
     /// Create a new Spec with BasicAuthority which uses a contract at address 5 to determine
     /// the current validators using `getValidators`.

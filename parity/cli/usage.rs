@@ -1,18 +1,18 @@
-// Copyright 2015-2019 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// Copyright 2015-2020 Parity Technologies (UK) Ltd.
+// This file is part of OpenEthereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// OpenEthereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// OpenEthereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with OpenEthereum.  If not, see <http://www.gnu.org/licenses/>.
 
 macro_rules! return_if_parse_error {
     ($e:expr) => {
@@ -395,7 +395,7 @@ macro_rules! usage {
 
 				// Subcommands
 				let mut subcommands_wrapper = Wrapper::new(term_width).subsequent_indent(TAB);
-				help.push_str("parity [options]\n");
+				help.push_str("openethereum [options]\n");
 				$(
 					{
 						let mut subc_subc_exist = false;
@@ -413,7 +413,7 @@ macro_rules! usage {
 
 							help.push_str(&subcommands_wrapper.fill(
 								format!(
-									"parity [options] {} {} {}\n",
+									"openethereum [options] {} {} {}\n",
 									underscore_to_hyphen!(&stringify!($subc)[4..]),
 									underscore_to_hyphen!(&stringify!($subc_subc)[stringify!($subc).len()+1..]),
 									subc_subc_usages.join(" ")
@@ -434,7 +434,7 @@ macro_rules! usage {
 
 							help.push_str(&subcommands_wrapper.fill(
 								format!(
-									"parity [options] {} {}\n",
+									"openethereum [options] {} {}\n",
 									underscore_to_hyphen!(&stringify!($subc)[4..]),
 									subc_usages.join(" ")
 								).as_ref())
@@ -610,7 +610,7 @@ macro_rules! usage {
 					}
 				)*
 
-				let matches = App::new("Parity")
+				let matches = App::new("OpenEthereum")
 				    	.global_setting(AppSettings::VersionlessSubcommands)
 						.global_setting(AppSettings::DisableHelpSubcommand)
 						.max_term_width(MAX_TERM_WIDTH)
@@ -633,7 +633,7 @@ macro_rules! usage {
 								.about($subc_help)
 								.args(&subc_usages.get(stringify!($subc)).unwrap().iter().map(|u| Arg::from_usage(u).use_delimiter(false).allow_hyphen_values(true)).collect::<Vec<Arg>>())
 								$(
-									.setting(AppSettings::SubcommandRequired) // prevent from running `parity account`
+									.setting(AppSettings::SubcommandRequired) // prevent from running `openethereum account`
 									.subcommand(
 										SubCommand::with_name(&underscore_to_hyphen!(&stringify!($subc_subc)[stringify!($subc).len()+1..]))
 										.about($subc_subc_help)

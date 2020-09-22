@@ -2,7 +2,7 @@
 name = "eip-712"
 version = "0.1.0"
 authors = ["Parity Technologies <admin@parity.io>"]
-repository = "https://github.com/paritytech/parity-ethereum"
+repository = "https://github.com/openethereum/openethereum"
 documentation = "https://docs.rs/eip-712"
 readme = "README.md"
 description = "eip-712 encoding"

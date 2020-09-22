@@ -1,6 +1,6 @@
 [package]
 description = "HTTP/HTTPS fetching library"
-homepage = "http://parity.io"
+homepage = "https://github.com/openethereum/openethereum"
 license = "GPL-3.0"
 name = "fetch"
 version = "0.1.0"

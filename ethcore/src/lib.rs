@@ -1,62 +1,22 @@
-// Copyright 2015-2019 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// Copyright 2015-2020 Parity Technologies (UK) Ltd.
+// This file is part of OpenEthereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// OpenEthereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// OpenEthereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with OpenEthereum.  If not, see <http://www.gnu.org/licenses/>.
 
-#![allow(missing_docs)]
-#![warn(unused_extern_crates)]
+#![warn(missing_docs, unused_extern_crates)]
 
 //! Ethcore library
-//!
-//! ### Rust version:
-//! - nightly
-//!
-//! ### Supported platforms:
-//! - OSX
-//! - Linux
-//!
-//! ### Building:
-//!
-//! - Ubuntu 14.04 and later:
-//!
-//!   ```bash
-//!
-//!   # install rustup
-//!   curl https://sh.rustup.rs -sSf | sh
-//!
-//!   # download and build parity
-//!   git clone https://github.com/paritytech/parity-ethereum
-//!   cd parity
-//!   cargo build --release
-//!   ```
-//!
-//! - OSX:
-//!
-//!   ```bash
-//!   # install rocksdb && rustup
-//!   brew update
-//!   curl https://sh.rustup.rs -sSf | sh
-//!
-//!   # download and build parity
-//!   git clone https://github.com/paritytech/parity-ethereum
-//!   cd parity
-//!   cargo build --release
-//!   ```
-
-// Recursion limit required because of
-// error_chain foreign_links.
-#![recursion_limit = "128"]
 
 extern crate ansi_term;
 extern crate common_types as types;

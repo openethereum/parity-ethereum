@@ -122,5 +122,5 @@ enable = false
 
 [misc]
 logging = "own_tx=trace"
-log_file = "/var/log/parity.log"
+log_file = "/var/log/openethereum.log"
 color = true

@@ -1,29 +1,49 @@
-// Copyright 2015-2019 Parity Technologies (UK) Ltd.
-// This file is part of Parity Ethereum.
+// Copyright 2015-2020 Parity Technologies (UK) Ltd.
+// This file is part of OpenEthereum.
 
-// Parity Ethereum is free software: you can redistribute it and/or modify
+// OpenEthereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 
-// Parity Ethereum is distributed in the hope that it will be useful,
+// OpenEthereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity Ethereum.  If not, see <http://www.gnu.org/licenses/>.
+// along with OpenEthereum.  If not, see <http://www.gnu.org/licenses/>.
 
 #![warn(missing_docs)]
-
 //! Dir utilities for platform-specific operations
+///
+/// Base ($BASE) Paths where we store our data and cache corresponds to:
+/// Windows:
+///     UserData: FOLDERID_RoamingAppData: %APPDATA% (%USERPROFILE%\AppData\Roaming)
+///     UserCache: FOLDERID_LocalAppData: %LOCALAPPDATA% (%USERPROFILE%\AppData\Local)
+/// MacOS:
+///     UserData: /Users/Alice/Library/Application Support/
+///     UserCache: /Users/Alice/Library/Caches/
+/// Unix:
+///     UserData is: $HOME/.local/share/
+///     UserCache is: $HOME/.cache/
+///
+/// On this UserData base path we are adding additional application folders:
+/// If older parity folders are present we will use them as default for backward compatibility:
+/// Windows: $BASE/Parity/Ethereum/
+/// Unix/MacOS: $BASE/io.parity.ethereum/
+///
+/// For OpenEthereum paths we are using:
+/// Wndows/MacOS: $BASE/OpenEthereum/
+/// Unix: $BASE/openethereum/
+///
 extern crate app_dirs;
 extern crate ethereum_types;
 extern crate home;
 extern crate journaldb;
 
 pub mod helpers;
-use app_dirs::{get_app_root, AppDataType, AppInfo};
+use app_dirs::{data_root, get_app_root, AppDataType, AppInfo};
 use ethereum_types::{H256, H64};
 use helpers::{replace_home, replace_home_and_local};
 use journaldb::Algorithm;
@@ -246,87 +266,70 @@ impl DatabaseDirectories {
     }
 }
 
+fn default_path(t: AppDataType) -> Option<PathBuf> {
+    let app_info = AppInfo {
+        name: PARITY_PRODUCT,
+        author: PARITY_AUTHOR,
+    };
+    let old_root = get_app_root(t, &app_info).ok()?;
+    if old_root.exists() {
+        return Some(old_root);
+    }
+
+    let mut root = data_root(t).ok()?;
+    root.push(if LOWERCASE {
+        "openethereum"
+    } else {
+        "OpenEthereum"
+    });
+    Some(root)
+}
+
+fn fallback_path() -> PathBuf {
+    let mut p = PathBuf::new();
+    p.push("$HOME");
+    p.push(".openethereum");
+    p
+}
+
+/// Default data path
+pub fn default_data_pathbuf() -> PathBuf {
+    default_path(AppDataType::UserData).unwrap_or_else(fallback_path)
+}
+
 /// Default data path
 pub fn default_data_path() -> String {
-    let app_info = AppInfo {
-        name: PRODUCT,
-        author: AUTHOR,
-    };
-    get_app_root(AppDataType::UserData, &app_info)
-        .map(|p| p.to_string_lossy().into_owned())
-        .unwrap_or_else(|_| "$HOME/.parity".to_owned())
+    default_data_pathbuf().to_string_lossy().into_owned()
 }
 
 /// Default local path
 pub fn default_local_path() -> String {
-    let app_info = AppInfo {
-        name: PRODUCT,
-        author: AUTHOR,
-    };
-    get_app_root(AppDataType::UserCache, &app_info)
-        .map(|p| p.to_string_lossy().into_owned())
-        .unwrap_or_else(|_| "$HOME/.parity".to_owned())
+    default_path(AppDataType::UserCache)
+        .unwrap_or_else(fallback_path)
+        .to_string_lossy()
+        .into_owned()
 }
 
-/// Get home directory.
-fn home() -> PathBuf {
-    home_dir().expect("Failed to get home dir")
-}
-
-/// Parity path for specific chain
-pub fn parity(chain: &str) -> PathBuf {
-    let mut base = parity_base();
-    base.push(chain);
-    base
-}
-
+/// these variables are used only for backward compatibility .
+/// In case that there is folder from older parity version we will use it as default path,
+/// in case there is not we will create openethereum folder.Algorithm
 #[cfg(target_os = "macos")]
 mod platform {
-    use std::path::PathBuf;
-    pub const AUTHOR: &str = "Parity";
-    pub const PRODUCT: &str = "io.parity.ethereum";
-
-    pub fn parity_base() -> PathBuf {
-        let mut home = super::home();
-        home.push("Library");
-        home.push("Application Support");
-        home.push("io.parity.ethereum");
-        home.push("keys");
-        home
-    }
+    pub const LOWERCASE: bool = false;
+    pub const PARITY_AUTHOR: &str = "Parity";
+    pub const PARITY_PRODUCT: &str = "io.parity.ethereum";
 }
-
 #[cfg(windows)]
 mod platform {
-    use std::path::PathBuf;
-    pub const AUTHOR: &str = "Parity";
-    pub const PRODUCT: &str = "Ethereum";
-
-    pub fn parity_base() -> PathBuf {
-        let mut home = super::home();
-        home.push("AppData");
-        home.push("Roaming");
-        home.push("Parity");
-        home.push("Ethereum");
-        home.push("keys");
-        home
-    }
+    pub const LOWERCASE: bool = false;
+    pub const PARITY_AUTHOR: &str = "Parity";
+    pub const PARITY_PRODUCT: &str = "Ethereum";
 }
-
 #[cfg(not(any(target_os = "macos", windows)))]
 mod platform {
-    use std::path::PathBuf;
-    pub const AUTHOR: &str = "parity";
-    pub const PRODUCT: &str = "io.parity.ethereum";
-
-    pub fn parity_base() -> PathBuf {
-        let mut home = super::home();
-        home.push(".local");
-        home.push("share");
-        home.push("io.parity.ethereum");
-        home.push("keys");
-        home
-    }
+    pub const LOWERCASE: bool = true;
+    pub const PARITY_AUTHOR: &str = "parity";
+    pub const PARITY_PRODUCT: &str = "io.parity.ethereum";
 }
 
 #[cfg(test)]

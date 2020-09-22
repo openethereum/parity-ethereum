@@ -1,11 +1,11 @@
 [network]
-# Parity will try to maintain connection to at least 50 peers.
+# OpenEthereum will try to maintain connection to at least 50 peers.
 min_peers = 50
-# Parity will maintain at most 100 peers.
+# OpenEthereum will maintain at most 100 peers.
 max_peers = 100
 
 [ipc]
-# You won't be able to use IPC to interact with Parity.
+# You won't be able to use IPC to interact with OpenEthereum.
 disable = true
 
 [mining]
@@ -15,7 +15,7 @@ force_sealing = true
 reseal_on_txs = "all"
 # New pending block will be created only once per 4000 milliseconds.
 reseal_min_period = 4000
-# Parity will keep/relay at most 8192 transactions in queue.
+# OpenEthereum will keep/relay at most 8192 transactions in queue.
 tx_queue_size = 8192
 tx_queue_per_sender = 128
 
