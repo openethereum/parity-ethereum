@@ -29,6 +29,7 @@ use parking_lot::{Condvar, Mutex, RwLock};
 use std::{
     cmp,
     collections::{HashMap, HashSet, VecDeque},
+    iter::FromIterator,
     sync::{
         atomic::{AtomicBool, AtomicUsize, Ordering as AtomicOrdering},
         Arc,
@@ -85,6 +86,8 @@ pub struct VerifierSettings {
     pub scale_verifiers: bool,
     /// Beginning amount of verifiers.
     pub num_verifiers: usize,
+    /// list of block and header hashes that will marked as bad and not included into chain.
+    pub bad_hashes: Vec<H256>,
 }
 
 impl Default for VerifierSettings {
@@ -92,6 +95,7 @@ impl Default for VerifierSettings {
         VerifierSettings {
             scale_verifiers: false,
             num_verifiers: ::num_cpus::get(),
+            bad_hashes: Vec::new(),
         }
     }
 }
@@ -232,7 +236,7 @@ impl<K: Kind> VerificationQueue<K> {
             unverified: LenCachingMutex::new(VecDeque::new()),
             verifying: LenCachingMutex::new(VecDeque::new()),
             verified: LenCachingMutex::new(VecDeque::new()),
-            bad: Mutex::new(HashSet::new()),
+            bad: Mutex::new(HashSet::from_iter(config.verifier_settings.bad_hashes)),
             sizes: Sizes {
                 unverified: AtomicUsize::new(0),
                 verifying: AtomicUsize::new(0),

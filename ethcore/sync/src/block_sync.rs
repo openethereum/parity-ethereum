@@ -286,6 +286,7 @@ impl BlockDownloader {
             let number = BlockNumber::from(info.header.number());
             let hash = info.header.hash();
 
+            // This part checks if first header is what we expect and that all other header are chained correctly.
             let valid_response = match last_header {
                 // First header must match expected hash.
                 None => expected_hash == hash,
@@ -305,6 +306,7 @@ impl BlockDownloader {
                 return Err(BlockDownloaderImportError::Invalid);
             }
 
+            // If header is already included skip and go to next one in chain.
             last_header = Some((number, hash));
             if self.blocks.contains(&hash) {
                 trace_sync!(
@@ -316,6 +318,7 @@ impl BlockDownloader {
                 continue;
             }
 
+            // Check if received header is present in chain. If it is in chain include header into list that will be inserted
             match io.chain().block_status(BlockId::Hash(hash.clone())) {
                 BlockStatus::InChain | BlockStatus::Queued => {
                     match self.state {
@@ -343,6 +346,7 @@ impl BlockDownloader {
             }
         }
 
+        // Set highest block that we receive from network. This is only used as stat and nothing more.
         if let Some((number, _)) = last_header {
             if self.highest_block.as_ref().map_or(true, |n| number > *n) {
                 self.highest_block = Some(number);

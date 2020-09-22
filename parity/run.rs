@@ -34,6 +34,7 @@ use ethcore::{
 };
 use ethcore_logger::{Config as LogConfig, RotatingLogger};
 use ethcore_service::ClientService;
+use ethereum_types::H256;
 use helpers::{execute_upgrades, passwords_from_files, to_client_config};
 use informant::{FullNodeInformantData, Informant};
 use journaldb::Algorithm;
@@ -329,6 +330,7 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<RunningClient
     );
 
     client_config.queue.verifier_settings = cmd.verifier_settings;
+    client_config.queue.verifier_settings.bad_hashes = verification_bad_blocks(&cmd.spec);
     client_config.transaction_verification_queue_size = ::std::cmp::max(2048, txpool_size / 4);
     client_config.snapshot = cmd.snapshot_conf.clone();
 
@@ -592,6 +594,16 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<RunningClient
             )),
         },
     })
+}
+
+/// Set bad blocks in VerificationQeueu. By omiting header we can omit particular fork of chain.
+fn verification_bad_blocks(spec: &SpecType) -> Vec<H256> {
+    match *spec {
+        SpecType::Ropsten => {
+            vec!["1eac3d16c642411f13c287e29144c6f58fda859407c8f24c38deb168e1040714".into()]
+        }
+        _ => vec![],
+    }
 }
 
 /// Parity client currently executing in background threads.
