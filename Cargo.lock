@@ -315,7 +315,7 @@ dependencies = [
  "log",
  "peeking_take_while",
  "proc-macro2 1.0.9",
- "quote 1.0.3",
+ "quote 1.0.7",
  "regex",
  "rustc-hash",
  "shlex",
@@ -867,7 +867,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a806e96c59a76a5ba6e18735b6cf833344671e61e7863f2edb5c518ea2cac95c"
 dependencies = [
  "proc-macro2 1.0.9",
- "quote 1.0.3",
+ "quote 1.0.7",
  "syn 1.0.17",
 ]
 
@@ -1001,7 +1001,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5f52288f9a7ebb08959188872b58e7eaa12af9cb47da8e94158e16da7e143340"
 dependencies = [
  "num-traits",
- "quote 1.0.3",
+ "quote 1.0.7",
  "syn 1.0.17",
 ]
 
@@ -1066,7 +1066,7 @@ source = "git+https://github.com/matter-labs/eip1962.git?rev=ece6cbabc41948db420
 dependencies = [
  "byteorder",
  "proc-macro2 1.0.9",
- "quote 1.0.3",
+ "quote 1.0.7",
  "syn 1.0.17",
 ]
 
@@ -1099,7 +1099,7 @@ dependencies = [
  "ethabi",
  "heck",
  "proc-macro2 1.0.9",
- "quote 1.0.3",
+ "quote 1.0.7",
  "syn 1.0.17",
 ]
 
@@ -1568,7 +1568,7 @@ version = "1.12.0"
 dependencies = [
  "env_logger 0.5.13",
  "ethereum-types",
- "jsonrpc-core",
+ "jsonrpc-core 15.0.0",
  "jsonrpc-tcp-server",
  "keccak-hash",
  "log",
@@ -1834,7 +1834,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "030a733c8287d6213886dd487564ff5c8f6aae10278b3588ed177f9d18f8d231"
 dependencies = [
  "proc-macro2 1.0.9",
- "quote 1.0.3",
+ "quote 1.0.7",
  "syn 1.0.17",
  "synstructure",
 ]
@@ -2318,7 +2318,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7ef5550a42e3740a0e71f909d4c861056a284060af885ae7aa6242820f920d9d"
 dependencies = [
  "proc-macro2 1.0.9",
- "quote 1.0.3",
+ "quote 1.0.7",
  "syn 1.0.17",
 ]
 
@@ -2442,26 +2442,39 @@ dependencies = [
 ]
 
 [[package]]
-name = "jsonrpc-derive"
-version = "14.0.5"
+name = "jsonrpc-core"
+version = "15.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8609af8f63b626e8e211f52441fcdb6ec54f1a446606b10d5c89ae9bf8a20058"
+checksum = "f30b12567a31d48588a65b6cf870081e6ba1d7b2ae353977cb9820d512e69c70"
+dependencies = [
+ "futures",
+ "log",
+ "serde",
+ "serde_derive",
+ "serde_json",
+]
+
+[[package]]
+name = "jsonrpc-derive"
+version = "15.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c2cc6ea7f785232d9ca8786a44e9fa698f92149dcdc1acc4aa1fc69c4993d79e"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2 1.0.9",
- "quote 1.0.3",
+ "quote 1.0.7",
  "syn 1.0.17",
 ]
 
 [[package]]
 name = "jsonrpc-http-server"
-version = "14.0.6"
+version = "15.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "816d63997ea45d3634608edbef83ddb35e661f7c0b27b5b72f237e321f0e9807"
+checksum = "9996b26c0c7a59626d0ed6c5ec8bf06218e62ce1474bd2849f9b9fd38a0158c0"
 dependencies = [
  "hyper",
- "jsonrpc-core",
- "jsonrpc-server-utils",
+ "jsonrpc-core 15.0.0",
+ "jsonrpc-server-utils 15.0.0",
  "log",
  "net2",
  "parking_lot 0.10.0",
@@ -2470,12 +2483,12 @@ dependencies = [
 
 [[package]]
 name = "jsonrpc-ipc-server"
-version = "14.0.7"
+version = "15.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e3cc22b91e6e92e7925110c080bfa0dfdc731b156ccb2a3ce0561e902a33a9cf"
+checksum = "b8e8f2278fb2b277175b6e21b23e7ecf30e78daff5ee301d0a2a411d9a821a0a"
 dependencies = [
- "jsonrpc-core",
- "jsonrpc-server-utils",
+ "jsonrpc-core 15.0.0",
+ "jsonrpc-server-utils 15.0.0",
  "log",
  "parity-tokio-ipc",
  "parking_lot 0.10.0",
@@ -2484,13 +2497,14 @@ dependencies = [
 
 [[package]]
 name = "jsonrpc-pubsub"
-version = "14.0.6"
+version = "15.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5b31c9b90731276fdd24d896f31bb10aecf2e5151733364ae81123186643d939"
+checksum = "f389c5cd1f3db258a99296892c21047e21ae73ff4c0e2d39650ea86fe994b4c7"
 dependencies = [
- "jsonrpc-core",
+ "jsonrpc-core 15.0.0",
  "log",
  "parking_lot 0.10.0",
+ "rand 0.7.3",
  "serde",
 ]
 
@@ -2502,7 +2516,23 @@ checksum = "95b7635e618a0edbbe0d2a2bbbc69874277c49383fcf6c3c0414491cfb517d22"
 dependencies = [
  "bytes",
  "globset",
- "jsonrpc-core",
+ "jsonrpc-core 14.0.5",
+ "lazy_static",
+ "log",
+ "tokio",
+ "tokio-codec",
+ "unicase",
+]
+
+[[package]]
+name = "jsonrpc-server-utils"
+version = "15.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c623e1895d0d9110cb0ea7736cfff13191ff52335ad33b21bd5c775ea98b27af"
+dependencies = [
+ "bytes",
+ "globset",
+ "jsonrpc-core 15.0.0",
  "lazy_static",
  "log",
  "tokio",
@@ -2512,12 +2542,12 @@ dependencies = [
 
 [[package]]
 name = "jsonrpc-tcp-server"
-version = "14.0.6"
+version = "15.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a03d03b8eccd463b8f1c675d5e5febff5055291b82235c8ec0af973e6d7b84fc"
+checksum = "1b7d4a377ea231ca0d14fe1fb515ca89d6a46a33169efa6bdd5d0e56b9f359fc"
 dependencies = [
- "jsonrpc-core",
- "jsonrpc-server-utils",
+ "jsonrpc-core 15.0.0",
+ "jsonrpc-server-utils 15.0.0",
  "log",
  "parking_lot 0.10.0",
  "tokio-service",
@@ -2525,16 +2555,16 @@ dependencies = [
 
 [[package]]
 name = "jsonrpc-ws-server"
-version = "14.0.6"
+version = "15.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b94e5773b2ae66e0e02c80775ce6bbba6f15d5bb47c14ec36a36fcf94f8df851"
+checksum = "436a92034d0137ab3e3c64a7a6350b428f31cb4d7d1a89f284bcdbcd98a7bc56"
 dependencies = [
- "jsonrpc-core",
- "jsonrpc-server-utils",
+ "jsonrpc-core 15.0.0",
+ "jsonrpc-server-utils 15.0.0",
  "log",
+ "parity-ws",
  "parking_lot 0.10.0",
  "slab",
- "ws",
 ]
 
 [[package]]
@@ -3214,7 +3244,7 @@ dependencies = [
  "futures",
  "ipnetwork",
  "journaldb",
- "jsonrpc-core",
+ "jsonrpc-core 15.0.0",
  "keccak-hash",
  "kvdb",
  "kvdb-rocksdb",
@@ -3416,7 +3446,7 @@ dependencies = [
  "fetch",
  "futures",
  "itertools",
- "jsonrpc-core",
+ "jsonrpc-core 15.0.0",
  "jsonrpc-derive",
  "jsonrpc-http-server",
  "jsonrpc-ipc-server",
@@ -3461,7 +3491,7 @@ version = "1.4.0"
 dependencies = [
  "ethereum-types",
  "futures",
- "jsonrpc-core",
+ "jsonrpc-core 15.0.0",
  "jsonrpc-ws-server",
  "keccak-hash",
  "log",
@@ -3507,7 +3537,7 @@ dependencies = [
  "ethereum-types",
  "futures",
  "hyper",
- "jsonrpc-server-utils",
+ "jsonrpc-server-utils 14.0.5",
  "keccak-hash",
  "kvdb",
  "kvdb-rocksdb",
@@ -3635,6 +3665,24 @@ checksum = "f45ab1896c154f80a23f22aa81134b881e18b8fb7ff106abe67ae53a161d54a0"
 dependencies = [
  "lazy_static",
  "rand 0.7.3",
+]
+
+[[package]]
+name = "parity-ws"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9e02a625dd75084c2a7024f07c575b61b782f729d18702dabb3cdbf31911dc61"
+dependencies = [
+ "byteorder",
+ "bytes",
+ "httparse",
+ "log",
+ "mio",
+ "mio-extras",
+ "rand 0.7.3",
+ "sha-1",
+ "slab",
+ "url 2.1.1",
 ]
 
 [[package]]
@@ -3981,9 +4029,9 @@ dependencies = [
 
 [[package]]
 name = "quote"
-version = "1.0.3"
+version = "1.0.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2bdc6c187c65bca4260c9011c9e3132efe4909da44726bad24cf7572ae338d7f"
+checksum = "aa563d17ecb180e500da1cfd2b028310ac758de548efdd203e18f283af693f37"
 dependencies = [
  "proc-macro2 1.0.9",
 ]
@@ -4299,7 +4347,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e33d7b2abe0c340d8797fe2907d3f20d3b5ea5908683618bfe80df7f621f672a"
 dependencies = [
  "proc-macro2 1.0.9",
- "quote 1.0.3",
+ "quote 1.0.7",
  "syn 1.0.17",
 ]
 
@@ -4536,7 +4584,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ac5d00fc561ba2724df6758a17de23df5914f20e41cb00f94d5b7ae42fffaff8"
 dependencies = [
  "proc-macro2 1.0.9",
- "quote 1.0.3",
+ "quote 1.0.7",
  "syn 1.0.17",
 ]
 
@@ -4875,7 +4923,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0df0eb663f387145cab623dea85b09c2c5b4b0aef44e945d928e682fce71bb03"
 dependencies = [
  "proc-macro2 1.0.9",
- "quote 1.0.3",
+ "quote 1.0.7",
  "unicode-xid 0.2.0",
 ]
 
@@ -4886,7 +4934,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "67656ea1dc1b41b1451851562ea232ec2e5a80242139f7e679ceccfb5d61f545"
 dependencies = [
  "proc-macro2 1.0.9",
- "quote 1.0.3",
+ "quote 1.0.7",
  "syn 1.0.17",
  "unicode-xid 0.2.0",
 ]
@@ -5685,7 +5733,7 @@ dependencies = [
  "lazy_static",
  "log",
  "proc-macro2 1.0.9",
- "quote 1.0.3",
+ "quote 1.0.7",
  "syn 1.0.17",
  "wasm-bindgen-shared",
 ]
@@ -5696,7 +5744,7 @@ version = "0.2.59"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0f6fde1d36e75a714b5fe0cffbb78978f222ea6baebb726af13c78869fdb4205"
 dependencies = [
- "quote 1.0.3",
+ "quote 1.0.7",
  "wasm-bindgen-macro-support",
 ]
 
@@ -5707,7 +5755,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "25bda4168030a6412ea8a047e27238cadf56f0e53516e1e83fec0a8b7c786f6d"
 dependencies = [
  "proc-macro2 1.0.9",
- "quote 1.0.3",
+ "quote 1.0.7",
  "syn 1.0.17",
  "wasm-bindgen-backend",
  "wasm-bindgen-shared",
@@ -5802,24 +5850,6 @@ name = "winapi-x86_64-pc-windows-gnu"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
-
-[[package]]
-name = "ws"
-version = "0.9.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c51a2c47b5798ccc774ffb93ff536aec7c4275d722fd9c740c83cdd1af1f2d94"
-dependencies = [
- "byteorder",
- "bytes",
- "httparse",
- "log",
- "mio",
- "mio-extras",
- "rand 0.7.3",
- "sha-1",
- "slab",
- "url 2.1.1",
-]
 
 [[package]]
 name = "ws2_32-sys"
