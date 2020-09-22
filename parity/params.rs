@@ -37,23 +37,19 @@ use crate::configuration;
 #[derive(Debug, PartialEq)]
 pub enum SpecType {
     Foundation,
-    Classic,
     Poanet,
     Xdai,
     Volta,
     Ewc,
-    Expanse,
     Musicoin,
     Ellaism,
     Mix,
     Callisto,
     Morden,
-    Mordor,
     Ropsten,
     Kovan,
     Rinkeby,
     Goerli,
-    Kotti,
     Sokol,
     Dev,
     Custom(String),
@@ -71,23 +67,19 @@ impl str::FromStr for SpecType {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let spec = match s {
             "eth" | "ethereum" | "foundation" | "mainnet" => SpecType::Foundation,
-            "etc" | "classic" => SpecType::Classic,
             "poanet" | "poacore" => SpecType::Poanet,
             "xdai" => SpecType::Xdai,
             "volta" => SpecType::Volta,
             "ewc" | "energyweb" => SpecType::Ewc,
-            "expanse" => SpecType::Expanse,
             "musicoin" => SpecType::Musicoin,
             "ellaism" => SpecType::Ellaism,
             "mix" => SpecType::Mix,
             "callisto" => SpecType::Callisto,
             "morden" => SpecType::Morden,
-            "mordor" | "classic-testnet" => SpecType::Mordor,
             "ropsten" => SpecType::Ropsten,
             "kovan" => SpecType::Kovan,
             "rinkeby" => SpecType::Rinkeby,
             "goerli" | "görli" | "testnet" => SpecType::Goerli,
-            "kotti" => SpecType::Kotti,
             "sokol" | "poasokol" => SpecType::Sokol,
             "dev" => SpecType::Dev,
             other => SpecType::Custom(other.into()),
@@ -100,23 +92,19 @@ impl fmt::Display for SpecType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str(match *self {
             SpecType::Foundation => "foundation",
-            SpecType::Classic => "classic",
             SpecType::Poanet => "poanet",
             SpecType::Xdai => "xdai",
             SpecType::Volta => "volta",
             SpecType::Ewc => "energyweb",
-            SpecType::Expanse => "expanse",
             SpecType::Musicoin => "musicoin",
             SpecType::Ellaism => "ellaism",
             SpecType::Mix => "mix",
             SpecType::Callisto => "callisto",
             SpecType::Morden => "morden",
-            SpecType::Mordor => "mordor",
             SpecType::Ropsten => "ropsten",
             SpecType::Kovan => "kovan",
             SpecType::Rinkeby => "rinkeby",
             SpecType::Goerli => "goerli",
-            SpecType::Kotti => "kotti",
             SpecType::Sokol => "sokol",
             SpecType::Dev => "dev",
             SpecType::Custom(ref custom) => custom,
@@ -129,23 +117,19 @@ impl SpecType {
         let params = params.into();
         match *self {
             SpecType::Foundation => Ok(ethereum::new_foundation(params)),
-            SpecType::Classic => Ok(ethereum::new_classic(params)),
             SpecType::Poanet => Ok(ethereum::new_poanet(params)),
             SpecType::Xdai => Ok(ethereum::new_xdai(params)),
             SpecType::Volta => Ok(ethereum::new_volta(params)),
             SpecType::Ewc => Ok(ethereum::new_ewc(params)),
-            SpecType::Expanse => Ok(ethereum::new_expanse(params)),
             SpecType::Musicoin => Ok(ethereum::new_musicoin(params)),
             SpecType::Ellaism => Ok(ethereum::new_ellaism(params)),
             SpecType::Mix => Ok(ethereum::new_mix(params)),
             SpecType::Callisto => Ok(ethereum::new_callisto(params)),
             SpecType::Morden => Ok(ethereum::new_morden(params)),
-            SpecType::Mordor => Ok(ethereum::new_mordor(params)),
             SpecType::Ropsten => Ok(ethereum::new_ropsten(params)),
             SpecType::Kovan => Ok(ethereum::new_kovan(params)),
             SpecType::Rinkeby => Ok(ethereum::new_rinkeby(params)),
             SpecType::Goerli => Ok(ethereum::new_goerli(params)),
-            SpecType::Kotti => Ok(ethereum::new_kotti(params)),
             SpecType::Sokol => Ok(ethereum::new_sokol(params)),
             SpecType::Dev => Ok(Spec::new_instant()),
             SpecType::Custom(ref filename) => {
@@ -159,8 +143,6 @@ impl SpecType {
 
     pub fn legacy_fork_name(&self) -> Option<String> {
         match *self {
-            SpecType::Classic => Some("classic".to_owned()),
-            SpecType::Expanse => Some("expanse".to_owned()),
             SpecType::Musicoin => Some("musicoin".to_owned()),
             _ => None,
         }
@@ -397,29 +379,23 @@ mod tests {
         assert_eq!(SpecType::Foundation, "ethereum".parse().unwrap());
         assert_eq!(SpecType::Foundation, "foundation".parse().unwrap());
         assert_eq!(SpecType::Foundation, "mainnet".parse().unwrap());
-        assert_eq!(SpecType::Classic, "etc".parse().unwrap());
-        assert_eq!(SpecType::Classic, "classic".parse().unwrap());
         assert_eq!(SpecType::Poanet, "poanet".parse().unwrap());
         assert_eq!(SpecType::Poanet, "poacore".parse().unwrap());
         assert_eq!(SpecType::Xdai, "xdai".parse().unwrap());
         assert_eq!(SpecType::Volta, "volta".parse().unwrap());
         assert_eq!(SpecType::Ewc, "ewc".parse().unwrap());
         assert_eq!(SpecType::Ewc, "energyweb".parse().unwrap());
-        assert_eq!(SpecType::Expanse, "expanse".parse().unwrap());
         assert_eq!(SpecType::Musicoin, "musicoin".parse().unwrap());
         assert_eq!(SpecType::Ellaism, "ellaism".parse().unwrap());
         assert_eq!(SpecType::Mix, "mix".parse().unwrap());
         assert_eq!(SpecType::Callisto, "callisto".parse().unwrap());
         assert_eq!(SpecType::Morden, "morden".parse().unwrap());
-        assert_eq!(SpecType::Mordor, "mordor".parse().unwrap());
-        assert_eq!(SpecType::Mordor, "classic-testnet".parse().unwrap());
         assert_eq!(SpecType::Ropsten, "ropsten".parse().unwrap());
         assert_eq!(SpecType::Kovan, "kovan".parse().unwrap());
         assert_eq!(SpecType::Rinkeby, "rinkeby".parse().unwrap());
         assert_eq!(SpecType::Goerli, "goerli".parse().unwrap());
         assert_eq!(SpecType::Goerli, "görli".parse().unwrap());
         assert_eq!(SpecType::Goerli, "testnet".parse().unwrap());
-        assert_eq!(SpecType::Kotti, "kotti".parse().unwrap());
         assert_eq!(SpecType::Sokol, "sokol".parse().unwrap());
         assert_eq!(SpecType::Sokol, "poasokol".parse().unwrap());
     }
@@ -432,23 +408,19 @@ mod tests {
     #[test]
     fn test_spec_type_display() {
         assert_eq!(format!("{}", SpecType::Foundation), "foundation");
-        assert_eq!(format!("{}", SpecType::Classic), "classic");
         assert_eq!(format!("{}", SpecType::Poanet), "poanet");
         assert_eq!(format!("{}", SpecType::Xdai), "xdai");
         assert_eq!(format!("{}", SpecType::Volta), "volta");
         assert_eq!(format!("{}", SpecType::Ewc), "energyweb");
-        assert_eq!(format!("{}", SpecType::Expanse), "expanse");
         assert_eq!(format!("{}", SpecType::Musicoin), "musicoin");
         assert_eq!(format!("{}", SpecType::Ellaism), "ellaism");
         assert_eq!(format!("{}", SpecType::Mix), "mix");
         assert_eq!(format!("{}", SpecType::Callisto), "callisto");
         assert_eq!(format!("{}", SpecType::Morden), "morden");
-        assert_eq!(format!("{}", SpecType::Mordor), "mordor");
         assert_eq!(format!("{}", SpecType::Ropsten), "ropsten");
         assert_eq!(format!("{}", SpecType::Kovan), "kovan");
         assert_eq!(format!("{}", SpecType::Rinkeby), "rinkeby");
         assert_eq!(format!("{}", SpecType::Goerli), "goerli");
-        assert_eq!(format!("{}", SpecType::Kotti), "kotti");
         assert_eq!(format!("{}", SpecType::Sokol), "sokol");
         assert_eq!(format!("{}", SpecType::Dev), "dev");
         assert_eq!(format!("{}", SpecType::Custom("foo/bar".into())), "foo/bar");

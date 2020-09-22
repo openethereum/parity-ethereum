@@ -81,11 +81,6 @@ pub struct EthashParams {
     pub eip100b_transition: Option<Uint>,
 
     /// See main EthashParams docs.
-    pub ecip1010_pause_transition: Option<Uint>,
-    /// See main EthashParams docs.
-    pub ecip1010_continue_transition: Option<Uint>,
-
-    /// See main EthashParams docs.
     pub ecip1017_era_rounds: Option<Uint>,
 
     /// Delays of difficulty bombs.
@@ -202,8 +197,6 @@ mod tests {
                     difficulty_hardfork_bound_divisor: Some(Uint(U256::from(0x0200))),
                     bomb_defuse_transition: Some(Uint(U256::from(0x41))),
                     eip100b_transition: Some(Uint(U256::from(0x42))),
-                    ecip1010_pause_transition: None,
-                    ecip1010_continue_transition: None,
                     ecip1017_era_rounds: None,
                     expip2_transition: None,
                     expip2_duration_limit: None,
@@ -245,8 +238,6 @@ mod tests {
                     difficulty_hardfork_bound_divisor: None,
                     bomb_defuse_transition: None,
                     eip100b_transition: None,
-                    ecip1010_pause_transition: None,
-                    ecip1010_continue_transition: None,
                     ecip1017_era_rounds: None,
                     expip2_transition: None,
                     expip2_duration_limit: None,

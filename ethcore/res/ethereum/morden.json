@@ -9,8 +9,6 @@
 				"durationLimit": "0x0d",
 				"blockReward": "0x4563918244F40000",
 				"homesteadTransition": "0x789b0",
-				"ecip1010PauseTransition": "0x1d3878",
-				"ecip1010ContinueTransition": "0x341bd8",
 				"ecip1017EraRounds": "0x1e8480",
 				"eip100bTransition": "0x4829ba",
 				"bombDefuseTransition": "0x231860"
