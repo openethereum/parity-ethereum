@@ -33,13 +33,6 @@ account = "0xdeadbeefcafe0000000000000000000000000000"
 sstore_url = "http://localhost:8082"
 sstore_threshold = 0
 
-[ui]
-force = false
-disable = false
-port = 8180
-interface = "127.0.0.1"
-path = "$HOME/.parity/signer"
-
 [network]
 port = 30303
 min_peers = 25
@@ -79,16 +72,6 @@ chmod = "660"
 disable = false
 path = "$HOME/.parity/jsonrpc.ipc"
 apis = ["web3", "eth", "net", "parity", "parity_accounts", "personal", "traces", "rpc", "secretstore"]
-
-[dapps]
-disable = false
-port = 8080
-interface = "local"
-hosts = ["none"]
-path = "$HOME/.parity/dapps"
-# authorization:
-user = "test_user"
-pass = "test_pass"
 
 [secretstore]
 disable = false
@@ -132,7 +115,7 @@ tx_gas_limit = "10000000"
 tx_time_limit = 100 #ms
 tx_queue_no_unfamiliar_locals = false
 tx_queue_no_early_reject = false
-extra_data = "Parity"
+extra_data = "OpenEthereum"
 remove_solved = false
 notify_work = ["http://localhost:3001"]
 refuse_service_transactions = false
@@ -166,7 +149,3 @@ enable = false
 logging = "own_tx=trace"
 log_file = "/var/log/parity.log"
 color = true
-
-[whisper]
-enabled = false
-pool_size = 20

@@ -235,41 +235,10 @@ usage! {
 		{
 			"Print the hashed light clients headers of the given --chain (default: mainnet) in a JSON format. To be used as hardcoded headers in a genesis file.",
 		}
-
-		// CMD removed in 2.0
-
-		CMD cmd_dapp
-		{
-			"Manage dapps",
-
-			ARG arg_dapp_path: (Option<String>) = None,
-			"<PATH>",
-			"Path to the dapps",
-		}
 	}
 	{
 		// Global flags and arguments
 		["Operating Options"]
-			FLAG flag_no_download: (bool) = false, or |c: &Config| c.parity.as_ref()?.no_download.clone(),
-			"--no-download",
-			"Normally new releases will be downloaded ready for updating. This disables it. Not recommended.",
-
-			FLAG flag_no_consensus: (bool) = false, or |c: &Config| c.parity.as_ref()?.no_consensus.clone(),
-			"--no-consensus",
-			"Force the binary to run even if there are known issues regarding consensus. Not recommended.",
-
-			FLAG flag_light: (bool) = false, or |c: &Config| c.parity.as_ref()?.light,
-			"--light",
-			"Experimental: run in light client mode. Light clients synchronize a bare minimum of data and fetch necessary data on-demand from the network. Much lower in storage, potentially higher in bandwidth. Has no effect with subcommands.",
-
-			FLAG flag_no_hardcoded_sync: (bool) = false, or |c: &Config| c.parity.as_ref()?.no_hardcoded_sync,
-			"--no-hardcoded-sync",
-			"By default, if there is no existing database the light client will automatically jump to a block hardcoded in the chain's specifications. This disables this feature.",
-
-			FLAG flag_force_direct: (bool) = false, or |_| None,
-			"--force-direct",
-			"Run the originally installed version of Parity, ignoring any updates that have since been installed.",
-
 			ARG arg_mode: (String) = "last", or |c: &Config| c.parity.as_ref()?.mode.clone(),
 			"--mode=[MODE]",
 			"Set the operating mode. MODE can be one of: last - Uses the last-used mode, active if none; active - Parity continuously syncs the chain; passive - Parity syncs initially, then sleeps and wakes regularly to resync; dark - Parity syncs only when the JSON-RPC is active; offline - Parity doesn't sync.",
@@ -281,22 +250,6 @@ usage! {
 			ARG arg_mode_alarm: (u64) = 3600u64, or |c: &Config| c.parity.as_ref()?.mode_alarm.clone(),
 			"--mode-alarm=[SECS]",
 			"Specify the number of seconds before auto sleep reawake timeout occurs when mode is passive",
-
-			ARG arg_auto_update: (String) = "critical", or |c: &Config| c.parity.as_ref()?.auto_update.clone(),
-			"--auto-update=[SET]",
-			"Set a releases set to automatically update and install. SET can be one of: all - All updates in the our release track; critical - Only consensus/security updates; none - No updates will be auto-installed.",
-
-			ARG arg_auto_update_delay: (u16) = 100u16, or |c: &Config| c.parity.as_ref()?.auto_update_delay.clone(),
-			"--auto-update-delay=[NUM]",
-			"Specify the maximum number of blocks used for randomly delaying updates.",
-
-			ARG arg_auto_update_check_frequency: (u16) = 20u16, or |c: &Config| c.parity.as_ref()?.auto_update_check_frequency.clone(),
-			"--auto-update-check-frequency=[NUM]",
-			"Specify the number of blocks between each auto-update check.",
-
-			ARG arg_release_track: (String) = "current", or |c: &Config| c.parity.as_ref()?.release_track.clone(),
-			"--release-track=[TRACK]",
-			"Set which release track we should use for updates. TRACK can be one of: stable - Stable releases; nightly - Nightly releases (unstable); testing - Testing releases (do not use); current - Whatever track this executable was released on.",
 
 			ARG arg_chain: (String) = "foundation", or |c: &Config| c.parity.as_ref()?.chain.clone(),
 			"--chain=[CHAIN]",
@@ -360,44 +313,6 @@ usage! {
 			"--password=[FILE]...",
 			"Provide a file containing a password for unlocking an account. Leading and trailing whitespace is trimmed.",
 
-		["Private Transactions Options"]
-			FLAG flag_private_enabled: (bool) = false, or |c: &Config| c.private_tx.as_ref()?.enabled,
-			"--private-tx-enabled",
-			"Enable private transactions.",
-
-			FLAG flag_private_state_offchain: (bool) = false, or |c: &Config| c.private_tx.as_ref()?.state_offchain,
-			"--private-state-offchain",
-			"Store private state offchain (in the local DB).",
-
-			ARG arg_private_signer: (Option<String>) = None, or |c: &Config| c.private_tx.as_ref()?.signer.clone(),
-			"--private-signer=[ACCOUNT]",
-			"Specify the account for signing public transaction created upon verified private transaction.",
-
-			ARG arg_private_validators: (Option<String>) = None, or |c: &Config| c.private_tx.as_ref()?.validators.as_ref().map(|vec| vec.join(",")),
-			"--private-validators=[ACCOUNTS]",
-			"Specify the accounts for validating private transactions. ACCOUNTS is a comma-delimited list of addresses.",
-
-			ARG arg_private_account: (Option<String>) = None, or |c: &Config| c.private_tx.as_ref()?.account.clone(),
-			"--private-account=[ACCOUNT]",
-			"Specify the account for signing requests to secret store.",
-
-			ARG arg_private_sstore_url: (Option<String>) = None, or |c: &Config| c.private_tx.as_ref()?.sstore_url.clone(),
-			"--private-sstore-url=[URL]",
-			"Specify secret store URL used for encrypting private transactions.",
-
-			ARG arg_private_sstore_threshold: (Option<u32>) = None, or |c: &Config| c.private_tx.as_ref()?.sstore_threshold.clone(),
-			"--private-sstore-threshold=[NUM]",
-			"Specify secret store threshold used for encrypting private transactions.",
-
-			ARG arg_private_passwords: (Option<String>) = None, or |c: &Config| c.private_tx.as_ref()?.passwords.clone(),
-			"--private-passwords=[FILE]...",
-			"Provide a file containing passwords for unlocking accounts (signer, private account, validators).",
-
-		["UI Options"]
-			ARG arg_ui_path: (String) = "$BASE/signer", or |c: &Config| c.ui.as_ref()?.path.clone(),
-			"--ui-path=[PATH]",
-			"Specify directory where Trusted UIs tokens should be stored.",
-
 		["Networking Options"]
 			FLAG flag_no_warp: (bool) = false, or |c: &Config| c.network.as_ref()?.warp.clone().map(|w| !w),
 			"--no-warp",
@@ -414,10 +329,6 @@ usage! {
 			FLAG flag_no_ancient_blocks: (bool) = false, or |_| None,
 			"--no-ancient-blocks",
 			"Disable downloading old blocks after snapshot restoration or warp sync. Not recommended.",
-
-			FLAG flag_no_serve_light: (bool) = false, or |c: &Config| c.network.as_ref()?.no_serve_light.clone(),
-			"--no-serve-light",
-			"Disable serving of light peers.",
 
 			ARG arg_warp_barrier: (Option<u64>) = None, or |c: &Config| c.network.as_ref()?.warp_barrier.clone(),
 			"--warp-barrier=[NUM]",
@@ -514,10 +425,6 @@ usage! {
 			"--jsonrpc-hosts=[HOSTS]",
 			"List of allowed Host header values. This option will validate the Host header sent by the browser, it is additional security against some attack vectors. Special options: \"all\", \"none\",.",
 
-			ARG arg_jsonrpc_threads: (Option<usize>) = None, or |_| None,
-			"--jsonrpc-threads=[NUM]",
-			"DEPRECATED, DOES NOTHING",
-
 			ARG arg_jsonrpc_server_threads: (Option<usize>) = Some(4), or |c: &Config| c.rpc.as_ref()?.server_threads,
 			"--jsonrpc-server-threads=[NUM]",
 			"Enables multiple threads handling incoming connections for HTTP JSON-RPC server.",
@@ -579,27 +486,6 @@ usage! {
 			ARG arg_ipc_apis: (String) = "web3,eth,pubsub,net,parity,parity_pubsub,parity_accounts,private,traces,rpc,parity_transactions_pool", or |c: &Config| c.ipc.as_ref()?.apis.as_ref().map(|vec| vec.join(",")),
 			"--ipc-apis=[APIS]",
 			"Specify custom API set available via JSON-RPC over IPC using a comma-delimited list of API names. Possible names are: all, safe, web3, net, eth, pubsub, personal, signer, parity, parity_pubsub, parity_accounts, parity_set, traces, rpc, secretstore. You can also disable a specific API by putting '-' in the front, example: all,-personal. 'safe' enables the following APIs: web3, net, eth, pubsub, parity, parity_pubsub, traces, rpc",
-
-		["Light Client Options"]
-			ARG arg_on_demand_response_time_window: (Option<u64>) = None, or |c: &Config| c.light.as_ref()?.on_demand_response_time_window,
-			"--on-demand-time-window=[S]",
-			"Specify the maximum time to wait for a successful response",
-
-			ARG arg_on_demand_request_backoff_start: (Option<u64>) = None, or |c: &Config| c.light.as_ref()?.on_demand_request_backoff_start,
-			"--on-demand-start-backoff=[S]",
-			"Specify light client initial backoff time for a request",
-
-			ARG arg_on_demand_request_backoff_max: (Option<u64>) = None, or |c: &Config| c.light.as_ref()?.on_demand_request_backoff_max,
-			"--on-demand-end-backoff=[S]",
-			"Specify light client maximum backoff time for a request",
-
-			ARG arg_on_demand_request_backoff_rounds_max: (Option<usize>) = None, or |c: &Config| c.light.as_ref()?.on_demand_request_backoff_rounds_max,
-			"--on-demand-max-backoff-rounds=[TIMES]",
-			"Specify light client maximum number of backoff iterations for a request",
-
-			ARG arg_on_demand_request_consecutive_failures: (Option<usize>) = None, or |c: &Config| c.light.as_ref()?.on_demand_request_consecutive_failures,
-			"--on-demand-consecutive-failures=[TIMES]",
-			"Specify light client the number of failures for a request until it gets exponentially backed off",
 
 		["Secret Store Options"]
 			FLAG flag_no_secretstore: (bool) = false, or |c: &Config| c.secretstore.as_ref()?.disable.clone(),
@@ -918,18 +804,8 @@ usage! {
 			"--snapshot-threads=[NUM]",
 			"Enables multiple threads for snapshots creation.",
 
-		["Whisper Options"]
-			FLAG flag_whisper: (bool) = false, or |c: &Config| c.whisper.as_ref()?.enabled,
-			"--whisper",
-			"Does nothing. Whisper has been moved to https://github.com/paritytech/whisper",
-
-			ARG arg_whisper_pool_size: (Option<usize>) = None, or |c: &Config| c.whisper.as_ref()?.pool_size.clone(),
-			"--whisper-pool-size=[MB]",
-			"Does nothing. Whisper has been moved to https://github.com/paritytech/whisper",
-
 		["Legacy Options"]
 			// Options that are hidden from config, but are still unique for its functionality.
-
 			FLAG flag_geth: (bool) = false, or |_| None,
 			"--geth",
 			"Run in Geth-compatibility mode. Sets the IPC path to be the same as Geth's. Overrides the --ipc-path and --ipcpath options. Alters RPCs to reflect Geth bugs. Includes the personal_ RPC by default.",
@@ -938,198 +814,109 @@ usage! {
 			"--import-geth-keys",
 			"Attempt to import keys from Geth client.",
 
-			// Options that either do nothing, or are replaced by other options.
-			// FLAG Removed in 1.6 or before.
-
-			FLAG flag_warp: (bool) = false, or |_| None,
-			"--warp",
-			"Does nothing; warp sync is enabled by default. Use --no-warp to disable.",
-
-			FLAG flag_jsonrpc: (bool) = false, or |_| None,
-			"-j, --jsonrpc",
-			"Does nothing; HTTP JSON-RPC is on by default now.",
-
-			FLAG flag_rpc: (bool) = false, or |_| None,
-			"--rpc",
-			"Does nothing; HTTP JSON-RPC is on by default now.",
-
-			FLAG flag_jsonrpc_off: (bool) = false, or |_| None,
-			"--jsonrpc-off",
-			"Equivalent to --no-jsonrpc.",
-
-			FLAG flag_webapp: (bool) = false, or |_| None,
-			"-w, --webapp",
-			"Does nothing; dapps server has been removed.",
-
-			FLAG flag_dapps_off: (bool) = false, or |_| None,
-			"--dapps-off",
-			"Equivalent to --no-dapps.",
-
-			FLAG flag_ipcdisable: (bool) = false, or |_| None,
-			"--ipcdisable",
-			"Equivalent to --no-ipc.",
-
-			FLAG flag_ipc_off: (bool) = false, or |_| None,
-			"--ipc-off",
-			"Equivalent to --no-ipc.",
-
 			FLAG flag_testnet: (bool) = false, or |_| None,
 			"--testnet",
 			"Testnet mode. Equivalent to --chain testnet. Overrides the --keys-path option.",
 
-			FLAG flag_nodiscover: (bool) = false, or |_| None,
-			"--nodiscover",
-			"Equivalent to --no-discovery.",
+			// Light client functionality was deprecated in 3.0.
+			FLAG flag_light: (bool) = false, or |c: &Config| c.parity.as_ref()?.light,
+			"--light",
+			"Experimental: run in light client mode. Light clients synchronize a bare minimum of data and fetch necessary data on-demand from the network. Much lower in storage, potentially higher in bandwidth. Has no effect with subcommands.",
 
-			// FLAG Removed in 1.7.
+			FLAG flag_no_hardcoded_sync: (bool) = false, or |c: &Config| c.parity.as_ref()?.no_hardcoded_sync,
+			"--no-hardcoded-sync",
+			"By default, if there is no existing database the light client will automatically jump to a block hardcoded in the chain's specifications. This disables this feature.",
 
-			FLAG flag_dapps_apis_all: (bool) = false, or |_| None,
-			"--dapps-apis-all",
-			"Dapps server is merged with HTTP JSON-RPC server. Use --jsonrpc-apis.",
+			FLAG flag_no_serve_light: (bool) = false, or |c: &Config| c.network.as_ref()?.no_serve_light.clone(),
+			"--no-serve-light",
+			"Disable serving of light peers.",
 
-			// FLAG Removed in 1.11.
+			// Private transactions have been deprecated in 3.0.
+			FLAG flag_private_enabled: (bool) = false, or |c: &Config| c.private_tx.as_ref()?.enabled,
+			"--private-tx-enabled",
+			"Enable private transactions.",
 
-			FLAG flag_public_node: (bool) = false, or |_| None,
-			"--public-node",
-			"Does nothing; Public node is removed from Parity.",
+			FLAG flag_private_state_offchain: (bool) = false, or |c: &Config| c.private_tx.as_ref()?.state_offchain,
+			"--private-state-offchain",
+			"Store private state offchain (in the local DB).",
 
-			FLAG flag_force_ui: (bool) = false, or |_| None,
-			"--force-ui",
-			"Does nothing; UI is now a separate project.",
+			// Auto update was deprecated in 3.0.
+			FLAG flag_no_download: (bool) = false, or |c: &Config| c.parity.as_ref()?.no_download.clone(),
+			"--no-download",
+			"Normally new releases will be downloaded ready for updating. This disables it. Not recommended.",
 
-			FLAG flag_no_ui: (bool) = false, or |_| None,
-			"--no-ui",
-			"Does nothing; UI is now a separate project.",
+			FLAG flag_no_consensus: (bool) = false, or |c: &Config| c.parity.as_ref()?.no_consensus.clone(),
+			"--no-consensus",
+			"Force the binary to run even if there are known issues regarding consensus. Not recommended.",
 
-			FLAG flag_ui_no_validation: (bool) = false, or |_| None,
-			"--ui-no-validation",
-			"Does nothing; UI is now a separate project.",
+			FLAG flag_force_direct: (bool) = false, or |_| None,
+			"--force-direct",
+			"Run the originally installed version of Parity, ignoring any updates that have since been installed.",
 
-			// FLAG Removed in 2.0.
+			// Signing has been deprecated.
+			ARG arg_ui_path: (String) = "$BASE/signer", or |c: &Config| c.ui.as_ref()?.path.clone(),
+			"--ui-path=[PATH]",
+			"Specify directory where Trusted UIs tokens should be stored.",
 
-			FLAG flag_fast_and_loose: (bool) = false, or |_| None,
-			"--fast-and-loose",
-			"Does nothing; DB WAL is always activated.",
+			ARG arg_on_demand_response_time_window: (Option<u64>) = None, or |c: &Config| c.light.as_ref()?.on_demand_response_time_window,
+			"--on-demand-time-window=[S]",
+			"Specify the maximum time to wait for a successful response",
 
-			FLAG flag_no_dapps: (bool) = false, or |c: &Config| c.dapps.as_ref()?._legacy_disable.clone(),
-			"--no-dapps",
-			"Disable the Dapps server (e.g. status page).",
+			ARG arg_on_demand_request_backoff_start: (Option<u64>) = None, or |c: &Config| c.light.as_ref()?.on_demand_request_backoff_start,
+			"--on-demand-start-backoff=[S]",
+			"Specify light client initial backoff time for a request",
 
-			// ARG Removed in 1.6 or before.
+			ARG arg_on_demand_request_backoff_max: (Option<u64>) = None, or |c: &Config| c.light.as_ref()?.on_demand_request_backoff_max,
+			"--on-demand-end-backoff=[S]",
+			"Specify light client maximum backoff time for a request",
 
-			ARG arg_etherbase: (Option<String>) = None, or |_| None,
-			"--etherbase=[ADDRESS]",
-			"Equivalent to --author ADDRESS.",
+			ARG arg_on_demand_request_backoff_rounds_max: (Option<usize>) = None, or |c: &Config| c.light.as_ref()?.on_demand_request_backoff_rounds_max,
+			"--on-demand-max-backoff-rounds=[TIMES]",
+			"Specify light client maximum number of backoff iterations for a request",
 
-			ARG arg_extradata: (Option<String>) = None, or |_| None,
-			"--extradata=[STRING]",
-			"Equivalent to --extra-data STRING.",
+			ARG arg_on_demand_request_consecutive_failures: (Option<usize>) = None, or |c: &Config| c.light.as_ref()?.on_demand_request_consecutive_failures,
+			"--on-demand-consecutive-failures=[TIMES]",
+			"Specify light client the number of failures for a request until it gets exponentially backed off",
 
-			ARG arg_datadir: (Option<String>) = None, or |_| None,
-			"--datadir=[PATH]",
-			"Equivalent to --base-path PATH.",
+			ARG arg_private_signer: (Option<String>) = None, or |c: &Config| c.private_tx.as_ref()?.signer.clone(),
+			"--private-signer=[ACCOUNT]",
+			"Specify the account for signing public transaction created upon verified private transaction.",
 
-			ARG arg_networkid: (Option<u64>) = None, or |_| None,
-			"--networkid=[INDEX]",
-			"Equivalent to --network-id INDEX.",
+			ARG arg_private_validators: (Option<String>) = None, or |c: &Config| c.private_tx.as_ref()?.validators.as_ref().map(|vec| vec.join(",")),
+			"--private-validators=[ACCOUNTS]",
+			"Specify the accounts for validating private transactions. ACCOUNTS is a comma-delimited list of addresses.",
 
-			ARG arg_peers: (Option<u16>) = None, or |_| None,
-			"--peers=[NUM]",
-			"Equivalent to --min-peers NUM.",
+			ARG arg_private_account: (Option<String>) = None, or |c: &Config| c.private_tx.as_ref()?.account.clone(),
+			"--private-account=[ACCOUNT]",
+			"Specify the account for signing requests to secret store.",
 
-			ARG arg_nodekey: (Option<String>) = None, or |_| None,
-			"--nodekey=[KEY]",
-			"Equivalent to --node-key KEY.",
+			ARG arg_private_sstore_url: (Option<String>) = None, or |c: &Config| c.private_tx.as_ref()?.sstore_url.clone(),
+			"--private-sstore-url=[URL]",
+			"Specify secret store URL used for encrypting private transactions.",
 
-			ARG arg_rpcaddr: (Option<String>) = None, or |_| None,
-			"--rpcaddr=[IP]",
-			"Equivalent to --jsonrpc-interface IP.",
+			ARG arg_private_sstore_threshold: (Option<u32>) = None, or |c: &Config| c.private_tx.as_ref()?.sstore_threshold.clone(),
+			"--private-sstore-threshold=[NUM]",
+			"Specify secret store threshold used for encrypting private transactions.",
 
-			ARG arg_rpcport: (Option<u16>) = None, or |_| None,
-			"--rpcport=[PORT]",
-			"Equivalent to --jsonrpc-port PORT.",
+			ARG arg_private_passwords: (Option<String>) = None, or |c: &Config| c.private_tx.as_ref()?.passwords.clone(),
+			"--private-passwords=[FILE]...",
+			"Provide a file containing passwords for unlocking accounts (signer, private account, validators).",
 
-			ARG arg_rpcapi: (Option<String>) = None, or |_| None,
-			"--rpcapi=[APIS]",
-			"Equivalent to --jsonrpc-apis APIS.",
+			ARG arg_auto_update: (String) = "none", or |c: &Config| c.parity.as_ref()?.auto_update.clone(),
+			"--auto-update=[SET]",
+			"Set a releases set to automatically update and install. SET can be one of: all - All updates in the our release track; critical - Only consensus/security updates; none - No updates will be auto-installed.",
 
-			ARG arg_rpccorsdomain: (Option<String>) = None, or |_| None,
-			"--rpccorsdomain=[URL]",
-			"Equivalent to --jsonrpc-cors URL.",
+			ARG arg_auto_update_delay: (u16) = 100u16, or |c: &Config| c.parity.as_ref()?.auto_update_delay.clone(),
+			"--auto-update-delay=[NUM]",
+			"Specify the maximum number of blocks used for randomly delaying updates.",
 
-			ARG arg_ipcapi: (Option<String>) = None, or |_| None,
-			"--ipcapi=[APIS]",
-			"Equivalent to --ipc-apis APIS.",
+			ARG arg_auto_update_check_frequency: (u16) = 20u16, or |c: &Config| c.parity.as_ref()?.auto_update_check_frequency.clone(),
+			"--auto-update-check-frequency=[NUM]",
+			"Specify the number of blocks between each auto-update check.",
 
-			ARG arg_ipcpath: (Option<String>) = None, or |_| None,
-			"--ipcpath=[PATH]",
-			"Equivalent to --ipc-path PATH.",
-
-			ARG arg_gasprice: (Option<String>) = None, or |_| None,
-			"--gasprice=[WEI]",
-			"Equivalent to --min-gas-price WEI.",
-
-			ARG arg_cache: (Option<u32>) = None, or |_| None,
-			"--cache=[MB]",
-			"Equivalent to --cache-size MB.",
-
-			// ARG Removed in 1.7.
-
-			ARG arg_dapps_port: (Option<u16>) = None, or |c: &Config| c.dapps.as_ref()?._legacy_port.clone(),
-			"--dapps-port=[PORT]",
-			"Does nothing; dapps server has been removed.",
-
-			ARG arg_dapps_interface: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?._legacy_interface.clone(),
-			"--dapps-interface=[IP]",
-			"Does nothing; dapps server has been removed.",
-
-			ARG arg_dapps_hosts: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?._legacy_hosts.as_ref().map(|vec| vec.join(",")),
-			"--dapps-hosts=[HOSTS]",
-			"Does nothing; dapps server has been removed.",
-
-			ARG arg_dapps_cors: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?._legacy_cors.clone(),
-			"--dapps-cors=[URL]",
-			"Does nothing; dapps server has been removed.",
-
-			ARG arg_dapps_user: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?._legacy_user.clone(),
-			"--dapps-user=[USERNAME]",
-			"Dapps server authentication has been removed.",
-
-			ARG arg_dapps_pass: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?._legacy_pass.clone(),
-			"--dapps-pass=[PASSWORD]",
-			"Dapps server authentication has been removed.",
-
-			// ARG removed in 1.11.
-
-			ARG arg_ui_interface: (Option<String>) = None, or |_| None,
-			"--ui-interface=[IP]",
-			"Does nothing; UI is now a separate project.",
-
-			ARG arg_ui_hosts: (Option<String>) = None, or |_| None,
-			"--ui-hosts=[HOSTS]",
-			"Does nothing; UI is now a separate project.",
-
-			ARG arg_ui_port: (Option<u16>) = None, or |_| None,
-			"--ui-port=[PORT]",
-			"Does nothing; UI is now a separate project.",
-
-			ARG arg_tx_queue_ban_count: (Option<u16>) = None, or |c: &Config| c.mining.as_ref()?.tx_queue_ban_count.clone(),
-			"--tx-queue-ban-count=[C]",
-			"Not supported.",
-
-			ARG arg_tx_queue_ban_time: (Option<u16>) = None, or |c: &Config| c.mining.as_ref()?.tx_queue_ban_time.clone(),
-			"--tx-queue-ban-time=[SEC]",
-			"Not supported.",
-
-			// ARG removed in 2.0.
-
-			ARG arg_dapps_path: (Option<String>) = None, or |c: &Config| c.dapps.as_ref()?._legacy_path.clone(),
-			"--dapps-path=[PATH]",
-			"Specify directory where dapps should be installed.",
-
-			ARG arg_ntp_servers: (Option<String>) = None, or |_| None,
-			"--ntp-servers=[HOSTS]",
-			"Does nothing; checking if clock is sync with NTP servers is now done on the UI.",
+			ARG arg_release_track: (String) = "current", or |c: &Config| c.parity.as_ref()?.release_track.clone(),
+			"--release-track=[TRACK]",
+			"Set which release track we should use for updates. TRACK can be one of: stable - Stable releases; nightly - Nightly releases (unstable); testing - Testing releases (do not use); current - Whatever track this executable was released on.",
 	}
 }
 
@@ -1143,7 +930,6 @@ struct Config {
 	rpc: Option<Rpc>,
 	websockets: Option<Ws>,
 	ipc: Option<Ipc>,
-	dapps: Option<Dapps>,
 	secretstore: Option<SecretStore>,
 	private_tx: Option<PrivateTransactions>,
 	mining: Option<Mining>,
@@ -1151,7 +937,6 @@ struct Config {
 	snapshots: Option<Snapshots>,
 	misc: Option<Misc>,
 	stratum: Option<Stratum>,
-	whisper: Option<Whisper>,
 	light: Option<Light>,
 }
 
@@ -1176,9 +961,6 @@ struct Operating {
 	no_persistent_txqueue: Option<bool>,
 	no_hardcoded_sync: Option<bool>,
 	sync_until: Option<u64>,
-
-	#[serde(rename = "public_node")]
-	_legacy_public_node: Option<bool>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
@@ -1209,17 +991,6 @@ struct PrivateTransactions {
 #[serde(deny_unknown_fields)]
 struct Ui {
 	path: Option<String>,
-
-	#[serde(rename = "force")]
-	_legacy_force: Option<bool>,
-	#[serde(rename = "disable")]
-	_legacy_disable: Option<bool>,
-	#[serde(rename = "port")]
-	_legacy_port: Option<u16>,
-	#[serde(rename = "interface")]
-	_legacy_interface: Option<String>,
-	#[serde(rename = "hosts")]
-	_legacy_hosts: Option<Vec<String>>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
@@ -1280,27 +1051,6 @@ struct Ipc {
 	disable: Option<bool>,
 	path: Option<String>,
 	apis: Option<Vec<String>>,
-}
-
-#[derive(Default, Debug, PartialEq, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct Dapps {
-	#[serde(rename = "disable")]
-	_legacy_disable: Option<bool>,
-	#[serde(rename = "port")]
-	_legacy_port: Option<u16>,
-	#[serde(rename = "interface")]
-	_legacy_interface: Option<String>,
-	#[serde(rename = "hosts")]
-	_legacy_hosts: Option<Vec<String>>,
-	#[serde(rename = "cors")]
-	_legacy_cors: Option<String>,
-	#[serde(rename = "path")]
-	_legacy_path: Option<String>,
-	#[serde(rename = "user")]
-	_legacy_user: Option<String>,
-	#[serde(rename = "pass")]
-	_legacy_pass: Option<String>,
 }
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
@@ -1412,13 +1162,6 @@ struct Misc {
 
 #[derive(Default, Debug, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct Whisper {
-	enabled: Option<bool>,
-	pool_size: Option<usize>,
-}
-
-#[derive(Default, Debug, PartialEq, Deserialize)]
-#[serde(deny_unknown_fields)]
 struct Light {
 	on_demand_response_time_window: Option<u64>,
 	on_demand_request_backoff_start: Option<u64>,
@@ -1431,63 +1174,54 @@ struct Light {
 mod tests {
 	use super::{
 		Args, ArgsError,
-		Config, Operating, Account, Ui, Network, Ws, Rpc, Ipc, Dapps, Mining, Footprint,
-		Snapshots, Misc, Whisper, SecretStore, Light,
+		Config, Operating, Account, Ui, Network, Ws, Rpc, Ipc, Mining, Footprint,
+		Snapshots, Misc, SecretStore, Light,
 	};
 	use toml;
 	use clap::{ErrorKind as ClapErrorKind};
 
 	#[test]
 	fn should_accept_any_argument_order() {
-		let args = Args::parse(&["parity", "--no-warp", "account", "list"]).unwrap();
+		let args = Args::parse(&["openethereum", "--no-warp", "account", "list"]).unwrap();
 		assert_eq!(args.flag_no_warp, true);
 
-		let args = Args::parse(&["parity", "account", "list", "--no-warp"]).unwrap();
+		let args = Args::parse(&["openethereum", "account", "list", "--no-warp"]).unwrap();
 		assert_eq!(args.flag_no_warp, true);
 
-		let args = Args::parse(&["parity", "--chain=dev", "account", "list"]).unwrap();
+		let args = Args::parse(&["openethereum", "--chain=dev", "account", "list"]).unwrap();
 		assert_eq!(args.arg_chain, "dev");
 
-		let args = Args::parse(&["parity", "account", "list", "--chain=dev"]).unwrap();
+		let args = Args::parse(&["openethereum", "account", "list", "--chain=dev"]).unwrap();
 		assert_eq!(args.arg_chain, "dev");
-	}
-
-	#[test]
-	fn should_not_crash_on_warp() {
-		let args = Args::parse(&["parity", "--warp"]);
-		assert!(args.is_ok());
-
-		let args = Args::parse(&["parity", "account", "list", "--warp"]);
-		assert!(args.is_ok());
 	}
 
 	#[test]
 	fn should_reject_invalid_values() {
-		let args = Args::parse(&["parity", "--cache=20"]);
+		let args = Args::parse(&["openethereum", "--cache=20"]);
 		assert!(args.is_ok());
 
-		let args = Args::parse(&["parity", "--cache=asd"]);
+		let args = Args::parse(&["openethereum", "--cache=asd"]);
 		assert!(args.is_err());
 	}
 
 	#[test]
 	fn should_parse_args_and_flags() {
-		let args = Args::parse(&["parity", "--no-warp"]).unwrap();
+		let args = Args::parse(&["openethereum", "--no-warp"]).unwrap();
 		assert_eq!(args.flag_no_warp, true);
 
-		let args = Args::parse(&["parity", "--pruning", "archive"]).unwrap();
+		let args = Args::parse(&["openethereum", "--pruning", "archive"]).unwrap();
 		assert_eq!(args.arg_pruning, "archive");
 
-		let args = Args::parse(&["parity", "export", "state", "--no-storage"]).unwrap();
+		let args = Args::parse(&["openethereum", "export", "state", "--no-storage"]).unwrap();
 		assert_eq!(args.flag_export_state_no_storage, true);
 
-		let args = Args::parse(&["parity", "export", "state", "--min-balance","123"]).unwrap();
+		let args = Args::parse(&["openethereum", "export", "state", "--min-balance","123"]).unwrap();
 		assert_eq!(args.arg_export_state_min_balance, Some("123".to_string()));
 	}
 
 	#[test]
 	fn should_exit_gracefully_on_unknown_argument() {
-		let result = Args::parse(&["parity", "--please-exit-gracefully"]);
+		let result = Args::parse(&["openethereum", "--please-exit-gracefully"]);
 		assert!(
 			match result {
 				Err(ArgsError::Clap(ref clap_error)) if clap_error.kind == ClapErrorKind::UnknownArgument => true,
@@ -1498,46 +1232,46 @@ mod tests {
 
 	#[test]
 	fn should_use_subcommand_arg_default() {
-		let args = Args::parse(&["parity", "export", "state", "--at", "123"]).unwrap();
+		let args = Args::parse(&["openethereum", "export", "state", "--at", "123"]).unwrap();
 		assert_eq!(args.arg_export_state_at, "123");
 		assert_eq!(args.arg_snapshot_at, "latest");
 
-		let args = Args::parse(&["parity", "snapshot", "--at", "123", "file.dump"]).unwrap();
+		let args = Args::parse(&["openethereum", "snapshot", "--at", "123", "file.dump"]).unwrap();
 		assert_eq!(args.arg_snapshot_at, "123");
 		assert_eq!(args.arg_export_state_at, "latest");
 
-		let args = Args::parse(&["parity", "export", "state"]).unwrap();
+		let args = Args::parse(&["openethereum", "export", "state"]).unwrap();
 		assert_eq!(args.arg_snapshot_at, "latest");
 		assert_eq!(args.arg_export_state_at, "latest");
 
-		let args = Args::parse(&["parity", "snapshot", "file.dump"]).unwrap();
+		let args = Args::parse(&["openethereum", "snapshot", "file.dump"]).unwrap();
 		assert_eq!(args.arg_snapshot_at, "latest");
 		assert_eq!(args.arg_export_state_at, "latest");
 	}
 
 	#[test]
 	fn should_parse_multiple_values() {
-		let args = Args::parse(&["parity", "account", "import", "~/1", "~/2"]).unwrap();
+		let args = Args::parse(&["openethereum", "account", "import", "~/1", "~/2"]).unwrap();
 		assert_eq!(args.arg_account_import_path, Some(vec!["~/1".to_owned(), "~/2".to_owned()]));
 
-		let args = Args::parse(&["parity", "account", "import", "~/1,ext"]).unwrap();
+		let args = Args::parse(&["openethereum", "account", "import", "~/1,ext"]).unwrap();
 		assert_eq!(args.arg_account_import_path, Some(vec!["~/1,ext".to_owned()]));
 
-		let args = Args::parse(&["parity", "--secretstore-nodes", "abc@127.0.0.1:3333,cde@10.10.10.10:4444"]).unwrap();
+		let args = Args::parse(&["openethereum", "--secretstore-nodes", "abc@127.0.0.1:3333,cde@10.10.10.10:4444"]).unwrap();
 		assert_eq!(args.arg_secretstore_nodes, "abc@127.0.0.1:3333,cde@10.10.10.10:4444");
 
-		let args = Args::parse(&["parity", "--password", "~/.safe/1", "--password", "~/.safe/2", "--ui-port", "8123"]).unwrap();
+		let args = Args::parse(&["openethereum", "--password", "~/.safe/1", "--password", "~/.safe/2", "--max-peers", "200"]).unwrap();
 		assert_eq!(args.arg_password, vec!["~/.safe/1".to_owned(), "~/.safe/2".to_owned()]);
-		assert_eq!(args.arg_ui_port, Some(8123));
+		assert_eq!(args.arg_max_peers, Some(200));
 
-		let args = Args::parse(&["parity", "--password", "~/.safe/1,~/.safe/2", "--ui-port", "8123"]).unwrap();
+		let args = Args::parse(&["openethereum", "--password", "~/.safe/1,~/.safe/2", "--max-peers", "200"]).unwrap();
 		assert_eq!(args.arg_password, vec!["~/.safe/1".to_owned(), "~/.safe/2".to_owned()]);
-		assert_eq!(args.arg_ui_port, Some(8123));
+		assert_eq!(args.arg_max_peers, Some(200));
 	}
 
 	#[test]
 	fn should_parse_global_args_with_subcommand() {
-		let args = Args::parse(&["parity", "--chain", "dev", "account", "list"]).unwrap();
+		let args = Args::parse(&["openethereum", "--chain", "dev", "account", "list"]).unwrap();
 		assert_eq!(args.arg_chain, "dev".to_owned());
 	}
 
@@ -1550,7 +1284,7 @@ mod tests {
 		config.parity = Some(operating);
 
 		// when
-		let args = Args::parse_with_config(&["parity"], config).unwrap();
+		let args = Args::parse_with_config(&["openethereum"], config).unwrap();
 
 		// then
 		assert_eq!(args.arg_chain, "goerli".to_owned());
@@ -1565,7 +1299,7 @@ mod tests {
 		config.parity = Some(operating);
 
 		// when
-		let args = Args::parse_with_config(&["parity", "--chain", "xyz"], config).unwrap();
+		let args = Args::parse_with_config(&["openethereum", "--chain", "xyz"], config).unwrap();
 
 		// then
 		assert_eq!(args.arg_chain, "xyz".to_owned());
@@ -1579,7 +1313,7 @@ mod tests {
 		config.footprint = Some(footprint);
 
 		// when
-		let args = Args::parse_with_config(&["parity"], config).unwrap();
+		let args = Args::parse_with_config(&["openethereum"], config).unwrap();
 
 		// then
 		assert_eq!(args.arg_pruning_history, 128);
@@ -1591,7 +1325,7 @@ mod tests {
 		let config = toml::from_str(include_str!("./tests/config.stratum_disabled.toml")).unwrap();
 
 		// when
-		let args = Args::parse_with_config(&["parity"], config).unwrap();
+		let args = Args::parse_with_config(&["openethereum"], config).unwrap();
 
 		// then
 		assert_eq!(args.flag_stratum, false);
@@ -1606,7 +1340,7 @@ mod tests {
 		let config = toml::from_str(include_str!("./tests/config.stratum_missing_section.toml")).unwrap();
 
 		// when
-		let args = Args::parse_with_config(&["parity"], config).unwrap();
+		let args = Args::parse_with_config(&["openethereum"], config).unwrap();
 
 		// then
 		assert_eq!(args.flag_stratum, false);
@@ -1621,7 +1355,7 @@ mod tests {
 		let config = toml::from_str(include_str!("./tests/config.stratum_enabled.toml")).unwrap();
 
 		// when
-		let args = Args::parse_with_config(&["parity"], config).unwrap();
+		let args = Args::parse_with_config(&["openethereum"], config).unwrap();
 
 		// then (with custom configurations)
 		assert_eq!(args.flag_stratum, true);
@@ -1636,7 +1370,7 @@ mod tests {
 		let config = toml::from_str(include_str!("./tests/config.full.toml")).unwrap();
 
 		// when
-		let args = Args::parse_with_config(&["parity", "--stratum"], config).unwrap();
+		let args = Args::parse_with_config(&["openethereum", "--stratum"], config).unwrap();
 
 		// then
 		assert_eq!(args.flag_stratum, true);
@@ -1653,7 +1387,7 @@ mod tests {
 		let config = toml::from_str(include_str!("./tests/config.stratum_missing_field.toml")).unwrap();
 
 		// when
-		let args = Args::parse_with_config(&["parity"], config).unwrap();
+		let args = Args::parse_with_config(&["openethereum"], config).unwrap();
 
 		// then
 		assert_eq!(args.flag_stratum, true);
@@ -1668,12 +1402,11 @@ mod tests {
 		let config = toml::from_str(include_str!("./tests/config.full.toml")).unwrap();
 
 		// when
-		let args = Args::parse_with_config(&["parity", "--chain", "xyz"], config).unwrap();
+		let args = Args::parse_with_config(&["openethereum", "--chain", "xyz"], config).unwrap();
 
 		// then
 		assert_eq!(args, Args {
 			// Commands
-			cmd_dapp: false,
 			cmd_daemon: false,
 			cmd_account: false,
 			cmd_account_new: false,
@@ -1714,7 +1447,6 @@ mod tests {
 			arg_enable_signing_queue: false,
 			arg_signer_sign_id: None,
 			arg_signer_reject_id: None,
-			arg_dapp_path: None,
 			arg_account_import_path: None,
 			arg_wallet_import_path: None,
 			arg_db_reset_num: 10,
@@ -1727,7 +1459,6 @@ mod tests {
 			arg_auto_update_delay: 200u16,
 			arg_auto_update_check_frequency: 50u16,
 			arg_release_track: "current".into(),
-			flag_public_node: false,
 			flag_no_download: false,
 			flag_no_consensus: false,
 			arg_chain: "xyz".into(),
@@ -1763,13 +1494,9 @@ mod tests {
 			arg_private_sstore_url: Some("http://localhost:8082".into()),
 			arg_private_sstore_threshold: Some(0),
 
-			flag_force_ui: false,
-			flag_no_ui: false,
-			arg_ui_port: None,
-			arg_ui_interface: None,
-			arg_ui_hosts: None,
 			arg_ui_path: "$HOME/.parity/signer".into(),
-			flag_ui_no_validation: false,
+			flag_testnet: false,
+			flag_import_geth_keys: false,
 
 			// -- Networking Options
 			flag_no_warp: false,
@@ -1801,7 +1528,6 @@ mod tests {
 			arg_jsonrpc_apis: "web3,eth,net,parity,traces,rpc,secretstore".into(),
 			arg_jsonrpc_hosts: "none".into(),
 			arg_jsonrpc_server_threads: Some(4),
-			arg_jsonrpc_threads: None, // DEPRECATED, does nothing
 			arg_jsonrpc_max_payload: None,
 			arg_poll_lifetime: 60u32,
 			flag_jsonrpc_allow_missing_blocks: false,
@@ -1820,9 +1546,6 @@ mod tests {
 			arg_ipc_path: "$HOME/.parity/jsonrpc.ipc".into(),
 			arg_ipc_apis: "web3,eth,net,parity,parity_accounts,personal,traces,rpc,secretstore".into(),
 			arg_ipc_chmod: "660".into(),
-			// DAPPS
-			arg_dapps_path: Some("$HOME/.parity/dapps".into()),
-			flag_no_dapps: false,
 
 			// SECRETSTORE
 			flag_no_secretstore: false,
@@ -1864,7 +1587,7 @@ mod tests {
 			arg_price_update_period: "hourly".into(),
 			arg_gas_floor_target: "8000000".into(),
 			arg_gas_cap: "10000000".into(),
-			arg_extra_data: Some("Parity".into()),
+			arg_extra_data: Some("OpenEthereum".into()),
 			flag_tx_queue_no_unfamiliar_locals: false,
 			flag_tx_queue_no_early_reject: false,
 			arg_tx_queue_size: 8192usize,
@@ -1872,8 +1595,6 @@ mod tests {
 			arg_tx_queue_mem_limit: 4u32,
 			arg_tx_queue_locals: Some("0xdeadbeefcafe0000000000000000000000000000".into()),
 			arg_tx_queue_strategy: "gas_factor".into(),
-			arg_tx_queue_ban_count: Some(1u16),
-			arg_tx_queue_ban_time: Some(180u16),
 			flag_remove_solved: false,
 			arg_notify_work: Some("http://localhost:3001".into()),
 			flag_refuse_service_transactions: false,
@@ -1895,7 +1616,6 @@ mod tests {
 			arg_cache_size_queue: 50u32,
 			arg_cache_size_state: 25u32,
 			arg_cache_size: Some(128),
-			flag_fast_and_loose: false,
 			arg_db_compaction: "ssd".into(),
 			arg_fat_db: "auto".into(),
 			flag_scale_verifiers: true,
@@ -1923,52 +1643,14 @@ mod tests {
 			arg_on_demand_request_backoff_rounds_max: Some(100),
 			arg_on_demand_request_consecutive_failures: Some(1),
 
-			// -- Whisper options.
-			flag_whisper: false,
-			arg_whisper_pool_size: Some(20),
-
-			// -- Legacy Options
-			flag_warp: false,
+			// -- Legacy options.
 			flag_geth: false,
-			flag_testnet: false,
-			flag_import_geth_keys: false,
 			arg_warp_barrier: None,
-			arg_datadir: None,
-			arg_networkid: None,
-			arg_peers: None,
-			arg_nodekey: None,
-			flag_nodiscover: false,
-			flag_jsonrpc: false,
-			flag_jsonrpc_off: false,
-			flag_webapp: false,
-			flag_dapps_off: false,
-			flag_rpc: false,
-			arg_rpcaddr: None,
-			arg_rpcport: None,
-			arg_rpcapi: None,
-			arg_rpccorsdomain: None,
-			flag_ipcdisable: false,
-			flag_ipc_off: false,
-			arg_ipcapi: None,
-			arg_ipcpath: None,
-			arg_gasprice: None,
-			arg_etherbase: None,
-			arg_extradata: None,
-			arg_cache: None,
-			// Legacy-Dapps
-			arg_dapps_port: Some(8080),
-			arg_dapps_interface: Some("local".into()),
-			arg_dapps_hosts: Some("none".into()),
-			arg_dapps_cors: None,
-			arg_dapps_user: Some("test_user".into()),
-			arg_dapps_pass: Some("test_pass".into()),
-			flag_dapps_apis_all: false,
 
 			// -- Internal Options
 			flag_can_restart: false,
 
 			// -- Miscellaneous Options
-			arg_ntp_servers: None,
 			flag_version: false,
 			arg_logging: Some("own_tx=trace".into()),
 			arg_log_file: Some("/var/log/parity.log".into()),
@@ -2021,7 +1703,6 @@ mod tests {
 				no_hardcoded_sync: None,
 				no_persistent_txqueue: None,
 				sync_until: Some(123),
-				_legacy_public_node: None,
 			}),
 			account: Some(Account {
 				enable_signing_queue: None,
@@ -2033,11 +1714,6 @@ mod tests {
 			}),
 			ui: Some(Ui {
 				path: None,
-				_legacy_force: None,
-				_legacy_disable: Some(true),
-				_legacy_port: None,
-				_legacy_interface: None,
-				_legacy_hosts: None,
 			}),
 			network: Some(Network {
 				warp: Some(false),
@@ -2086,16 +1762,6 @@ mod tests {
 				path: None,
 				chmod: None,
 				apis: Some(vec!["rpc".into(), "eth".into()]),
-			}),
-			dapps: Some(Dapps {
-				_legacy_disable: None,
-				_legacy_port: Some(8080),
-				_legacy_path: None,
-				_legacy_interface: None,
-				_legacy_hosts: None,
-				_legacy_cors: None,
-				_legacy_user: Some("username".into()),
-				_legacy_pass: Some("password".into())
 			}),
 			secretstore: Some(SecretStore {
 				disable: None,
@@ -2188,17 +1854,13 @@ mod tests {
 				ports_shift: Some(0),
 				unsafe_expose: Some(false),
 			}),
-			whisper: Some(Whisper {
-				enabled: Some(true),
-				pool_size: Some(50),
-			}),
 			stratum: None,
 		});
 	}
 
 	#[test]
 	fn should_not_accept_min_peers_bigger_than_max_peers() {
-		match Args::parse(&["parity", "--max-peers=39", "--min-peers=40"]) {
+		match Args::parse(&["openethereum", "--max-peers=39", "--min-peers=40"]) {
 			Err(ArgsError::PeerConfiguration) => (),
 			_ => assert_eq!(false, true),
 		}
@@ -2206,7 +1868,7 @@ mod tests {
 
 	#[test]
 	fn should_accept_max_peers_equal_or_bigger_than_min_peers() {
-		Args::parse(&["parity", "--max-peers=40", "--min-peers=40"]).unwrap();
-		Args::parse(&["parity", "--max-peers=100", "--min-peers=40"]).unwrap();
+		Args::parse(&["openethereum", "--max-peers=40", "--min-peers=40"]).unwrap();
+		Args::parse(&["openethereum", "--max-peers=100", "--min-peers=40"]).unwrap();
 	}
 }

@@ -603,7 +603,7 @@ macro_rules! usage {
 					}
 				)*
 
-				let matches = App::new("Parity")
+				let matches = App::new("OpenEthereum")
 				    	.global_setting(AppSettings::VersionlessSubcommands)
 						.global_setting(AppSettings::DisableHelpSubcommand)
 						.max_term_width(MAX_TERM_WIDTH)
