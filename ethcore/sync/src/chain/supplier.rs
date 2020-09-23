@@ -29,25 +29,7 @@ use rlp::{Rlp, RlpStream};
 use common_types::{ids::BlockId, BlockNumber};
 
 use super::sync_packet::{PacketInfo, SyncPacket};
-use super::sync_packet::SyncPacket::{
-	StatusPacket,
-	TransactionsPacket,
-	GetBlockHeadersPacket,
-	BlockHeadersPacket,
-	GetBlockBodiesPacket,
-	BlockBodiesPacket,
-	GetNodeDataPacket,
-	NodeDataPacket,
-	GetReceiptsPacket,
-	ReceiptsPacket,
-	GetSnapshotManifestPacket,
-	SnapshotManifestPacket,
-	GetSnapshotDataPacket,
-	SnapshotDataPacket,
-	ConsensusDataPacket,
-	GetPrivateStatePacket,
-	PrivateStatePacket,
-};
+use super::sync_packet::SyncPacket::*;
 
 use super::{
 	ChainSync,
@@ -74,6 +56,11 @@ impl SyncSupplier {
 
 		if let Some(id) = SyncPacket::from_u8(packet_id) {
 			let result = match id {
+				GetPooledTransactionsPacket => SyncSupplier::return_rlp(
+					io, &rlp, peer,
+					SyncSupplier::return_pooled_transactions,
+					|e| format!("Error sending pooled transactions: {:?}", e)),
+
 				GetBlockBodiesPacket => SyncSupplier::return_rlp(
 					io, &rlp, peer,
 					SyncSupplier::return_block_bodies,
@@ -263,6 +250,24 @@ impl SyncSupplier {
 		rlp.append_raw(&data, count as usize);
 		trace!(target: "sync", "{} -> GetBlockHeaders: returned {} entries", peer_id, count);
 		Ok(Some((BlockHeadersPacket, rlp)))
+	}
+
+	/// Respond to GetPooledTransactions request
+	fn return_pooled_transactions(io: &dyn SyncIo, r: &Rlp, peer_id: PeerId) -> RlpResponseResult {
+		const LIMIT: usize = 256;
+
+		let transactions = r.iter().take(LIMIT).filter_map(|v| {
+			v.as_val::<H256>().ok().and_then(|hash| io.chain().queued_transaction(hash))
+		}).collect::<Vec<_>>();
+
+		let added = transactions.len();
+		let mut rlp = RlpStream::new_list(added);
+		for tx in transactions {
+			rlp.append(tx.signed());
+		}
+
+		trace!(target: "sync", "{} -> GetPooledTransactions: returned {} entries", peer_id, added);
+		Ok(Some((PooledTransactionsPacket, rlp)))
 	}
 
 	/// Respond to GetBlockBodies request

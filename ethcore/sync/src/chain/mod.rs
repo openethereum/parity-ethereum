@@ -166,6 +166,8 @@ impl From<DecoderError> for PacketProcessError {
 	}
 }
 
+/// Version 65 of the Ethereum protocol and number of packet IDs reserved by the protocol (packet count).
+pub const ETH_PROTOCOL_VERSION_65: (u8, u8) = (65, 0x11);
 /// Version 64 of the Ethereum protocol and number of packet IDs reserved by the protocol (packet count).
 pub const ETH_PROTOCOL_VERSION_64: (u8, u8) = (64, 0x11);
 /// Version 63 of the Ethereum protocol and number of packet IDs reserved by the protocol (packet count).
@@ -217,6 +219,7 @@ const STATUS_TIMEOUT: Duration = Duration::from_secs(10);
 const HEADERS_TIMEOUT: Duration = Duration::from_secs(15);
 const BODIES_TIMEOUT: Duration = Duration::from_secs(20);
 const RECEIPTS_TIMEOUT: Duration = Duration::from_secs(10);
+const POOLED_TRANSACTIONS_TIMEOUT: Duration = Duration::from_secs(10);
 const FORK_HEADER_TIMEOUT: Duration = Duration::from_secs(3);
 /// Max time to wait for the Snapshot Manifest packet to arrive from a peer after it's being asked.
 const SNAPSHOT_MANIFEST_TIMEOUT: Duration = Duration::from_secs(5);
@@ -318,6 +321,7 @@ pub enum PeerAsking {
 	BlockHeaders,
 	BlockBodies,
 	BlockReceipts,
+	PooledTransactions,
 	SnapshotManifest,
 	SnapshotData,
 	PrivateState,
@@ -352,6 +356,8 @@ pub struct PeerInfo {
 	network_id: u64,
 	/// Peer best block hash
 	latest_hash: H256,
+	/// Unpropagated tx pool hashes
+	unsent_pooled_hashes: Option<H256FastSet>,
 	/// Peer total difficulty if known
 	difficulty: Option<U256>,
 	/// Type of data currently being requested by us from a peer.
@@ -360,6 +366,8 @@ pub struct PeerInfo {
 	asking_blocks: Vec<H256>,
 	/// Holds requested header hash if currently requesting block header by hash
 	asking_hash: Option<H256>,
+	/// Holds requested transaction IDs
+	asking_pooled_transactions: Option<Vec<H256>>,
 	/// Holds requested private state hash
 	asking_private_state: Option<H256>,
 	/// Holds requested snapshot chunk hash if any.
@@ -669,6 +677,13 @@ enum PeerState {
 	SameBlock
 }
 
+#[derive(Clone, MallocSizeOf)]
+struct UnfetchedTransaction {
+	announcer: PeerId,
+	next_fetch: Instant,
+	tries: usize,
+}
+
 /// Blockchain sync handler.
 /// See module documentation for more details.
 #[derive(MallocSizeOf)]
@@ -708,6 +723,8 @@ pub struct ChainSync {
 	sync_start_time: Option<Instant>,
 	/// Transactions propagation statistics
 	transactions_stats: TransactionsStats,
+	/// Transactions whose hash has been announced, but that we have not fetched
+	unfetched_pooled_transactions: H256FastMap<UnfetchedTransaction>,
 	/// Enable ancient block downloading
 	download_old_blocks: bool,
 	/// Shared private tx service.
@@ -751,6 +768,7 @@ impl ChainSync {
 			snapshot: Snapshot::new(),
 			sync_start_time: None,
 			transactions_stats: TransactionsStats::default(),
+			unfetched_pooled_transactions: Default::default(),
 			private_tx_handler,
 			warp_sync: config.warp_sync,
 			status_sinks: Vec::new()
@@ -764,7 +782,7 @@ impl ChainSync {
 		let last_imported_number = self.new_blocks.last_imported_block_number();
 		SyncStatus {
 			state: self.state.clone(),
-			protocol_version: ETH_PROTOCOL_VERSION_64.0,
+			protocol_version: ETH_PROTOCOL_VERSION_65.0,
 			network_id: self.network_id,
 			start_block_number: self.starting_block,
 			last_imported_block_number: Some(last_imported_number),
@@ -798,8 +816,17 @@ impl ChainSync {
 
 	/// Updates the set of transactions recently sent to this peer to avoid spamming.
 	pub fn transactions_received(&mut self, txs: &[UnverifiedTransaction], peer_id: PeerId) {
-		if let Some(peer_info) = self.peers.get_mut(&peer_id) {
-			peer_info.last_sent_transactions.extend(txs.iter().map(|tx| tx.hash()));
+		for (id, peer) in &mut self.peers {
+			let hashes = txs.iter().map(|tx| tx.hash());
+			if *id == peer_id {
+				peer.last_sent_transactions.extend(hashes);
+			} else if let Some(s) = &mut peer.unsent_pooled_hashes {
+				s.extend(hashes);
+			}
+		}
+
+		for tx in txs {
+			self.unfetched_pooled_transactions.remove(&tx.hash());
 		}
 	}
 
@@ -1149,6 +1176,48 @@ impl ChainSync {
 						}
 					}
 
+					// get the peer to give us at least some of announced but unfetched transactions
+					if !self.unfetched_pooled_transactions.is_empty() {
+						if let Some(s) = &mut self.peers.get_mut(&peer_id).expect("this is always an active peer; qed").asking_pooled_transactions {
+							let now = Instant::now();
+
+							let mut new_asking_pooled_transactions = s.iter().copied().collect::<HashSet<_>>();
+							let mut remaining_unfetched_pooled_transactions = self.unfetched_pooled_transactions.clone();
+							for (hash, mut item) in self.unfetched_pooled_transactions.drain() {
+								if new_asking_pooled_transactions.len() >= 256 {
+									// can't request any more transactions
+									break;
+								}
+
+								// if enough time has passed since last attempt...
+								if item.next_fetch < now {
+									// ...queue this hash for requesting
+									new_asking_pooled_transactions.insert(hash);
+									item.tries += 1;
+
+									// if we just started asking for it, queue it to be asked later on again
+									if item.tries < 5 {
+										item.next_fetch = now + (POOLED_TRANSACTIONS_TIMEOUT / 2);
+										remaining_unfetched_pooled_transactions.insert(hash, item);
+									} else {
+										// ...otherwise we assume this transaction does not exist and remove its hash from request queue
+										remaining_unfetched_pooled_transactions.remove(&hash);
+									}
+								}
+							}
+
+							let new_asking_pooled_transactions = new_asking_pooled_transactions.into_iter().collect::<Vec<_>>();
+							SyncRequester::request_pooled_transactions(self, io, peer_id, &new_asking_pooled_transactions);
+
+							self.peers.get_mut(&peer_id).expect("this is always an active peer; qed").asking_pooled_transactions = Some(new_asking_pooled_transactions);
+							self.unfetched_pooled_transactions = remaining_unfetched_pooled_transactions;
+
+							return;
+						} else {
+							trace!(target: "sync", "Skipping transaction fetch for peer {} as they don't support eth/65", peer_id);
+						}
+					}
+
 					// Only ask for old blocks if the peer has an equal or higher difficulty
 					let equal_or_higher_difficulty = peer_difficulty.map_or(true, |pd| pd >= syncing_difficulty);
 
@@ -1340,6 +1409,7 @@ impl ChainSync {
 				PeerAsking::BlockHeaders => elapsed > HEADERS_TIMEOUT,
 				PeerAsking::BlockBodies => elapsed > BODIES_TIMEOUT,
 				PeerAsking::BlockReceipts => elapsed > RECEIPTS_TIMEOUT,
+				PeerAsking::PooledTransactions => elapsed > POOLED_TRANSACTIONS_TIMEOUT,
 				PeerAsking::Nothing => false,
 				PeerAsking::ForkHeader => elapsed > FORK_HEADER_TIMEOUT,
 				PeerAsking::SnapshotManifest => elapsed > SNAPSHOT_MANIFEST_TIMEOUT,
@@ -1668,10 +1738,12 @@ pub mod tests {
 				genesis: H256::zero(),
 				network_id: 0,
 				latest_hash: peer_latest_hash,
+				unsent_pooled_hashes: Some(Default::default()),
 				difficulty: None,
 				asking: PeerAsking::Nothing,
 				asking_blocks: Vec::new(),
 				asking_hash: None,
+				asking_pooled_transactions: Some(Vec::new()),
 				asking_private_state: None,
 				ask_time: Instant::now(),
 				last_sent_transactions: Default::default(),
