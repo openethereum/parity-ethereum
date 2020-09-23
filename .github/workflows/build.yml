@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - stable
+      - ao-more-adequate-memory-budget
     tags:
       - v*
 
