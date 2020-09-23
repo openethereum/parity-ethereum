@@ -353,11 +353,12 @@ impl TestBlockChainClient {
 	}
 
 	fn block_hash(&self, id: BlockId) -> Option<H256> {
+		let numbers = self.numbers.read();
 		match id {
 			BlockId::Hash(hash) => Some(hash),
-			BlockId::Number(n) => self.numbers.read().get(&(n as usize)).cloned(),
-			BlockId::Earliest => self.numbers.read().get(&0).cloned(),
-			BlockId::Latest => self.numbers.read().get(&(self.numbers.read().len() - 1)).cloned()
+			BlockId::Number(n) => numbers.get(&(n as usize)).cloned(),
+			BlockId::Earliest => numbers.get(&0).cloned(),
+			BlockId::Latest => numbers.get(&(numbers.len() - 1)).cloned()
 		}
 	}
 
@@ -488,17 +489,21 @@ impl AccountData for TestBlockChainClient {}
 impl ChainInfo for TestBlockChainClient {
 	fn chain_info(&self) -> BlockChainInfo {
 		let number = self.blocks.read().len() as BlockNumber - 1;
+		let last_hash = self.last_hash.read();
+		let difficulty = self.difficulty.read();
+		let ancient_block = self.ancient_block.read();
+		let first_block = self.first_block.read();
 		BlockChainInfo {
-			total_difficulty: *self.difficulty.read(),
-			pending_total_difficulty: *self.difficulty.read(),
+			total_difficulty: *difficulty,
+			pending_total_difficulty: *difficulty,
 			genesis_hash: self.genesis_hash.clone(),
-			best_block_hash: self.last_hash.read().clone(),
+			best_block_hash: last_hash.clone(),
 			best_block_number: number,
 			best_block_timestamp: number,
-			first_block_hash: self.first_block.read().as_ref().map(|x| x.0),
-			first_block_number: self.first_block.read().as_ref().map(|x| x.1),
-			ancient_block_hash: self.ancient_block.read().as_ref().map(|x| x.0),
-			ancient_block_number: self.ancient_block.read().as_ref().map(|x| x.1)
+			first_block_hash: first_block.as_ref().map(|x| x.0),
+			first_block_number: first_block.as_ref().map(|x| x.1),
+			ancient_block_hash: ancient_block.as_ref().map(|x| x.0),
+			ancient_block_number: ancient_block.as_ref().map(|x| x.1)
 		}
 	}
 }
