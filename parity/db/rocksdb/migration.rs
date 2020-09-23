@@ -224,7 +224,7 @@ pub fn migrate(path: &Path, compaction_profile: &DatabaseCompactionProfile) -> R
         return Ok(());
     }
 
-    if version <= USE_MIGRATION_TOOL {
+    if version != DEFAULT_VERSION && version <= USE_MIGRATION_TOOL {
         return Err(Error::UseMigrationTool);
     }
 
