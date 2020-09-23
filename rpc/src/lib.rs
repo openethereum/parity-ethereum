@@ -162,6 +162,9 @@ pub use http_common::HttpMetaExtractor;
 
 use std::net::SocketAddr;
 
+/// RPC HTTP Server header Access-Control-Max-Age
+const CORS_MAX_AGE_SECONDS: u32 = 600;
+
 /// RPC HTTP Server instance
 pub type HttpServer = http::Server;
 
@@ -186,6 +189,7 @@ pub fn start_http<M, S, H, T>(
 		.keep_alive(keep_alive)
 		.threads(threads)
 		.cors(cors_domains)
+		.cors_max_age(CORS_MAX_AGE_SECONDS)
 		.allowed_hosts(allowed_hosts)
 		.health_api(("/api/health", "parity_nodeStatus"))
 		.cors_allow_headers(AccessControlAllowHeaders::Any)
@@ -217,6 +221,7 @@ pub fn start_http_with_middleware<M, S, H, T, R>(
 		.keep_alive(keep_alive)
 		.threads(threads)
 		.cors(cors_domains)
+		.cors_max_age(CORS_MAX_AGE_SECONDS)
 		.allowed_hosts(allowed_hosts)
 		.cors_allow_headers(AccessControlAllowHeaders::Any)
 		.max_request_body_size(max_payload * 1024 * 1024)
