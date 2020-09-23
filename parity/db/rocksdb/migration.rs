@@ -48,6 +48,8 @@ pub const TO_V12: ChangeColumns = ChangeColumns {
 const DEFAULT_VERSION: u32 = 5;
 /// Current version of database models.
 const CURRENT_VERSION: u32 = 16;
+/// Until this version please use upgrade tool.
+const USE_MIGRATION_TOOL: u32 = 15;
 /// A version of database at which blooms-db was introduced
 const BLOOMS_DB_VERSION: u32 = 13;
 /// Defines how many items are migrated to the new version of database at once.
@@ -64,6 +66,8 @@ pub enum Error {
     FutureDBVersion,
     /// Migration is not possible.
     MigrationImpossible,
+    /// For old versions use external migration tool
+    UseMigrationTool,
     /// Blooms-db migration error.
     BloomsDB(ethcore::error::Error),
     /// Migration was completed succesfully,
@@ -77,7 +81,8 @@ impl Display for Error {
 			Error::UnknownDatabaseVersion => "Current database version cannot be read".into(),
 			Error::FutureDBVersion => "Database was created with newer client version. Upgrade your client or delete DB and resync.".into(),
 			Error::MigrationImpossible => format!("Database migration to version {} is not possible.", CURRENT_VERSION),
-			Error::BloomsDB(ref err) => format!("blooms-db migration error: {}", err),
+            Error::BloomsDB(ref err) => format!("blooms-db migration error: {}", err),
+            Error::UseMigrationTool => "For db versions 15 and lower (v2.5.13=>13, 2.7.2=>14, v3.0.1=>15) please use upgrade db tool to manually upgrade db: https://github.com/openethereum/3.1-db-upgrade-tool".into(),
 			Error::Io(ref err) => format!("Unexpected io error on DB migration: {}.", err),
 		};
 
@@ -217,6 +222,10 @@ pub fn migrate(path: &Path, compaction_profile: &DatabaseCompactionProfile) -> R
     // We are in the latest version, yay!
     if version == CURRENT_VERSION {
         return Ok(());
+    }
+
+    if version <= USE_MIGRATION_TOOL {
+        return Err(Error::UseMigrationTool);
     }
 
     let db_path = consolidated_database_path(path);
