@@ -360,17 +360,21 @@ pub unsafe fn compress(state: &mut [u64; 8], message: [u64; 16], count: [u64; 2]
 #[inline(always)]
 unsafe fn loadu(src: *const [u64; 4]) -> __m256i {
 	// This is an unaligned load, so the pointer cast is allowed.
+	#[allow(clippy::cast_ptr_alignment)]
 	_mm256_loadu_si256(src as *const __m256i)
 }
 
 #[inline(always)]
 unsafe fn storeu(src: __m256i, dest: *mut [u64; 4]) {
 	// This is an unaligned store, so the pointer cast is allowed.
+	#[allow(clippy::cast_ptr_alignment)]
 	_mm256_storeu_si256(dest as *mut __m256i, src)
 }
 
 #[inline(always)]
 unsafe fn loadu_128(mem_addr: &[u64; 2]) -> __m128i {
+	// This is an unaligned load, so the pointer cast is allowed.
+	#[allow(clippy::cast_ptr_alignment)]
 	_mm_loadu_si128(mem_addr.as_ptr() as *const __m128i)
 }
 

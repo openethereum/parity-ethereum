@@ -26,6 +26,7 @@ use shared::{ETHASH_CACHE_ROUNDS, NODE_BYTES, Node, epoch, get_cache_size, to_he
 use std::borrow::Cow;
 use std::fs;
 use std::io::{self, Read, Write};
+use std::mem;
 use std::path::{Path, PathBuf};
 use std::slice;
 use std::sync::Arc;
@@ -185,7 +186,12 @@ fn make_memmapped_cache(path: &Path, num_nodes: usize, ident: &H256) -> io::Resu
 
 	let mut memmap = unsafe { MmapMut::map_mut(&file)? };
 
-	unsafe { initialize_memory(memmap.as_mut_ptr() as *mut Node, num_nodes, ident) };
+	unsafe {
+		let bytes = memmap.as_mut_ptr();
+		assert_eq!(bytes as usize % mem::align_of::<Node>(), 0, "Mmap memory not aligned.");
+		#[allow(clippy::cast_ptr_alignment)] // We verified the alignment.
+		initialize_memory(bytes as *mut Node, num_nodes, ident)
+	};
 
 	Ok(memmap)
 }
@@ -263,8 +269,12 @@ fn read_from_path(path: &Path) -> io::Result<Vec<Node>> {
 			"Node cache is not a multiple of node size",
 		));
 	}
+	if nodes.as_ptr() as usize % mem::align_of::<Node>() != 0 {
+		return Err(io::Error::new(io::ErrorKind::Other, "Node cache is not aligned"));
+	}
 
 	let out: Vec<Node> = unsafe {
+		#[allow(clippy::cast_ptr_alignment)] // We verified the alignment.
 		Vec::from_raw_parts(
 			nodes.as_mut_ptr() as *mut _,
 			nodes.len() / NODE_BYTES,
@@ -287,6 +297,8 @@ impl AsRef<[Node]> for NodeCache {
 				// people manually messing with the files unless it can cause unsafety, but if we're
 				// generating incorrect files then we want to catch that in CI.
 				debug_assert_eq!(mmap.len() % NODE_BYTES, 0);
+				assert_eq!(bytes as usize % mem::align_of::<Node>(), 0, "Mmap memory not aligned.");
+				#[allow(clippy::cast_ptr_alignment)] // We verified the alignment.
 				slice::from_raw_parts(bytes as _, mmap.len() / NODE_BYTES)
 			},
 		}

@@ -87,7 +87,7 @@ impl<'a, C: 'a> Clone for PoolClient<'a, C> {
 			chain: self.chain,
 			cached_nonces: self.cached_nonces.clone(),
 			engine: self.engine,
-			accounts: self.accounts.clone(),
+			accounts: self.accounts,
 			best_block_header: self.best_block_header.clone(),
 			service_transaction_checker: self.service_transaction_checker.clone(),
 		}
