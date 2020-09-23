@@ -21,17 +21,13 @@ mod macros;
 
 mod chain;
 mod executive;
-mod skip;
 mod state;
 mod test_common;
 mod transaction;
 mod trie;
-
-#[cfg(test)]
 mod difficulty;
+mod runner;
 
 pub use self::executive::run_test_path as run_executive_test_path;
 pub use self::executive::run_test_file as run_executive_test_file;
 pub use self::test_common::HookType;
-
-use self::skip::SKIP_TESTS;

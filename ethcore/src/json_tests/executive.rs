@@ -235,7 +235,7 @@ impl<'a, T: 'a, V: 'a, B: 'a> Ext for TestExt<'a, T, V, B>
 	}
 }
 
-fn do_json_test<H: FnMut(&str, HookType)>(
+pub fn do_json_test<H: FnMut(&str, HookType)>(
 	path: &Path,
 	json_data: &[u8],
 	start_stop_hook: &mut H
@@ -247,7 +247,6 @@ fn do_json_test<H: FnMut(&str, HookType)>(
 	for (name, vm) in tests.into_iter() {
 		start_stop_hook(&format!("{}", name), HookType::OnStart);
 
-		info!(target: "jsontests", "name: {:?}", name);
 		let mut fail = false;
 
 		let mut fail_unless = |cond: bool, s: &str | if !cond && !fail {
@@ -354,26 +353,15 @@ fn do_json_test<H: FnMut(&str, HookType)>(
 			}
 		};
 
-		start_stop_hook(&format!("{}", name), HookType::OnStop);
-	}
+		if fail {
+			println!("   - vm: {:?}...FAILED", name);
+		} else {
+			println!("   - vm: {:?}...OK", name);
+		}
 
-	for f in &failed {
-		error!("FAILED: {:?}", f);
+		start_stop_hook(&format!("{}", name), HookType::OnStop);
 	}
 
 	failed
 }
 
-declare_test!{ExecutiveTests_vmArithmeticTest, "VMTests/vmArithmeticTest"}
-declare_test!{ExecutiveTests_vmBitwiseLogicOperationTest, "VMTests/vmBitwiseLogicOperation"}
-declare_test!{ExecutiveTests_vmBlockInfoTest, "VMTests/vmBlockInfoTest"}
- // TODO [todr] Fails with Signal 11 when using JIT
-declare_test!{ExecutiveTests_vmEnvironmentalInfoTest, "VMTests/vmEnvironmentalInfo"}
-declare_test!{ExecutiveTests_vmIOandFlowOperationsTest, "VMTests/vmIOandFlowOperations"}
-declare_test!{ExecutiveTests_vmLogTest, "VMTests/vmLogTest"}
-declare_test!{heavy => ExecutiveTests_vmPerformance, "VMTests/vmPerformance"}
-declare_test!{ExecutiveTests_vmPushDupSwapTest, "VMTests/vmPushDupSwapTest"}
-declare_test!{ExecutiveTests_vmRandomTest, "VMTests/vmRandomTest"}
-declare_test!{ExecutiveTests_vmSha3Test, "VMTests/vmSha3Test"}
-declare_test!{ExecutiveTests_vmSystemOperationsTest, "VMTests/vmSystemOperations"}
-declare_test!{ExecutiveTests_vmTests, "VMTests/vmTests"}
