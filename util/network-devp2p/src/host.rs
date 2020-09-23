@@ -759,6 +759,7 @@ impl Host {
 						},
 						Ok(SessionData::Ready) => {
 							let (_, egress_count, ingress_count) = self.session_count();
+							let handlers = self.handlers.read();
 							let reserved_nodes = self.reserved_nodes.read();
 							let mut s = session.lock();
 							let (min_peers, mut max_peers, reserved_only, self_id) = {
@@ -822,7 +823,7 @@ impl Host {
 							// Note connection success
 							self.nodes.write().note_success(&id);
 
-							for (p, _) in self.handlers.read().iter() {
+							for (p, _) in handlers.iter() {
 								if s.have_capability(*p) {
 									ready_data.push(*p);
 								}
@@ -950,13 +951,14 @@ impl Host {
 		let mut deregister = false;
 		let mut expired_session = None;
 		if let FIRST_SESSION ..= LAST_SESSION = token {
+			let handlers = self.handlers.read();
 			let sessions = self.sessions.read();
 			if let Some(session) = sessions.get(token).cloned() {
 				expired_session = Some(session.clone());
 				let mut s = session.lock();
 				if !s.expired() {
 					if s.is_ready() {
-						for (p, _) in self.handlers.read().iter() {
+						for (p, _) in handlers.iter() {
 							if s.have_capability(*p) {
 								to_disconnect.push(*p);
 							}
@@ -974,8 +976,9 @@ impl Host {
 			}
 		}
 		for p in to_disconnect {
+			let handlers = self.handlers.read();
 			let reserved = self.reserved_nodes.read();
-			if let Some(h) = self.handlers.read().get(&p) {
+			if let Some(h) = handlers.get(&p) {
 				h.disconnected(&NetworkContext::new(io, p, expired_session.clone(), self.sessions.clone(), &reserved), &token);
 			}
 		}
@@ -1115,11 +1118,13 @@ impl IoHandler<NetworkIoMessage> for Host {
 				ref versions,
 			} => {
 				let h = handler.clone();
+				let mut handlers = self.handlers.write();
 				let reserved = self.reserved_nodes.read();
 				h.initialize(
 					&NetworkContext::new(io, *protocol, None, self.sessions.clone(), &reserved),
 				);
-				self.handlers.write().insert(*protocol, h);
+				handlers.insert(*protocol, h);
+				drop(handlers);
 				let mut info = self.info.write();
 				for &(version, packet_count) in versions {
 					info.capabilities.push(CapabilityInfo {
