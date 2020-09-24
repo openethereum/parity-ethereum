@@ -411,6 +411,7 @@ impl Spec {
 			params.eip2315_transition,
 			params.dust_protection_transition,
 			params.wasm_activation_transition,
+			params.wasm_disable_transition,
 			params.kip4_transition,
 			params.kip6_transition,
 			params.max_code_size_transition,

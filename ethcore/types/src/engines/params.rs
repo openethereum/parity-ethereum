@@ -114,6 +114,8 @@ pub struct CommonParams {
 	pub remove_dust_contracts: bool,
 	/// Wasm activation blocknumber, if any disabled initially.
 	pub wasm_activation_transition: BlockNumber,
+	/// Wasm deactivation blocknumber, if enabled.
+	pub wasm_disable_transition: BlockNumber,
 	/// Wasm account version, activated after `wasm_activation_transition`. If this field is defined, do not use code
 	/// prefix to determine VM to execute.
 	pub wasm_version: Option<U256>,
@@ -208,7 +210,7 @@ impl CommonParams {
 				false => vm::CleanDustMode::BasicOnly,
 			};
 		}
-		if block_number >= self.wasm_activation_transition {
+		if block_number >= self.wasm_activation_transition && block_number < self.wasm_disable_transition {
 			let mut wasm = vm::WasmCosts::default();
 			if block_number >= self.kip4_transition {
 				wasm.have_create2 = true;
@@ -364,6 +366,10 @@ impl From<ethjson::spec::Params> for CommonParams {
 			transaction_permission_contract_transition:
 			p.transaction_permission_contract_transition.map_or(0, Into::into),
 			wasm_activation_transition: p.wasm_activation_transition.map_or_else(
+				BlockNumber::max_value,
+				Into::into
+			),
+			wasm_disable_transition: p.wasm_disable_transition.map_or_else(
 				BlockNumber::max_value,
 				Into::into
 			),
