@@ -2283,7 +2283,7 @@ mod tests {
 
 		let mut info = EnvInfo::default();
 
-		// 100 > 10
+		// 200 (wasmDisableTransition) > 100 > 10 (wasmActivationTransition)
 		info.number = 100;
 
 		// Network with wasm activated at block 10
@@ -2301,8 +2301,23 @@ mod tests {
 		// Transaction successfully returned sender
 		assert_eq!(output[..], sender[..]);
 
-		// 1 < 10
+		// 1 < 10 (wasmActivationTransition)
 		info.number = 1;
+
+		let mut output = [0u8; 20];
+		let FinalizationResult { gas_left: result, return_data, .. } = {
+			let schedule = machine.schedule(info.number);
+			let mut ex = Executive::new(&mut state, &info, &machine, &schedule);
+			ex.call(params.clone(), &mut Substate::new(), &mut NoopTracer, &mut NoopVMTracer).unwrap()
+		};
+		(&mut output[..((cmp::min(20, return_data.len())))]).copy_from_slice(&return_data[..(cmp::min(20, return_data.len()))]);
+
+		assert_eq!(result, U256::from(20025));
+		// Since transaction errored due to wasm was not activated, result is just empty
+		assert_eq!(output[..], [0u8; 20][..]);
+
+		// 200 == wasmDisableTransition
+		info.number = 200;
 
 		let mut output = [0u8; 20];
 		let FinalizationResult { gas_left: result, return_data, .. } = {
@@ -2313,7 +2328,7 @@ mod tests {
 		(&mut output[..((cmp::min(20, return_data.len())))]).copy_from_slice(&return_data[..(cmp::min(20, return_data.len()))]);
 
 		assert_eq!(result, U256::from(20025));
-		// Since transaction errored due to wasm was not activated, result is just empty
+		// Since transaction errored due to wasm was deactivated, result is just empty
 		assert_eq!(output[..], [0u8; 20][..]);
 	}
 }

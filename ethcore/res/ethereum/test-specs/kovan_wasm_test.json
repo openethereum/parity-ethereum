@@ -42,7 +42,8 @@
 		"eip211Transition": 5067000,
 		"eip214Transition": 5067000,
 		"eip658Transition": 5067000,
-		"wasmActivationTransition": 10
+		"wasmActivationTransition": 10,
+		"wasmDisableTransition": 200
 	},
 	"genesis": {
 		"seal": {
