@@ -2862,7 +2862,7 @@ checksum = "2839e79665f131bdb5782e51f2c6c9599c133c6098982a54c794358bf432529c"
 
 [[package]]
 name = "openethereum"
-version = "3.0.1"
+version = "3.1.0-rc1"
 dependencies = [
  "ansi_term 0.10.2",
  "atty",
@@ -3227,7 +3227,7 @@ dependencies = [
 
 [[package]]
 name = "parity-version"
-version = "2.5.13"
+version = "3.1.0-rc1"
 dependencies = [
  "parity-bytes",
  "rlp 0.3.0",
