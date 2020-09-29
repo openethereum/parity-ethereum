@@ -10,6 +10,7 @@ on:
 # Global vars
 env:
   AWS_REGION:                   "us-east-1"
+  AWS_S3_ARTIFACTS_BUCKET:      "openethereum-releases"
 
 jobs:
   build:
@@ -17,7 +18,6 @@ jobs:
     env:
       SCCACHE_CACHE_SIZE:       "1G"
       SCCACHE_IDLE_TIMEOUT:     0
-      AWS_S3_ARTIFACTS_BUCKET:  "openethereum-releases"
     strategy:
       matrix:
         platform:
