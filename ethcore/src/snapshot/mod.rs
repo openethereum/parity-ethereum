@@ -17,7 +17,7 @@
 //! Snapshot creation, restoration, and network service.
 //!
 //! Documentation of the format can be found at
-//! https://openethereum.github.io/wiki/Warp-Sync-Snapshot-Format
+//! https://openethereum.github.io/Warp-Sync-Snapshot-Format
 
 use hash::{keccak, KECCAK_EMPTY, KECCAK_NULL_RLP};
 use std::{

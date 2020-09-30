@@ -46,7 +46,7 @@ OpenEthereum's goal is to be the fastest, lightest, and most secure Ethereum cli
 
 By default, OpenEthereum runs a JSON-RPC HTTP server on port `:8545` and a Web-Sockets server on port `:8546`. This is fully configurable and supports a number of APIs.
 
-If you run into problems while using OpenEthereum, check out the [old wiki for documentation](https://openethereum.github.io/wiki/), feel free to [file an issue in this repository](https://github.com/openethereum/openethereum/issues/new), or hop on our [Discord](https://discord.io/openethereum) chat room to ask a question. We are glad to help!
+If you run into problems while using OpenEthereum, check out the [old wiki for documentation](https://openethereum.github.io/), feel free to [file an issue in this repository](https://github.com/openethereum/openethereum/issues/new), or hop on our [Discord](https://discord.io/openethereum) chat room to ask a question. We are glad to help!
 
 You can download OpenEthereum's latest release at [the releases page](https://github.com/openethereum/openethereum/releases) or follow the instructions below to build from source. Read the [CHANGELOG.md](CHANGELOG.md) for a list of all changes between different versions.
 
@@ -135,7 +135,7 @@ To start OpenEthereum as a regular user using `systemd` init:
 1. Copy `./scripts/openethereum.service` to your
 `systemd` user directory (usually `~/.config/systemd/user`).
 2. Copy release to bin folder, write `sudo install ./target/release/openethereum /usr/bin/openethereum`
-3. To configure OpenEthereum, see [our old wiki](https://openethereum.github.io/wiki/Configuring-OpenEthereum) for details.
+3. To configure OpenEthereum, see [our wiki](https://openethereum.github.io/Configuring-OpenEthereum) for details.
 
 ## 4. Testing <a id="chapter-004"></a>
 
@@ -157,7 +157,7 @@ You can show your logs in the test output by passing `--nocapture` (i.e. `cargo 
 
 ## 5. Documentation <a id="chapter-005"></a>
 
-Be sure to [check out our old wiki](https://openethereum.github.io/wiki/) for more information.
+Be sure to [check out our wiki](https://openethereum.github.io/) for more information.
 
 ### Viewing documentation for OpenEthereum packages
 

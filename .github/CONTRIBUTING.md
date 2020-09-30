@@ -2,7 +2,7 @@
 
 ## Do you have a question?
 
-Check out our [Basic Usage](https://openethereum.github.io/wiki/Basic-Usage), [Configuration](https://openethereum.github.io/wiki/Configuring-OpenEthereum), and [FAQ](https://openethereum.github.io/wiki/FAQ) articles on our [wiki](https://openethereum.github.io/wiki)!
+Check out our [Beginner Introduction](https://openethereum.github.io/Beginner-Introduction), [Configuration](https://openethereum.github.io//Configuring-OpenEthereum), and [FAQ](https://openethereum.github.io/FAQ) articles on our [wiki](https://openethereum.github.io/)!
 
 See also frequently asked questions [tagged with `parity`](https://ethereum.stackexchange.com/questions/tagged/parity?sort=votes&pageSize=50) on Stack Exchange.
 
@@ -35,7 +35,7 @@ There are a few basic ground-rules for contributors (including the maintainer(s)
 * **No pushing directly to the master branch**.
 * **All modifications** must be made in a **pull-request** to solicit feedback from other contributors.
 * Pull-requests cannot be merged before CI runs green and two reviewers have given their approval.
-* Contributors should adhere to the [Parity Ethereum Style Guide](https://openethereum.github.io/wiki/Parity-Ethereum-Style-Guide).
+* All code changed should be formated by running `cargo fmt -- --config=merge_imports=true`
 
 ### Recommendations
 

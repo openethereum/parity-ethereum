@@ -143,7 +143,7 @@ mod tests {
                 "\
 				OPTIONS / HTTP/1.1\r\n\
 				Host: {}\r\n\
-				Origin: http://openethereum.github.io/wiki/\r\n\
+				Origin: http://openethereum.github.io\r\n\
 				Content-Length: 0\r\n\
 				Content-Type: application/json\r\n\
 				Connection: close\r\n\
