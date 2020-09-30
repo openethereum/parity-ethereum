@@ -59,6 +59,7 @@ impl std::ops::AddAssign for TestResult {
     }
 }
 
+/// An executor of ethereum/json tests
 pub struct TestRunner(EthereumTestSuite);
 
 impl TestRunner {

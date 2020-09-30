@@ -19,11 +19,13 @@
 mod chain;
 mod difficulty;
 mod executive;
-pub mod runner;
 mod state;
 mod test_common;
 mod transaction;
 mod trie;
+
+/// executor of ethereum/json tests
+pub mod runner;
 
 pub use self::{
     executive::json_executive_test,

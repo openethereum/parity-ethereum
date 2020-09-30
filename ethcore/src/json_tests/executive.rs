@@ -240,6 +240,7 @@ where
     }
 }
 
+/// run an json executive test
 pub fn json_executive_test<H: FnMut(&str, HookType)>(
     path: &Path,
     json_data: &[u8],

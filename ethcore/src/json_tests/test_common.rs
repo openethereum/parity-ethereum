@@ -27,6 +27,7 @@ pub enum HookType {
     OnStop,
 }
 
+/// find all json files recursively from a path
 pub fn find_json_files_recursive(path: &PathBuf) -> Vec<PathBuf> {
     WalkDir::new(path)
         .into_iter()
@@ -36,6 +37,7 @@ pub fn find_json_files_recursive(path: &PathBuf) -> Vec<PathBuf> {
         .collect::<Vec<PathBuf>>()
 }
 
+/// check if the test is selected to execute via TEST_DEBUG environment variable
 pub fn debug_include_test(name: &str) -> bool {
     match std::env::var_os("TEST_DEBUG") {
         Some(s) => s.to_string_lossy().split_terminator(",").any(|expr| {
