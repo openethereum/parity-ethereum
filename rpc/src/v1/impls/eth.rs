@@ -244,6 +244,7 @@ where
 
             BlockNumberOrId::Number(num) => {
                 let id = match num {
+                    BlockNumber::Hash { hash, .. } => BlockId::Hash(hash),
                     BlockNumber::Latest => BlockId::Latest,
                     BlockNumber::Earliest => BlockId::Earliest,
                     BlockNumber::Num(n) => BlockId::Number(n),
@@ -470,6 +471,7 @@ where
     /// if no state found for the best pending block.
     fn get_state(&self, number: BlockNumber) -> StateOrBlock {
         match number {
+            BlockNumber::Hash { hash, .. } => BlockId::Hash(hash).into(),
             BlockNumber::Num(num) => BlockId::Number(num).into(),
             BlockNumber::Earliest => BlockId::Earliest.into(),
             BlockNumber::Latest => BlockId::Latest.into(),
@@ -540,6 +542,23 @@ where
         BlockNumber::Num(n) => BlockId::Number(n),
         BlockNumber::Latest => BlockId::Latest,
         BlockNumber::Earliest => BlockId::Earliest,
+        BlockNumber::Hash {
+            hash,
+            require_canonical,
+        } => {
+            // block check takes precedence over canon check.
+            match client.block_status(BlockId::Hash(hash.clone())) {
+                BlockStatus::InChain => {}
+                _ => return Err(errors::unknown_block()),
+            };
+
+            // TODO Check block hash canonical
+            //if require_canonical && !client.chain().is_canon(&hash) {
+            //    return Err(errors::invalid_input());
+            //}
+
+            return Ok(());
+        }
     };
 
     match client.block_status(id) {
@@ -689,6 +708,7 @@ where
 
         let num = num.unwrap_or_default();
         let id = match num {
+            BlockNumber::Hash { hash, .. } => BlockId::Hash(hash),
             BlockNumber::Num(n) => BlockId::Number(n),
             BlockNumber::Earliest => BlockId::Earliest,
             BlockNumber::Latest => BlockId::Latest,
@@ -894,6 +914,7 @@ where
         index: Index,
     ) -> BoxFuture<Option<Transaction>> {
         let block_id = match num {
+            BlockNumber::Hash { hash, .. } => PendingOrBlock::Block(BlockId::Hash(hash)),
             BlockNumber::Latest => PendingOrBlock::Block(BlockId::Latest),
             BlockNumber::Earliest => PendingOrBlock::Block(BlockId::Earliest),
             BlockNumber::Num(num) => PendingOrBlock::Block(BlockId::Number(num)),
@@ -943,6 +964,10 @@ where
         index: Index,
     ) -> BoxFuture<Option<RichBlock>> {
         let id = match num {
+            BlockNumber::Hash { hash, .. } => PendingUncleId {
+                id: PendingOrBlock::Block(BlockId::Hash(hash)),
+                position: index.value(),
+            },
             BlockNumber::Latest => PendingUncleId {
                 id: PendingOrBlock::Block(BlockId::Latest),
                 position: index.value(),
@@ -1094,6 +1119,7 @@ where
             self.pending_state_and_header_with_fallback()
         } else {
             let id = match num {
+                BlockNumber::Hash { hash, .. } => BlockId::Hash(hash),
                 BlockNumber::Num(num) => BlockId::Number(num),
                 BlockNumber::Earliest => BlockId::Earliest,
                 BlockNumber::Latest => BlockId::Latest,
@@ -1134,6 +1160,7 @@ where
             self.pending_state_and_header_with_fallback()
         } else {
             let id = match num {
+                BlockNumber::Hash { hash, .. } => BlockId::Hash(hash),
                 BlockNumber::Num(num) => BlockId::Number(num),
                 BlockNumber::Earliest => BlockId::Earliest,
                 BlockNumber::Latest => BlockId::Latest,
