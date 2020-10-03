@@ -54,6 +54,10 @@ pub trait Eth {
 	#[rpc(name = "eth_chainId")]
 	fn chain_id(&self) -> Result<Option<U64>>;
 
+	/// Returns native coin symbol.
+	#[rpc(name = "eth_symbol")]
+	fn symbol(&self) -> Result<String>;
+
 	/// Returns current gas_price.
 	#[rpc(name = "eth_gasPrice")]
 	fn gas_price(&self) -> BoxFuture<U256>;

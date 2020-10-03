@@ -266,6 +266,11 @@ where
 		Ok(self.client.signing_chain_id().map(U64::from))
 	}
 
+	fn symbol(&self) -> Result<String> {
+		// TODO: symbol should be configurable
+		Ok("ETH".to_string())
+	}
+
 	fn hashrate(&self) -> Result<U256> {
 		Ok(Default::default())
 	}
