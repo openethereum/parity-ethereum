@@ -248,18 +248,26 @@ impl Step {
 		})
 	}
 
+	/// Convert a given step number to the corresponding expected time
+	fn step_to_time(&self, step: u64) -> Option<u64> {
+		let StepDurationInfo { transition_step, transition_timestamp, step_duration } =
+			self.durations.iter()
+			.take_while(|info| info.transition_step < step)
+			.last()
+			.expect("durations cannot be empty.")
+			.clone();
+
+		let time = transition_timestamp
+			.checked_add(step.checked_sub(transition_step)?.checked_mul(step_duration)?)?;
+		Some(time)
+	}
+
+
 	/// Finds the remaining duration of the current step. Returns `None` if there was a counter
 	/// under- or overflow.
 	fn opt_duration_remaining(&self) -> Option<Duration> {
 		let next_step = self.load().checked_add(1)?;
-		let StepDurationInfo { transition_step, transition_timestamp, step_duration } =
-			self.durations.iter()
-			.take_while(|info| info.transition_step < next_step)
-			.last()
-			.expect("durations cannot be empty")
-			.clone();
-		let next_time = transition_timestamp
-			.checked_add(next_step.checked_sub(transition_step)?.checked_mul(step_duration)?)?;
+		let next_time = self.step_to_time(next_step)?;
 		Some(Duration::from_secs(next_time.saturating_sub(unix_now().as_secs())))
 	}
 
@@ -318,13 +326,12 @@ impl Step {
 			Err(None)
 		// wait a bit for blocks in near future
 		} else if given > current {
-			let d = self.durations.iter().take_while(|info| info.transition_step <= current).last()
-				.expect("Duration map has at least a 0 entry.")
-				.step_duration;
+			let current_time = self.step_to_time(current).ok_or(None)?;
+			let given_time = self.step_to_time(given).ok_or(None)?;
 			Err(Some(OutOfBounds {
 				min: None,
-				max: Some(d * current),
-				found: d * given,
+				max: Some(current_time),
+				found: given_time,
 			}))
 		} else {
 			Ok(())

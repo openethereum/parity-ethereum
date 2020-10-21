@@ -374,10 +374,9 @@ fn verify_parent(header: &Header, parent: &Header, engine: &dyn Engine) -> Resul
 			"Parent hash should already have been verified; qed");
 
 	if !engine.is_timestamp_valid(header.timestamp(), parent.timestamp()) {
-		let now = SystemTime::now();
-		let min = CheckedSystemTime::checked_add(now, Duration::from_secs(parent.timestamp().saturating_add(1)))
+		let min = CheckedSystemTime::checked_add(UNIX_EPOCH, Duration::from_secs(parent.timestamp().saturating_add(1)))
 			.ok_or(BlockError::TimestampOverflow)?;
-		let found = CheckedSystemTime::checked_add(now, Duration::from_secs(header.timestamp()))
+		let found = CheckedSystemTime::checked_add(UNIX_EPOCH, Duration::from_secs(header.timestamp()))
 			.ok_or(BlockError::TimestampOverflow)?;
 		return Err(From::from(BlockError::InvalidTimestamp(OutOfBounds { max: None, min: Some(min), found }.into())))
 	}
