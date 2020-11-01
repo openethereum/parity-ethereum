@@ -921,11 +921,11 @@ usage! {
 		["Whisper Options"]
 			FLAG flag_whisper: (bool) = false, or |c: &Config| c.whisper.as_ref()?.enabled,
 			"--whisper",
-			"Does nothing. Whisper has been moved to https://github.com/paritytech/whisper",
+			"Does nothing. Whisper has been moved to https://github.com/openethereum/whisper",
 
 			ARG arg_whisper_pool_size: (Option<usize>) = None, or |c: &Config| c.whisper.as_ref()?.pool_size.clone(),
 			"--whisper-pool-size=[MB]",
-			"Does nothing. Whisper has been moved to https://github.com/paritytech/whisper",
+			"Does nothing. Whisper has been moved to https://github.com/openethereum/whisper",
 
 		["Legacy Options"]
 			// Options that are hidden from config, but are still unique for its functionality.
